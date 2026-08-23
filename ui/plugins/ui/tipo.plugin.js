@@ -113,8 +113,9 @@
                     <textarea id="${ID_PREFIX}-tags" rows="4" placeholder="1girl, looking at viewer, ..."></textarea>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <label style="font-size: 12px;">Natural Language Prompt</label>
+                    <label style="font-size: 12px;">TIPO Natural Language Prompt</label>
                     <textarea id="${ID_PREFIX}-nl" rows="4" placeholder="Describe the scene in sentences"></textarea>
+                    <small id="${ID_PREFIX}-nl-info" style="opacity:0.75;">Used by native TIPO models as short/long text conditioning.</small>
                 </div>
             </div>
             <div style="margin-top: 10px; display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr;">
@@ -208,6 +209,7 @@
 
         const tagsEl = container.querySelector(`#${ID_PREFIX}-tags`);
         const nlEl = container.querySelector(`#${ID_PREFIX}-nl`);
+        const nlInfoEl = container.querySelector(`#${ID_PREFIX}-nl-info`);
         const banEl = container.querySelector(`#${ID_PREFIX}-ban`);
         const modelEl = container.querySelector(`#${ID_PREFIX}-model`);
         const deviceEl = container.querySelector(`#${ID_PREFIX}-device`);
@@ -263,10 +265,29 @@
 
         let modelMetadata = {};
 
+        function getSelectedProtocol() {
+            const metadata = modelMetadata[modelEl.value];
+            return metadata && !metadata.error ? (metadata.protocol || "tipo") : "tipo";
+        }
+
+        function updateProtocolFields() {
+            const supportsNaturalLanguage = getSelectedProtocol() === "tipo";
+            nlEl.disabled = !supportsNaturalLanguage;
+            nlLengthEl.disabled = !supportsNaturalLanguage;
+            nlEl.title = supportsNaturalLanguage
+                ? "Used by TIPO for sentence-to-tag and tag-to-sentence generation."
+                : "DanTagGen accepts tag conditioning only.";
+            nlLengthEl.title = nlEl.title;
+            nlInfoEl.textContent = supportsNaturalLanguage
+                ? "Used by native TIPO models as short/long text conditioning."
+                : "Unavailable for DanTagGen, which accepts tag conditioning only.";
+        }
+
         function applyModelSidecar() {
             const metadata = modelMetadata[modelEl.value];
             if (!metadata || metadata.error) {
                 modelInfoEl.textContent = metadata && metadata.error ? metadata.error : "No sidecar; inferred defaults";
+                updateProtocolFields();
                 return;
             }
             tagLengthEl.value = metadata.tag_length || DEFAULTS.tagLength;
@@ -278,6 +299,7 @@
             formatEl.value = metadata.format || DEFAULT_FORMAT;
             const sidecarLabel = metadata.sidecar ? ` · ${metadata.sidecar}` : " · inferred";
             modelInfoEl.textContent = `${metadata.protocol || "tipo"}${sidecarLabel}`;
+            updateProtocolFields();
             updateSettings();
         }
 
@@ -343,7 +365,7 @@
             const payload = {
                 tipo_model: modelEl.value,
                 tags: tagsEl.value,
-                nl_prompt: nlEl.value,
+                nl_prompt: getSelectedProtocol() === "tipo" ? nlEl.value : "",
                 ban_tags: banEl.value,
                 format: formatEl.value,
                 seed: parseInt(seedEl.value || "-1", 10),

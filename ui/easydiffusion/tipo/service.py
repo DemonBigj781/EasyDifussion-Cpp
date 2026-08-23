@@ -441,6 +441,12 @@ def generate(req: GenerateRequest):
         nl_prompt += part
         if strength != 1:
             strength_map_nl.append((part, strength))
+    if settings["protocol"] != "tipo" and nl_prompt.strip():
+        _logger.warning(
+            "Ignoring Natural Language Prompt because DanTagGen accepts tag conditioning only."
+        )
+        nl_prompt = ""
+        strength_map_nl = []
     black_list = [tag.strip() for tag in req.ban_tags.split(",") if tag.strip()]
 
     all_tags = []
