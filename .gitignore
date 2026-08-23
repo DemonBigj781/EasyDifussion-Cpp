@@ -8,6 +8,7 @@
 # Generated images, caches, logs, and temporary state
 /bucket/
 /tmp/
+/scripts/install_status.txt
 **/__pycache__/
 *.py[cod]
 *.log
