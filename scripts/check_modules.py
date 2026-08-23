@@ -1,7 +1,7 @@
 """
 This script checks and installs the required modules.
 
-This script runs inside the legacy "stable-diffusion" folder
+This script runs from the Easy Diffusion installation root.
 
 TODO - Maybe replace the bulk of this script with a call to `pip install -f requirements.txt`, with
 a custom index URL depending on the platform.
@@ -373,8 +373,6 @@ def launch_uvicorn():
             else:
                 bind_ip = "0.0.0.0"
             print("Set bind_ip to ", bind_ip)
-
-    os.chdir("stable-diffusion")
 
     print("\nLaunching uvicorn\n")
 
