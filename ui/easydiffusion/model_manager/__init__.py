@@ -1,7 +1,5 @@
 import os
-import shutil
 from glob import glob
-import traceback
 from typing import Union
 from os import path
 
@@ -86,8 +84,6 @@ known_models = {}
 
 def init():
     make_model_folders()
-    migrate_legacy_model_location()  # if necessary
-    download_default_models_if_necessary()
 
 
 def load_default_models(context: Context):
@@ -293,18 +289,6 @@ def fail_if_models_did_not_load(context: Context):
             raise Exception(f"Could not load the {model_type} model! Reason: " + e)
 
 
-def download_default_models_if_necessary():
-    for model_type, models in DEFAULT_MODELS.items():
-        for model in models:
-            try:
-                download_if_necessary(model_type, model["file_name"], model["model_id"])
-            except:
-                traceback.print_exc()
-                app.fail_and_die(fail_type="model_download", data=model_type)
-
-        print(model_type, "model(s) found.")
-
-
 def download_if_necessary(model_type: str, file_name: str, model_id: str, skip_if_others_exist=True):
     from easydiffusion.backend_manager import backend
 
@@ -331,18 +315,6 @@ def download_if_necessary(model_type: str, file_name: str, model_id: str, skip_i
     download_model(model_type, model_id, download_base_dir=app.MODELS_DIR, download_config_if_available=False)
 
     backend.refresh_models()
-
-
-def migrate_legacy_model_location():
-    'Move the models inside the legacy "stable-diffusion" folder, to their respective folders'
-
-    for model_type, models in DEFAULT_MODELS.items():
-        for model in models:
-            file_name = model["file_name"]
-            legacy_path = os.path.join(app.SD_DIR, file_name)
-            if os.path.exists(legacy_path):
-                model_dir = get_model_dirs(model_type)[0]
-                shutil.move(legacy_path, os.path.join(model_dir, file_name))
 
 
 def any_model_exists(model_type: str) -> bool:

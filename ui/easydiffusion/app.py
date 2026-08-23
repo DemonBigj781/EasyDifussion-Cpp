@@ -30,11 +30,11 @@ logging.basicConfig(
     handlers=[RichHandler(markup=True, rich_tracebacks=False, show_time=False, show_level=False)],
 )
 
-SD_DIR = os.getcwd()
-
-ROOT_DIR = os.path.abspath(os.path.join(SD_DIR, ".."))
-
-SD_UI_DIR = os.getenv("SD_UI_PATH", None)
+SD_UI_DIR = os.path.abspath(os.getenv("SD_UI_PATH") or os.path.join(os.getcwd(), "ui"))
+ROOT_DIR = os.path.abspath(os.getenv("SD_UI_ROOT") or os.path.dirname(SD_UI_DIR))
+# Retained for server status compatibility. The application no longer runs
+# inside a separate stable-diffusion working directory.
+SD_DIR = ROOT_DIR
 
 CONFIG_DIR = os.path.abspath(os.path.join(ROOT_DIR, "scripts"))
 BUCKET_DIR = os.path.abspath(os.path.join(ROOT_DIR, "bucket"))
