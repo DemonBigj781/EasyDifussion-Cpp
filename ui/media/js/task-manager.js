@@ -69,6 +69,10 @@ async function onTaskStart(task) {
 
             task.reqBody.control_image = processedImage
             task.reqBody.control_image_preprocessed = true
+            // Older already-running backends do not know the flag above. The
+            // image has already been processed, so do not ask them to run the
+            // same preprocessor again for each render batch.
+            delete task.reqBody.control_filter_to_apply
 
             const controlImagePreview = task.taskConfig.querySelector(".controlnet-img-preview > img")
             if (controlImagePreview) controlImagePreview.src = processedImage
