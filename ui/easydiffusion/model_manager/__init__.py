@@ -403,13 +403,17 @@ def get_model_dirs(model_type: str, base_dir=None):
     if model_type in ALTERNATE_FOLDER_NAMES:
         alt_dir = ALTERNATE_FOLDER_NAMES[model_type]
         alt_dir = os.path.join(base_dir, alt_dir)
-        if os.path.exists(alt_dir) and os.path.isdir(alt_dir):
+        if (
+            os.path.exists(alt_dir)
+            and os.path.isdir(alt_dir)
+            and os.path.realpath(primary_dir) != os.path.realpath(alt_dir)
+        ):
             if model_type == "stable-diffusion":
                 # Prefer checkpoints/ directly. Do not depend on the removed
                 # stable-diffusion alias; retain a genuinely distinct legacy
                 # folder as a secondary lookup location only.
                 dirs = [alt_dir]
-                if os.path.exists(primary_dir) and os.path.realpath(primary_dir) != os.path.realpath(alt_dir):
+                if os.path.exists(primary_dir):
                     dirs.append(primary_dir)
             else:
                 dirs.append(alt_dir)
