@@ -19,13 +19,15 @@ import re
 import time
 import copy
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-from urllib.parse import urlencode, urlparse, urlunparse, parse_qs
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 from requests.exceptions import RequestException, Timeout, HTTPError
+from easydiffusion import app as easy_app
 
 PLUGIN_NAME = "civitai"
 PLUGIN_VERSION = "0.4.0"
@@ -33,9 +35,7 @@ PLUGIN_VERSION = "0.4.0"
 ALLOWED_SORT_MODELS = {"Highest Rated", "Most Downloaded", "Newest"}
 ALLOWED_SORT_IMAGES = {"Most Reactions", "Most Comments", "Newest"}
 
-# plugins/server/civitai/plugin_entry.py -> parents[3] is /easy-diffusion
-ROOT = Path(__file__).resolve().parents[3]
-MODELS_DIR = ROOT / "models"
+ROOT = Path(easy_app.ROOT_DIR)
 CONFIG_PATH = ROOT / "config.yaml"
 
 _CONFIG_KEY: Optional[str] = None
@@ -47,6 +47,30 @@ _BRIDGED_IMAGE_CACHE_TTL_SECONDS = 180
 _BRIDGED_IMAGE_CACHE_MAX_ENTRIES = 128
 _BRIDGED_IMAGE_CACHE: Dict[Tuple[Any, ...], Tuple[float, Dict[str, Any]]] = {}
 _BRIDGED_IMAGE_CACHE_LOCK = threading.Lock()
+_SEARCH_CONFIG_CACHE_TTL_SECONDS = 6 * 60 * 60
+_SEARCH_CONFIG_FAILURE_TTL_SECONDS = 10 * 60
+_SEARCH_CONFIG_CACHE: Optional[Tuple[float, Optional[Tuple[str, str, str]]]] = None
+_SEARCH_CONFIG_LOCK = threading.Lock()
+
+_PUBLIC_PAGE_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "Chrome/139.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.8",
+}
+
+_SECRET_QUERY_RE = re.compile(
+    r"(?i)([?&](?:token|apiKey|api_key|clientKey|client_key)=)[^&\s'\"]+"
+)
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)(\b(?:token|apiKey|api_key|clientKey|client_key)\s*[:=]\s*)[^&\s,'\"]+"
+)
+_BEARER_RE = re.compile(r"(?i)(Authorization:\s*Bearer\s+)[^\s,;]+")
 
 _URN_RE = re.compile(
     r"^urn:air:(?P<base>[^:]+):(?P<mtype>[^:]+):civitai:(?P<model>\d+)(?:@(?P<ver>\d+))?$",
@@ -109,8 +133,166 @@ def _env_key() -> Optional[str]:
     )
 
 
+def _sanitize_error(value: Any) -> str:
+    message = str(value)
+    message = _SECRET_QUERY_RE.sub(r"\1<redacted>", message)
+    message = _SECRET_ASSIGNMENT_RE.sub(r"\1<redacted>", message)
+    return _BEARER_RE.sub(r"\1<redacted>", message)
+
+
 def _log(msg: str) -> None:
-    print(f"[CivitAI] {msg}", flush=True)
+    print(f"[CivitAI] {_sanitize_error(msg)}", flush=True)
+
+
+def _models_dir() -> Path:
+    return Path(easy_app.MODELS_DIR).expanduser().resolve()
+
+
+def _extract_search_config(source: str) -> Tuple[Optional[str], Optional[str]]:
+    host_match = re.search(
+        r"NEXT_PUBLIC_SEARCH_HOST\s*:\s*[\"']([^\"']+)[\"']",
+        source,
+    )
+    key_match = re.search(
+        r"NEXT_PUBLIC_SEARCH_CLIENT_KEY\s*:\s*[\"']([^\"']+)[\"']",
+        source,
+    )
+    return (
+        host_match.group(1).strip() if host_match else None,
+        key_match.group(1).strip() if key_match else None,
+    )
+
+
+def _discover_search_config() -> Tuple[str, str, str]:
+    global _SEARCH_CONFIG_CACHE
+
+    configured_key = str(os.environ.get("CIVITAI_SEARCH_KEY") or "").strip()
+    configured_host = str(
+        os.environ.get("CIVITAI_SEARCH_HOST") or "https://search-new.civitai.com"
+    ).strip().rstrip("/")
+    configured_gallery = str(
+        os.environ.get("CIVITAI_GALLERY_URL") or "https://civitai.red"
+    ).strip().rstrip("/")
+    if configured_key:
+        return configured_host, configured_key, configured_gallery
+
+    now = time.time()
+    with _SEARCH_CONFIG_LOCK:
+        cached = _SEARCH_CONFIG_CACHE
+        if cached:
+            cached_at, config = cached
+            ttl = _SEARCH_CONFIG_CACHE_TTL_SECONDS if config else _SEARCH_CONFIG_FAILURE_TTL_SECONDS
+            if now - cached_at < ttl:
+                if config:
+                    return config
+                raise RuntimeError("CivitAI website search configuration is temporarily unavailable")
+
+        preferred_gallery = str(
+            os.environ.get("CIVITAI_GALLERY_URL") or "https://civitai.red"
+        ).strip().rstrip("/")
+        gallery_sources = list(
+            dict.fromkeys(
+                source
+                for source in (
+                    preferred_gallery,
+                    "https://civitai.red",
+                    "https://civitai.com",
+                )
+                if source
+            )
+        )
+        host = key = config_source = None
+
+        def fetch_script(script_url: str) -> str:
+            chunk = requests.get(
+                script_url,
+                headers={
+                    **_PUBLIC_PAGE_HEADERS,
+                    "Accept": "*/*",
+                    "Referer": f"{urlparse(script_url).scheme}://{urlparse(script_url).netloc}/images",
+                },
+                timeout=15,
+            )
+            chunk.raise_for_status()
+            return chunk.text
+
+        for gallery_origin_candidate in gallery_sources:
+            gallery_url = f"{gallery_origin_candidate}/images"
+            try:
+                response = requests.get(
+                    gallery_url,
+                    headers=_PUBLIC_PAGE_HEADERS,
+                    timeout=20,
+                )
+                response.raise_for_status()
+            except Exception as exc:
+                _log(
+                    f"Unable to inspect public search configuration at "
+                    f"{gallery_origin_candidate}: {exc}"
+                )
+                continue
+
+            page_source = response.text
+            host, key = _extract_search_config(page_source)
+            page_host = urlparse(gallery_origin_candidate).hostname
+            script_paths = list(
+                dict.fromkeys(
+                    re.findall(
+                        r"<script[^>]+src=[\"']([^\"']+\.js)[\"']",
+                        page_source,
+                    )
+                )
+            )
+            script_urls = []
+            for script_path in script_paths:
+                script_url = urljoin(gallery_url, script_path)
+                parsed = urlparse(script_url)
+                if parsed.scheme == "https" and parsed.hostname == page_host:
+                    script_urls.append(script_url)
+
+            if not host or not key:
+                with ThreadPoolExecutor(
+                    max_workers=6,
+                    thread_name_prefix="CivitAI-config",
+                ) as pool:
+                    futures = [pool.submit(fetch_script, url) for url in script_urls]
+                    for future in as_completed(futures):
+                        try:
+                            chunk_host, chunk_key = _extract_search_config(future.result())
+                        except Exception:
+                            continue
+                        host = host or chunk_host
+                        key = key or chunk_key
+                        if host and key:
+                            for pending in futures:
+                                pending.cancel()
+                            break
+            if host and key:
+                config_source = gallery_origin_candidate
+                break
+
+        if not host or not key or not config_source:
+            _SEARCH_CONFIG_CACHE = (now, None)
+            raise RuntimeError("CivitAI websites did not publish a usable search configuration")
+
+        parsed_host = urlparse(host)
+        if parsed_host.scheme != "https" or not parsed_host.hostname or not key.strip():
+            _SEARCH_CONFIG_CACHE = (now, None)
+            raise RuntimeError("CivitAI website published an invalid search configuration")
+
+        # The .red gallery exposes more of the image surface. Its Cloudflare
+        # policy may reject requests-based discovery even though browser access
+        # works, so its public search config can be recovered from .com while
+        # keeping .red as the actual gallery request origin.
+        gallery_origin = preferred_gallery
+        parsed_gallery = urlparse(gallery_origin)
+        if parsed_gallery.scheme != "https" or not parsed_gallery.hostname:
+            _SEARCH_CONFIG_CACHE = (now, None)
+            raise RuntimeError("CivitAI website published an invalid gallery origin")
+
+        config = (host.rstrip("/"), key.strip(), gallery_origin.rstrip("/"))
+        _SEARCH_CONFIG_CACHE = (now, config)
+        return config
 
 
 def _safe_slug(text: str, fallback: str = "model") -> str:
@@ -546,8 +728,9 @@ def _global_image_urls(hit: Dict[str, Any]) -> Tuple[Optional[str], Optional[str
     media_id = str(hit.get("url") or "").strip()
     if not media_id:
         return (None, None)
+    published_thumbnail = str(hit.get("thumbnailUrl") or "").strip() or None
     if media_id.startswith(("http://", "https://")):
-        return (media_id, media_id)
+        return (media_id, published_thumbnail or media_id)
 
     safe_media_id = re.sub(r"[^A-Za-z0-9-]", "", media_id)
     if not safe_media_id:
@@ -569,17 +752,17 @@ def _global_image_urls(hit: Dict[str, Any]) -> Tuple[Optional[str], Optional[str
     filename = f"{safe_media_id}.{extension}"
     original_url = f"{base}/original=true/{filename}"
     if mime_type.startswith("video/"):
-        return (original_url, original_url)
+        return (original_url, published_thumbnail or original_url)
     return (
         original_url,
-        f"{base}/width=450/{filename}",
+        published_thumbnail or f"{base}/width=450/{filename}",
     )
 
 
 def _global_images_civitai(
     *,
     query: str,
-    search_key: str,
+    search_key: Optional[str] = None,
     limit: int = 51,
     page: int = 1,
     nsfw: Optional[bool] = None,
@@ -594,8 +777,17 @@ def _global_images_civitai(
     created_to: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean_search_key = str(search_key or "").strip()
-    if not clean_search_key:
-        raise ValueError("Global image search key is required")
+    if clean_search_key:
+        search_host = str(
+            os.environ.get("CIVITAI_SEARCH_HOST")
+            or "https://search-new.civitai.com"
+        ).strip().rstrip("/")
+        gallery_origin = str(
+            os.environ.get("CIVITAI_GALLERY_URL")
+            or "https://civitai.red"
+        ).strip().rstrip("/")
+    else:
+        search_host, clean_search_key, gallery_origin = _discover_search_config()
 
     limit = max(1, min(int(limit or 51), 100))
     page = max(1, int(page or 1))
@@ -615,26 +807,26 @@ def _global_images_civitai(
     exact_filter("type", media_type)
     exact_filter("user.username", username)
 
-    def unix_seconds(value: Optional[str]) -> Optional[int]:
+    def unix_milliseconds(value: Optional[str]) -> Optional[int]:
         try:
             timestamp = float(str(value or "").strip())
         except (TypeError, ValueError):
             return None
         if timestamp <= 0:
             return None
-        if timestamp > 10_000_000_000:
-            timestamp /= 1000
+        if timestamp < 10_000_000_000:
+            timestamp *= 1000
         return int(timestamp)
 
-    created_from_unix = unix_seconds(created_from)
-    created_to_unix = unix_seconds(created_to)
+    created_from_unix = unix_milliseconds(created_from)
+    created_to_unix = unix_milliseconds(created_to)
     if created_from_unix is not None:
         filters.append(f"createdAtUnix >= {created_from_unix}")
     if created_to_unix is not None:
         filters.append(f"createdAtUnix <= {created_to_unix}")
 
     safety_filter = (
-        "(poi != true OR user.username = DemonBigj781) AND "
+        "(poi != true) AND "
         "(minor != true) AND "
         "(NOT (nsfwLevel IN [4, 8, 16, 32] AND baseModel IN "
         "['SD 3', 'SD 3.5', 'SD 3.5 Medium', 'SD 3.5 Large', "
@@ -676,14 +868,14 @@ def _global_images_civitai(
     }
     data = _request_with_retries(
         "POST",
-        "https://search-new.civitai.com/multi-search",
+        f"{search_host}/multi-search",
         api_key=clean_search_key,
         json_body=payload,
         extra_headers={
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "Origin": "https://civitai.red",
-            "Referer": "https://civitai.red/",
+            "Origin": gallery_origin,
+            "Referer": f"{gallery_origin}/images",
             "X-Meilisearch-Client": (
                 "Meilisearch instant-meilisearch (v0.13.5) ; "
                 "Meilisearch JavaScript (v0.34.0)"
@@ -702,20 +894,29 @@ def _global_images_civitai(
         items.append(
             {
                 "id": hit.get("id"),
+                "name": hit.get("name"),
                 "url": full_url,
                 "thumbnailUrl": thumbnail_url,
                 "hash": hit.get("hash"),
                 "width": hit.get("width"),
                 "height": hit.get("height"),
                 "nsfw": hit.get("nsfwLevel"),
+                "combinedNsfwLevel": hit.get("combinedNsfwLevel"),
                 "createdAt": hit.get("createdAt"),
                 "postId": hit.get("postId"),
+                "index": hit.get("index"),
                 "stats": hit.get("stats") or {},
                 "meta": hit.get("metadata") or {},
+                "prompt": hit.get("prompt"),
                 "username": user.get("username") if isinstance(user, dict) else None,
                 "mediaType": hit.get("type"),
                 "mimeType": hit.get("mimeType"),
                 "modelVersionId": hit.get("modelVersionId"),
+                "baseModel": hit.get("baseModel"),
+                "tagNames": hit.get("tagNames") or [],
+                "toolNames": hit.get("toolNames") or [],
+                "techniqueNames": hit.get("techniqueNames") or [],
+                "generationProcess": hit.get("generationProcess"),
             }
         )
 
@@ -737,6 +938,9 @@ def _global_images_civitai(
             "prevPage": page - 1 if page > 1 else None,
             "processingTimeMs": first.get("processingTimeMs"),
             "facets": first.get("facetDistribution") or {},
+            "searchBackend": "website-images_v6",
+            "searchIndex": "images_v6",
+            "gallerySource": gallery_origin,
         },
     }
 
@@ -1474,7 +1678,7 @@ def _pick_download(target: Dict[str, Any], file_override: Optional[Dict[str, Any
         standard = _lora_base_model_dir(base_model)
     else:
         standard = _base_model_dir(base_model)
-    dest_dir = MODELS_DIR / subdir / standard
+    dest_dir = _models_dir() / subdir / standard
     _ensure_dir(dest_dir)
 
     url = chosen_file.get("downloadUrl")
@@ -1487,6 +1691,34 @@ def _pick_download(target: Dict[str, Any], file_override: Optional[Dict[str, Any
     return url, fname, str(dest_dir)
 
 
+def _resolve_download_dir(dest_dir: str) -> Path:
+    """Resolve an install directory without allowing writes outside models_dir."""
+    models_root = _models_dir()
+    requested = Path(str(dest_dir or "")).expanduser()
+    if not requested.is_absolute():
+        requested = models_root / requested
+    resolved = requested.resolve()
+    try:
+        resolved.relative_to(models_root)
+    except ValueError as exc:
+        raise ValueError(
+            "Download destination must be inside the configured models directory"
+        ) from exc
+    return resolved
+
+
+def _validate_download_url(url: str) -> str:
+    parsed = urlparse(str(url or "").strip())
+    if parsed.scheme != "https" or parsed.hostname not in {
+        "civitai.com",
+        "www.civitai.com",
+        "civitai.red",
+        "www.civitai.red",
+    }:
+        raise ValueError("Download URL must use an official CivitAI HTTPS host")
+    return parsed.geturl()
+
+
 def _download_file(
     url: str,
     dest_dir: str,
@@ -1497,6 +1729,7 @@ def _download_file(
     headers: Dict[str, str] = {}
     clean_key = (api_key or "").strip()
 
+    url = _validate_download_url(url)
     parsed = urlparse(url)
     qs = parse_qs(parsed.query)
 
@@ -1506,45 +1739,69 @@ def _download_file(
         qs["token"] = [clean_key]
         url = urlunparse(parsed._replace(query=urlencode(qs, doseq=True)))
 
+    safe_filename = _safe_slug(
+        Path(str(filename or "model.safetensors")).name,
+        "model.safetensors",
+    )
+    resolved_dir = _resolve_download_dir(dest_dir)
+    _ensure_dir(resolved_dir)
+    dest_path = resolved_dir / safe_filename
+    temp_path = dest_path.with_name(f"{dest_path.name}.part")
+    resumed_bytes = temp_path.stat().st_size if temp_path.exists() else 0
+    if resumed_bytes:
+        headers["Range"] = f"bytes={resumed_bytes}-"
+
     with requests.get(url, headers=headers, stream=True, timeout=120) as r:
+        if r.status_code == 416 and resumed_bytes:
+            content_range = str(r.headers.get("content-range") or "")
+            total_match = re.search(r"\*/(\d+)$", content_range)
+            if total_match and int(total_match.group(1)) == resumed_bytes:
+                os.replace(temp_path, dest_path)
+                return str(dest_path), resumed_bytes
         r.raise_for_status()
+        is_resuming = resumed_bytes > 0 and r.status_code == 206
+        if resumed_bytes and not is_resuming:
+            resumed_bytes = 0
+
         total_bytes_header = r.headers.get("content-length")
         try:
-            total_bytes = int(total_bytes_header) if total_bytes_header else None
+            response_bytes = int(total_bytes_header) if total_bytes_header else None
         except (TypeError, ValueError):
-            total_bytes = None
+            response_bytes = None
+        total_bytes = (
+            resumed_bytes + response_bytes
+            if response_bytes is not None
+            else None
+        )
         cd = r.headers.get("content-disposition") or ""
         if "filename=" in cd:
             try:
                 fname_part = cd.split("filename=", 1)[1].strip().strip('"')
-                filename = _safe_slug(fname_part, filename)
+                response_filename = _safe_slug(
+                    Path(fname_part).name,
+                    safe_filename,
+                )
+                if not is_resuming and response_filename != safe_filename:
+                    dest_path = resolved_dir / response_filename
+                    temp_path = dest_path.with_name(f"{dest_path.name}.part")
             except Exception:
                 pass
 
-        dest_path = Path(dest_dir) / filename
-        _ensure_dir(dest_path.parent)
-        temp_path = dest_path.with_name(f"{dest_path.name}.part")
-        if temp_path.exists():
-            temp_path.unlink()
+        total = resumed_bytes
+        mode = "ab" if is_resuming else "wb"
+        with temp_path.open(mode) as fh:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                fh.write(chunk)
+                total += len(chunk)
+                if progress_callback:
+                    progress_callback(total, total_bytes)
 
-        total = 0
-        try:
-            with temp_path.open("wb") as fh:
-                for chunk in r.iter_content(chunk_size=1024 * 1024):
-                    if not chunk:
-                        continue
-                    fh.write(chunk)
-                    total += len(chunk)
-                    if progress_callback:
-                        progress_callback(total, total_bytes)
-
-            os.replace(temp_path, dest_path)
-        except Exception:
-            try:
-                if temp_path.exists():
-                    temp_path.unlink()
-            except Exception:
-                pass
-            raise
+        if total_bytes is not None and total != total_bytes:
+            raise IOError(
+                f"Incomplete download: received {total} of {total_bytes} bytes"
+            )
+        os.replace(temp_path, dest_path)
 
     return str(dest_path), total

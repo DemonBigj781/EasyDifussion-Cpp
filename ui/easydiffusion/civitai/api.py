@@ -1,47 +1,40 @@
-"""Standalone FastAPI app for CivitAI endpoints."""
+"""Native Easy Diffusion routes for CivitAI browsing and downloads."""
 from __future__ import annotations
 
-import logging
 import os
 import threading
 import time
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 
-from . import plugin_entry as civ
-from .cors import apply_cors
+from . import service as civ
+from easydiffusion.utils import log as _logger
 
-LOG_PATH = Path(__file__).resolve().parents[1] / "civitai_plugin.log"
-LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-_logger = logging.getLogger("civitai_plugin")
-if not _logger.handlers:
-    _logger.setLevel(logging.INFO)
-    handler = RotatingFileHandler(
-        LOG_PATH,
-        maxBytes=2 * 1024 * 1024,
-        backupCount=3,
-    )
-    formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    handler.setFormatter(formatter)
-    _logger.addHandler(handler)
-
-APP = FastAPI()
-apply_cors(APP)
+APP = APIRouter()
 
 _download_jobs: Dict[str, Dict[str, Any]] = {}
 _download_jobs_lock = threading.Lock()
 
 
+def _safe_error(error: Any) -> str:
+    return civ._sanitize_error(error)
+
+
 def _set_download_job(download_id: str, **fields: Any) -> Dict[str, Any]:
     with _download_jobs_lock:
+        if download_id not in _download_jobs and len(_download_jobs) >= 512:
+            completed = sorted(
+                (
+                    (key, value)
+                    for key, value in _download_jobs.items()
+                    if value.get("status") in {"completed", "failed"}
+                ),
+                key=lambda item: item[1].get("completedAt", 0),
+            )
+            for key, _ in completed[: max(1, len(_download_jobs) - 511)]:
+                _download_jobs.pop(key, None)
         job = _download_jobs.setdefault(download_id, {})
         job.update(fields)
         return dict(job)
@@ -121,7 +114,7 @@ def _download_worker(
         )
         _logger.info("POST /civitai/download -> 200 (%.1fms)", elapsed_ms)
     except Exception as exc:
-        message = str(exc)
+        message = _safe_error(exc)
         if isinstance(exc, OSError) and getattr(exc, "errno", None) == 5:
             message = "Input/output error while writing the downloaded file. Check the mounted drive and destination path."
         civ._log(f"download error: {exc}")
@@ -132,7 +125,7 @@ def _download_worker(
             error=message,
             completedAt=time.time(),
         )
-        _logger.error("POST /civitai/download -> 500 (%.1fms): %s", elapsed_ms, exc)
+        _logger.error("POST /civitai/download -> 500 (%.1fms): %s", elapsed_ms, message)
 
 
 def _resolve_key(request: Request, body: Optional[Dict[str, Any]] = None) -> Optional[str]:
@@ -149,7 +142,7 @@ def _resolve_key(request: Request, body: Optional[Dict[str, Any]] = None) -> Opt
         if bk:
             return bk
 
-    return request.query_params.get("apiKey")
+    return None
 
 
 def _resolve_search_key(request: Request) -> Optional[str]:
@@ -182,7 +175,7 @@ def _integer_csv(value: str) -> list[int]:
 
 @APP.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "mode": "built-in", "standalone_port": False}
 
 
 @APP.get("/civitai/me")
@@ -217,8 +210,9 @@ async def civitai_me(request: Request):
                 status_code=upstream_status,
                 detail="CivitAI API token was rejected.",
             )
-        _logger.error("GET /civitai/me -> 500 (%.1fms): %s", elapsed_ms, exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        message = _safe_error(exc)
+        _logger.error("GET /civitai/me -> 500 (%.1fms): %s", elapsed_ms, message)
+        raise HTTPException(status_code=500, detail=message)
 
 
 @APP.get("/civitai/tags")
@@ -236,8 +230,9 @@ async def civitai_tags(request: Request):
     except Exception as exc:
         civ._log(f"tags error: {exc}")
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        _logger.error("GET /civitai/tags -> 500 (%.1fms): %s", elapsed_ms, exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        message = _safe_error(exc)
+        _logger.error("GET /civitai/tags -> 500 (%.1fms): %s", elapsed_ms, message)
+        raise HTTPException(status_code=500, detail=message)
 
 
 @APP.get("/civitai/creators")
@@ -259,9 +254,9 @@ async def civitai_creators(request: Request):
         _logger.error(
             "GET /civitai/creators -> 500 (%.1fms): %s",
             elapsed_ms,
-            exc,
+            _safe_error(exc),
         )
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.get("/civitai/enums")
@@ -275,8 +270,9 @@ async def civitai_enums():
     except Exception as exc:
         civ._log(f"enums error: {exc}")
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        _logger.error("GET /civitai/enums -> 500 (%.1fms): %s", elapsed_ms, exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        message = _safe_error(exc)
+        _logger.error("GET /civitai/enums -> 500 (%.1fms): %s", elapsed_ms, message)
+        raise HTTPException(status_code=500, detail=message)
 
 
 @APP.get("/civitai/search")
@@ -333,8 +329,9 @@ async def civitai_search(request: Request):
     except Exception as exc:
         civ._log(f"search error: {exc}")
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        _logger.error("GET /civitai/search -> 500 (%.1fms): %s", elapsed_ms, exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        message = _safe_error(exc)
+        _logger.error("GET /civitai/search -> 500 (%.1fms): %s", elapsed_ms, message)
+        raise HTTPException(status_code=500, detail=message)
 
 
 @APP.get("/civitai/lookup/hash/{model_hash}")
@@ -346,9 +343,9 @@ async def civitai_lookup_hash(model_hash: str, request: Request):
         )
         return {"ok": True, "result": result}
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=_safe_error(exc))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.get("/civitai/lookup/mini/{model_version_id}")
@@ -360,7 +357,7 @@ async def civitai_lookup_mini(model_version_id: int, request: Request):
         )
         return {"ok": True, "result": result}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.post("/civitai/lookup/hashes")
@@ -379,9 +376,9 @@ async def civitai_lookup_hashes(request: Request):
         )
         return {"ok": True, "result": result}
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=_safe_error(exc))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.get("/civitai/collections")
@@ -397,7 +394,7 @@ async def civitai_collections(request: Request):
         )
         return {"ok": True, "result": result}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.get("/civitai/collections/{collection_id}")
@@ -409,7 +406,7 @@ async def civitai_collection(collection_id: int, request: Request):
         )
         return {"ok": True, "result": result}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.get("/civitai/permissions")
@@ -425,9 +422,9 @@ async def civitai_permissions(request: Request):
         )
         return {"ok": True, "result": result}
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=_safe_error(exc))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.get("/civitai/images")
@@ -484,8 +481,9 @@ async def civitai_images(request: Request):
     except Exception as exc:
         civ._log(f"images error: {exc}")
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        _logger.error("GET /civitai/images -> 500 (%.1fms): %s", elapsed_ms, exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        message = _safe_error(exc)
+        _logger.error("GET /civitai/images -> 500 (%.1fms): %s", elapsed_ms, message)
+        raise HTTPException(status_code=500, detail=message)
 
 
 @APP.get("/civitai/global-images")
@@ -494,29 +492,48 @@ async def civitai_global_images(request: Request):
     try:
         qp = request.query_params
         search_key = _resolve_search_key(request)
-        if not search_key:
-            raise HTTPException(
-                status_code=400,
-                detail="Global image search key is required.",
-            )
 
         created_from, created_to = _created_at_range(request)
-        result = civ._global_images_civitai(
-            query=qp.get("query") or qp.get("q") or "",
-            search_key=search_key,
-            limit=int(qp.get("limit", "51") or "51"),
-            page=max(1, int(qp.get("page", "1") or "1")),
-            nsfw=civ._to_bool(qp.get("nsfw")),
-            tag=qp.get("tag") or qp.get("tags"),
-            technique=qp.get("technique") or qp.get("techniques"),
-            tool=qp.get("tool") or qp.get("tools"),
-            aspect_ratio=qp.get("aspectRatio"),
-            base_model=qp.get("baseModel"),
-            media_type=qp.get("mediaType") or qp.get("type"),
-            username=qp.get("username") or qp.get("user") or qp.get("users"),
-            created_from=created_from,
-            created_to=created_to,
-        )
+        query = qp.get("query") or qp.get("q") or ""
+        limit = int(qp.get("limit", "51") or "51")
+        page = max(1, int(qp.get("page", "1") or "1"))
+        nsfw = civ._to_bool(qp.get("nsfw"))
+        username = qp.get("username") or qp.get("user") or qp.get("users")
+        try:
+            result = civ._global_images_civitai(
+                query=query,
+                search_key=search_key,
+                limit=limit,
+                page=page,
+                nsfw=nsfw,
+                tag=qp.get("tag") or qp.get("tags"),
+                technique=qp.get("technique") or qp.get("techniques"),
+                tool=qp.get("tool") or qp.get("tools"),
+                aspect_ratio=qp.get("aspectRatio"),
+                base_model=qp.get("baseModel"),
+                media_type=qp.get("mediaType") or qp.get("type"),
+                username=username,
+                created_from=created_from,
+                created_to=created_to,
+            )
+        except Exception as search_error:
+            _logger.warning(
+                "CivitAI images_v6 search unavailable; using public API fallback: %s",
+                _safe_error(search_error),
+            )
+            fallback_query = query or qp.get("tag") or qp.get("technique") or qp.get("tool") or ""
+            result = civ._images_civitai(
+                query=fallback_query,
+                api_key=_resolve_key(request),
+                limit=limit,
+                page=page,
+                nsfw=nsfw,
+                sort="Newest",
+                model_sort="Newest",
+                period=qp.get("period"),
+                username=username,
+            )
+            result.setdefault("metadata", {})["searchBackend"] = "public-api-fallback"
         elapsed_ms = (time.perf_counter() - start) * 1000.0
         _logger.info("GET /civitai/global-images -> 200 (%.1fms)", elapsed_ms)
         return result
@@ -528,9 +545,9 @@ async def civitai_global_images(request: Request):
         _logger.error(
             "GET /civitai/global-images -> 500 (%.1fms): %s",
             elapsed_ms,
-            exc,
+            _safe_error(exc),
         )
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
 @APP.post("/civitai/download")
@@ -574,8 +591,9 @@ async def civitai_download(request: Request):
         raise
     except Exception as exc:
         civ._log(f"download error: {exc}")
-        _logger.error("POST /civitai/download -> 500: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        message = _safe_error(exc)
+        _logger.error("POST /civitai/download -> 500: %s", message)
+        raise HTTPException(status_code=500, detail=message)
 
 
 @APP.get("/civitai/download/{download_id}")
@@ -586,4 +604,4 @@ async def civitai_download_status(download_id: str):
     return {"ok": True, "downloadId": download_id, **job}
 
 
-app = APP
+router = APP

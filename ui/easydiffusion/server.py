@@ -81,6 +81,10 @@ def init():
     mimetypes.add_type("text/css", ".css")
     gallery.migrate_legacy_settings()
 
+    from easydiffusion.civitai import router as civitai_router
+
+    server_api.include_router(civitai_router, prefix="/civitai-api")
+
     if os.path.isdir(app.CUSTOM_MODIFIERS_DIR):
         server_api.mount(
             "/media/modifier-thumbnails/custom",
