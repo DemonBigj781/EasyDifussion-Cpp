@@ -19,6 +19,8 @@ import re
 import threading
 
 os_name = platform.system()
+if os_name != "Linux":
+    raise SystemExit("This local Easy Diffusion fork currently supports Linux only.")
 
 modules_to_check = {
     "setuptools": "69.5.1",
@@ -137,12 +139,8 @@ def update_modules():
         allowed_versions, latest_version = get_allowed_versions(module_name, allowed_versions)
 
         if module_name == "setuptools":
-            if os_name == "Windows":
-                allowed_versions = ("59.8.0",)
-                latest_version = "59.8.0"
-            else:
-                allowed_versions = ("69.5.1",)
-                latest_version = "69.5.1"
+            allowed_versions = ("69.5.1",)
+            latest_version = "69.5.1"
 
         requires_install = version(module_name) not in allowed_versions
 
@@ -206,35 +204,34 @@ def update_modules():
 
     # hotfix - 29 May 2024. sdkit has stopped pulling its dependencies for some reason
     # temporarily dumping sdkit's requirements here:
-    if os_name != "Windows":
-        sdkit_deps = [
-            "gfpgan",
-            "piexif",
-            "realesrgan",
-            "requests",
-            "picklescan",
-            "safetensors==0.3.3",
-            "k-diffusion==0.0.12",
-            "compel==2.0.1",
-            "controlnet-aux==0.0.6",
-            "invisible-watermark==0.2.0",  # required for SD XL
-        ]
+    sdkit_deps = [
+        "gfpgan",
+        "piexif",
+        "realesrgan",
+        "requests",
+        "picklescan",
+        "safetensors==0.3.3",
+        "k-diffusion==0.0.12",
+        "compel==2.0.1",
+        "controlnet-aux==0.0.6",
+        "invisible-watermark==0.2.0",  # required for SD XL
+    ]
 
-        for mod in sdkit_deps:
-            mod_name = mod
-            mod_force_version_str = None
-            if "==" in mod:
-                mod_name, mod_force_version_str = mod.split("==")
+    for mod in sdkit_deps:
+        mod_name = mod
+        mod_force_version_str = None
+        if "==" in mod:
+            mod_name, mod_force_version_str = mod.split("==")
 
-            curr_mod_version_str = version(mod_name)
-            if curr_mod_version_str is None:
+        curr_mod_version_str = version(mod_name)
+        if curr_mod_version_str is None:
+            _install(mod_name, mod_force_version_str)
+        elif mod_force_version_str is not None:
+            curr_mod_version = version_str_to_tuple(curr_mod_version_str)
+            mod_force_version = version_str_to_tuple(mod_force_version_str)
+
+            if curr_mod_version != mod_force_version:
                 _install(mod_name, mod_force_version_str)
-            elif mod_force_version_str is not None:
-                curr_mod_version = version_str_to_tuple(curr_mod_version_str)
-                mod_force_version = version_str_to_tuple(mod_force_version_str)
-
-                if curr_mod_version != mod_force_version:
-                    _install(mod_name, mod_force_version_str)
 
     for module_name in modules_to_log:
         print(f"{module_name}: {version(module_name)}")
@@ -328,10 +325,6 @@ def launch_uvicorn():
 
     pprint(config)
 
-    with open("scripts/install_status.txt", "a") as f:
-        f.write("sd_weights_downloaded\n")
-        f.write("sd_install_complete\n")
-
     print("\n\nEasy Diffusion installation complete, starting the server!\n\n")
 
     import torchruntime
@@ -350,10 +343,8 @@ def launch_uvicorn():
     # until ED gets process-based multi-GPU support (which will allow different processes to use different GPUs)
     apply_backend_config_env_overrides(config.get("backend_config", {}))
 
-    if os_name == "Windows":
-        os.environ["PYTHONPATH"] = str(Path(os.environ["INSTALL_ENV_DIR"], "lib", "site-packages"))
-    else:
-        os.environ["PYTHONPATH"] = str(Path(os.environ["INSTALL_ENV_DIR"], "lib", "python3.8", "site-packages"))
+    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    os.environ["PYTHONPATH"] = str(Path(sys.prefix, "lib", python_version, "site-packages"))
     os.environ["SD_UI_PATH"] = str(Path(Path.cwd(), "ui"))
 
     print(f"PYTHONPATH={os.environ['PYTHONPATH']}")
@@ -361,7 +352,7 @@ def launch_uvicorn():
     print(f"Version: {platform.python_version()}")
 
     bind_ip = "127.0.0.1"
-    listen_port = 9000
+    listen_port = 10000
     if "net" in config:
         print("Checking network settings")
         if "listen_port" in config["net"]:

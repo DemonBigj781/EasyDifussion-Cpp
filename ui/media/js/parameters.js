@@ -232,10 +232,10 @@ var PARAMETERS = [
         type: ParameterType.custom,
         label: "Network port",
         note:
-            "Port that this server listens to. The '9000' part in 'http://localhost:9000'. Please restart the program after changing this.",
+            "Port that this server listens to. The '10000' part in 'http://localhost:10000'. Please restart the program after changing this.",
         icon: "fa-anchor",
         render: (parameter) => {
-            return `<input id="${parameter.id}" name="${parameter.id}" size="6" value="9000" onkeypress="preventNonNumericalInput(event)">`
+            return `<input id="${parameter.id}" name="${parameter.id}" size="6" value="10000" onkeypress="preventNonNumericalInput(event)">`
         },
         saveInAppConfig: true,
         table: networkParametersTable,
@@ -254,13 +254,12 @@ var PARAMETERS = [
         type: ParameterType.select,
         label: "Engine to use",
         note:
-            "Use our new v3.5 engine (Forge), with additional features like Flux, SD3, Lycoris and lots more! Please press Save, then restart the program after changing this.",
+            "Use the native sdkit3 engine for Flux, SD3, ControlNet, and the local extensions in this fork. Save and restart after changing engines.",
         icon: "fa-robot",
         saveInAppConfig: true,
-        default: "ed_diffusers",
+        default: "sdkit3",
         options: [
-            { value: "sdkit3", label: "v4 (very experimental)" },
-            { value: "webui", label: "v3.5" },
+            { value: "sdkit3", label: "sdkit3 native" },
             { value: "ed_diffusers", label: "v3.0" },
             { value: "ed_classic", label: "v2.0" },
         ],
@@ -747,7 +746,7 @@ async function getSystemInfo() {
             getParameterSettingsEntry("use_cpu").addEventListener("click", function () {
                 alert(
                     "Sorry, we could not find a compatible graphics card! Easy Diffusion supports graphics cards with minimum 2 GB of RAM. " +
-                    "Only NVIDIA cards are supported on Windows. NVIDIA and AMD cards are supported on Linux.<br/><br/>" +
+                    "This Linux fork supports compatible NVIDIA and AMD graphics cards.<br/><br/>" +
                     "If you have a compatible graphics card, please try updating to the latest drivers.<br/><br/>" +
                     "Only the CPU can be used for generating images, without a compatible graphics card.",
                     "No compatible graphics card found!"

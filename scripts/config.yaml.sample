@@ -1,7 +1,6 @@
-# Change listen_port if port 9000 is already in use on your system
-# Set listen_to_network to true to make Easy Diffusion accessibble on your local network
+# Linux-only local-fork defaults. Change listen_port if 10000 is already in use.
 net:
-  listen_port: 9000
+  listen_port: 10000
   listen_to_network: false
 
 # Multi GPU setup
@@ -9,16 +8,17 @@ render_devices: auto
 
 # Set open_browser_on_start to false to disable opening a new browser tab on each restart
 ui:
-  open_browser_on_start: true
+  open_browser_on_start: false
 
 # set update_branch to main to use the stable version, or to beta to use the experimental
 # beta version.
 update_branch: main
 
-# Advanced backend overrides (optional)
-# These are applied at startup by `scripts/check_modules.py` and exported as environment variables.
-#
-# backend_config:
+# sdkit3 is the native backend. This fork does not install or update Forge.
+backend: sdkit3
+backend_config:
+  auto_update: false
+# Advanced backend overrides are applied by scripts/check_modules.py.
 #   # Extra backend flags (example: cross-attention optimizations)
 #   COMMANDLINE_ARGS: "--opt-split-attention"
 #   # Force full precision (float32). Can help if you see corrupted/black outputs on some GPUs/backends.
@@ -27,7 +27,5 @@ update_branch: main
 # Set force_save_path to enforce an auto save path. Clients will not be able to change or
 # disable auto save when this option is set. Please adapt the path in the examples to your
 # needs.
-# Windows:
-# force_save_path: C:\\Easy Diffusion Images\\
 # Linux:
 # force_save_path: /data/easy-diffusion-images/

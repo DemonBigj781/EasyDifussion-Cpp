@@ -1,52 +1,19 @@
-#!/bin/env bash
-#setup environment
-if [ -e "installer_files/env" ]; then
-	export ENVFOLDER="$(pwd)/installer_files/env"
-	export PATH="${ENVFOLDER}/bin:$PATH"; 
-	# check python version and adjust PYTHONPATH
-	if [ -e "${ENVFOLDER}/bin/python" ]; then
-		export PYTHONVERSION="$(${ENVFOLDER}/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-		export PYTHONPATH="${ENVFOLDER}/lib/python${PYTHONVERSION}/site-packages"
-	fi
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+
+if [ "$(uname -s)" != "Linux" ]; then
+    echo "This local Easy Diffusion fork currently supports Linux only." >&2
+    exit 1
 fi
 
-
-cd "$(dirname "${BASH_SOURCE[0]}")"
-
-if [ "$0" == "bash" ]; then
-  echo "Opening Stable Diffusion UI - Developer Console.."
-  echo ""
-
-  # set the installer PATH, if it exists
-  if [ -e "installer" ]; then export PATH="$(pwd)/installer/bin:$PATH"; fi
-
-  # activate the installer env
-  CONDA_BASEPATH=$(conda info --base)
-  source "$CONDA_BASEPATH/etc/profile.d/conda.sh" # avoids the 'shell not initialized' error
-
-  conda activate
-
-  # test the environment
-  echo "Environment Info:"
-  which git
-  git --version
-
-  which conda
-  conda --version
-
-  echo ""
-
-  export PYTHONNOUSERSITE=y
-
-  which python
-  python --version
-
-  echo "PYTHONPATH=$PYTHONPATH"
-
-  # done
-
-  echo ""
-else
-  file_name=$(basename "${BASH_SOURCE[0]}")
-  bash --init-file "$file_name"
+PYTHON="$ROOT_DIR/installer_files/env/bin/python"
+if [ ! -x "$PYTHON" ]; then
+    echo "Easy Diffusion's contained Python environment is missing. Run ./start.sh first." >&2
+    exit 1
 fi
+
+exec "$PYTHON" ./scripts/webui_console.py
