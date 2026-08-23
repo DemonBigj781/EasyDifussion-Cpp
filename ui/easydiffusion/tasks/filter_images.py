@@ -86,7 +86,10 @@ class FilterTask(Task):
         if has_nsfw_filter:
             images = filter_nsfw(images)
 
-        if self.save_data.save_to_disk_path is not None:
+        # ControlNet previews are queue-scoped intermediates. Even if a caller
+        # accidentally supplies a save path, they must not become gallery
+        # images.
+        if self.save_data.save_to_disk_path is not None and not self.task_data.temporary_output:
             app_config = app.getConfig()
             folder_format = app_config.get("folder_format", "$id")
 

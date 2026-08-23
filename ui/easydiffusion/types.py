@@ -82,6 +82,7 @@ class SaveToDiskData(BaseModel):
 class TaskData(BaseModel):
     request_id: str = None
     session_id: str = "session"
+    temporary_output: bool = False
 
 
 class RenderTaskData(TaskData):
@@ -101,6 +102,7 @@ class RenderTaskData(TaskData):
     filters: List[str] = []
     filter_params: Dict[str, Dict[str, Any]] = {}
     control_filter_to_apply: Union[str, List[str]] = None
+    control_image_preprocessed: bool = False
     enable_vae_tiling: bool = True
 
     show_only_filtered_image: bool = False

@@ -58,20 +58,35 @@ async function onTaskStart(task) {
     task["taskStatusLabel"].innerText = "Starting"
     task["taskStatusLabel"].classList.add("waitingTaskLabel")
 
-    if (task.previewTaskReq !== undefined) {
-        let controlImagePreview = task.taskConfig.querySelector(".controlnet-img-preview > img")
-        try {
-            let result = await SD.filter(task.previewTaskReq)
+    if (task.previewTaskReq !== undefined && task.controlImagePreprocessPromise === undefined) {
+        task.previewTaskReq.temporary_output = true
+        task.previewTaskReq.save_to_disk_path = null
+        task.controlImagePreprocessPromise = SD.filter(task.previewTaskReq).then((result) => {
+            const processedImage = result?.output?.[0]
+            if (!processedImage) {
+                throw new Error("The ControlNet preprocessor returned no image")
+            }
 
-            controlImagePreview.src = result.output[0]
-            let controlImageLargePreview = task.taskConfig.querySelector(
+            task.reqBody.control_image = processedImage
+            task.reqBody.control_image_preprocessed = true
+
+            const controlImagePreview = task.taskConfig.querySelector(".controlnet-img-preview > img")
+            if (controlImagePreview) controlImagePreview.src = processedImage
+            const controlImageLargePreview = task.taskConfig.querySelector(
                 ".controlnet-img-preview .task-fs-initimage img"
             )
-            controlImageLargePreview.src = controlImagePreview.src
+            if (controlImageLargePreview) controlImageLargePreview.src = processedImage
+            return processedImage
+        })
+    }
+
+    if (task.controlImagePreprocessPromise !== undefined) {
+        try {
+            await task.controlImagePreprocessPromise
         } catch (error) {
             console.log("filter error", error)
+            delete task.controlImagePreprocessPromise
         }
-
         delete task.previewTaskReq
     }
 

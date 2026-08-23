@@ -234,7 +234,11 @@ def generate_images_internal(
 
     req.width, req.height = map(lambda x: x - x % 8, (req.width, req.height))  # clamp to 8
 
-    if req.control_image and task_data.control_filter_to_apply:
+    if (
+        req.control_image
+        and task_data.control_filter_to_apply
+        and not task_data.control_image_preprocessed
+    ):
         req.controlnet_filter = task_data.control_filter_to_apply
 
     if req.init_image is not None and int(req.num_inference_steps * req.prompt_strength) == 0:
