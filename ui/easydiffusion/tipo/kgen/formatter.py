@@ -1,5 +1,7 @@
+# Adapted for Easy Diffusion from KGen 0.2.0 (Apache-2.0).
 import os
 import pathlib
+import re
 
 from .metainfo import SPECIAL, POSSIBLE_QUALITY_TAGS, RATING_TAGS
 
@@ -16,6 +18,7 @@ tag_lists["rating"] = set(RATING_TAGS)
 
 
 def seperate_tags(all_tags):
+    all_tags = [tag.strip() for tag in all_tags if tag.strip()]
     tag_map = {cate: [] for cate in tag_lists.keys()}
     tag_map["general"] = []
     for tag in all_tags:
@@ -23,19 +26,35 @@ def seperate_tags(all_tags):
             if tag in tag_lists[cate]:
                 tag_map[cate].append(tag)
                 break
+            if tag.replace("_", " ") in tag_lists[cate]:
+                tag_map[cate].append(tag.replace("_", " "))
+                break
         else:
-            tag_map["general"].append(tag)
+            tag_map["general"].append(tag if len(tag) < 4 else tag.replace("_", " "))
     return tag_map
 
 
 def apply_format(tag_map, format):
+    if "<|extended|>" in format and not tag_map.get("extended", ""):
+        format = format.replace("<|extended|>", "<|generated|>")
     for type in tag_map:
         if f"<|{type}|>" in format:
             if not tag_map[type]:
                 format = format.replace(f"<|{type}|>,", "")
                 format = format.replace(f"<|{type}|>", "")
             else:
-                format = format.replace(f"<|{type}|>", ", ".join(tag_map[type]))
+                data = tag_map[type]
+                if isinstance(data, list):
+                    data = ", ".join(data)
+                format = format.replace(f"<|{type}|>", data)
+    format = re.sub(r"<\|(?:(?!<\|.*\|>).)*\|>", "", format)
+    format = re.sub(r",\s*,+", ",", format)
+    format = re.sub(r",[ \t]*\n", "\n", format)
+    format = re.sub(r"(?m)^[ \t]*[,.]+[ \t]*$", "", format)
+    format = re.sub(r"[ \t]+\.", ".", format)
+    format = re.sub(r"\n +", "\n", format)
+    format = re.sub(r"\n\n\n+", "\n\n", format)
+    format = re.sub(r"  +", " ", format)
     return format.strip().strip(",")
 
 

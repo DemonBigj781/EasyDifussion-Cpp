@@ -1,0 +1,24 @@
+# Easy Diffusion DanTagGen model settings. Keep this file beside its GGUF model.
+schema: easy-diffusion.tipo-sidecar.v1
+protocol: dantaggen
+context_length: 1024
+generation:
+  temperature: 1.0
+  top_p: 0.85
+  min_p: 0.0
+  top_k: 70
+  repeat_penalty: 1.0
+  max_new_tokens: 512
+  max_retry: 20
+  max_same_output: 15
+  tag_length: long
+  nl_length: long
+output:
+  format: |-
+    <|special|>,
+    <|characters|>, <|copyrights|>,
+    <|artist|>,
+
+    <|general|>,
+
+    <|quality|>, <|meta|>, <|rating|>

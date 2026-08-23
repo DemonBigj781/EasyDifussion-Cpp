@@ -132,6 +132,29 @@ def init():
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"WD14 tagging failed: {exc}") from exc
 
+    from easydiffusion.tipo import GenerateRequest as TipoGenerateRequest
+
+    @server_api.get("/tipo/health")
+    @server_api.get("/tipo-api/health", include_in_schema=False)
+    def tipo_health():
+        from easydiffusion.tipo import health
+
+        return health()
+
+    @server_api.get("/tipo/models")
+    @server_api.get("/tipo-api/models", include_in_schema=False)
+    def tipo_models():
+        from easydiffusion.tipo import list_models
+
+        return list_models()
+
+    @server_api.post("/tipo/generate")
+    @server_api.post("/tipo-api/generate", include_in_schema=False)
+    def tipo_generate(req: TipoGenerateRequest):
+        from easydiffusion.tipo import generate
+
+        return generate(req)
+
     @server_api.get("/gallery/settings")
     @server_api.get("/gallery-plugin/settings", include_in_schema=False)
     def gallery_settings_get():
@@ -242,6 +265,13 @@ def init():
 
         files = list_vae_files()
         return {"files": files, "meta": scan_vae_metadata(), "count": len(files)}
+
+    @server_api.post("/files/list_tipo")
+    def fileparser_list_tipo():
+        from easydiffusion.tipo import list_model_files, list_model_metadata
+
+        files = list_model_files()
+        return {"files": files, "meta": list_model_metadata(), "count": len(files)}
 
     @server_api.post("/files/list_checkpoints")
     def fileparser_list_checkpoints():
@@ -422,23 +452,30 @@ def read_web_data_internal(key: str = None, **kwargs):
             {"models": model_manager.list_models([selector_types[key]])},
             headers=NOCACHE_HEADERS,
         )
+    elif key == "tipo":
+        from easydiffusion.tipo import selector_models
+
+        return JSONResponse({"models": selector_models()}, headers=NOCACHE_HEADERS)
     elif key == "other":
         selector_types = {"stable-diffusion", "lora", "vae"}
         return JSONResponse(
             {"models": model_manager.list_models(set(model_manager.KNOWN_MODEL_TYPES) - selector_types)},
             headers=NOCACHE_HEADERS,
         )
-    elif key in ("model/metadata", "lora/metadata", "vae/metadata"):
+    elif key in ("model/metadata", "lora/metadata", "vae/metadata", "tipo/metadata"):
         from easydiffusion.file_parser import (
             scan_checkpoint_metadata,
             scan_lora_metadata,
             scan_vae_metadata,
         )
 
+        from easydiffusion.tipo import list_model_metadata
+
         scanners = {
             "model/metadata": scan_checkpoint_metadata,
             "lora/metadata": scan_lora_metadata,
             "vae/metadata": scan_vae_metadata,
+            "tipo/metadata": list_model_metadata,
         }
         metadata = scanners[key]()
         return JSONResponse({"metadata": metadata, "count": len(metadata)}, headers=NOCACHE_HEADERS)

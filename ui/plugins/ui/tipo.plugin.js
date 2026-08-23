@@ -10,10 +10,11 @@
 
 <|general|>,
 
+<|extended|>.
+
 <|quality|>, <|meta|>, <|rating|>`;
 
     const DEFAULTS = {
-        apiPort: "9003",
         tagLength: "long",
         nlLength: "long",
         temperature: "0.5",
@@ -23,6 +24,7 @@
         seed: "-1",
         device: "cpu",
         format: DEFAULT_FORMAT,
+        model: "",
     };
 
     function loadSettings() {
@@ -40,13 +42,8 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }
 
-    function getApiBase(apiPort) {
-        if (window.location.protocol === "https:") {
-            return `${window.location.origin}/tipo-api`;
-        }
-        const protocol = window.location.protocol || "http:";
-        const hostname = window.location.hostname || "127.0.0.1";
-        return `${protocol}//${hostname}:${apiPort}`;
+    function getApiBase() {
+        return "/tipo";
     }
 
     function dispatchInput(el) {
@@ -128,6 +125,7 @@
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px;">Model</label>
                     <select id="${ID_PREFIX}-model"></select>
+                    <small id="${ID_PREFIX}-model-info" style="opacity:0.75;"></small>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px;">Device</label>
@@ -186,8 +184,6 @@
                     <textarea id="${ID_PREFIX}-format" rows="6"></textarea>
                 </div>
                 <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
-                    <label style="font-size: 12px;">Server Port</label>
-                    <input id="${ID_PREFIX}-port" type="text" style="width: 80px;" />
                     <button id="${ID_PREFIX}-reload" class="secondaryButton">Reload Models</button>
                 </div>
             </details>
@@ -215,6 +211,7 @@
         const banEl = container.querySelector(`#${ID_PREFIX}-ban`);
         const modelEl = container.querySelector(`#${ID_PREFIX}-model`);
         const deviceEl = container.querySelector(`#${ID_PREFIX}-device`);
+        const modelInfoEl = container.querySelector(`#${ID_PREFIX}-model-info`);
         const tagLengthEl = container.querySelector(`#${ID_PREFIX}-tag-length`);
         const nlLengthEl = container.querySelector(`#${ID_PREFIX}-nl-length`);
         const tempEl = container.querySelector(`#${ID_PREFIX}-temp`);
@@ -223,7 +220,6 @@
         const minPEl = container.querySelector(`#${ID_PREFIX}-min-p`);
         const topKEl = container.querySelector(`#${ID_PREFIX}-top-k`);
         const formatEl = container.querySelector(`#${ID_PREFIX}-format`);
-        const portEl = container.querySelector(`#${ID_PREFIX}-port`);
         const statusEl = container.querySelector(`#${ID_PREFIX}-status`);
         const outputEl = container.querySelector(`#${ID_PREFIX}-output`);
         const outputRawEl = container.querySelector(`#${ID_PREFIX}-output-raw`);
@@ -237,11 +233,9 @@
         topKEl.value = settings.topK;
         deviceEl.value = settings.device;
         formatEl.value = settings.format;
-        portEl.value = settings.apiPort;
 
         function updateSettings() {
             saveSettings({
-                apiPort: portEl.value.trim() || DEFAULTS.apiPort,
                 tagLength: tagLengthEl.value,
                 nlLength: nlLengthEl.value,
                 temperature: tempEl.value,
@@ -251,6 +245,7 @@
                 seed: seedEl.value,
                 device: deviceEl.value,
                 format: formatEl.value,
+                model: modelEl.value,
             });
         }
 
@@ -264,8 +259,29 @@
             topKEl,
             deviceEl,
             formatEl,
-            portEl,
         ].forEach((el) => el.addEventListener("change", updateSettings));
+
+        let modelMetadata = {};
+
+        function applyModelSidecar() {
+            const metadata = modelMetadata[modelEl.value];
+            if (!metadata || metadata.error) {
+                modelInfoEl.textContent = metadata && metadata.error ? metadata.error : "No sidecar; inferred defaults";
+                return;
+            }
+            tagLengthEl.value = metadata.tag_length || DEFAULTS.tagLength;
+            nlLengthEl.value = metadata.nl_length || DEFAULTS.nlLength;
+            tempEl.value = metadata.temperature ?? DEFAULTS.temperature;
+            topPEl.value = metadata.top_p ?? DEFAULTS.topP;
+            minPEl.value = metadata.min_p ?? DEFAULTS.minP;
+            topKEl.value = metadata.top_k ?? DEFAULTS.topK;
+            formatEl.value = metadata.format || DEFAULT_FORMAT;
+            const sidecarLabel = metadata.sidecar ? ` · ${metadata.sidecar}` : " · inferred";
+            modelInfoEl.textContent = `${metadata.protocol || "tipo"}${sidecarLabel}`;
+            updateSettings();
+        }
+
+        modelEl.addEventListener("change", applyModelSidecar);
 
         container.querySelector(`#${ID_PREFIX}-use-prompt`).addEventListener("click", () => {
             tagsEl.value = getPrompt();
@@ -284,11 +300,12 @@
         });
 
         async function reloadModels() {
-            const apiBase = getApiBase(portEl.value.trim() || DEFAULTS.apiPort);
+            const apiBase = getApiBase();
             statusEl.textContent = "Loading models...";
             try {
                 const data = await getJson(`${apiBase}/models`);
                 const models = Array.isArray(data.models) ? data.models : [];
+                modelMetadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
                 modelEl.innerHTML = "";
                 if (models.length === 0) {
                     const opt = document.createElement("option");
@@ -302,6 +319,10 @@
                         opt.textContent = model;
                         modelEl.appendChild(opt);
                     });
+                    if (settings.model && models.includes(settings.model)) {
+                        modelEl.value = settings.model;
+                    }
+                    applyModelSidecar();
                 }
                 statusEl.textContent = `Loaded ${models.length} models`;
             } catch (err) {
@@ -315,7 +336,7 @@
         });
 
         container.querySelector(`#${ID_PREFIX}-generate`).addEventListener("click", async () => {
-            const apiBase = getApiBase(portEl.value.trim() || DEFAULTS.apiPort);
+            const apiBase = getApiBase();
             const { width, height } = getWidthHeight();
             statusEl.textContent = "Generating...";
 
