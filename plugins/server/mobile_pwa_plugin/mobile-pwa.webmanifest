@@ -1,0 +1,36 @@
+{
+  "id": "/",
+  "name": "Easy Diffusion",
+  "short_name": "Easy Diffusion",
+  "description": "A mobile-friendly interface for generating images with Easy Diffusion.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#18191c",
+  "theme_color": "#673ab6",
+  "categories": [
+    "graphics",
+    "photo",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/mobile-pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/media/images/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

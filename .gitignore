@@ -1,0 +1,22 @@
+# Installed runtimes and generated backend binaries
+/installer_files/
+/backends/
+
+# Models live in a separately managed shared tree
+/models
+
+# Generated images, caches, logs, and temporary state
+/bucket/
+/tmp/
+**/__pycache__/
+*.py[cod]
+*.log
+**/.thumbnails/
+
+# Deployment backups and local configuration snapshots
+/backups/
+/config.yaml.bak
+/config.yaml.pre-*
+
+# Keep the upstream/source checkout as its own Git repository
+/sd-ui-files/

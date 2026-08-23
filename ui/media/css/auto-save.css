@@ -1,0 +1,85 @@
+/* Auto-Settings Styling */
+#auto_save_settings ~ button {
+    margin: 5px;
+}
+#auto_save_settings:not(:checked) ~ button {
+    display: none;
+}
+
+.form-table {
+    margin: auto;
+}
+
+.form-table th {
+    padding-top: 15px;
+    padding-bottom: 5px;
+}
+
+.form-table td:first-child > *,
+.form-table th:first-child > * {
+    float: right;
+    white-space: nowrap;
+}
+
+.form-table td:last-child > *,
+.form-table th:last-child > * {
+    float: left;
+}
+
+
+.parameters-table {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.parameters-table > div {
+    background: var(--background-color2);
+    display: flex;
+    padding: 0px 4px;
+}
+
+.parameters-table > div > div {
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.parameters-table small {
+    color: rgb(153, 153, 153);
+}
+
+.parameters-table > div > div:nth-child(1) {
+    font-size: 20px;
+    width: 45px;
+}
+
+.parameters-table > div > div:nth-child(2) {
+    flex: 1;
+    flex-direction: column;
+    text-align: left;
+    justify-content: center;
+    align-items: start;
+    gap: 4px;
+}
+
+.parameters-table > div > div:nth-child(3) {
+    text-align: right;
+}
+
+.parameters-table > div:first-child {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.parameters-table > div:last-child {
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.parameters-table .fa-fire,
+.parameters-table .fa-bolt,
+.parameters-table .fa-robot {
+    color: #F7630C;
+}

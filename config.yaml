@@ -1,0 +1,46 @@
+# Change listen_port if port 9000 is already in use on your system
+# Set listen_to_network to true to make Easy Diffusion accessibble on your local network
+net:
+  # The standard server remains available over HTTP for certificate setup
+  # and recovery. The mobile/PWA plugin serves trusted HTTPS on port 10000.
+  listen_port: 10001
+  listen_to_network: true
+  https:
+    enabled: true
+    port: 10000
+    certfile: /home/jack/.local/share/easy-diffusion/ssl/easy-diffusion.crt
+    keyfile: /home/jack/.local/share/easy-diffusion/ssl/easy-diffusion.key
+    ca_certfile: /home/jack/.local/share/easy-diffusion/ssl/Easy-Diffusion-Local-CA.crt
+
+# Multi GPU setup
+render_devices:
+
+# Set open_browser_on_start to false to disable opening a new browser tab on each restart
+  - cuda
+ui:
+  open_browser_on_start: false
+update_branch: beta
+
+# Advanced backend overrides (optional)
+# These are applied at startup by `scripts/check_modules.py` and exported as environment variables.
+#
+backend_config:
+  # Keep the locally patched sdkit v3.4.1 binary; automatic validation would
+  # replace it with the upstream build that has the ModelManager symbol clash.
+  auto_update: false
+  # Native GPU VAE tiling is safe with the patched backend.
+  COMMANDLINE_ARGS:
+
+# Set force_save_path to enforce an auto save path. Clients will not be able to change or
+# disable auto save when this option is set. Please adapt the path in the examples to your
+# needs.
+# Windows:
+# force_save_path: C:\\Easy Diffusion Images\\
+# Linux:
+force_save_path: /mnt/1812FB8512FB6662/easy-diffusion-save-backup
+use_v3_engine: false
+models_dir: /mnt/84760EBC760EAECC
+model:
+  stable-diffusion: 2dn_latentlensV1
+vram_usage_level: balanced
+backend: sdkit3

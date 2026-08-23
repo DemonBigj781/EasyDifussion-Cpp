@@ -1,0 +1,244 @@
+/**
+ * LoRa Model Tools Expansion
+ * v.1.1, last updated: 04/09/2025
+ * By The Stig
+ *
+ * Change Log
+ * 03/09/2025 Initial Build
+ * 04/09/2025 Added showToast command to provide visual feedback
+ *
+ * Free to use with the CMDR2 Stable Diffusion UI.
+ *  
+ */
+(function() { "use strict"
+    const VERSION = "1.1";
+    const ID_PREFIX = "TheStig-LMT-Expansion-plugin";
+    console.log('%s Version: %s', ID_PREFIX, VERSION);
+	
+	injectLoaderCSS();
+	
+	
+	const localPort = 9002; // Change this as necessary
+	
+	let defaultModelDir = document.getElementById("models_dir").value;
+	let defaultLoRaDir = defaultModelDir + "\\lora";
+	
+	
+	const observer = new MutationObserver(() => addExpansionOptions());
+		observer.observe(document.body, { childList: true, subtree: true });
+		addExpansionOptions();
+	
+	function addExpansionOptions () {
+		const existingBtn = document.getElementById("lora-keyword-from-civitai");
+		if (existingBtn && !document.getElementById("myLoRaBtn")) {
+			const myLoRaBtn = document.createElement("button");
+			myLoRaBtn.id = "myLoRaBtn";
+			myLoRaBtn.textContent = "Extract MetaData";
+			myLoRaBtn.style.marginRight = "8px";
+			// Copy class list for same size/shape
+			myLoRaBtn.className = existingBtn.className;
+			// Insert before the existing button
+			existingBtn.insertAdjacentElement("beforebegin", myLoRaBtn);
+			//myLoRaBtn.style.display = "none";
+			
+
+			// Create a label to act as the button
+			const fileBtn = document.createElement("label");
+			fileBtn.id = "fileImportBtn";
+			fileBtn.textContent = "Import from File";
+			//fileBtn.style.display = "inline-block";
+			fileBtn.style.marginRight = "8px";
+			fileBtn.style.cursor = "pointer";
+			fileBtn.className = existingBtn.className;
+			fileBtn.style.display = "none";
+			
+
+			// Copy class from an existing button for consistent style
+			// fileBtn.className = existingBtn.className;
+
+			// Create the hidden file input
+			const fileInput = document.createElement("input");
+			fileInput.type = "file";
+			fileInput.style.display = "none"; // hide the default input
+			fileInput.id = "fileImport";
+
+			// Make clicking the label open the file dialog
+			fileBtn.appendChild(fileInput);
+			fileBtn.addEventListener("click", () => fileInput.click());
+
+			// Insert the button below the text box
+			existingBtn.insertAdjacentElement("beforebegin", fileBtn);
+
+			
+
+			myLoRaBtn.addEventListener("click", () => {
+				fetchAndAppendTriggers();
+			});
+			if (observer) observer.disconnect();
+		}
+	}
+	
+	function insertMetaData() {
+		//console.log('Model Dir: ',defaultModelDir);
+		//console.log('LoRa Dir: ',defaultLoRaDir);
+		const selectedLoRA = document.getElementById("loraModel");
+		let  selectedLoRaName = selectedLoRA.value;
+		//console.log('Selected: ' , selectedLoRaName);
+		switch (selectedLoRaName) {
+			case "None":
+				// No LoRa selected, exit proceedure
+				return;
+				break;
+			default :
+				// LoRa Selected, carry on
+		}
+		let selectedLoRaPath = normalizePath(defaultLoRaDir + "\\" + selectedLoRA.dataset.path) + ".safetensors";
+		
+		console.log(selectedLoRaPath);
+		
+	}
+	
+	function normalizePath(rawPath) {
+		// 1. Convert all backslashes to forward slashes
+		let path = rawPath.replace(/\\/g, "/");
+		// 2. Remove duplicate slashes
+		path = path.replace(/\/+/g, "/");
+		return path;
+	}
+	
+	async function fetchAndAppendTriggers() {
+		const selectedLoRA = document.getElementById("loraModel");
+		let selectedLoRaName = selectedLoRA.value;
+		if (selectedLoRaName === "None") return;
+		let selectedLoRaPath = normalizePath(defaultLoRaDir + "\\" + selectedLoRA.dataset.path) + ".safetensors";
+		console.log("Sending path to Python plugin:", selectedLoRaPath);
+		try {
+			const response = await fetch(`http://localhost:${localPort}/get_triggers`, {
+			//const response = await fetch("http://localhost:9002/get_triggers", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ filepath: selectedLoRaPath })
+			});
+
+			const data = await response.json();
+
+			const textarea = document.getElementById("lora-manager-keywords");
+			const triggers = (data.metadata && data.metadata.trigger_words) ? data.metadata.trigger_words : [];
+
+			if (triggers.length > 0) {
+				// Split existing textarea lines
+				const existing = textarea.value
+					.split("\n")
+					.map(s => s.trim())
+					.filter(s => s.length > 0);
+
+				// Merge and deduplicate
+				const unique = [...new Set(existing.concat(triggers))];
+
+				// Update textarea
+				textarea.value = unique.join("\n");
+				console.log("Triggers added:", triggers);
+				// Trigger an input event so other listeners update
+				["input", "change"].forEach(evtType => {
+					const event = new Event(evtType, { bubbles: true, composed: true });
+					textarea.dispatchEvent(event);
+				});
+				showToast('Triggers found: ' + triggers.length, 4000, false);
+			} else {
+				console.log("No triggers found for:", data.metadata ? data.metadata.model_name : "unknown model");
+				showToast('No Triggers found.', 4000, true);
+			}
+
+		} catch (err) {
+			console.error("Fetch error:", err);
+		}
+	}
+	
+	function injectLoaderCSS() {
+		console.log('** Inject CSS **');
+		const style = document.createElement('style');
+		style.textContent = `
+			/* General toast style */
+			.toast-notification {
+				background: #2e8b57 !important;
+				color: #fff !important;
+				padding: 12px 20px;
+				border-radius: 8px;
+				font-size: 14px;
+				font-weight: 500;
+				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+			}
+
+			/* Error toast specifically */
+			.toast-notification-error {
+				background: #e53935 !important; /* red */
+				color: #fff !important;
+			}
+
+			/* You can even add success/info styles if plugin supports them */
+			.toast-notification-success {
+				background: #43a047 !important; /* green */
+			}
+			.toast-notification-info {
+				background: #1e88e5 !important; /* blue */
+			}
+		`;
+		document.head.appendChild(style);
+	}
+	
+/*
+	function fetchMetaData() {
+		const selectedLoRA = document.getElementById("loraModel");
+		let selectedLoRaName = selectedLoRA.value;
+
+		if (selectedLoRaName === "None") return;
+
+		// Build the full file path
+		let selectedLoRaPath = normalizePath(defaultLoRaDir + "\\" + selectedLoRA.dataset.path) + ".safetensors";
+
+		console.log("Sending path to Python plugin:", selectedLoRaPath);
+		
+		
+		fetch(`http://localhost:${localPort}/get_triggers`, {
+		//fetch("http://localhost:9002/get_triggers", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ filepath: selectedLoRaPath })
+		})
+		.then(res => res.json())
+		.then(data => {
+			if (data.metadata) {
+				const modelName = data.metadata.model_name;
+				//const triggers = data.metadata.trigger_words;
+				console.log("Model name:", modelName);
+				console.log("Trigger words:", triggers);
+				let triggers = (data.metadata && data.metadata.trigger_words) ? data.metadata.trigger_words : [];
+				let textarea = document.getElementById("lora-manager-keywords");
+
+				// Only do something if triggers were returned
+				if (triggers.length > 0) {
+					// Split existing textarea into lines and trim
+					let existing = textarea.value
+					.split("\n")
+					.map(s => s.trim())
+					.filter(s => s.length > 0);
+
+				// Merge with new triggers
+				existing = existing.concat(triggers);
+
+				// Deduplicate while keeping order
+				let unique = [...new Set(existing)];
+
+				// Update textarea
+				textarea.value = unique.join("\n");
+				}
+			} else {
+				console.error("Error:", data.error);
+			}
+		});
+	}
+	
+*/
+	
+	
+})();

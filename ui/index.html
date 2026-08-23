@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Easy Diffusion</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#673AB6">
+    <link rel="icon" type="image/png" href="/media/images/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/media/images/favicon-32x32.png" sizes="32x32">
+    <link rel="stylesheet" href="/media/css/jquery-confirm.min.css">
+    <link rel="stylesheet" href="/media/css/fonts.css">
+    <link rel="stylesheet" href="/media/css/themes.css">
+    <link rel="stylesheet" href="/media/css/main.css">
+    <link rel="stylesheet" href="/media/css/auto-save.css">
+    <link rel="stylesheet" href="/media/css/modifier-thumbnails.css">
+    <link rel="stylesheet" href="/media/css/fontawesome-all.min.css">
+    <link rel="stylesheet" href="/media/css/image-editor.css">
+    <link rel="stylesheet" href="/media/css/searchable-models.css">
+    <link rel="stylesheet" href="/media/css/image-modal.css">
+    <link rel="stylesheet" href="/media/css/plugins.css">
+    <link rel="stylesheet" href="/media/css/animations.css">
+    <link rel="stylesheet" href="/media/css/croppr.css" rel="stylesheet"/>
+    <link rel="manifest" href="/media/manifest.webmanifest">
+    <script src="/media/js/jquery-3.6.1.min.js"></script>
+    <script src="/media/js/jquery-confirm.min.js"></script>
+    <script src="/media/js/jszip.min.js"></script>
+    <script src="/media/js/FileSaver.min.js"></script>
+    <script src="/media/js/marked.min.js"></script>
+    <script src="/media/js/croppr.js"></script>
+    <script src="/media/js/exif-reader.js"></script>
+</head>
+<body>
+<div id="container">
+    <div id="top-nav">
+        <div id="logo">
+            <h1>
+                <img id="logo_img" src="/media/images/icon-512x512.png" >
+                Easy Diffusion
+                <small>
+                    <span id="version">
+                        <span class="gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers">v3.0.17</span>
+                        <span class="gated-feature" data-feature-keys="backend_webui">v3.5.15</span>
+                        <span class="gated-feature" data-feature-keys="backend_sdkit3">v4.5.2</span>
+                    </span> <span id="updateBranchLabel"></span>
+                    <div id="engine-logo" class="gated-feature" data-feature-keys="backend_webui">(Powered by <a id="backend-url" href="https://github.com/lllyasviel/stable-diffusion-webui-forge" target="_blank">Stable Diffusion WebUI Forge</a>)</div>
+                </small>
+            </h1>
+        </div>
+        <div id="server-status">
+            <div id="server-status-color">●</div>
+            <span id="server-status-msg">Stable Diffusion is starting..</span>
+        </div>
+        <div id="tab-container" class="tab-container">
+            <span id="tab-main" class="tab active">
+                <span><i class="fa fa-image icon"></i> Generate</span>
+            </span>
+            <span id="tab-settings" class="tab">
+                <span><i class="fa fa-gear icon"></i> Settings</span>
+            </span>
+            <span id="tab-about" class="tab">
+                <span><i class="fa fa-comments icon"></i> Help & Community</span>
+            </span>
+        </div>
+    </div>
+
+    <div id="tab-content-wrapper">
+        <div id="tab-content-main" class="tab-content active flex-container">
+        <div id="editor">
+            <div id="editor-inputs">
+                <div id="editor-inputs-prompt" class="row">
+                    <div id="prompt-toolbar" class="split-toolbar">
+                        <div id="prompt-toolbar-left" class="toolbar-left">
+                            <label for="prompt"><b>Enter Prompt</b>
+                                <i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip right">
+                                    You can type your prompts in the below textbox or load them from a file. You can also
+                                    reload tasks from metadata embedded in PNG, WEBP and JPEG images (enable embedding from the Settings).
+                                </span></i>
+                            </label>
+                            <small>or</small>
+                            <button id="promptsFromFileBtn" class="tertiaryButton smallButton">Load from a file</button>
+                        </div>
+                        <div id="prompt-toolbar-right" class="toolbar-right">
+                            <button id="image-modifier-dropdown" class="tertiaryButton smallButton">+ Image Modifiers</button>
+                            <button id="embeddings-button" class="tertiaryButton smallButton gated-feature" data-feature-keys="backend_ed_diffusers backend_webui backend_sdkit3">+ Embedding</button>
+                        </div>
+                    </div>
+                    <textarea id="prompt" class="col-free">a photograph of an astronaut riding a horse</textarea>
+                    <input id="prompt_from_file" name="prompt_from_file" type="file" /> <!-- hidden -->
+                    <label for="negative_prompt" id="negative_prompt_handle">
+                        Negative Prompt
+                        <a href="https://github.com/easydiffusion/easydiffusion/wiki/Writing-prompts#negative-prompts" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top">Click to learn more about Negative Prompts</span></i></a>
+                        <small>(optional)</small>
+                    </label>
+                    <button id="negative-embeddings-button" class="tertiaryButton smallButton gated-feature" data-feature-keys="backend_ed_diffusers backend_webui backend_sdkit3">+ Negative Embedding</button>
+                    <div>
+                        <textarea id="negative_prompt" name="negative_prompt" placeholder="list the things to remove from the image (e.g. fog, green)"></textarea>
+                    </div>
+                </div>
+
+                <div id="editor-inputs-tags-container" class="row">
+                    <label>Image Modifiers <i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip right">Click an Image Modifier to remove it, right-click to temporarily disable it, use Ctrl+Mouse Wheel to adjust its weight</span></i></label>
+                    <div id="editor-inputs-tags-list"></div>
+                </div>
+
+                <button id="makeImage" class="primaryButton">Make Image</button>
+		<div id="render-buttons">
+		   <button id="stopImage" class="secondaryButton">Stop All</button>
+		   <button id="pause"><i class="fa-solid fa-pause"></i> Pause All</button>
+		   <button id="resume"><i class="fa-solid fa-play"></i> Resume</button>
+		</div>
+            </div>
+
+            <span class="line-separator"></span>
+
+            <div id="editor-settings" class="settings-box panel-box">
+                <h4 class="collapsible">
+                    Image Settings
+                    <i id="reset-image-settings" class="fa-solid fa-arrow-rotate-left section-button">
+                        <span class="simple-tooltip top-left">
+                            Reset Image Settings
+                        </span>
+                    </i>
+                </h4>
+                <div id="editor-settings-entries" class="collapsible-content">
+                    <div><table>
+                    <tr><b class="settings-subheader">Image Settings</b></tr>
+                    <tr class="pl-5"><td><label for="seed">Seed:</label></td><td><input id="seed" name="seed" size="10" value="0" onkeypress="preventNonNumericalInput(event)" inputmode="numeric"> <input id="random_seed" name="random_seed" type="checkbox" checked><label for="random_seed">Random</label></td></tr>
+                    <tr class="pl-5"><td><label for="num_outputs_total">Number of Images:</label></td>
+                        <td><input id="num_outputs_total" name="num_outputs_total" value="1" type="number" value="1" min="1" step="1" onkeypres"="preventNonNumericalInput(event)" inputmode="numeric">
+                        <label><small>(total)</small></label>
+                        <input id="num_outputs_parallel" name="num_outputs_parallel" value="1" type="number" value="1" min="1" step="1" onkeypress="preventNonNumericalInput(event)" inputmode="numeric">
+                        <label id="num_outputs_parallel_label" for="num_outputs_parallel"><small>(in parallel)</small></label></td>
+                    </tr>
+                    <tr class="pl-5"><td><label for="stable_diffusion_model">Model:</label></td><td class="model-input">
+                        <input id="stable_diffusion_model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="" />
+                        <button id="reload-models" class="secondaryButton reloadModels"><i class='fa-solid fa-rotate'></i></button>
+                        <a href="https://github.com/easydiffusion/easydiffusion/wiki/Custom-Models" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">Click to learn more about custom models</span></i></a>
+                    </td></tr>
+                    <tr class="pl-5 displayNone" id="enable_trt_config">
+                        <td><label for="convert_to_tensorrt">Enable TensorRT:</label></td>
+                        <td class="diffusers-restart-needed">
+                            <input id="convert_to_tensorrt" name="convert_to_tensorrt" type="checkbox">
+                            <!-- <label><small>Takes upto 20 mins the first time</small></label> -->
+                        </td>
+                    </tr>
+                    <tr class="pl-5 gated-feature" id="clip_skip_config" data-feature-keys="backend_ed_diffusers backend_webui backend_sdkit3">
+                        <td><label for="clip_skip">Clip Skip:</label></td>
+                        <td class="diffusers-restart-needed">
+                            <input id="clip_skip" name="clip_skip" type="checkbox">
+                            <a href="https://github.com/easydiffusion/easydiffusion/wiki/Clip-Skip" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">Click to learn more about Clip Skip</span></i></a>
+                        </td>
+                    </tr>
+                    <tr id="controlnet_model_container" class="pl-5 gated-feature" data-feature-keys="backend_ed_diffusers backend_webui backend_sdkit3">
+                        <td><label for="controlnet_model">ControlNet Image:</label></td>
+                        <td class="diffusers-restart-needed">
+                            <div id="control_image_wrapper" class="preview_image_wrapper">
+                                <img id="control_image_preview" class="image_preview" src="" crossorigin="anonymous" />
+                                <span id="control_image_size_box" class="img_bottom_label"></span>
+                                <button class="control_image_clear image_clear_btn"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <input id="control_image" name="control_image" type="file" />
+                            <a href="https://github.com/easydiffusion/easydiffusion/wiki/ControlNet" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">Click to learn more about ControlNets</span></i></a>
+                            <div id="controlnet_config" class="displayNone">
+                                <label><small>Filter to apply:</small></label>
+                                <select id="control_image_filter">
+                                    <option value="">None</option>
+                                    <optgroup label="Pose" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                                        <option value="openpose">OpenPose (*)</option>
+                                        <option value="openpose_face">OpenPose face</option>
+                                        <option value="openpose_faceonly">OpenPose face-only</option>
+                                        <option value="openpose_hand">OpenPose hand</option>
+                                        <option value="openpose_full">OpenPose full</option>
+                                        <option value="animal_openpose" class="gated-feature" data-feature-keys="backend_webui">animal_openpose</option>
+                                        <option value="densepose_parula (black bg & blue torso)" class="gated-feature" data-feature-keys="backend_webui">densepose_parula (black bg & blue torso)</option>
+                                        <option value="densepose (pruple bg & purple torso)" class="gated-feature" data-feature-keys="backend_webui">densepose (pruple bg & purple torso)</option>
+                                        <option value="dw_openpose_full" class="gated-feature" data-feature-keys="backend_webui">dw_openpose_full</option>
+                                        <option value="mediapipe_face" class="gated-feature" data-feature-keys="backend_webui">mediapipe_face</option>
+                                        <option value="instant_id_face_keypoints" class="gated-feature" data-feature-keys="backend_webui">instant_id_face_keypoints</option>
+                                        <option value="InsightFace+CLIP-H (IPAdapter)" class="gated-feature" data-feature-keys="backend_webui">InsightFace+CLIP-H (IPAdapter)</option>
+                                        <option value="InsightFace (InstantID)" class="gated-feature" data-feature-keys="backend_webui">InsightFace (InstantID)</option>
+                                    </optgroup>
+                                    <optgroup label="Outline">
+                                        <option value="canny">Canny (*)</option>
+                                        <option value="mlsd" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Straight lines</option>
+                                        <option value="scribble_hed" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Scribble hed (*)</option>
+                                        <option value="scribble_hedsafe" class="gated-feature" data-feature-keys="backend_diffusers">Scribble hedsafe</option>
+                                        <option value="scribble_pidinet" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Scribble pidinet</option>
+                                        <option value="scribble_pidsafe" class="gated-feature" data-feature-keys="backend_diffusers">Scribble pidsafe</option>
+                                        <option value="scribble_xdog" class="gated-feature" data-feature-keys="backend_webui">scribble_xdog</option>
+                                        <option value="softedge_hed" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge hed</option>
+                                        <option value="softedge_hedsafe" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge hedsafe</option>
+                                        <option value="softedge_pidinet" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge pidinet</option>
+                                        <option value="softedge_pidsafe" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge pidsafe</option>
+                                        <option value="softedge_teed" class="gated-feature" data-feature-keys="backend_webui">softedge_teed</option>
+                                    </optgroup>
+                                    <optgroup label="Depth" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                                        <option value="normal_bae">Normal bae (*)</option>
+                                        <option value="depth_midas">Depth midas</option>
+                                        <option value="normal_midas" class="gated-feature" data-feature-keys="backend_webui">normal_midas</option>
+                                        <option value="depth_zoe">Depth zoe</option>
+                                        <option value="depth_leres">Depth leres</option>
+                                        <option value="depth_leres++">Depth leres++</option>
+                                        <option value="depth_anything_v2" class="gated-feature" data-feature-keys="backend_webui">depth_anything_v2</option>
+                                        <option value="depth_anything" class="gated-feature" data-feature-keys="backend_webui">depth_anything</option>
+                                        <option value="depth_hand_refiner" class="gated-feature" data-feature-keys="backend_webui">depth_hand_refiner</option>
+                                        <option value="depth_marigold" class="gated-feature" data-feature-keys="backend_webui">depth_marigold</option>
+                                    </optgroup>
+                                    <optgroup label="Line art" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                                        <option value="lineart_coarse">Lineart coarse</option>
+                                        <option value="lineart_realistic">Lineart realistic</option>
+                                        <option value="lineart_anime">Lineart anime</option>
+                                        <option value="lineart_standard (from white bg & black line)" class="gated-feature" data-feature-keys="backend_webui">lineart_standard (from white bg & black line)</option>
+                                        <option value="lineart_anime_denoise" class="gated-feature" data-feature-keys="backend_webui">lineart_anime_denoise</option>
+                                    </optgroup>
+                                    <optgroup label="Reference" class="gated-feature" data-feature-keys="backend_webui">
+                                        <option value="reference_adain">reference_adain</option>
+                                        <option value="reference_only">reference_only</option>
+                                        <option value="reference_adain+attn">reference_adain+attn</option>
+                                    </optgroup>
+                                    <optgroup label="Tile" class="gated-feature" data-feature-keys="backend_webui">
+                                        <option value="tile_colorfix">tile_colorfix</option>
+                                        <option value="tile_resample">tile_resample</option>
+                                        <option value="tile_colorfix+sharp">tile_colorfix+sharp</option>
+                                    </optgroup>
+                                    <optgroup label="CLIP (IPAdapter)" class="gated-feature" data-feature-keys="backend_webui">
+                                        <option value="CLIP-ViT-H (IPAdapter)">CLIP-ViT-H (IPAdapter)</option>
+                                        <option value="CLIP-G (Revision)">CLIP-G (Revision)</option>
+                                        <option value="CLIP-G (Revision ignore prompt)">CLIP-G (Revision ignore prompt)</option>
+                                        <option value="CLIP-ViT-bigG (IPAdapter)">CLIP-ViT-bigG (IPAdapter)</option>
+                                        <option value="InsightFace+CLIP-H (IPAdapter)">InsightFace+CLIP-H (IPAdapter)</option>
+                                    </optgroup>
+                                    <optgroup label="Inpaint" class="gated-feature" data-feature-keys="backend_webui">
+                                        <option value="inpaint_only">inpaint_only</option>
+                                        <option value="inpaint_only+lama">inpaint_only+lama</option>
+                                        <option value="inpaint_global_harmonious">inpaint_global_harmonious</option>
+                                    </optgroup>
+                                    <optgroup label="Segment" class="gated-feature" data-feature-keys="backend_webui">
+                                        <option value="seg_ufade20k">seg_ufade20k</option>
+                                        <option value="seg_ofade20k">seg_ofade20k</option>
+                                        <option value="seg_anime_face">seg_anime_face</option>
+                                        <option value="seg_ofcoco">seg_ofcoco</option>
+                                    </optgroup>
+                                    <optgroup label="Misc" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                                        <option value="shuffle">Shuffle</option>
+                                        <option value="segment" class="gated-feature" data-feature-keys="backend_diffusers">Segment</option>
+                                        <option value="invert (from white bg & black line)" class="gated-feature" data-feature-keys="backend_webui">invert (from white bg & black line)</option>
+                                        <option value="threshold" class="gated-feature" data-feature-keys="backend_webui">threshold</option>
+                                        <option value="t2ia_sketch_pidi" class="gated-feature" data-feature-keys="backend_webui">t2ia_sketch_pidi</option>
+                                        <option value="t2ia_color_grid" class="gated-feature" data-feature-keys="backend_webui">t2ia_color_grid</option>
+                                        <option value="recolor_intensity" class="gated-feature" data-feature-keys="backend_webui">recolor_intensity</option>
+                                        <option value="recolor_luminance" class="gated-feature" data-feature-keys="backend_webui">recolor_luminance</option>
+                                        <option value="blur_gaussian" class="gated-feature" data-feature-keys="backend_webui">blur_gaussian</option>
+                                    </optgroup>
+                                </select>
+                                <br/>
+                                <label for="controlnet_model"><small>Model:</small></label> <input id="controlnet_model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="" />
+                                <!-- <br/>
+                                <label><small>Will download the necessary models, the first time.</small></label> -->
+                                <br/>
+                                <label for="controlnet_alpha_slider"><small>Strength:</small></label> <input id="controlnet_alpha_slider" name="controlnet_alpha_slider" class="editor-slider" value="10" type="range" min="0" max="10"> <input id="controlnet_alpha" name="controlnet_alpha" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal">
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="pl-5"><td><label for="vae_model">Custom VAE:</label></td><td>
+                        <input id="vae_model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="" />
+                        <a href="https://github.com/easydiffusion/easydiffusion/wiki/VAE-Variational-Auto-Encoder" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">Click to learn more about VAEs</span></i></a>
+                    </td></tr>
+                    <tr id="text_encoder_model_container" class="pl-5 gated-feature" data-feature-keys="backend_webui backend_sdkit3">
+                        <td>
+                            <label for="text_encoder_model">Text Encoder:</label>
+                        </td>
+                        <td>
+                            <div id="text_encoder_model" data-path=""></div>
+                        </td>
+                    </tr>
+                    <tr id="samplerSelection" class="pl-5"><td><label for="sampler_name">Sampler:</label></td><td>
+                        <select id="sampler_name" name="sampler_name">
+                            <option value="plms" class="gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers backend_webui">PLMS</option>
+                            <option value="ddim">DDIM</option>
+                            <option value="ddim_cfgpp" class="gated-feature" data-feature-keys="backend_webui">DDIM CFG++</option>
+                            <option value="heun">Heun</option>
+                            <option value="euler">Euler</option>
+                            <option value="euler_a" selected>Euler Ancestral</option>
+                            <option value="dpm2">DPM2</option>
+                            <option value="dpm2_a" class="gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers backend_webui">DPM2 Ancestral</option>
+                            <option value="dpm_fast" class="gated-feature" data-feature-keys="backend_webui">DPM Fast</option>
+                            <option value="dpm_adaptive" class="gated-feature" data-feature-keys="backend_ed_classic backend_webui">DPM Adaptive</option>
+                            <option value="lms" class="gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers backend_webui">LMS</option>
+                            <option value="dpm_solver_stability" class="gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers">DPM Solver (Stability AI)</option>
+                            <option value="dpmpp_2s_a">DPM++ 2s Ancestral (Karras)</option>
+                            <option value="dpmpp_2m">DPM++ 2m (Karras)</option>
+                            <option value="dpmpp_2m_v2" class="gated-feature" data-feature-keys="backend_sdkit3">DPM++ 2m (v2)</option>
+                            <option value="dpmpp_2m_sde" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">DPM++ 2m SDE</option>
+                            <option value="dpmpp_2m_sde_heun" class="gated-feature" data-feature-keys="backend_webui">DPM++ 2m SDE Heun</option>
+                            <option value="dpmpp_3m_sde" class="gated-feature" data-feature-keys="backend_webui">DPM++ 3M SDE</option>
+                            <option value="dpmpp_sde" class="gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers backend_webui">DPM++ SDE (Karras)</option>
+                            <option value="restart" class="gated-feature" data-feature-keys="backend_webui">Restart</option>
+                            <option value="heun_pp2" class="gated-feature" data-feature-keys="backend_webui">Heun PP2</option>
+                            <option value="ipndm" class="gated-feature" data-feature-keys="backend_webui backend_sdkit3">IPNDM</option>
+                            <option value="ipndm_v" class="gated-feature" data-feature-keys="backend_webui backend_sdkit3">IPNDM_V</option>
+                            <option value="ddpm" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">DDPM</option>
+                            <option value="deis" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">DEIS</option>
+                            <option value="lcm" class="gated-feature" data-feature-keys="backend_webui backend_sdkit3">LCM</option>
+                            <option value="forge_flux_realistic" class="gated-feature" data-feature-keys="backend_webui">[Forge] Flux Realistic</option>
+                            <option value="forge_flux_realistic_slow" class="gated-feature" data-feature-keys="backend_webui">[Forge] Flux Realistic (Slow)</option>
+                            <option value="unipc_snr" class="gated-feature" data-feature-keys="backend_ed_classic">UniPC SNR</option>
+                            <option value="unipc_tu" class="gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers">UniPC TU</option>
+                            <option value="unipc_snr_2" class="gated-feature" data-feature-keys="backend_ed_classic">UniPC SNR 2</option>
+                            <option value="unipc_tu_2" class="gated-feature" data-feature-keys="backend_ed_classic">UniPC TU 2</option>
+                            <option value="unipc_tq" class="gated-feature" data-feature-keys="backend_ed_classic">UniPC TQ</option>
+                            <option value="tcd" class="gated-feature" data-feature-keys="backend_sdkit3">TCD</option>
+                        </select>
+                        <a href="https://github.com/easydiffusion/easydiffusion/wiki/How-to-Use#samplers" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">Click to learn more about samplers</span></i></a>
+                    </td></tr>
+                    <tr class="pl-5 warning-label displayNone" id="fluxSamplerWarning"><td>Tip:</td><td>This sampler does not work well with Flux!</td></tr>
+                    <tr id="schedulerSelection" class="pl-5 gated-feature" data-feature-keys="backend_webui backend_sdkit3"><td><label for="scheduler_name">Scheduler:</label></td><td>
+                        <select id="scheduler_name" name="scheduler_name">
+                            <option value="automatic">Automatic</option>
+                            <option value="uniform">Uniform</option>
+                            <option value="karras">Karras</option>
+                            <option value="exponential">Exponential</option>
+                            <option value="polyexponential" class="gated-feature" data-feature-keys="backend_webui">Polyexponential</option>
+                            <option value="sgm_uniform">SGM Uniform</option>
+                            <option value="kl_optimal" class="gated-feature" data-feature-keys="backend_webui">KL Optimal</option>
+                            <option value="simple" selected>Simple</option>
+                            <option value="normal" class="gated-feature" data-feature-keys="backend_webui">Normal</option>
+                            <option value="ddim" class="gated-feature" data-feature-keys="backend_webui">DDIM</option>
+                            <option value="beta" class="gated-feature" data-feature-keys="backend_webui">Beta</option>
+                            <option value="turbo" class="gated-feature" data-feature-keys="backend_webui">Turbo</option>
+                            <option value="align_your_steps">Align Your Steps</option>
+                            <option value="align_your_steps_GITS">Align Your Steps GITS</option>
+                            <option value="align_your_steps_11" class="gated-feature" data-feature-keys="backend_webui">Align Your Steps 11</option>
+                            <option value="align_your_steps_32" class="gated-feature" data-feature-keys="backend_webui">Align Your Steps 32</option>
+                        </select>
+                    </td></tr>
+                    <tr class="pl-5 warning-label displayNone" id="fluxSchedulerWarning"><td>Tip:</td><td>This scheduler does not work well with Flux!</td></tr>
+                    <tr class="pl-5"><td><label>Image Size: </label></td><td id="image-size-options">
+                        <select id="width" name="width" value="512">
+                            <option value="128">128</option>
+                            <option value="192">192</option>
+                            <option value="256">256</option>
+                            <option value="320">320</option>
+                            <option value="384">384</option>
+                            <option value="448">448</option>
+                            <option value="512" selected="">512 (*)</option>
+                            <option value="576">576</option>
+                            <option value="640">640</option>
+                            <option value="704">704</option>
+                            <option value="768">768 (*)</option>
+                            <option value="832">832</option>
+                            <option value="896">896</option>
+                            <option value="960">960</option>
+                            <option value="1024">1024 (*)</option>
+                            <option value="1280">1280</option>
+                            <option value="1536">1536</option>
+                            <option value="1792">1792</option>
+                            <option value="2048">2048</option>
+                        </select>
+                        <label id="widthLabel" for="width"><small><span>(width)</span></small></label>
+                        <div class="tooltip-container">
+                            <span id="swap-width-height" class="clickable smallButton" style="margin-left: 2px; margin-right:2px;"><i class="fa-solid fa-right-left"><span class="simple-tooltip top-left"> Swap width and height </span></i></span>
+                        </div>
+                        <select id="height" name="height" value="512">
+                            <option value="128">128</option>
+                            <option value="192">192</option>
+                            <option value="256">256</option>
+                            <option value="320">320</option>
+                            <option value="384">384</option>
+                            <option value="448">448</option>
+                            <option value="512" selected="">512 (*)</option>
+                            <option value="576">576</option>
+                            <option value="640">640</option>
+                            <option value="704">704</option>
+                            <option value="768">768 (*)</option>
+                            <option value="832">832</option>
+                            <option value="896">896</option>
+                            <option value="960">960</option>
+                            <option value="1024">1024 (*)</option>
+                            <option value="1280">1280</option>
+                            <option value="1536">1536</option>
+                            <option value="1792">1792</option>
+                            <option value="2048">2048</option>
+                        </select>
+                        <label id="heightLabel" for="height"><small><span>(height)</span></small></label>
+                        <div id="recent-resolutions-container">
+                            <span id="recent-resolutions-button" class="clickable"><i class="fa-solid fa-sliders"><span class="simple-tooltip top-left"> Advanced sizes </span></i></span>
+                            <div id="recent-resolutions-popup" class="displayNone">
+                                <small>Custom size:</small><br>
+                                <input id="custom-width" name="custom-width" type="number" min="128" value="512" onkeypress="preventNonNumericalInput(event)" inputmode="numeric">
+                                &times;
+                                <input id="custom-height" name="custom-height" type="number" min="128" value="512" onkeypress="preventNonNumericalInput(event)" inputmode="numeric"><br>
+                                <small>Resize:</small><br>
+                                <input id="resize-slider" name="resize-slider" class="editor-slider" value="1" type="range" min="0.4" max="2" step="0.005" style="width:100%;"><br>
+                                <div id="enlarge-buttons"><button data-factor="0.5" class="tertiaryButton smallButton">×0.5</button>&nbsp;<button data-factor="1.2" class="tertiaryButton smallButton">×1.2</button>&nbsp;<button data-factor="1.5" class="tertiaryButton smallButton">×1.5</button>&nbsp;<button data-factor="2" class="tertiaryButton smallButton">×2</button>&nbsp;<button data-factor="3" class="tertiaryButton smallButton">×3</button></div>
+
+                                <div class="two-column">
+                                    <div class="left-column">
+                                        <small>Recently&nbsp;used:</small><br>
+                                        <div id="recent-resolution-list">
+                                        </div>
+                                    </div>
+                                    <div class="right-column">
+                                        <small>Common&nbsp;sizes:</small><br>
+                                        <div id="common-resolution-list">
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                        <div id="small_image_warning" class="displayNone warning-label">Small image sizes can cause bad image quality</div>
+                    </td></tr>
+                    <tr class="pl-5"><td><label for="num_inference_steps">Inference Steps:</label></td><td> <input id="num_inference_steps" name="num_inference_steps" type="number" min="1" step="1" style="width: 42pt" value="25" onkeypress="preventNonNumericalInput(event)" inputmode="numeric"></td></tr>
+                    <tr class="pl-5 warning-label displayNone" id="fluxSchedulerStepsWarning"><td>Tip:</td><td>This scheduler needs 15 steps or more</td></tr>
+                    <tr class="pl-5"><td><label for="guidance_scale_slider">Guidance Scale <small>(<abbr title="Also known as CFG Scale (Classifier-Free Guidance). Controls the influence of your prompt during generation.">?</abbr>)</small>:</label></td><td> <input id="guidance_scale_slider" name="guidance_scale_slider" class="editor-slider" value="75" type="range" min="11" max="500"> <input id="guidance_scale" name="guidance_scale" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal"></td></tr>
+                    <tr class="pl-5 displayNone warning-label" id="guidanceWarning"><td></td><td id="guidanceWarningText"></td></tr>
+                    <tr id="prompt_strength_container" class="pl-5"><td><label for="prompt_strength_slider">Prompt Strength <small>(<abbr title="Also known as Denoising Strength. Controls the importance of your prompt (vs the initial image) during generation.">?</abbr>)</small>:</label></td><td> <input id="prompt_strength_slider" name="prompt_strength_slider" class="editor-slider" value="80" type="range" min="0" max="99"> <input id="prompt_strength" name="prompt_strength" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal"><br/></td></tr>
+                    <tr id="distilled_guidance_scale_container" class="pl-5 gated-feature" data-feature-keys="backend_webui backend_sdkit3"><td><label for="distilled_guidance_scale_slider">Distilled Guidance:</label></td><td> <input id="distilled_guidance_scale_slider" name="distilled_guidance_scale_slider" class="editor-slider" value="35" type="range" min="11" max="500"> <input id="distilled_guidance_scale" name="distilled_guidance_scale" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal"></td></tr>
+                    <tr id="lora_model_container" class="pl-5 gated-feature" data-feature-keys="backend_ed_diffusers backend_webui backend_sdkit3">
+                        <td>
+                            <label for="lora_model">LoRA:</label>
+                        </td>
+                        <td class="diffusers-restart-needed">
+                            <div id="lora_model" data-path=""></div>
+                        </td>
+                    </tr>
+                    <tr id="hypernetwork_model_container" class="pl-5 gated-feature" data-feature-keys="backend_ed_classic"><td><label for="hypernetwork_model">Hypernetwork:</label></td><td>
+                        <input id="hypernetwork_model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="" />
+                    </td></tr>
+                    <tr id="hypernetwork_strength_container" class="pl-5 gated-feature" data-feature-keys="backend_ed_classic">
+                        <td><label for="hypernetwork_strength_slider">Hypernetwork Strength:</label></td>
+                        <td> <input id="hypernetwork_strength_slider" name="hypernetwork_strength_slider" class="editor-slider" value="100" type="range" min="0" max="100"> <input id="hypernetwork_strength" name="hypernetwork_strength" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal"><br/></td>
+                    </tr>
+                    <tr id="tiling_container" class="pl-5 gated-feature" data-feature-keys="backend_ed_diffusers">
+                        <td><label for="tiling">Seamless Tiling:</label></td>
+                        <td class="diffusers-restart-needed">
+                            <select id="tiling" name="tiling">
+                                <option value="none" selected>None</option>
+                                <option value="x">Horizontal</option>
+                                <option value="y">Vertical</option>
+                                <option value="xy">Both</option>
+                            </select>
+                            <a href="https://github.com/easydiffusion/easydiffusion/wiki/Seamless-Tiling" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">Click to learn more about Seamless Tiling</span></i></a>
+                        </td>
+                    </tr>
+                    <tr class="pl-5 gated-feature" data-feature-keys="backend_ed_diffusers">
+                        <td><label for="tiling">Enable VAE Tiling:</label></td>
+                        <td class="diffusers-restart-needed">
+                            <input id="enable_vae_tiling" name="enable_vae_tiling" type="checkbox" checked>
+                            <label><small>Optimizes memory for larger images</small></label>
+                        </td>
+                    </tr>
+                    </table></div>
+
+                </div>
+            </div>
+
+            <div id="render-settings" class="settings-box panel-box">
+                <h4 class="collapsible">Render Settings</h4>
+                <div id="render-settings-entries" class="collapsible-content settings-panel-entries">
+                    <div><ul>
+                    <li class="pl-5"><input id="stream_image_progress" name="stream_image_progress" type="checkbox"> <label for="stream_image_progress">Show a live preview <small>(uses more VRAM, slower images)</small></label></li>
+                    <li class="pl-5" id="use_face_correction_container">
+                        <input id="use_face_correction" name="use_face_correction" type="checkbox"> <label for="use_face_correction">Fix incorrect faces and eyes</label> <div style="display:inline-block;"><input id="gfpgan_model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="" /></div>
+                        <table id="codeformer_settings" class="displayNone sub-settings">
+                            <tr class="pl-5"><td><label for="codeformer_fidelity_slider">Strength:</label></td><td><input id="codeformer_fidelity_slider" name="codeformer_fidelity_slider" class="editor-slider" value="5" type="range" min="0" max="10"> <input id="codeformer_fidelity" name="codeformer_fidelity" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal"></td></tr>
+                            <tr class="pl-5 gated-feature" data-feature-keys="backend_ed_diffusers"><td><label for="codeformer_upscale_faces">Upscale Faces:</label></td><td><input id="codeformer_upscale_faces" name="codeformer_upscale_faces" type="checkbox" checked> <label><small>(improves the resolution of faces)</small></label></td></tr>
+                        </table>
+                    </li>
+                    <li class="pl-5">
+                        <input id="use_upscale" name="use_upscale" type="checkbox"> <label for="use_upscale">Scale up by</label>
+                        <select id="upscale_amount" name="upscale_amount">
+                            <option id="upscale_amount_2x" value="2">2x</option>
+                            <option id="upscale_amount_4x" value="4" selected>4x</option>
+                        </select>
+                        with
+                        <select id="upscale_model" name="upscale_model">
+                            <option value="RealESRGAN_x4plus" selected>RealESRGAN_x4plus</option>
+                            <option value="RealESRGAN_x4plus_anime_6B">RealESRGAN_x4plus_anime_6B</option>
+                            <option value="ESRGAN_4x" class="pl-5 gated-feature" data-feature-keys="backend_webui">ESRGAN_4x</option>
+                            <option value="Lanczos" class="pl-5 gated-feature" data-feature-keys="backend_webui">Lanczos</option>
+                            <option value="Nearest" class="pl-5 gated-feature" data-feature-keys="backend_webui">Nearest</option>
+                            <option value="ScuNET" class="pl-5 gated-feature" data-feature-keys="backend_webui">ScuNET GAN</option>
+                            <option value="ScuNET PSNR" class="pl-5 gated-feature" data-feature-keys="backend_webui">ScuNET PSNR</option>
+                            <option value="SwinIR_4x" class="pl-5 gated-feature" data-feature-keys="backend_webui">SwinIR 4x</option>
+                            <option value="latent_upscaler" class="pl-5 gated-feature" data-feature-keys="backend_ed_classic backend_ed_diffusers">Latent Upscaler 2x</option>
+                        </select>
+                        <table id="latent_upscaler_settings" class="displayNone sub-settings">
+                            <tr class="pl-5"><td><label for="latent_upscaler_steps_slider">Upscaling Steps:</label></td><td><input id="latent_upscaler_steps_slider" name="latent_upscaler_steps_slider" class="editor-slider" value="10" type="range" min="1" max="50"> <input id="latent_upscaler_steps" name="latent_upscaler_steps" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="numeric"></td></tr>
+                        </table>
+                    </li>
+                    <li class="pl-5"><input id="show_only_filtered_image" name="show_only_filtered_image" type="checkbox" checked> <label for="show_only_filtered_image">Show only the corrected/upscaled image</label></li>
+                    </ul></div>
+                </div>
+            </div>
+
+            <div id="output-settings" class="settings-box panel-box">
+                <h4 class="collapsible">Output Settings</h4>
+                <div id="output-settings-entries" class="collapsible-content settings-panel-entries">
+                    <div><table>
+                    <tr class="pl-5"><td><label for="output_format">Output Format:</label></td><td>
+                        <select id="output_format" name="output_format">
+                            <option value="jpeg" selected>jpeg</option>
+                            <option value="png">png</option>
+                            <option value="webp">webp</option>
+                        </select>
+                        <span id="output_lossless_container" class="displayNone">
+                            <input id="output_lossless" name="output_lossless" type="checkbox"><label for="output_lossless">Lossless</label>
+                        </span>
+                    </td></tr>
+                    <tr class="pl-5" id="output_quality_row"><td><label for="output_quality">Image Quality:</label></td><td>
+                        <input id="output_quality_slider" name="output_quality" class="editor-slider" value="75" type="range" min="10" max="95"> <input id="output_quality" name="output_quality" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="numeric">
+                    </td></tr>
+                    </table></div>
+                </div>
+            </div>
+
+            <label><small><b>Note:</b> The Image Modifiers section has moved to the <code>+ Image Modifiers</code> button at the top, just above the Prompt textbox.</small></label>
+        </div>
+
+        <div id="preview" class="col-free">
+
+            <div id="initial-text">
+                Type a prompt and press the "Make Image" button.<br/><br/>You can set an "Initial Image" if you want to guide the AI.<br/><br/>
+                You can also add modifiers like "Realistic", "Pencil Sketch", "ArtStation" etc by browsing through the "Image Modifiers" section 
+                and selecting the desired modifiers.<br/><br/>
+                Click "Image Settings" for additional settings like seed, image size, number of images to generate etc.<br/><br/>Enjoy! :)
+            </div>
+            <div id="preview-content">
+                <div id="preview-tools" class="displayNone">
+                    <button id="clear-all-previews" class="secondaryButton"><i class="fa-solid fa-trash-can icon"></i> Clear All</button>
+                    <button class="tertiaryButton" id="show-download-popup"><i class="fa-solid fa-download"></i><span> Download images</span></button>
+                    <div class="display-settings">
+                        <button id="undo" class="displayNone primaryButton">
+                            Undo <i class="fa-solid fa-rotate-left icon"></i>
+                            <span class="simple-tooltip left">Undo last remove</span>
+                        </button>
+                        <span class="auto-scroll"></span> <!-- hack for Rabbit Hole update -->
+                        <button id="auto_scroll_btn" class="tertiaryButton">
+                            <i class="fa-solid fa-arrows-up-to-line icon"></i>
+                            <input id="auto_scroll" name="auto_scroll" type="checkbox" style="display: none">
+                            <span class="simple-tooltip left">
+                                Scroll to generated image (<span class="state">OFF</span>)
+                            </span>
+                        </button>
+                        <button class="dropdown tertiaryButton">
+                            <i class="fa-solid fa-magnifying-glass-plus icon dropbtn"></i>
+                            <span class="simple-tooltip left">
+                                Image Size
+                            </span>
+                        </button>
+                        <div class="dropdown-content">
+                            <div class="dropdown-item">
+                                <input id="thumbnail_size" name="thumbnail_size" class="editor-slider" type="range" value="70" min="5" max="200" oninput="sliderUpdate(event)"> 
+                                <input id="thumbnail_size-input" name="thumbnail_size-input" size="3" value="70" pattern="^[0-9.]+$" onkeypress="preventNonNumericalInput(event)" oninput="sliderUpdate(event)" inputmode="numeric">&nbsp;%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="clearfix" style="clear: both;"></div>
+                </div>
+                <div id="supportBanner" class="displayNone">
+                    If you found this project useful and want to help keep it alive, please consider <a href="https://ko-fi.com/easydiffusion" target="_blank">buying me a coffee</a> to help cover the cost of development and maintenance! Thanks for your support!
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div id="tab-content-settings" class="tab-content">
+            <div id="system-settings" class="tab-content-inner">
+                <h1>System Settings</h1>
+                <div class="parameters-table" id="system-settings-table"></div>
+                <br/>
+                <button id="save-system-settings-btn" class="primaryButton">Save</button>
+                <div id="install-extras-container" class="displayNone">
+                    <br/>
+                    <div id="install-extras">
+                        <h3><i class="fa fa-cubes-stacked"></i> Optional Packages</h3>
+                        <div class="parameters-table" id="system-settings-install-extras-table"></div>
+                    </div>
+                </div>
+                <br/><br/>
+                <div id="share-easy-diffusion">
+                   <h3><i class="fa fa-user-group"></i> Share Easy Diffusion</h3>
+                   <div class="parameters-table" id="system-settings-network-table">
+                   </div>
+                </div>
+                <br/><br/>
+                <div>
+                    <h3><i class="fa fa-microchip icon"></i> System Info</h3>
+                    <div id="system-info">
+                        <table>
+                            <tr><td><label>Processor:</label></td><td id="system-info-cpu" class="value"></td></tr>
+                            <tr><td><label>Compatible Graphics Cards (all):</label></td><td id="system-info-gpus-all" class="value"></td></tr>
+                            <tr><td></td><td>&nbsp;</td></tr>
+                            <tr><td><label>Used for rendering 🔥:</label></td><td id="system-info-rendering-devices" class="value"></td></tr>
+                            <tr><td><label>Server Addresses <i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">You can access Stable Diffusion UI from other devices using these addresses</span></i> :</label></td><td id="system-info-server-hosts" class="value"></td></tr>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div id="tab-content-about" class="tab-content">
+            <div class="tab-content-inner">
+                <div class="float-container">
+                    <div class="float-child">
+                        <h1>Help</h1>
+                        <div id="help-links">
+                            <h4><span class="help-section"><b>Basics</b></span></h4>
+                            <ul>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/How-To-Use" target="_blank">How to use</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Writing-Prompts" target="_blank">Writing prompts</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Image-Modifiers" target="_blank">Image Modifiers</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Inpainting" target="_blank">Inpainting</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Samplers" target="_blank">Samplers</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/UI-Overview" target="_blank">Summary of every UI option</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Troubleshooting" target="_blank">Common error messages (and solutions)</a></li>
+                            </ul>
+  
+                            <h4><span class="help-section"><b>Intermediate</b></span></h4>
+                            <ul>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Custom-Models" target="_blank">Custom Models</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Prompt-Syntax" target="_blank">Prompt Syntax (weights, emphasis etc)</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/UI-Plugins" target="_blank">UI Plugins</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Embeddings" target="_blank">Embeddings</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/LoRA" target="_blank">LoRA</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/SDXL" target="_blank">SDXL</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/ControlNet" target="_blank">ControlNet</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Seamless-Tiling" target="_blank">Seamless Tiling</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/xFormers" target="_blank">xFormers</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/The-beta-channel" target="_blank">The beta channel</a></li>
+                            </ul>
+  
+                            <h4><span class="help-section"><b>Advanced topics</b></span></h4>
+                            <ul>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Run-on-Multiple-GPUs" target="_blank">Run on Multiple GPUs</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Model-Merging" target="_blank">Model Merging</a></li>
+                                <li> <a href="https://github.com/easydiffusion/easydiffusion/wiki/Custom-Modifiers" target="_blank">Custom Modifiers</a></li>
+                            </ul>
+
+                            <h4><span class="help-section"><b>Misc</b></span></h4>
+                            <ul>
+                                <li> <a href="https://theally.notion.site/The-Definitive-Stable-Diffusion-Glossary-1d1e6d15059c41e6a6b4306b4ecd9df9" target="_blank">Glossary of Stable Diffusion related terms</a></li>
+                            </ul>
+                        </div>
+                    </div>
+  
+                    <div class="float-child">
+                        <h1>Community</h1>
+                        <ul id="community-links">
+                            <li><a href="https://discord.com/invite/u9yhsFmEkB" target="_blank"><i class="fa-brands fa-discord fa-fw"></i> Discord user community</a></li>
+                            <li><a href="https://www.reddit.com/r/StableDiffusionUI/" target="_blank"><i class="fa-brands fa-reddit fa-fw"></i> Reddit community</a></li>
+                            <li><a href="https://github.com/easydiffusion/easydiffusion" target="_blank"><i class="fa-brands fa-github fa-fw"></i> Source code on GitHub</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="popup" id="splash-screen" data-version="1">
+        <div>
+            <i class="close-button fa-solid fa-xmark"></i>
+            <img class="splash-img" src="/media/images/icon-512x512.png" width="128" height="128">
+            <h1>Diffusers Tech Preview</h1>
+            <p>The Diffusers Tech Preview allows early access to the new features based on <a href="https://huggingface.co/docs/diffusers/index" target="_blank">Diffusers</a>.</p>
+            <p>This is under active development, and is missing a few features. It is experimental! Please report any bugs to the #beta channel in our <a href="https://discord.gg/QUcNZufQNZ" target="_blank">Discord</a> server!</p>
+            <h2>New upcoming features in our new engine</h2>
+            <ul>
+                <li><a href="https://huggingface.co/blog/lora" target="_blank">LORA</a> support - Place LORA files in the <tt>models/lora</tt> folder.</li>
+                <li><a href="https://github.com/damian0815/compel/blob/main/Reference.md" target="_blank">Compel Prompt Parser</a> - New, more powerful parser. In short:
+                    <ul>
+                        <li> no limit to the length of prompts (i.e. long prompts are supported)</li>
+                        <li> Use <tt>+</tt> and <tt>-</tt> to increase/decrease the weight. E.g. <tt>apple</tt>, <tt>apple+</tt>, <tt>apple++</tt>, <tt>apple+++</tt>,
+                             or <tt>apple-</tt>, <tt>apple--</tt> for different weights.</li>
+                        <li> Use exact weights - 0.0 to 1.0 reduces the weight, 1.0 to 2.0 increases the weight.
+                             Think of it like a multiplier, like 1.5x or 0.5x: E.g. <tt>(apple)0.8 falling from a tree</tt>,
+                             <tt>(apple)1.5 falling from a tree</tt>, <tt>(apple falling)1.4 from a tree</tt></li>
+                        <li> You can group tokens together using parentheses/round-brackets. E.g. <tt>(apple falling)++
+                             from a tree</tt>. Nested parentheses are supported.</li>
+                    </ul>
+                    This clarifies a few things:
+                    <ul>
+                        <li> colon (<tt>:</tt>) is NOT used for blending. Neither is it used for weights. It has no impact and
+                             will be considered a part of the prompt.</li>
+                        <li> <tt>(())</tt> and <tt>[]</tt> do not affect the prompt's weights.</li>
+                    </ul>
+                </li>
+                <li> More choices for img2img samplers</li>
+                <li> Support for official inpainting models</li>
+		<li> Generate images that tile seamlessly</li>
+                <li> <a href="https://github.com/cmdr2/stable-diffusion-ui/wiki/Clip-Skip" target="_blank">Clip Skip</a> support allows to skip the last CLIP layer (recommended by some LORA models)</li>
+                <li> New samplers: DDPM and DEIS</li>
+                <li> Memory optimizations that allow the use of 2GB GPUs</li>
+            </ul>
+            <h2>Known issues</h2>
+            <ul>
+                <li> Some LoRA consistently fail to load in EasyDiffusion</li>
+                <li> Some LoRA are far more sensitive to alpha (compared to a11)</li>
+                <li> Hangs sometimes on "compel is ready", while making the token.</li>
+                <li> Some custom inpainting models don't work</li>
+                <li> These samplers don't work yet: Unipc SNR, Unipc TQ, Unipc SNR2, DPM++ 2s Ancestral, DPM++ SDE, DPM Fast, DPM Adaptive, DPM2</li>
+                <li> Hypernetwork doesn't work</li>
+                <li> The time remaining in browser differs from the one in the console</li>
+            </ul>
+        </div>
+    </div>
+
+    <dialog id="download-images-dialog">
+        <div class="dialog-header">
+            <div class="dialog-header-left">
+                <h4>Download all images</h4>
+                <span></span>
+            </div>
+            <div>
+                <i id="download-images-close-button" class="fa-solid fa-xmark fa-lg"></i>
+            </div>
+        </div>
+        <div class="parameters-table">
+            <div>
+                <div><i class="fa fa-file-zipper"></i></div>
+                <div><label for="theme">Download as a ZIP file</label><small>Instead of downloading individual files, generate one zip file with all images</small></div>
+                <div><div class="input-toggle"><input id="zip_toggle" name="zip_toggle" checked="" type="checkbox"><label for="zip_toggle"></label></div></div>
+            </div>
+            <div id="download-add-folders">
+                <div><i class="fa fa-folder-tree"></i></div>
+                <div><label for="theme">Add per-job folders</label><small>Place images into job folders</small></div>
+                <div><div class="input-toggle"><input id="tree_toggle" name="tree_toggle" checked="" type="checkbox"><label for="tree_toggle"></label></div></div>
+            </div>
+            <div>
+                <div><i class="fa fa-sliders"></i></div>
+                <div><label for="theme">Add metadata files</label><small>For each image, also download a JSON file with all the settings used to generate the image</small></div>
+                <div><div class="input-toggle"><input id="json_toggle" name="json_toggle" checked="" type="checkbox"><label for="json_toggle"></label></div></div>
+            </div>
+        </div>
+        <div class="center">
+            <button id="save-all-images" class="primaryButton"><i class="fa-solid fa-images"></i> Start download</button>
+        </div>
+    </dialog>
+    <div id="save-settings-config" class="popup">
+        <div>
+            <i class="close-button fa-solid fa-xmark"></i>
+            <h1>Save Settings Configuration</h1>
+            <p>Select which settings should be remembered when restarting the browser</p>
+            <table id="save-settings-config-table" class="form-table">
+            </table>
+        </div>
+    </div>
+
+    <div id="editor-modifiers">
+        <div id="editor-modifiers-header" class="dialog-header">
+            <div id="modifiers-header-left" class="dialog-header-left">
+                <h4>Image Modifiers</h4>
+                <span>(drawing style, camera, etc.)</span>
+            </div>
+            <div id="modifiers-header-right">
+                <i id="modifier-settings-btn" class="fa-solid fa-gear section-button">
+                    <span class="simple-tooltip left">
+                        Add Custom Modifiers
+                    </span>
+                </i>
+                <i id="modifiers-container-size-btn" class="fa-solid fa-expand"></i>
+                <i id="modifiers-close-button" class="fa-solid fa-xmark fa-lg"></i>
+            </div>
+        </div>
+        <div id="editor-modifiers-subheader">
+            <div id="modifiers-action-collapsibles-btn">
+                <i class="modifiers-action-icon fa-solid fa-square-plus"></i>
+                <span class="modifiers-action-text">
+                    Expand Categories
+                </span>
+            </div>
+            <div>
+                <label for="preview-image">Image Style:</label>
+                <select id="preview-image" name="preview-image" value="portrait">
+                    <option value="portrait" selected="">Face</option>
+                    <option value="landscape">Landscape</option>
+                </select>
+            </div>
+            <div>
+                <label for="modifier-card-size-slider">Thumbnail Size:</label>
+                <input id="modifier-card-size-slider" name="modifier-card-size-slider" value="0" type="range" min="-2" max="3">
+            </div>
+        </div>
+        <div id="editor-modifiers-entries" class="collapsible-content"></div>
+    </div>
+
+    <dialog id="modifier-settings-config">
+        <div id="modifier-settings-header" class="dialog-header">
+            <div id="modifier-settings-header-left" class="dialog-header-left">
+                <h4>Custom Modifiers</h4>
+                <span>Set your custom modifiers (one per line)</span>
+            </div>
+            <div id="modifier-settings-header-right">
+                <i id="modifier-settings-close-button" class="fa-solid fa-xmark fa-lg"></i>
+            </div>
+        </div>
+        <textarea id="custom-modifiers-input" placeholder="Enter your custom modifiers, one-per-line" spellcheck="false"></textarea>
+        <div>
+            <small>
+                <b>Tip:</b> You can include special characters like {} () [] and |. You can also put multiple comma-separated
+                phrases in a single line, to make a single modifier that combines all of those.
+            </small>
+        </div>
+    </dialog>
+
+    <dialog id="embeddings-dialog">
+        <div id="embeddings-dialog-header" class="dialog-header">
+            <div id="embeddings-dialog-header-left" class="dialog-header-left">
+                <h4>Embeddings</h4>
+                <span>
+                    <span class="displayNone" id="positive-embedding-text"> Add embeddings to the prompt (click) or negative prompt (shift-click)</span>
+                    <span class="displayNone" id="negative-embedding-text"> Add embeddings to the negative prompt</span>
+                <span>
+            </div>
+            <div id="embeddings-dialog-header-right">
+                <button id="add-embeddings-thumb" class="tertiaryButton smallButton" style="background-color: var(--background-color4);"><i class="fa-solid fa-folder-plus"></i> Add thumbnail</button>
+                <input id="add-embeddings-thumb-input" name="add-embeddings-thumb-input" type="file" class="displayNone">
+                <i id="embeddings-dialog-close-button" class="fa-solid fa-xmark fa-lg"></i>
+            </div>
+        </div>
+        <div>
+            <button id="embeddings-action-collapsibles-btn" class="tertiaryButton smallButton">
+                <i class="embeddings-action-icon fa-solid fa-square-plus"></i>
+                <span class="embeddings-action-text">Expand Categories</span>
+            </button>
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="embeddings-search-box" type="text" spellcheck="false" autocomplete="off" placeholder="Search..." inputmode="search">
+            <label for="embedding-card-size-selector"><small>Thumbnail Size:</small></label>
+            <select id="embedding-card-size-selector" name="embedding-card-size-selector">
+                <option value="-2">0</option>
+                <option value="-1" selected>1</option>
+                <option value="0">2</option>
+                <option value="1">3</option>
+                <option value="2">4</option>
+                <option value="3">5</option>
+            </select>
+            <span style="float:right;"><label>Mode:</label>&nbsp;<select id="embeddings-mode"><option value="insert">Insert at cursor position</option><option value="append">Append at the end</option></select>
+        </div>
+        <div id="embeddings-list">
+        </div>
+        </div>
+    </dialog>
+
+    <dialog id="use-as-thumb-dialog">
+        <div id="use-as-thumb-dialog-header" class="dialog-header">
+            <div id="use-as-thumb-dialog-header-left" class="dialog-header-left">
+                <h4>Use as thumbnail</h4>
+                <span>Use a pictures as thumbnail for embeddings, LORAs, etc.</span>
+            </div>
+            <div id="use-as-thumb-dialog-header-right">
+                <i id="use-as-thumb-dialog-close-button" class="fa-solid fa-xmark fa-lg"></i>
+            </div>
+        </div>
+        <div>
+            <div class="use-as-thumb-grid">
+                <div class="use-as-thumb-preview">
+                    <div id="use-as-thumb-img-container"><img id="use-as-thumb-image" src="/media/images/noimg.png" width="512" height="512"></div>
+                </div>
+                <div class="use-as-thumb-select">
+                    <label for="use-as-thumb-select">Use the thumbnail for:</label><br>
+                    <select id="use-as-thumb-select" size="16" multiple>
+                    </select>
+                </div>
+                <div class="use-as-thumb-buttons">
+                    <button class="tertiaryButton" id="use-as-thumb-save">Save thumbnail</button>
+                    <button class="tertiaryButton" id="use-as-thumb-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <div id="image-editor" class="popup image-editor-popup">
+        <div>
+            <i class="close-button fa-solid fa-xmark"></i>
+            <div class="flex-container">
+                <div class="editor-controls-left"></div>
+                <div class="editor-controls-center">
+                    <div></div>
+                </div>
+                <div class="editor-controls-right">
+                    <div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="image-inpainter" class="popup image-editor-popup">
+        <div>
+            <i class="close-button fa-solid fa-xmark"></i>
+            <div class="flex-container">
+                <div class="editor-controls-left"></div>
+                <div class="editor-controls-center">
+                    <div></div>
+                </div>
+                <div class="editor-controls-right">
+                    <div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-spacer"></div>
+    <div id="footer">
+        <div class="line-separator">&nbsp;</div>
+        <p>Please feel free to join the <a href="https://discord.com/invite/u9yhsFmEkB" target="_blank">discord community</a> or <a href="https://github.com/easydiffusion/easydiffusion/issues" target="_blank">file an issue</a> if you have any problems or suggestions in using this interface.</p>
+        <div id="footer-legal">
+            <p><b>Disclaimer:</b> The authors of this project are not responsible for any content generated using this interface.</p>
+            <p>This license of this software forbids you from sharing any content that violates any laws, produce any harm to a person, disseminate any personal information that would be meant for harm, <br/>spread misinformation and target vulnerable groups. For the full list of restrictions please read <a href="https://github.com/easydiffusion/easydiffusion/blob/main/LICENSE" target="_blank">the license</a>.</p>
+            <p>By using this software, you consent to the terms and conditions of the license.</p>
+        </div>
+        <input id="test_diffusers" type="checkbox" style="display: none" checked /> <!-- for backwards compatibility -->
+        <input id="use_v3_engine" type="checkbox" style="display: none" checked /> <!-- for backwards compatibility -->
+    </div>
+</div>
+</body>
+<script src="media/js/utils.js"></script>
+<script src="/plugins/core/reference-images.plugin.js"></script>
+<script src="media/js/engine.js"></script>
+<script src="media/js/parameters.js"></script>
+
+<script src="media/js/image-modifiers.js"></script>
+<script src="media/js/auto-save.js"></script>
+
+<script src="media/js/searchable-models.js"></script>
+<script src="media/js/multi-model-selector.js"></script>
+<script src="media/js/task-manager.js"></script>
+<script src="media/js/main.js"></script>
+<script src="media/js/plugins.js"></script>
+<script src="media/js/themes.js"></script>
+<script src="media/js/dnd.js"></script>
+<script src="media/js/image-editor.js"></script>
+<script src="media/js/image-modal.js"></script>
+<script>
+async function init() {
+    await initSettings()
+    await getModels(false)
+    await getAppConfig()
+    await loadUIPlugins()
+    await loadModifiers()
+    await getSystemInfo()
+    // await initPlugins()
+
+    SD.init({
+        events: {
+            statusChange: setServerStatus,
+            idle: onIdle,
+            ping: onPing
+        }
+    })
+    // splashScreen()
+
+    // load models again, but scan for malicious this time
+    await getModels(true)
+
+    // playSound()
+}
+
+init()
+</script>
+</html>

@@ -1,0 +1,688 @@
+/*
+ * Easy Diffusion Mobile + PWA
+ * Responsive overrides optimized for 360 x 640 phones such as the Galaxy S7.
+ */
+
+html.ed-mobile-pwa {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+#mobile-pwa-network-status {
+    position: fixed;
+    z-index: 1200;
+    top: max(6px, env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 24px);
+    padding: 7px 12px;
+    border: 1px solid rgb(158, 103, 0);
+    border-radius: 999px;
+    background: rgb(69, 46, 0);
+    color: rgb(255, 235, 191);
+    box-shadow: 0 5px 18px rgb(0 0 0 / 45%);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+}
+
+#mobile-pwa-back-to-prompt {
+    position: fixed;
+    z-index: 850;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
+    min-width: 48px;
+    min-height: 44px;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgb(0 0 0 / 48%);
+}
+
+#mobile-pwa-back-to-prompt[hidden],
+#mobile-pwa-network-status[hidden] {
+    display: none !important;
+}
+
+#mobile-pwa-install-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 14px;
+    text-align: left;
+}
+
+#mobile-pwa-install-card .mobile-pwa-install-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+#mobile-pwa-install-card h2,
+#mobile-pwa-install-card p {
+    margin: 0;
+}
+
+#mobile-pwa-install-card h2 {
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+#mobile-pwa-install-card p {
+    color: var(--small-label-color);
+    font-size: 12px;
+}
+
+#mobile-pwa-install-card .mobile-pwa-https-help {
+    margin-top: 6px;
+}
+
+#mobile-pwa-install-card .mobile-pwa-https-help a {
+    display: inline-block;
+    min-height: 28px;
+    padding: 5px 0;
+    font-weight: 700;
+}
+
+#mobile-pwa-install-card .mobile-pwa-https-help[hidden],
+html.ed-secure-context #mobile-pwa-install-card .mobile-pwa-https-help {
+    display: none;
+}
+
+#mobile-pwa-install-card button {
+    flex: 0 0 auto;
+    min-height: 42px;
+}
+
+#mobile-pwa-install-banner {
+    position: fixed;
+    z-index: 1100;
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px));
+    left: max(8px, env(safe-area-inset-left));
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 56px;
+    padding: 7px 7px 7px 12px;
+    border: 1px solid var(--background-color3);
+    border-radius: 12px;
+    background: var(--background-color2);
+    box-shadow: 0 8px 30px rgb(0 0 0 / 58%);
+}
+
+#mobile-pwa-install-banner > span {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#mobile-pwa-install-banner button {
+    min-height: 42px;
+}
+
+#mobile-pwa-install-banner .mobile-pwa-dismiss {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-color);
+}
+
+body.ed-standalone #mobile-pwa-install-banner {
+    display: none;
+}
+
+@media screen and (max-width: 700px) {
+    html.ed-mobile-pwa,
+    html.ed-mobile-pwa body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui {
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #container {
+        min-height: var(--ed-mobile-viewport-height, 100vh);
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav {
+        position: relative;
+        z-index: 800;
+        top: auto;
+        display: grid;
+        grid-template-areas:
+            "logo status"
+            "tabs tabs";
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        padding: max(4px, env(safe-area-inset-top)) 5px 0;
+        border-bottom: 1px solid var(--background-color3);
+        box-shadow: 0 3px 12px rgb(0 0 0 / 30%);
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #logo {
+        grid-area: logo;
+        min-width: 0;
+        padding: 0 7px 6px;
+        overflow: hidden;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #logo h1 {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        overflow: hidden;
+        font-size: 17px;
+        line-height: 30px;
+        text-overflow: ellipsis;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #logo_img {
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
+        transform: none;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #logo small {
+        display: none;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #server-status {
+        position: static;
+        grid-area: status;
+        padding: 0 8px 6px 4px;
+        white-space: nowrap;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #server-status-color {
+        font-size: 16px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #server-status-msg {
+        display: none !important;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #tab-container {
+        grid-area: tabs;
+        width: 100%;
+        justify-content: stretch;
+        overflow: visible;
+        padding: 0 3px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav .tab {
+        display: flex;
+        flex: 1 1 0;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        min-height: 44px;
+        margin: 0 2px;
+        padding: 7px 4px;
+        border-radius: 7px 7px 0 0;
+        font-size: 0;
+        text-align: center;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav .tab > span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        min-width: 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav .tab > span::after {
+        overflow: hidden;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        text-overflow: ellipsis;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #tab-main > span::after {
+        content: "Generate";
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #tab-settings > span::after {
+        content: "Settings";
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #tab-about > span::after {
+        content: "Help";
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav .tab .icon {
+        flex: 0 0 auto;
+        padding: 0;
+        font-size: 16px;
+        transform: none;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #tab-content-wrapper > * {
+        padding-top: 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .flex-container {
+        min-width: 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor {
+        flex: 0 0 auto;
+        width: 100%;
+        min-width: 0;
+        padding: 11px 8px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-inputs .row {
+        min-width: 0;
+        padding-bottom: 12px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .split-toolbar {
+        grid-template-areas:
+            "toolbar-left"
+            "toolbar-right";
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        gap: 7px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .toolbar-left,
+    html.ed-mobile-pwa body.ed-phone-ui .toolbar-right {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        width: 100%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .toolbar-right {
+        justify-content: flex-start;
+        justify-self: stretch;
+        text-align: left;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #prompt,
+    html.ed-mobile-pwa body.ed-phone-ui #negative_prompt {
+        width: 100%;
+        min-height: 104px;
+        height: auto;
+        padding: 10px;
+        font-size: 16px;
+        line-height: 1.35;
+        resize: vertical;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #negative_prompt {
+        min-height: 82px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui button,
+    html.ed-mobile-pwa body.ed-phone-ui .button {
+        min-height: 40px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .smallButton {
+        min-height: 36px;
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #makeImage {
+        position: relative;
+        z-index: 50;
+        bottom: auto;
+        min-height: 52px;
+        height: auto;
+        margin-top: 4px;
+        border-width: 2px;
+        box-shadow: 0 5px 18px rgb(0 0 0 / 48%);
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #z-tipo-panel {
+        width: 100%;
+        max-width: 100%;
+        margin-top: 10px;
+        overflow: visible;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #z-tipo-panel .collapsible-content {
+        width: 100%;
+        max-width: 100%;
+        padding-left: 0;
+        overflow: visible;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #z-tipo-panel [style*="grid-template-columns"] {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #z-tipo-panel input,
+    html.ed-mobile-pwa body.ed-phone-ui #z-tipo-panel select,
+    html.ed-mobile-pwa body.ed-phone-ui #z-tipo-panel textarea {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        font-size: 16px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #render-buttons {
+        flex-wrap: wrap;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #render-buttons > button {
+        min-height: 46px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .line-separator {
+        margin: 10px 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .panel-box {
+        min-width: 0;
+        margin-bottom: 11px;
+        padding: 8px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings {
+        width: 100%;
+        overflow: hidden;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings-entries,
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings-entries > div {
+        width: 100%;
+        min-width: 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings table {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings td {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings td:first-child {
+        width: 34%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings select {
+        max-width: 100%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui input[type="checkbox"],
+    html.ed-mobile-pwa body.ed-phone-ui input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        vertical-align: middle;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui input[type="range"] {
+        min-height: 40px;
+        touch-action: pan-y;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .model-filter {
+        max-width: calc(100% - 48px);
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .image-input-section {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .image-input-buttons {
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .image-input-buttons .button {
+        justify-content: center;
+        min-width: 92px;
+        height: 42px;
+        padding: 8px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .image_clear_btn {
+        width: 32px;
+        height: 32px;
+        border-width: 2px;
+        font-size: 14px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #preview {
+        width: 100%;
+        min-width: 0;
+        padding: 5px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #initial-text {
+        padding: 14px 9px;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #preview-tools {
+        position: relative;
+        z-index: 40;
+        top: auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 3px;
+        background: var(--background-color1);
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #preview-tools.displayNone {
+        display: none;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #preview-tools .display-settings {
+        display: flex;
+        gap: 4px;
+        margin-left: auto;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #preview-tools button {
+        min-width: 40px;
+        min-height: 40px;
+        margin: 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imageTaskContainer {
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 6px;
+        overflow: hidden;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imageTaskContainer .stopTask,
+    html.ed-mobile-pwa body.ed-phone-ui .imageTaskContainer .useSettings {
+        float: none;
+        min-height: 36px;
+        margin: 2px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imageTaskContainer .preview-prompt {
+        display: block;
+        clear: both;
+        padding-top: 7px;
+        font-size: 15px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imageTaskContainer .taskConfig {
+        overflow-wrap: anywhere;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .img-batch,
+    html.ed-mobile-pwa body.ed-phone-ui .imgItem {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imgItem {
+        margin: 10px 0 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imgContainer {
+        width: 100%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imgContainer > img {
+        display: block;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none;
+        object-fit: contain;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .imgItemInfo,
+    html.ed-mobile-pwa body.ed-phone-ui .imgPreviewItemClearBtn,
+    html.ed-mobile-pwa body.ed-phone-ui .imgContainer .img_bottom_label {
+        opacity: 1;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .popup {
+        position: fixed;
+        inset: 0;
+        max-height: var(--ed-mobile-viewport-height, 100vh);
+        overflow: auto;
+        overscroll-behavior: contain;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .popup > div {
+        width: calc(100% - 12px);
+        max-width: none;
+        max-height: calc(var(--ed-mobile-viewport-height, 100vh) - 12px);
+        margin: 6px auto;
+        padding: 42px 8px 12px !important;
+        overflow: auto;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .popup > div input,
+    html.ed-mobile-pwa body.ed-phone-ui .popup > div select,
+    html.ed-mobile-pwa body.ed-phone-ui .popup > div textarea {
+        max-width: 100%;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .popup .close-button {
+        z-index: 5;
+        width: 44px;
+        height: 44px;
+        margin: 0 !important;
+        padding: 13px !important;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui dialog {
+        width: calc(100% - 12px);
+        max-width: none;
+        max-height: calc(var(--ed-mobile-viewport-height, 100vh) - 12px);
+        margin: 6px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .tab-content-inner {
+        width: 100%;
+        max-width: 100%;
+        padding: 12px 8px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #system-info {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui .parameters-table > div {
+        min-width: 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #footer {
+        padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
+        line-height: 1.4;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #footer-legal {
+        font-size: 10px;
+    }
+}
+
+@media screen and (max-width: 380px) {
+    html.ed-mobile-pwa body.ed-phone-ui #editor {
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav .tab {
+        margin: 0 1px;
+        padding-right: 2px;
+        padding-left: 2px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav .tab > span {
+        gap: 4px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #editor-settings td:first-child {
+        width: 31%;
+    }
+
+    #mobile-pwa-install-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
+@media screen and (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav {
+        grid-template-areas: "logo tabs status";
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        padding-top: max(2px, env(safe-area-inset-top));
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #logo {
+        padding: 0 4px 2px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #logo h1 {
+        width: 28px;
+        font-size: 0;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #server-status {
+        padding-bottom: 2px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #top-nav .tab {
+        min-height: 40px;
+    }
+
+    html.ed-mobile-pwa body.ed-phone-ui #preview-tools {
+        top: 43px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.ed-mobile-pwa *,
+    html.ed-mobile-pwa *::before,
+    html.ed-mobile-pwa *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}

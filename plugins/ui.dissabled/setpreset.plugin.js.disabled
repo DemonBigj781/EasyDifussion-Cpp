@@ -1,0 +1,777 @@
+//   __   ___ ___  __   __   ___  __   ___ ___ 
+//  /__` |__   |  |__) |__) |__  /__` |__   |  
+//  .__/ |___  |  |    |  \ |___ .__/ |___  |  
+//  
+
+// Saves/loads presets with currently selected Image Settings
+
+// This is a AI generated mess that somewhat works
+
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "ed_comprehensive_presets_flat_v1";
+  const MODEL_ID = "stable_diffusion_model"; // The element that needs special handling
+  const UI_CONTAINER_ID = "setpreset-plugin-ui";
+  const PROMPT_GENERATOR_STORAGE_KEY = "ed_prompt_generator_v1";
+
+  // --- Helper to generate repeated entries ---
+  function generateTextEncoders(count) {
+    const encoders = [];
+    for (let i = 0; i < count; i++) {
+      encoders.push({
+        jsonKey: `text-encoder_${i}`,
+        htmlId: `text-encoder_${i}`,
+        type: "string",
+        default: ""
+      });
+    }
+    return encoders;
+  }
+
+  // --- Configuration Map ---
+  const SETTINGS_MAP = [
+    { jsonKey: "prompt", htmlId: "prompt", type: "string", default: "" },
+    { jsonKey: "negative_prompt", htmlId: "negative_prompt", type: "string", default: "" },
+    { jsonKey: "pg_main_prompt", htmlId: "pg-main-prompt", type: "string", default: "" },
+    { jsonKey: "pg_var_a", htmlId: "pg-var-a", type: "string", default: "" },
+    { jsonKey: "pg_var_b", htmlId: "pg-var-b", type: "string", default: "" },
+    { jsonKey: "pg_var_c", htmlId: "pg-var-c", type: "string", default: "" },
+    { jsonKey: "seed", htmlId: "seed", type: "string", default: "" },
+    { jsonKey: "num_outputs_total", htmlId: "num_outputs_total", type: "number", default: 1 },
+    { jsonKey: "num_outputs_parallel", htmlId: "num_outputs_parallel", type: "number", default: 1 },
+    { jsonKey: "use_stable_diffusion_model", htmlId: MODEL_ID, type: "string", default: "" },
+    { jsonKey: "clip_skip", htmlId: "clip_skip", type: "boolean", default: false },
+    ...generateTextEncoders(10),
+    { jsonKey: "use_vae_model", htmlId: "vae_model", type: "string", default: "" },
+    { jsonKey: "sampler_name", htmlId: "sampler_name", type: "string", default: "" },
+    { jsonKey: "scheduler_name", htmlId: "scheduler_name", type: "string", default: "" },
+    { jsonKey: "width", htmlId: "width", type: "number", default: 512 },
+    { jsonKey: "height", htmlId: "height", type: "number", default: 512 },
+    { jsonKey: "num_inference_steps", htmlId: "num_inference_steps", type: "number", default: 20 },
+    { jsonKey: "guidance_scale", htmlId: "guidance_scale", type: "number", default: 7.5 },
+    { jsonKey: "distilled_guidance_scale", htmlId: "distilled_guidance_scale", type: "number", default: 0 },
+    { jsonKey: "use_face_correction", htmlId: "use_face_correction", type: "boolean", default: false },
+    { jsonKey: "use_upscale", htmlId: "use_upscale", type: "boolean", default: false },
+    { jsonKey: "upscale_amount", htmlId: "upscale_amount", type: "number", default: 2 },
+    { jsonKey: "latent_upscaler_steps", htmlId: "latent_upscaler_steps", type: "number", default: 0 },
+    { jsonKey: "use_controlnet_model", htmlId: "control_net_model", type: "string", default: "" },
+    { jsonKey: "control_filter_to_apply", htmlId: "control_filter_to_apply", type: "string", default: "" },
+    { jsonKey: "control_alpha", htmlId: "control_alpha", type: "number", default: 1 },
+    { jsonKey: "lora_alpha", htmlId: "lora_alpha", type: "number", default: 1 },
+    { jsonKey: "use_text_encoder_model", htmlId: "text_encoder_model", type: "string", default: "" },
+    { jsonKey: "preserve_init_image_color_profile", htmlId: "preserve_init_image_color_profile", type: "boolean", default: false },
+    { jsonKey: "tiling", htmlId: "tiling", type: "string", default: "" },
+    { jsonKey: "output_format", htmlId: "output_format", type: "string", default: "" },
+    { jsonKey: "stream_image_progress", htmlId: "stream_image_progress", type: "boolean", default: false },
+    { jsonKey: "show_only_filtered_image", htmlId: "show_only_filtered_image", type: "boolean", default: false }
+  ];
+
+  // --- Helpers ---
+  function coerceValue(raw, type, fallback) {
+    if (raw === undefined || raw === null) return fallback;
+    if (type === "boolean") {
+      if (typeof raw === "boolean") return raw;
+      if (typeof raw === "number") return raw !== 0;
+      if (typeof raw === "string") {
+        const r = raw.trim().toLowerCase();
+        if (["true", "1"].includes(r)) return true;
+        if (["false", "0"].includes(r)) return false;
+        return Boolean(r);
+      }
+      return Boolean(raw);
+    }
+    if (type === "number") {
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : fallback;
+    }
+    return String(raw);
+  }
+
+  function dispatchEvents(el, isModel = false) {
+    try {
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      if (isModel) el.dispatchEvent(new Event("select", { bubbles: true }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function normalizeSettings(rawSettings) {
+    const out = {};
+    SETTINGS_MAP.forEach((m) => {
+      const val = rawSettings && Object.prototype.hasOwnProperty.call(rawSettings, m.jsonKey)
+        ? rawSettings[m.jsonKey]
+        : m.default;
+      out[m.jsonKey] = coerceValue(val, m.type, m.default);
+    });
+    return out;
+  }
+
+  function readStore() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && !Array.isArray(parsed)) {
+        const out = {};
+        Object.entries(parsed).forEach(([k, v]) => {
+            const settings = v.reqBody || v.settings || v;
+            out[k] = normalizeSettings(settings);
+        });
+        return out;
+      }
+      return {};
+    } catch (e) {
+      console.error(e);
+      return {};
+    }
+  }
+
+  function writeStore(map) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    } catch (e) { console.error(e); }
+  }
+
+  function getEl(id) { return document.getElementById(id); }
+
+  // --- Prompt Generator Helpers ---
+  function readPromptGeneratorStore() {
+    try {
+      const raw = localStorage.getItem(PROMPT_GENERATOR_STORAGE_KEY);
+      if (!raw) return { mainPrompt: "", variables: { A: [], B: [], C: [] } };
+      const parsed = JSON.parse(raw);
+      return parsed;
+    } catch (e) {
+      console.error(e);
+      return { mainPrompt: "", variables: { A: [], B: [], C: [] } };
+    }
+  }
+
+  function writePromptGeneratorStore(data) {
+    try {
+      localStorage.setItem(PROMPT_GENERATOR_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) { console.error(e); }
+  }
+
+  function parseLines(text) {
+    return text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  }
+
+  function generateSequentialPrompts(mainPrompt, variables) {
+    const varA = variables.A || [];
+    const varB = variables.B || [];
+    const varC = variables.C || [];
+    
+    if (varA.length === 0 && varB.length === 0 && varC.length === 0) {
+      return [];
+    }
+
+    // Generate all combinations: for each A, iterate through all B and C
+    const prompts = [];
+    const lenA = Math.max(varA.length, 1);
+    const lenB = Math.max(varB.length, 1);
+    const lenC = Math.max(varC.length, 1);
+
+    for (let a = 0; a < lenA; a++) {
+      for (let b = 0; b < lenB; b++) {
+        for (let c = 0; c < lenC; c++) {
+          let prompt = mainPrompt;
+          
+          if (varA.length > 0) {
+            prompt = prompt.replace(/\[a\]/gi, varA[a]);
+          } else {
+            prompt = prompt.replace(/\[a\]/gi, '');
+          }
+          if (varB.length > 0) {
+            prompt = prompt.replace(/\[b\]/gi, varB[b]);
+          } else {
+            prompt = prompt.replace(/\[b\]/gi, '');
+          }
+          if (varC.length > 0) {
+            prompt = prompt.replace(/\[c\]/gi, varC[c]);
+          } else {
+            prompt = prompt.replace(/\[c\]/gi, '');
+          }
+          
+          prompts.push(prompt);
+        }
+      }
+    }
+
+    return prompts;
+  }
+
+  function generateRandomPrompts(mainPrompt, variables) {
+    const varA = variables.A || [];
+    const varB = variables.B || [];
+    const varC = variables.C || [];
+
+    if (varA.length === 0 && varB.length === 0 && varC.length === 0) {
+      return [mainPrompt];
+    }
+
+    let prompt = mainPrompt;
+    
+    if (varA.length > 0) {
+      const valA = varA[Math.floor(Math.random() * varA.length)];
+      prompt = prompt.replace(/\[a\]/gi, valA);
+    }
+    if (varB.length > 0) {
+      const valB = varB[Math.floor(Math.random() * varB.length)];
+      prompt = prompt.replace(/\[b\]/gi, valB);
+    }
+    if (varC.length > 0) {
+      const valC = varC[Math.floor(Math.random() * varC.length)];
+      prompt = prompt.replace(/\[c\]/gi, valC);
+    }
+
+    return [prompt];
+  }
+
+  function readCurrentSettingsFromDOM() {
+    const out = {};
+    SETTINGS_MAP.forEach((m) => {
+      const el = getEl(m.htmlId);
+      if (!el) { out[m.jsonKey] = m.default; return; }
+      if (m.type === "boolean") {
+        out[m.jsonKey] = "checked" in el ? !!el.checked : coerceValue(el.value, "boolean", m.default);
+      } else if (m.type === "number") {
+        const n = Number(el.value);
+        out[m.jsonKey] = Number.isFinite(n) ? n : m.default;
+      } else {
+        out[m.jsonKey] = el.value != null ? String(el.value) : m.default;
+      }
+    });
+    return out;
+  }
+
+  // --- Custom Model Selector Functions ---
+  function selectModelInDropdown(modelPath) {
+    if (!modelPath) return false;
+    
+    const modelList = document.getElementById(`${MODEL_ID}-model-list`);
+    if (!modelList) return false;
+    
+    // Find the model item in the list
+    const modelItems = modelList.querySelectorAll('.model-file');
+    let targetItem = null;
+    
+    for (const item of modelItems) {
+      if (item.getAttribute('data-path') === modelPath) {
+        targetItem = item;
+        break;
+      }
+    }
+    
+    if (!targetItem) {
+      console.warn(`Model not found: ${modelPath}`);
+      return false;
+    }
+    
+    // Remove previous selection
+    const previouslySelected = modelList.querySelector('.model-file.selected');
+    if (previouslySelected) {
+      previouslySelected.classList.remove('selected');
+    }
+    
+    // Select the new model
+    targetItem.classList.add('selected');
+    
+    // Update the input field value
+    const modelInput = getEl(MODEL_ID);
+    if (modelInput) {
+      modelInput.value = modelPath;
+      modelInput.setAttribute('data-path', modelPath);
+      dispatchEvents(modelInput, true);
+    }
+    
+    return true;
+  }
+
+  function closeOpenDropdowns() {
+    const modelList = document.getElementById(`${MODEL_ID}-model-list`);
+    if (modelList && modelList.style.display !== 'none') {
+      modelList.style.display = 'none';
+    }
+  }
+
+  function applySettingsToDOM(settings) {
+    const normalized = normalizeSettings(settings);
+    
+    // First, apply all non-model settings
+    SETTINGS_MAP.forEach((m) => {
+      if (m.htmlId === MODEL_ID) return; // Skip model for now
+      
+      const el = getEl(m.htmlId);
+      if (!el) return;
+
+      const val = normalized[m.jsonKey];
+      if (m.type === "boolean") {
+        if ("checked" in el) el.checked = !!val;
+        else el.value = val ? "true" : "false";
+      } else {
+        el.value = val == null ? "" : String(val);
+      }
+      
+      dispatchEvents(el, false);
+    });
+    
+    // Now handle the model selector specially
+    const modelPath = normalized["use_stable_diffusion_model"];
+    if (modelPath) {
+      // Use setTimeout to ensure the model selection happens after DOM updates
+      setTimeout(() => {
+        selectModelInDropdown(modelPath);
+        closeOpenDropdowns();
+      }, 100);
+    }
+  }
+
+  // --- UI Components ---
+
+  function createButton(label, bgColor, onClick) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.innerText = label;
+    btn.style.cssText = `background-color: ${bgColor}; color: white; border: none; cursor: pointer; padding: 4px 8px; font-size: 12px; flex: 1;`;
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+
+  function refreshDropdown(selectElement) {
+    const store = readStore();
+    const currentVal = selectElement.value;
+    selectElement.innerHTML = "";
+    
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.innerText = "-- Select Preset --";
+    selectElement.appendChild(empty);
+
+    Object.keys(store).sort((a, b) => a.localeCompare(b)).forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.innerText = name;
+        selectElement.appendChild(opt);
+    });
+
+    if (store[currentVal]) {
+        selectElement.value = currentVal;
+    }
+  }
+
+  function initUI() {
+    if (document.getElementById(UI_CONTAINER_ID)) return;
+
+    // Inject CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      #setpreset-plugin-ui { padding: 8px; }
+      
+      #setpreset-plugin-ui .settings-subheader {
+        cursor: pointer;
+        user-select: none;
+        margin-bottom: 4px;
+      }
+      
+      #setpreset-content {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: wrap;
+		    margin-top: 4px;
+      }
+      
+      #setpreset-content select {
+        flex: 1;
+        min-width: 150px;
+        padding: 4px;
+      }
+      
+      #setpreset-button-row {
+        display: flex;
+        gap: 4px;
+        width: 100%;
+      }
+
+      #prompt-generator-section {
+        margin-top: 12px;
+        padding-top: 8px;
+        border-top: 1px solid #666;
+      }
+
+      .prompt-gen-subheader {
+        cursor: pointer;
+        user-select: none;
+        font-size: 10pt;
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      #prompt-gen-content {
+        display: none;
+      }
+
+      .main-prompt-row {
+        width: 100%;
+        margin-bottom: 8px;
+      }
+
+      .main-prompt-row textarea {
+        width: 100%;
+        height: 60px;
+        padding: 4px;
+        font-size: 12px;
+        resize: vertical;
+      }
+
+      .variables-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .variable-input {
+        flex: 1;
+      }
+
+      .variable-input label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 2px;
+      }
+
+      .variable-input textarea {
+        width: 100%;
+        height: 60px;
+        padding: 4px;
+
+        font-size: 12px;
+        resize: vertical;
+        box-sizing: border-box;
+      }
+
+      .prompt-gen-buttons {
+        display: flex;
+        gap: 4px;
+        width: 100%;
+      }
+
+      .prompt-gen-buttons button {
+        flex: 1;
+        background-color: #5300B8;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      .prompt-gen-buttons button:hover {
+        opacity: 0.9;
+      }
+
+      #pg-clear-btn {
+        background-color: #840800 !important;
+      }
+
+      #pg-sequential-btn {
+        background-color: #28a745 !important;
+      }
+
+      #pg-random-btn {
+        background-color: #0066cc !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Create main container
+    const ui = document.createElement('div');
+    ui.id = UI_CONTAINER_ID;
+    ui.className = "settings-box panel-box";
+    
+    ui.innerHTML = `
+      <div class="settings-subheader">
+        <span class="collapsible-handle">➕</span>SetPreSet
+      </div>
+      
+      <div id="setpreset-content" class="collapsible-content" style="display: none;">
+        <select id="ed-preset-select-main"></select>
+        <div id="setpreset-button-row"></div>
+      </div>
+
+      <div id="prompt-generator-section">
+        <div class="prompt-gen-subheader">
+          <span class="prompt-gen-handle">➕</span>
+          Prompt Generator
+        </div>
+
+        <div id="prompt-gen-content" style="display: none;">
+          <div class="main-prompt-row">
+            <label>Main Prompt (use [A], [B], [C] as variables)</label>
+            <textarea id="pg-main-prompt" placeholder="Enter main prompt with [A], [B], [C] variables..."></textarea>
+          </div>
+
+          <div class="variables-row">
+            <div class="variable-input">
+              <label>Variable A</label>
+              <textarea id="pg-var-a" placeholder="One value per line..."></textarea>
+            </div>
+            <div class="variable-input">
+              <label>Variable B</label>
+              <textarea id="pg-var-b" placeholder="One value per line..."></textarea>
+            </div>
+            <div class="variable-input">
+              <label>Variable C</label>
+              <textarea id="pg-var-c" placeholder="One value per line..."></textarea>
+            </div>
+          </div>
+
+          <div class="prompt-gen-buttons">
+            <button id="pg-clear-btn" type="button">Clear Prompt</button>
+            <button id="pg-sequential-btn" type="button">Sequential</button>
+            <button id="pg-random-btn" type="button">Random</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Find insertion point (before #editor-settings)
+    const editorSettings = document.querySelector('#editor-settings');
+    if (editorSettings && editorSettings.parentElement) {
+      editorSettings.parentElement.insertBefore(ui, editorSettings);
+    } else {
+      document.body.appendChild(ui);
+    }
+
+    // Setup collapsible behavior for SetPreSet
+    const header = document.querySelector('#setpreset-plugin-ui .settings-subheader');
+    const content = document.getElementById('setpreset-content');
+    const handle = document.querySelector('#setpreset-plugin-ui .collapsible-handle');
+    
+    if (header && content && handle) {
+      header.addEventListener('click', () => {
+        if (content.style.display === 'none') {
+          content.style.display = 'flex';
+          handle.textContent = '➖';
+        } else {
+          content.style.display = 'none';
+          handle.textContent = '➕';
+        }
+      });
+    }
+
+    // Setup collapsible behavior for Prompt Generator
+    const pgHeader = document.querySelector('#prompt-generator-section .prompt-gen-subheader');
+    const pgContent = document.getElementById('prompt-gen-content');
+    const pgHandle = document.querySelector('#prompt-generator-section .prompt-gen-handle');
+
+    if (pgHeader && pgContent && pgHandle) {
+      pgHeader.addEventListener('click', () => {
+        if (pgContent.style.display === 'none') {
+          pgContent.style.display = 'block';
+          pgHandle.textContent = '➖';
+        } else {
+          pgContent.style.display = 'none';
+          pgHandle.textContent = '➕';
+        }
+      });
+    }
+
+    // Get elements
+    const select = document.getElementById('ed-preset-select-main');
+    const buttonRow = document.getElementById('setpreset-button-row');
+
+    // --- Buttons ---
+
+    buttonRow.appendChild(createButton("Import", "#444", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json,application/json";
+      input.onchange = () => {
+        const f = input.files && input.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(reader.result);
+            const settings = parsed.settings || parsed.reqBody || parsed;
+            
+            const defaultName = f.name.replace(/\.json$/i, "").trim();
+            const name = prompt("Import as:", defaultName);
+            if (!name) return;
+
+            const store = readStore();
+            store[name] = normalizeSettings(settings);
+            writeStore(store);
+            
+            refreshDropdown(select);
+            select.value = name;
+          } catch (e) { console.error(e); }
+        };
+        reader.readAsText(f);
+      };
+      input.click();
+    }));
+
+    buttonRow.appendChild(createButton("Export", "#444", () => {
+      const name = select.value;
+      if (!name) return;
+      const store = readStore();
+      const preset = store[name];
+      if (!preset) return;
+
+      const blob = new Blob([JSON.stringify(preset, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }));
+
+    buttonRow.appendChild(createButton("Load", "#28a745", () => {
+      const name = select.value;
+      if (!name) return;
+      const store = readStore();
+      if (store[name]) applySettingsToDOM(store[name]); 
+    }));
+
+    buttonRow.appendChild(createButton("Save", "#5300B8", () => {
+      let defaultName = "";
+      if (select.value && select.value !== "-- Select Preset --") {
+          defaultName = select.value;
+      }
+
+      const name = prompt("Preset Name:", defaultName);
+      if (!name) return; 
+      
+      const store = readStore();
+      store[name] = readCurrentSettingsFromDOM();
+      writeStore(store);
+      
+      refreshDropdown(select);
+      select.value = name; 
+    }));
+
+    buttonRow.appendChild(createButton("Delete", "#840800", () => {
+        const name = select.value;
+        if (!name) return; 
+
+        const store = readStore();
+        delete store[name];
+        writeStore(store);
+        
+        refreshDropdown(select);
+        select.value = "";
+    }));
+
+    refreshDropdown(select);
+
+    // --- Prompt Generator Setup ---
+    const pgMainPrompt = document.getElementById('pg-main-prompt');
+    const pgVarA = document.getElementById('pg-var-a');
+    const pgVarB = document.getElementById('pg-var-b');
+    const pgVarC = document.getElementById('pg-var-c');
+    const pgClearBtn = document.getElementById('pg-clear-btn');
+    const pgSequentialBtn = document.getElementById('pg-sequential-btn');
+    const pgRandomBtn = document.getElementById('pg-random-btn');
+
+    // Load stored data
+    const pgStore = readPromptGeneratorStore();
+    pgMainPrompt.value = pgStore.mainPrompt;
+    pgVarA.value = pgStore.variables.A.join('\n');
+    pgVarB.value = pgStore.variables.B.join('\n');
+    pgVarC.value = pgStore.variables.C.join('\n');
+
+    // Save data on input change
+    const saveGeneratorState = () => {
+      const data = {
+        mainPrompt: pgMainPrompt.value,
+        variables: {
+          A: parseLines(pgVarA.value),
+          B: parseLines(pgVarB.value),
+          C: parseLines(pgVarC.value)
+        }
+      };
+      writePromptGeneratorStore(data);
+    };
+
+    pgMainPrompt.addEventListener('input', saveGeneratorState);
+    pgVarA.addEventListener('input', saveGeneratorState);
+    pgVarB.addEventListener('input', saveGeneratorState);
+    pgVarC.addEventListener('input', saveGeneratorState);
+
+    // Clear Prompt button - clears the main prompt field
+    pgClearBtn.addEventListener('click', () => {
+      document.getElementById('prompt').value = '';
+      saveGeneratorState();
+    });
+
+    // Sequential button
+    pgSequentialBtn.addEventListener('click', () => {
+      const mainPrompt = pgMainPrompt.value.trim();
+      if (!mainPrompt) {
+        alert('Main prompt is empty');
+        return;
+      }
+
+      const variables = {
+        A: parseLines(pgVarA.value),
+        B: parseLines(pgVarB.value),
+        C: parseLines(pgVarC.value)
+      };
+
+      const prompts = generateSequentialPrompts(mainPrompt, variables);
+      if (prompts.length === 0) {
+        alert('No variables provided');
+        return;
+      }
+
+      const promptEl = getEl('prompt');
+      if (promptEl) {
+        const currentValue = promptEl.value.trim();
+        const newLines = prompts.join('\n');
+        promptEl.value = currentValue ? currentValue + '\n' + newLines : newLines;
+        dispatchEvents(promptEl);
+      } else {
+        console.error('Prompt element not found');
+      }
+    });
+
+    // Random button
+    pgRandomBtn.addEventListener('click', () => {
+      const mainPrompt = pgMainPrompt.value.trim();
+      if (!mainPrompt) {
+        alert('Main prompt is empty');
+        return;
+      }
+
+      const variables = {
+        A: parseLines(pgVarA.value),
+        B: parseLines(pgVarB.value),
+        C: parseLines(pgVarC.value)
+      };
+
+      const prompts = generateRandomPrompts(mainPrompt, variables);
+      const promptEl = getEl('prompt');
+      if (promptEl) {
+        const currentValue = promptEl.value.trim();
+        const newLines = prompts.join('\n');
+        promptEl.value = currentValue ? currentValue + '\n' + newLines : newLines;
+        dispatchEvents(promptEl);
+      } else {
+        console.error('Prompt element not found');
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initUI);
+  } else {
+    initUI();
+  }
+})();

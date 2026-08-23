@@ -1,0 +1,188 @@
+.modifier-card {
+    position: relative;
+    box-sizing: content-box; /* fixes border misalignment */
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+    transition: 0.1s;
+    border-radius: 7px;
+    margin: 3pt 3pt;
+    float: left;
+    width: 6em;
+    height: 9.5em;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 6em 3.5em;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+        "modifier-card-image-container"
+        "modifier-card-container";
+    border: 2px solid rgba(255, 255, 255, .05);
+    cursor: pointer;
+    z-index: 2;
+}
+.modifier-card-size_3 {
+    width: 10em;
+    grid-template-rows: 10em 3.5em;
+    height: 13.5em;
+}
+.modifier-card-size_3 .modifier-card-image-overlay {
+    font-size: 6em;
+}
+.modifier-card-size_3 .modifier-card-label {
+    font-size: 1.2em;
+}
+.modifier-card-size_2 {
+    width: 9em;
+    grid-template-rows: 9em 3.5em;
+    height: 12.5em;
+}
+.modifier-card-size_2 .modifier-card-image-overlay {
+    font-size: 5em;
+}
+.modifier-card-size_2 .modifier-card-label {
+    font-size: 1.1em;
+}
+.modifier-card-size_1 {
+    width: 7em;
+    grid-template-rows: 7em 3.5em;
+    height: 10.5em;
+}
+.modifier-card-size_1 .modifier-card-image-overlay {
+    font-size: 4em;
+}
+.modifier-card-size_-1 {
+    width: 5em;
+    grid-template-rows: 5em 3.5em;
+    height: 8.5em;
+}
+.modifier-card-size_-1 .modifier-card-image-overlay {
+    font-size: 3em;
+}
+.modifier-card-size_-1 .modifier-card-label {
+    font-size: 0.9em;
+}
+.modifier-card-size_-2 {
+    width: 4em;
+    grid-template-rows: 3.5em 3em;
+    height: 6.5em;
+}
+.modifier-card-size_-2 .modifier-card-image-overlay {
+    font-size: 2em;
+}
+.modifier-card-size_-2 .modifier-card-label {
+    font-size: 0.7em;
+}
+.modifier-card-tiny {
+    width: 5em;
+    grid-template-rows: 5em 3.5em;
+    height: 8.5em;
+}
+.modifier-card-tiny .modifier-card-image-overlay {
+    font-size: 4em;
+}
+.modifier-card-tiny .modifier-card-label {
+    font-size: 0.9em;
+}
+.modifier-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 16px 5px rgba(0, 0, 0, 0.25);
+}
+.modifier-card-image-container {
+    border-radius: 5px 5px 0 0;
+    width: inherit;
+    height: 100%;
+    background-color: rgba(0, 0, 0, .2);
+    grid-area: modifier-card-image-container;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgb(255 255 255 / 8%);
+}
+.modifier-card-image-container img {
+    width: inherit;
+    height: 100%;
+    border-radius: 5px 5px 0 0;
+}
+.modifier-card-image-container * {
+    position: absolute;
+    text-align: center;
+}
+.modifier-card-container {
+    text-align: center;
+    background-color: rgba(0,0,0,0.5);
+    border-radius: 0 0 5px 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    grid-area: modifier-card-container;
+    font-weight: 100;
+    font-size: .9em;
+    width: inherit;
+}
+.modifier-card-label {
+    padding: 4px;
+    word-break: break-word;
+    text-transform: capitalize;
+}
+.modifier-card-image-overlay {
+    width: inherit;
+    height: inherit;
+    background-color: rgb(0 0 0 / 50%);
+    z-index: 2;
+    position: absolute;
+    border-radius: 5px 5px 0 0;
+    opacity: 0;
+    font-size: 4em;
+    font-weight: 900;
+    color: rgb(255 255 255 / 50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modifier-card-overlay {
+    width: inherit;
+    height: inherit;
+    position: absolute;
+    z-index: 3;
+}
+.modifier-card-active .modifier-card-overlay {
+    background-color: rgb(169 78 241 / 40%);
+}
+.modifier-card:hover > .modifier-card-image-container .modifier-card-image-overlay {
+    opacity: 1;
+}
+.modifier-card:hover > .modifier-card-image-container img {
+    filter: blur(.1em);
+}
+.modifier-card:active {
+    transform: scale(0.95);
+    box-shadow: 0 5px 16px 5px rgba(0, 0, 0, 0.5);
+}
+.modifier-card-active {
+    border: 2px solid rgb(179 82 255 / 94%);
+    box-shadow: 0 0px 10px 0 rgb(170 0 229 / 58%);
+}
+#modifier-card-size-slider {
+    width: 6em;
+    height: 4pt;
+    vertical-align: middle;
+}
+#modifier-settings-config textarea {
+    margin-left: 5%;
+    margin-top: 2ex;
+    width: 90%;
+    height: 150px;
+}
+.modifier-card .hidden {
+    display: none;
+}
+.support-long-label .modifier-card-overlay:hover ~ .modifier-card-container .modifier-card-label {
+    font-size: 0.7em;
+}
+.support-long-label .modifier-card-overlay:hover ~ .modifier-card-container .long-label {
+    display: block;
+}
+.support-long-label .modifier-card-overlay:hover ~ .modifier-card-container .regular-label {
+    display: none;
+}
