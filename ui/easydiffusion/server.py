@@ -9,7 +9,7 @@ import os
 import traceback
 from typing import List, Union
 
-from easydiffusion import app, model_manager, package_manager, perchance, task_manager
+from easydiffusion import app, gallery, model_manager, package_manager, perchance, task_manager
 from easydiffusion.tasks import RenderTask, FilterTask
 from easydiffusion.types import (
     GenerateImageRequest,
@@ -79,6 +79,7 @@ class SetAppConfigRequest(BaseModel, extra=Extra.allow):
 def init():
     mimetypes.init()
     mimetypes.add_type("text/css", ".css")
+    gallery.migrate_legacy_settings()
 
     if os.path.isdir(app.CUSTOM_MODIFIERS_DIR):
         server_api.mount(
@@ -131,6 +132,48 @@ def init():
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"WD14 tagging failed: {exc}") from exc
 
+    @server_api.get("/gallery/settings")
+    @server_api.get("/gallery-plugin/settings", include_in_schema=False)
+    def gallery_settings_get():
+        return JSONResponse(gallery.get_settings(), headers=NOCACHE_HEADERS)
+
+    @server_api.post("/gallery/settings")
+    @server_api.post("/gallery-plugin/settings", include_in_schema=False)
+    def gallery_settings_save(payload: dict):
+        return JSONResponse(gallery.save_settings(payload), headers=NOCACHE_HEADERS)
+
+    @server_api.get("/gallery/images")
+    @server_api.get("/gallery-plugin/images", include_in_schema=False)
+    def gallery_images(page: int = 1, page_size: int = gallery.DEFAULT_PAGE_SIZE):
+        return JSONResponse(gallery.list_images(page, page_size), headers=NOCACHE_HEADERS)
+
+    @server_api.get("/gallery/file/{relative_path:path}")
+    @server_api.get("/gallery-plugin/file/{relative_path:path}", include_in_schema=False)
+    def gallery_file(relative_path: str):
+        path = gallery.resolve_gallery_file(relative_path)
+        return FileResponse(
+            path,
+            media_type=gallery.file_media_type(path),
+            headers={"Cache-Control": "private, max-age=60"},
+        )
+
+    @server_api.delete("/gallery/file/{relative_path:path}")
+    @server_api.delete("/gallery-plugin/file/{relative_path:path}", include_in_schema=False)
+    def gallery_delete_file(relative_path: str):
+        return JSONResponse(gallery.delete_file(relative_path), headers=NOCACHE_HEADERS)
+
+    @server_api.get("/gallery/thumb/{relative_path:path}")
+    @server_api.get("/gallery-plugin/thumb/{relative_path:path}", include_in_schema=False)
+    def gallery_thumbnail(relative_path: str):
+        source = gallery.resolve_gallery_file(relative_path)
+        thumbnail = gallery.create_thumbnail(source)
+        media_type = "image/jpeg" if thumbnail != source else gallery.file_media_type(source)
+        return FileResponse(
+            thumbnail,
+            media_type=media_type,
+            headers={"Cache-Control": "private, max-age=86400"},
+        )
+
     @server_api.get("/perchance/status")
     @server_api.get("/perchance-plugin/status", include_in_schema=False)
     def perchance_status():
@@ -175,27 +218,41 @@ def init():
 
     @server_api.get("/files/health")
     def fileparser_health():
-        from easydiffusion.lora_file_parser import lora_dir
+        from easydiffusion.file_parser import lora_dir
 
         return {"status": "ok", "lora_dir": str(lora_dir())}
 
     @server_api.post("/files/list_lora")
     def fileparser_list_lora():
-        from easydiffusion.lora_file_parser import list_lora_files, scan_lora_metadata
+        from easydiffusion.file_parser import list_lora_files, scan_lora_metadata
 
         files = list_lora_files()
         return {"files": files, "meta": scan_lora_metadata(), "count": len(files)}
 
+    @server_api.post("/files/list_model")
+    def fileparser_list_model():
+        from easydiffusion.file_parser import list_checkpoint_files, scan_checkpoint_metadata
+
+        files = list_checkpoint_files()
+        return {"files": files, "meta": scan_checkpoint_metadata(), "count": len(files)}
+
+    @server_api.post("/files/list_vae")
+    def fileparser_list_vae():
+        from easydiffusion.file_parser import list_vae_files, scan_vae_metadata
+
+        files = list_vae_files()
+        return {"files": files, "meta": scan_vae_metadata(), "count": len(files)}
+
     @server_api.post("/files/list_checkpoints")
     def fileparser_list_checkpoints():
-        from easydiffusion.lora_file_parser import list_checkpoint_files, scan_checkpoint_metadata
+        from easydiffusion.file_parser import list_checkpoint_files, scan_checkpoint_metadata
 
         files = list_checkpoint_files()
         return {"files": files, "meta": scan_checkpoint_metadata(), "count": len(files)}
 
     @server_api.post("/meta/get_triggers")
     def fileparser_get_triggers(payload: dict):
-        from easydiffusion.lora_file_parser import extract_lora_metadata
+        from easydiffusion.file_parser import extract_lora_metadata
 
         try:
             return {"meta": extract_lora_metadata(payload.get("filepath"), bool(payload.get("include_metadata")))}
@@ -204,14 +261,14 @@ def init():
 
     @server_api.post("/meta/scan_loras")
     def fileparser_scan_loras():
-        from easydiffusion.lora_file_parser import scan_lora_metadata
+        from easydiffusion.file_parser import scan_lora_metadata
 
         items = scan_lora_metadata()
         return {"meta": items, "count": len(items)}
 
     @server_api.post("/meta/scan_checkpoints")
     def fileparser_scan_checkpoints():
-        from easydiffusion.lora_file_parser import scan_checkpoint_metadata
+        from easydiffusion.file_parser import scan_checkpoint_metadata
 
         items = scan_checkpoint_metadata()
         return {"meta": items, "count": len(items)}
@@ -351,6 +408,40 @@ def read_web_data_internal(key: str = None, **kwargs):
         }
         system_info["devices"]["config"] = config.get("render_devices", "auto")
         return JSONResponse(system_info, headers=NOCACHE_HEADERS)
+    elif key in ("model", "lora", "vae"):
+        selector_types = {
+            "model": "stable-diffusion",
+            "lora": "lora",
+            "vae": "vae",
+        }
+        if key == "model":
+            from easydiffusion.backend_manager import backend
+
+            backend.refresh_models()
+        return JSONResponse(
+            {"models": model_manager.list_models([selector_types[key]])},
+            headers=NOCACHE_HEADERS,
+        )
+    elif key == "other":
+        selector_types = {"stable-diffusion", "lora", "vae"}
+        return JSONResponse(
+            {"models": model_manager.list_models(set(model_manager.KNOWN_MODEL_TYPES) - selector_types)},
+            headers=NOCACHE_HEADERS,
+        )
+    elif key in ("model/metadata", "lora/metadata", "vae/metadata"):
+        from easydiffusion.file_parser import (
+            scan_checkpoint_metadata,
+            scan_lora_metadata,
+            scan_vae_metadata,
+        )
+
+        scanners = {
+            "model/metadata": scan_checkpoint_metadata,
+            "lora/metadata": scan_lora_metadata,
+            "vae/metadata": scan_vae_metadata,
+        }
+        metadata = scanners[key]()
+        return JSONResponse({"metadata": metadata, "count": len(metadata)}, headers=NOCACHE_HEADERS)
     elif key == "models":
         from easydiffusion.backend_manager import backend
 

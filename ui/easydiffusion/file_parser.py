@@ -1,4 +1,4 @@
-"""Built-in LoRA safetensors metadata parser for Easy Diffusion."""
+"""Built-in model, LoRA, and VAE file metadata parser for Easy Diffusion."""
 
 import json
 import os
@@ -52,6 +52,19 @@ def list_checkpoint_files():
     return sorted(files)
 
 
+def list_vae_files():
+    from easydiffusion.model_manager import MODEL_EXTENSIONS, get_model_dirs
+
+    extensions = tuple(extension.lower() for extension in MODEL_EXTENSIONS["vae"])
+    files = {
+        str(path.resolve())
+        for directory in get_model_dirs("vae")
+        for path in Path(directory).rglob("*")
+        if path.is_file() and path.name.lower().endswith(extensions)
+    }
+    return sorted(files)
+
+
 def extract_checkpoint_metadata(filepath):
     from easydiffusion.model_manager import get_model_dirs
 
@@ -71,6 +84,41 @@ def extract_checkpoint_metadata(filepath):
 
 def scan_checkpoint_metadata():
     return [extract_checkpoint_metadata(filepath) for filepath in list_checkpoint_files()]
+
+
+def extract_vae_metadata(filepath):
+    from easydiffusion.model_manager import MODEL_EXTENSIONS, get_model_dirs
+    from easydiffusion.utils.model_identifier import identify_vae_latent_family
+
+    path = Path(filepath).resolve()
+    roots = [Path(directory).resolve() for directory in get_model_dirs("vae")]
+    root = next((candidate for candidate in roots if path == candidate or candidate in path.parents), None)
+    if root is None:
+        raise ValueError("VAE path must be under an Easy Diffusion VAE directory")
+    relative = path.relative_to(root).as_posix()
+    model = relative
+    for extension in sorted(MODEL_EXTENSIONS["vae"], key=len, reverse=True):
+        if model.lower().endswith(extension.lower()):
+            model = model[: -len(extension)]
+            break
+    result = {"model_name": path.name, "model": model, "meta": {}}
+    if path.suffix.lower() == ".safetensors":
+        try:
+            with safe_open(str(path), framework="numpy") as file:
+                result["meta"] = file.metadata() or {}
+        except Exception as exc:
+            result["error"] = str(exc)
+    try:
+        family = identify_vae_latent_family(str(path))
+    except Exception:
+        family = None
+    if family:
+        result["latent_family"] = family
+    return result
+
+
+def scan_vae_metadata():
+    return [extract_vae_metadata(filepath) for filepath in list_vae_files()]
 
 
 def _collect_tag_frequencies(value, frequencies):

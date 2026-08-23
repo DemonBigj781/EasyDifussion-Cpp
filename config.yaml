@@ -44,3 +44,5 @@ model:
   stable-diffusion: 2dn_latentlensV1
 vram_usage_level: balanced
 backend: sdkit3
+gallery:
+  directory: /mnt/1812FB8512FB6662/easy-diffusion-save-backup

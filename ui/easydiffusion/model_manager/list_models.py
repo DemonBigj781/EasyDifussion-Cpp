@@ -129,12 +129,15 @@ def include_prefilled_models(models, prefilled_models):
             models.append(m)
 
 
-def list_models():
+def list_models(model_types=None):
     from easydiffusion.model_manager import KNOWN_MODEL_TYPES, MODEL_EXTENSIONS, get_model_dirs
 
     models = []
+    requested_types = set(model_types) if model_types is not None else set(KNOWN_MODEL_TYPES)
 
     for model_type in KNOWN_MODEL_TYPES:
+        if model_type not in requested_types:
+            continue
         models_dirs = get_model_dirs(model_type)
         model_extensions = MODEL_EXTENSIONS.get(model_type, [])
 

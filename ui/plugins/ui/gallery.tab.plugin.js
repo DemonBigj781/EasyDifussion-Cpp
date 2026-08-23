@@ -646,7 +646,7 @@
             page: String(currentPage),
             page_size: String(galleryPageSize)
         })
-        const response = await fetch(`/gallery-plugin/images?${query}`, { cache: 'no-store' })
+        const response = await fetch(`/gallery/images?${query}`, { cache: 'no-store' })
         if (!response.ok) {
             const text = await response.text()
             throw new Error(`Gallery directory request failed (${response.status}): ${text}`)
@@ -705,7 +705,7 @@
         if (!galleryDirectoryInput) return
         setDirectoryStatus('Loading gallery setting...')
         try {
-            const response = await fetch('/gallery-plugin/settings', { cache: 'no-store' })
+            const response = await fetch('/gallery/settings', { cache: 'no-store' })
             if (!response.ok) {
                 throw new Error(`Settings request failed (${response.status})`)
             }
@@ -728,7 +728,7 @@
         galleryDirectorySave.disabled = true
         setDirectoryStatus('Saving and scanning directory...')
         try {
-            const response = await fetch('/gallery-plugin/settings', {
+            const response = await fetch('/gallery/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ gallery_directory: directory })

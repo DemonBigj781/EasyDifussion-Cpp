@@ -1202,19 +1202,30 @@
 
     async function getModels(scanForMalicious = true) {
         let models = {
-            "stable-diffusion": [],
-            vae: [],
+            models: [],
         }
         try {
-            const res = await fetch("/get/models?scan_for_malicious=" + scanForMalicious)
-            if (!res.ok) {
-                console.error("Invalid response fetching models", res.statusText)
-                return models
+            const endpointNames = ["model", "lora", "vae", "other"]
+            const responses = await Promise.all(
+                endpointNames.map((name) => fetch(`/get/${name}?scan_for_malicious=${scanForMalicious}`))
+            )
+            const failedResponse = responses.find((response) => !response.ok)
+            if (failedResponse) {
+                throw new Error(`Invalid response fetching models: ${failedResponse.statusText}`)
             }
-            models = await res.json()
+            const payloads = await Promise.all(responses.map((response) => response.json()))
+            models.models = payloads.flatMap((payload) => Array.isArray(payload.models) ? payload.models : [])
             console.log("get models response", models)
         } catch (e) {
             console.log("get models error", e)
+            try {
+                const fallback = await fetch("/get/models?scan_for_malicious=" + scanForMalicious)
+                if (fallback.ok) {
+                    models = await fallback.json()
+                }
+            } catch (fallbackError) {
+                console.log("get models fallback error", fallbackError)
+            }
         }
         return models
     }
