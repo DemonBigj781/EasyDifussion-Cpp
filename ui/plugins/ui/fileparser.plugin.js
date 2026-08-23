@@ -11,17 +11,13 @@
     const DEBUG = false; // set true to enable console logs
     const log = (...args) => DEBUG && console.log(...args);
 
-    const VERSION = "1.4";
+    const VERSION = "1.5";
     const ID_PREFIX = "TheStig-LoRa-Metadata-Reader";
     log('%s Embed Metadata Version: %s', ID_PREFIX, VERSION);
 
-    const LORA_API_BASE = window.location.protocol === "https:"
-        ? `${window.location.origin}/fileparser-api`
-        : `http://${window.location.hostname}:9002`;
-
-    const ENDPOINT_LIST = `${LORA_API_BASE}/list_lora`;
-    const ENDPOINT_TRIGGERS = `${LORA_API_BASE}/get_triggers`;
-    const ENDPOINT_SCAN = `${LORA_API_BASE}/scan_loras`;
+    const ENDPOINT_LIST = "/files/list_lora";
+    const ENDPOINT_TRIGGERS = "/meta/get_triggers";
+    const ENDPOINT_SCAN = "/meta/scan_loras";
     const AUTO_IMPORT_STORAGE_KEY = `${ID_PREFIX}-auto-import`;
 
     const defaultTrigger = true;
@@ -35,7 +31,7 @@
     });
 
     injectLoaderCSS();
-    addReaderOptions();
+    initializeMetadataReader();
     injectLoraReloadButton();
     watchForLoraManager();
 
@@ -138,8 +134,12 @@
             headers: { "Content-Type": "application/json" },
             body: bodyObj ? JSON.stringify(bodyObj) : "{}",
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            const detail = data?.detail || data?.error || res.statusText;
+            throw new Error(detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`);
+        }
+        return data;
     }
 
     function normalizeListResponse(data) {
@@ -217,32 +217,29 @@
         selectEl.disabled = false;
     }
 
-    // Normalizes your endpoint shapes into { __metadata__: {...} }
+    // Normalizes the built-in API's { meta: {...} } response for the renderer.
     async function fetchMetadata(filepath) {
         const data = await postJSON(ENDPOINT_TRIGGERS, {
             filepath,
             include_metadata: true
         });
 
-        // already normalized
         if (data?.__metadata__) return data;
 
-        // your actual server response: { metadata: { model_name, trigger_words } }
-        if (data?.metadata && typeof data.metadata === "object") {
-            const meta = data.metadata;
+        const record = data?.meta ?? data?.metadata ?? data;
+        if (record && typeof record === "object") {
+            const embedded = record.meta ?? record.embedded_metadata;
             return {
                 __metadata__: {
-                    ...(meta.embedded_metadata && typeof meta.embedded_metadata === "object"
-                        ? meta.embedded_metadata
+                    ...(embedded && typeof embedded === "object"
+                        ? embedded
                         : {}),
-                    ss_trigger_words: meta.trigger_words ?? meta.triggers ?? null,
-                    model_name: meta.model_name ?? null
+                    ss_trigger_words: record.trigger_words ?? record.triggers ?? null,
+                    model_name: record.model_name ?? null
                 }
             };
         }
 
-        // fallback
-        if (data && typeof data === "object") return { __metadata__: data };
         return { __metadata__: {} };
     }
     function selectLoraInMainTab(filepath) {
@@ -445,9 +442,9 @@
             filepath,
             include_metadata: false
         });
-        const record = data?.metadata;
+        const record = data?.meta ?? data?.metadata;
         if (!record || typeof record !== "object") {
-            throw new Error("The FileParser server returned no metadata");
+            throw new Error("The metadata API returned no metadata");
         }
         if (record.error) throw new Error(record.error);
         return record;
@@ -491,7 +488,9 @@
             const data = await postJSON(ENDPOINT_SCAN);
             const items = Array.isArray(data)
                 ? data
-                : (Array.isArray(data?.items) ? data.items : []);
+                : (Array.isArray(data?.meta)
+                    ? data.meta
+                    : (Array.isArray(data?.items) ? data.items : []));
 
             let importedModels = 0;
             let importedKeywords = 0;
@@ -625,10 +624,25 @@
        UI
     ========================= */
 
+    function initializeMetadataReader() {
+        if (addReaderOptions()) return;
+
+        const observer = new MutationObserver(() => {
+            if (addReaderOptions()) observer.disconnect();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
+
     function addReaderOptions() {
+        if (document.getElementById("lora-metadata-reader")) return true;
+
+        const editorSettings = document.getElementById("editor-settings");
+        if (!editorSettings?.parentNode) return false;
+
         log('Add Metadata Reader Settings');
 
         const box = document.createElement('div');
+        box.id = "lora-metadata-reader";
         box.classList.add('panel-box');
         box.innerHTML = `
             <h4 class="collapsible">LoRa Metadata Reader</h4>
@@ -666,7 +680,6 @@
             </div>
         `;
 
-        const editorSettings = document.getElementById('editor-settings');
         editorSettings.parentNode.insertBefore(box, editorSettings.nextSibling);
         createCollapsibles(box);
 
@@ -683,13 +696,18 @@
         sel.onchange = async () => {
             if (!sel.value) return;
 
-            // 🔹 Sync selection with LoRA tab
-            selectLoraInMainTab(sel.value);
-
-            const meta = await fetchMetadata(sel.value);
-            showMetadata(meta, sel.value.split("/").pop());
+            try {
+                stat.textContent = "Reading metadata…";
+                selectLoraInMainTab(sel.value);
+                const meta = await fetchMetadata(sel.value);
+                showMetadata(meta, sel.value.split("/").pop());
+                stat.textContent = "Metadata loaded";
+            } catch (error) {
+                stat.textContent = `Metadata scan failed: ${error.message}`;
+            }
         };
 
+        return true;
     }
 
     function injectLoaderCSS() {

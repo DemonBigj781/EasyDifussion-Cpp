@@ -689,6 +689,12 @@ function convertToLegacyModelOptions(models) {
 
     for (const model of models) {
         const modelType = model.tags[0]
+        if (!modelType) {
+            continue
+        }
+        if (!Array.isArray(legacyModelOptions[modelType])) {
+            legacyModelOptions[modelType] = []
+        }
         legacyModelOptions[modelType].push(model)
     }
 
