@@ -1,0 +1,17 @@
+<h4 class="collapsible">LocalStorage Manager</h4>
+<div class="collapsible-content" style="display: block; margin-top: 15px;">
+    <p style="font-size: 12px; margin-bottom: 10px; color: var(--text-color);">
+        Total Storage Used: <span id="storage-total-size" style="font-weight: bold; color: #ffc107;">Calculating...</span> / 5120 KB
+    </p>
+    <div style="margin-bottom: 10px;">
+        <label for="storage-filter-select" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px; color: var(--text-color);">Filter by Source:</label>
+        <select id="storage-filter-select" style="width: 100%; padding: 5px; font-size: 12px; background: var(--background-color-secondary, #222); color: #fff; border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; margin-bottom: 4px;">
+            <option value="ALL">All Sources (Show Everything)</option>
+        </select>
+        <div id="storage-filter-subtotal" style="font-size: 11px; color: #aaa; font-style: italic; padding-left: 2px; display: none;"></div>
+    </div>
+    <div id="storage-item-list" style="max-height: 220px; overflow-y: auto; padding: 6px; background: var(--background-color-secondary, #222); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+        <div id="storage-loading-indicator" style="font-size: 11px; color: #aaa; text-align: center; padding: 10px;">Reading storage blocks...</div>
+    </div>
+    <button id="storage-refresh-btn" class="primaryButton" type="button" style="width: 100%; padding: 8px; font-weight: bold; margin-bottom: 6px;">Refresh Storage List</button>
+</div>

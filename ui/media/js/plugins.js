@@ -80,6 +80,8 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/latent-interposer-decode.plugin.js",
     "/plugins/core/wd14-tagger.plugin.js",
     "/plugins/core/post-generation-tools.plugin.js",
+    "/plugins/core/OutpaintIt.plugin.js",
+    "/plugins/core/stig-localstorage.plugin.js",
     "/plugins/core/inpainting.plugin.js",
     "/plugins/core/prompt-assist.plugin.js",
     "/plugins/core/negative-history.plugin.js",

@@ -26,6 +26,9 @@ var OutpaintItSettings = {
    If you go too large, you'll see "Error: CUDA out of memory". 
  */
 (function () { "use strict"
+if (window.__outpaintItPluginLoaded) return;
+window.__outpaintItPluginLoaded = true;
+
 var outpaintMaxTotalResolution = 10000000; //6000000; //was: 1280 * 1280; //put max 'low' mode resolution here, max possible size when low mode is on
 var outpaintMaxTurboResolution = 1088	* 1664; //was: 1536	* 896;   //put max resolution (other than 'low' mode) here
 var maxNoVaeTiling = 2200000; //5500000;  //max resolution to allow no VAE tiling.  Turn off VAE tiling for larger images.
@@ -800,46 +803,19 @@ function  onOutpaintAllClick(origRequest, image) {
     outpaintSettings.id = 'outpaintit-settings';
     outpaintSettings.classList.add('settings-box');
     outpaintSettings.classList.add('panel-box');
-    let tempHTML =  
-        `<h4 class="collapsible">Outpaint It Settings
-          <i id="reset-op-settings" class="fa-solid fa-arrow-rotate-left section-button">
-          <span class="simple-tooltip top-left">
-          Reset Outpaint It Settings
-          </span>
-          </i>
-        </h4>
-        <div id="outpaintit-settings-entries" class="collapsible-content" style="display: block;margin-top:15px;">
-        <div><ul style="padding-left:0px">
-          <li><b class="settings-subheader">OutpaintIt Settings</b></li>
-          <li class="pl-5"><div class="input-toggle">
-          <input id="outpaintit_change_model" name="outpaintit_change_model" type="checkbox" value="`+OutpaintItSettings.useChangedModel+`"  onchange="setOutpaintItSettings()"> <label for="outpaintit_change_model"></label>
-          </div>
-          <label for="outpaintit_change_model">Use model selected above <small>(not the original model)</small></label>
-          </li>
-          <li class="pl-5"><div class="input-toggle">
-          <input id="outpaintit_change_prompt" name="outpaintit_change_prompt" type="checkbox" value="`+OutpaintItSettings.useChangedPrompt+`"  onchange="setOutpaintItSettings()"> <label for="outpaintit_change_prompt"></label>
-          </div>
-          <label for="outpaintit_change_prompt">Use new prompt, above <small>(not the original prompt)</small></label>
-          </li>
-          <li class="pl-5"><div class="input-toggle">
-          <input id="outpaintit_change_sampler" name="outpaintit_change_sampler" type="checkbox" value="`+OutpaintItSettings.useChangedSampler+`"  onchange="setOutpaintItSettings()"> <label for="outpaintit_change_sampler"></label>
-          </div>
-          <label for="outpaintit_change_sampler">Use new sampler, above <small>(not the original sampler)</small></label>
-          </li>
-          <li class="pl-5"><div class="input-toggle">
-          <input id="outpaintit_extend_image" name="outpaintit_extend_image" type="checkbox" value="`+OutpaintItSettings.useExtendImage+`"  onchange="setOutpaintItSettings()"> <label for="outpaintit_extend_image"></label>
-          </div>
-          <label for="outpaintit_extend_image">Extend image into new area <small>(with noise)</small></label>
-          </li>
-        </ul></div>
-        </div>`;
-    outpaintSettings.innerHTML = tempHTML;
+    outpaintSettings.innerHTML = window.loadRequiredPluginHTML('/plugins/core/OutpaintIt.plugin.html');
     var editorSettings = document.getElementById('editor-settings');
+    if (!editorSettings?.parentNode) {
+      throw new Error('OutpaintIt plugin: Image Settings anchor was not found');
+    }
     editorSettings.parentNode.insertBefore(outpaintSettings, editorSettings.nextSibling);
     createCollapsibles(outpaintSettings);
 
-    const icon = document.getElementById('reset-op-settings');
+    const icon = outpaintSettings.querySelector('#reset-op-settings');
     icon.addEventListener('click', outpaintItResetSettings);
+    outpaintSettings.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.addEventListener('change', setOutpaintItSettings);
+    });
 
     //Ensure switches match the settings (for the initial values), since "value=" in above HTML doesn't appear to work.
     outpaintItResetSettings(null);
@@ -848,10 +824,10 @@ function  onOutpaintAllClick(origRequest, image) {
 })();
 
 function setOutpaintItSettings() {
-  OutpaintItSettings.useChangedPrompt = outpaintit_change_prompt.checked;
-  OutpaintItSettings.useChangedModel = outpaintit_change_model.checked;
-  OutpaintItSettings.useChangedSampler = outpaintit_change_sampler.checked;
-  OutpaintItSettings.useExtendImage = outpaintit_extend_image.checked; //Extend image into noise area
+  OutpaintItSettings.useChangedPrompt = document.getElementById('outpaintit_change_prompt').checked;
+  OutpaintItSettings.useChangedModel = document.getElementById('outpaintit_change_model').checked;
+  OutpaintItSettings.useChangedSampler = document.getElementById('outpaintit_change_sampler').checked;
+  OutpaintItSettings.useExtendImage = document.getElementById('outpaintit_extend_image').checked; //Extend image into noise area
 
   localStorage.setItem('OutpaintIt_Plugin_Settings', JSON.stringify(OutpaintItSettings));  //Store settings
 }
@@ -875,8 +851,8 @@ function outpaintItResetSettings(reset) {
   localStorage.setItem('OutpaintIt_Plugin_Settings', JSON.stringify(OutpaintItSettings));  //Store settings
 
   //set the input fields
-  outpaintit_change_prompt.checked = OutpaintItSettings.useChangedPrompt;
-  outpaintit_change_model.checked = OutpaintItSettings.useChangedModel;
-  outpaintit_change_sampler.checked = OutpaintItSettings.useChangedSampler;
-  outpaintit_extend_image.checked = OutpaintItSettings.useExtendImage;
+  document.getElementById('outpaintit_change_prompt').checked = OutpaintItSettings.useChangedPrompt;
+  document.getElementById('outpaintit_change_model').checked = OutpaintItSettings.useChangedModel;
+  document.getElementById('outpaintit_change_sampler').checked = OutpaintItSettings.useChangedSampler;
+  document.getElementById('outpaintit_extend_image').checked = OutpaintItSettings.useExtendImage;
 }
