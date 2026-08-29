@@ -1,0 +1,42 @@
+        <h4 class="collapsible">Native Video <small>Wan / LTX 2; SVD experimental</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <div class="native-video-grid">
+                <label for="native-video-enabled">Enable</label>
+                <input id="native-video-enabled" type="checkbox">
+
+                <label for="native-video-frames">Frames</label>
+                <input id="native-video-frames" type="number" value="25" min="1" max="513" step="1">
+
+                <label for="native-video-fps">FPS</label>
+                <input id="native-video-fps" type="number" value="8" min="1" max="60" step="1">
+
+                <label for="native-video-cache">Cache</label>
+                <select id="native-video-cache">
+                    <option value="disabled">Disabled (exact)</option>
+                    <option value="easycache">EasyCache</option>
+                    <option value="teacache">TeaCache</option>
+                </select>
+
+                <label for="native-video-threshold">Cache threshold</label>
+                <input id="native-video-threshold" type="number" value="" min="0" step="0.01"
+                       placeholder="model default">
+
+                <label>Cache range (%)</label>
+                <div>
+                    <input id="native-video-cache-start" type="number" value="15" min="0" max="100" step="1">
+                    –
+                    <input id="native-video-cache-end" type="number" value="95" min="0" max="100" step="1">
+                </div>
+
+                <label for="native-video-end-input">Optional end frame</label>
+                <div>
+                    <input id="native-video-end-input" type="file" accept="image/*">
+                    <button id="native-video-end-clear" type="button" class="tertiaryButton">Clear</button>
+                </div>
+            </div>
+            <img id="native-video-end-preview" class="native-video-end-preview displayNone"
+                 alt="Native video end-frame preview">
+            <small id="native-video-status">
+                Choose a video checkpoint in Model. Initial Image switches to image-to-video; without it the backend uses text-to-video.
+            </small>
+        </div>

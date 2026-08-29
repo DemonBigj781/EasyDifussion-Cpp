@@ -1,0 +1,14 @@
+        <h4 class="collapsible">ControlNet-LLLite <small>image conditioning</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <div id="lllite-config" class="controlled-generation-grid">
+                    <label for="lllite-enabled">Enable</label><input id="lllite-enabled" type="checkbox">
+                    <label for="lllite-model">Model</label>
+                    <div>
+                        <input id="lllite-model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="">
+                    <a href="https://github.com/kohya-ss/ControlNet-LLLite-ComfyUI" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">ControlNet-LLLite information</span></i></a>
+                    </div>
+                    <label for="lllite-strength">Strength</label><input id="lllite-strength" type="number" value="1" min="-10" max="10" step="0.05">
+                    <label>Step range (%)</label>
+                    <div><input id="lllite-start" type="number" value="0" min="0" max="100" step="1"> – <input id="lllite-end" type="number" value="100" min="0" max="100" step="1"></div>
+            </div>
+        </div>

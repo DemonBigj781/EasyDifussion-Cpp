@@ -6,13 +6,15 @@ Notes:
 import datetime
 import mimetypes
 import os
+import subprocess
 import traceback
 from typing import List, Union
 
 from easydiffusion import app, gallery, model_manager, package_manager, perchance, task_manager
-from easydiffusion.tasks import RenderTask, FilterTask
+from easydiffusion.tasks import RenderTask, FilterTask, VideoTask
 from easydiffusion.types import (
     GenerateImageRequest,
+    VideoGenerationRequest,
     FilterImageRequest,
     MergeRequest,
     TaskData,
@@ -25,6 +27,12 @@ from easydiffusion.types import (
 )
 from easydiffusion.utils import log
 from easydiffusion.wd14_tagger import WD14TagRequest, tag_image
+from easydiffusion.native_image_tools import (
+    NativeDetectionRequest,
+    TextMaskRequest,
+    detect as native_detect,
+    text_mask as native_text_mask,
+)
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Extra
@@ -121,6 +129,10 @@ def init():
     def render(req: dict):
         return render_internal(req)
 
+    @server_api.post("/video")
+    def video(req: dict):
+        return video_internal(req)
+
     @server_api.post("/filter")
     def render(req: dict):
         return filter_internal(req)
@@ -135,6 +147,28 @@ def init():
             raise
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"WD14 tagging failed: {exc}") from exc
+
+    @server_api.post("/native-vision/detect")
+    def detect_with_native_vision(req: NativeDetectionRequest):
+        try:
+            return JSONResponse(native_detect(req), headers=NOCACHE_HEADERS)
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(status_code=504, detail="Native detection timed out") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Native detection failed: {exc}") from exc
+
+    @server_api.post("/image-tools/text-mask")
+    def create_native_text_mask(req: TextMaskRequest):
+        try:
+            return JSONResponse(native_text_mask(req), headers=NOCACHE_HEADERS)
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(status_code=504, detail="Text-mask detection timed out") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Text-mask detection failed: {exc}") from exc
 
     from easydiffusion.tipo import GenerateRequest as TipoGenerateRequest
 
@@ -558,6 +592,26 @@ def render_internal(req: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def video_internal(req: dict):
+    try:
+        req = convert_legacy_render_req_to_new(req)
+        video_req = VideoGenerationRequest.parse_obj(req)
+        task_data = TaskData.parse_obj(req)
+        models_data = ModelsData.parse_obj(req)
+        output_format = OutputFormatData.parse_obj(req)
+
+        if not models_data.model_paths.get("stable-diffusion"):
+            raise ValueError("Select a native SVD, Wan, or LTX video checkpoint")
+
+        task = VideoTask(video_req, task_data, models_data, output_format)
+        return enqueue_task(task)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def filter_internal(req: dict):
     try:
         filter_req: FilterImageRequest = FilterImageRequest.parse_obj(req)
@@ -638,6 +692,18 @@ def stream_internal(task_id: int):
     return StreamingResponse(task.read_buffer_generator(), media_type="application/json")
 
 
+def _interrupt_active_backend():
+    """Forward a UI stop immediately instead of waiting for a progress poll."""
+    try:
+        from easydiffusion import backend_manager, runtime
+
+        backend_manager.backend.stop_rendering(runtime.context)
+    except Exception as e:
+        # The task's StopAsyncIteration flag remains authoritative, so a
+        # backend that has already finished must not turn Stop into an error.
+        log.warning(f"Could not forward generation interrupt to the backend: {e}")
+
+
 def stop_internal(task: int):
     if not task:
         if (
@@ -646,6 +712,7 @@ def stop_internal(task: int):
         ):
             raise HTTPException(status_code=409, detail="Not currently running any tasks.")  # HTTP409 Conflict
         task_manager.current_state_error = StopAsyncIteration("")
+        _interrupt_active_backend()
         return {"OK"}
     task_id = task
     task = task_manager.get_cached_task(task_id, update_ttl=False)
@@ -654,6 +721,8 @@ def stop_internal(task: int):
     if isinstance(task.error, StopAsyncIteration):
         raise HTTPException(status_code=409, detail=f"Task {task_id} is already stopped.")  # HTTP409 Conflict
     task.error = StopAsyncIteration(f"Task {task_id} stop requested.")
+    if task.lock.locked():
+        _interrupt_active_backend()
     return {"OK"}
 
 

@@ -86,12 +86,56 @@
 }
 
 .image_editor_tool .editor-options-container {
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+	gap: 6px;
 }
 
 .image_editor_tool .editor-options-container > * {
-	padding: 2px;
-	flex: 50%;
+	min-width: 0;
+	padding: 0;
+}
+
+.image_editor_tool .image-editor-button {
+	height: auto;
+	min-height: 40px;
+	padding: 4px 6px;
+}
+
+.image_editor_tool .image-editor-button > div {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	width: 100%;
+	min-width: 0;
+}
+
+.image_editor_tool .image-editor-button i {
+	flex: 0 0 auto;
+	margin-right: 0;
+}
+
+.image_editor_tool .image-editor-button-label {
+	min-width: 0;
+	line-height: 1.1;
+	overflow-wrap: normal;
+	text-align: center;
+}
+
+.image_editor_brush_size .editor-options-container {
+	align-items: center;
+	column-gap: 4px;
+}
+
+.image_editor_brush_size .editor-options-container > * {
+	flex: 0 0 auto !important;
+}
+
+.image_editor_brush_size .editor-options-container > * > * {
+	flex: none;
+	aspect-ratio: 1 / 1;
+	border-radius: 50% !important;
 }
 
 .editor-controls-center {
@@ -234,17 +278,21 @@
 }
 
 .editor-canvas-overlay {
-        cursor: none;
+        cursor: inherit;
 }
 
 .image-brush-preview {
         position: fixed;
         background: black;
-        opacity: 0.3;
-        borderRadius: 50%;
-        cursor: none;
+        opacity: 0.45;
+        border: 1px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px black;
+        cursor: inherit;
         pointer-events: none;
         transform: translate(-50%, -50%);
+        aspect-ratio: 1 / 1;
+        z-index: 10000;
 }
 
 .editor-options-container > * > *:not(.active):not(.button) {
@@ -254,4 +302,3 @@
 .image_editor_opacity .editor-options-container > * > *:not(.active):not(.button) {
         border: 1px dotted slategray;
 }
-

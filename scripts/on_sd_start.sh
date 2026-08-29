@@ -11,7 +11,7 @@ if [ "$(uname -s)" != "Linux" ]; then
     fail "This local Easy Diffusion fork currently supports Linux only."
 fi
 
-export INSTALL_ENV_DIR="$ROOT_DIR/installer_files/env"
+export INSTALL_ENV_DIR="$ROOT_DIR/.venv"
 PYTHON="$INSTALL_ENV_DIR/bin/python"
 
 if [ ! -x "$PYTHON" ]; then

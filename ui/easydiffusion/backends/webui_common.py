@@ -65,13 +65,18 @@ def set_options(context, **kwargs):
         "stream_image_progress_interval": ("show_progress_every_n_steps", int),
         "clip_skip": ("CLIP_stop_at_last_layers", int),
         "clip_skip_sdxl": ("sdxl_clip_l_skip", bool),
+        "vae_tiling": ("vae_tiling", bool),
         "output_format": ("samples_format", str),
     }
 
     for ed_key, webui_key in opts_mapping.items():
         webui_key, webui_type = webui_key
 
-        if ed_key in kwargs and (webui_opts is None or webui_opts.get(webui_key, False) != webui_type(kwargs[ed_key])):
+        if ed_key in kwargs and (
+            webui_opts is None
+            or webui_key not in webui_opts
+            or webui_opts[webui_key] != webui_type(kwargs[ed_key])
+        ):
             changed_opts[webui_key] = webui_type(kwargs[ed_key])
 
     if changed_opts:
@@ -187,11 +192,18 @@ def generate_images(
     control_image=None,
     control_alpha=1.0,
     controlnet_filter=None,
+    controlnet_union_type: str = "canny",
     control_net_lllite_image=None,
     control_net_lllite_model=None,
     control_net_lllite_strength: float = 1.0,
     control_net_lllite_start_percent: float = 0.0,
     control_net_lllite_end_percent: float = 100.0,
+    ip_adapter_image=None,
+    ip_adapter_model=None,
+    ip_adapter_clip_vision=None,
+    ip_adapter_strength: float = 1.0,
+    ip_adapter_start_percent: float = 0.0,
+    ip_adapter_end_percent: float = 100.0,
     latent_interposer_model=None,
     latent_interposer_enabled: bool = False,
     latent_interposer_source: str = "fx",
@@ -261,6 +273,23 @@ def generate_images(
             "strength": float(control_net_lllite_strength),
             "start_percent": float(control_net_lllite_start_percent),
             "end_percent": float(control_net_lllite_end_percent),
+        }
+
+    if ip_adapter_image or ip_adapter_model or ip_adapter_clip_vision:
+        if not USE_SDKIT3_API:
+            raise RuntimeError("Native IP-Adapter requires the sdkit3 backend")
+        if not ip_adapter_image or not ip_adapter_model or not ip_adapter_clip_vision:
+            raise ValueError("IP-Adapter requires an image, adapter model, and CLIP Vision model")
+
+        raw_start = max(0.0, min(100.0, float(ip_adapter_start_percent)))
+        raw_end = max(0.0, min(100.0, float(ip_adapter_end_percent)))
+        cmd["ip_adapter"] = {
+            "model_path": resolve_model_to_use(ip_adapter_model, "ip-adapter"),
+            "clip_vision_path": resolve_model_to_use(ip_adapter_clip_vision, "clip-vision"),
+            "image": ip_adapter_image,
+            "strength": float(ip_adapter_strength),
+            "start_percent": min(raw_start, raw_end),
+            "end_percent": max(raw_start, raw_end),
         }
 
     if latent_interposer_enabled:
@@ -392,7 +421,7 @@ def generate_images(
                 lora = os.path.splitext(lora)[0]
                 cmd["prompt"] += f" <lora:{lora}:{alpha}>"
 
-    if controlnet_filter and control_image and context.model_paths.get("controlnet"):
+    if control_image and context.model_paths.get("controlnet"):
         controlnet_model = context.model_paths["controlnet"]
 
         model_hash = auto1111_hash(controlnet_model)
@@ -407,8 +436,9 @@ def generate_images(
                     {
                         "image": control_image,
                         "weight": control_alpha,
-                        "module": controlnet_filter,
+                        "module": controlnet_filter or "none",
                         "model": controlnet_model,
+                        "union_control_type": controlnet_union_type or "canny",
                         "resize_mode": "Crop and Resize",
                         "threshold_a": 50,
                         "threshold_b": 130,
@@ -453,6 +483,88 @@ def generate_images(
         images = [base64_buffer_to_base64_img(img) for img in images]
 
     return images
+
+
+def generate_video(
+    context: Context,
+    prompt: str = "",
+    negative_prompt: str = "",
+    seed: int = 42,
+    width: int = 512,
+    height: int = 512,
+    num_inference_steps: int = 20,
+    guidance_scale: float = 5.0,
+    init_image=None,
+    end_image=None,
+    prompt_strength: float = 0.75,
+    video_frames: int = 25,
+    fps: int = 8,
+    sampler_name: str = "euler",
+    scheduler_name: str = "simple",
+    flow_shift=None,
+    moe_boundary: float = 0.875,
+    cache_mode: str = "disabled",
+    cache_threshold=None,
+    cache_start_percent: float = 15.0,
+    cache_end_percent: float = 95.0,
+    callback=None,
+):
+    if not USE_SDKIT3_API:
+        raise RuntimeError("Native video generation requires the sdkit3 backend")
+
+    task_id = str(uuid.uuid4())
+    cmd = {
+        "force_task_id": task_id,
+        "prompt": prompt,
+        "negative_prompt": negative_prompt,
+        "seed": int(seed),
+        "width": int(width),
+        "height": int(height),
+        "steps": int(num_inference_steps),
+        "cfg_scale": float(guidance_scale),
+        "video_frames": int(video_frames),
+        "fps": int(fps),
+        "sampler_name": convert_ED_sampler_names(sampler_name),
+        "scheduler": scheduler_name,
+        "denoising_strength": float(prompt_strength),
+        "moe_boundary": float(moe_boundary),
+        "cache": {
+            "mode": str(cache_mode),
+            "start_percent": float(cache_start_percent),
+            "end_percent": float(cache_end_percent),
+        },
+    }
+    if flow_shift is not None:
+        cmd["flow_shift"] = float(flow_shift)
+    if cache_threshold is not None:
+        cmd["cache"]["threshold"] = float(cache_threshold)
+    if init_image:
+        cmd["init_images"] = [init_image]
+    if end_image:
+        cmd["end_image"] = end_image
+
+    operation = "img2video" if init_image else "txt2video"
+    progress_thread = None
+    if callback is not None:
+        progress_thread = Thread(
+            target=image_progress_thread,
+            args=(task_id, callback, False, 1, num_inference_steps),
+            daemon=True,
+        )
+        progress_thread.start()
+
+    print_request(operation, cmd)
+    res = webui_post(f"/sdapi/v1/{operation}", json=cmd)
+    if res.status_code != 200:
+        try:
+            message = res.json().get("message", res.text)
+        except Exception:
+            message = res.text
+        raise RuntimeError(f"Native video backend failed: {message}")
+    result = res.json()
+    if progress_thread is not None:
+        progress_thread.join(timeout=2)
+    return result
 
 
 def filter_images(context: Context, images, filters, filter_params={}, input_type="pil"):
@@ -639,6 +751,8 @@ def image_progress_thread(task_id, callback, stream_image_progress, total_images
     from PIL import Image
 
     last_preview_id = -1
+    last_step = -1
+    reported_total_steps = max(1, int(total_steps))
 
     EMPTY_IMAGE = Image.new("RGB", (1, 1))
 
@@ -658,7 +772,15 @@ def image_progress_thread(task_id, callback, stream_image_progress, total_images
         last_preview_id = res["id_live_preview"]
 
         if res["progress"] is not None:
-            step_num = int(res["progress"] * total_steps)
+            backend_total_steps = int(res.get("total_steps") or 0)
+            if backend_total_steps > 0:
+                reported_total_steps = backend_total_steps
+            backend_step = res.get("current_step")
+            if backend_step is None:
+                step_num = int(round(res["progress"] * reported_total_steps))
+            else:
+                step_num = int(backend_step)
+            step_num = max(0, min(reported_total_steps, step_num))
 
             if res["live_preview"]:
                 img = res["live_preview"]
@@ -668,9 +790,16 @@ def image_progress_thread(task_id, callback, stream_image_progress, total_images
             else:
                 images = None
 
-            callback(images, step_num)
+            # The progress endpoint is polled more often than many samplers
+            # advance. Do not flood Easy Diffusion with duplicate JSON events,
+            # but keep a new live preview even when the step did not change.
+            if step_num != last_step or images is not None:
+                callback(images, step_num)
+                last_step = step_num
 
         if res["completed"] == True:
+            if last_step < reported_total_steps:
+                callback(None, reported_total_steps)
             print("Complete!")
             break
 

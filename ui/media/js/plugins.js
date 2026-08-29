@@ -67,18 +67,41 @@ function loadScript(url) {
     return promiseSrc.promise
 }
 
-async function loadUIPlugins() {
-    try {
-        const res = await fetch("/get/ui_plugins")
-        if (!res.ok) {
-            console.error(`Error HTTP${res.status} while loading plugins list. - ${res.statusText}`)
-            return
-        }
-        const plugins = await res.json()
-        const loadingPromises = plugins.map(loadScript)
-        return await Promise.allSettled(loadingPromises)
-    } catch (e) {
-        console.log("error fetching plugin paths", e)
+// This fork treats its core plugins as required application modules. Keep the
+// order explicit so every panel and hook exists before app configuration is
+// applied, instead of relying on optional directory discovery.
+const REQUIRED_UI_PLUGINS = [
+    "/plugins/core/controlnet-architectures.plugin.js",
+    "/plugins/core/controlnet-lllite.plugin.js",
+    "/plugins/core/ip-adapter.plugin.js",
+    "/plugins/core/native-video.plugin.js",
+    "/plugins/core/native-image-tools.plugin.js",
+    "/plugins/core/latent-interposer-encode.plugin.js",
+    "/plugins/core/latent-interposer-decode.plugin.js",
+    "/plugins/core/wd14-tagger.plugin.js",
+    "/plugins/core/post-generation-tools.plugin.js",
+    "/plugins/core/inpainting.plugin.js",
+    "/plugins/core/prompt-assist.plugin.js",
+    "/plugins/core/negative-history.plugin.js",
+    "/plugins/core/civitai-tab.plugin.js",
+    "/plugins/core/editor-page.plugin.js",
+    "/plugins/core/Autoscroll.plugin.js",
+    "/plugins/core/custom-modifiers.plugin.js",
+    "/plugins/core/lora-prompt-parser.plugin.js",
+    "/plugins/core/Modifiers-dnd.plugin.js",
+    "/plugins/core/Modifiers-wheel.plugin.js",
+    "/plugins/core/modifiers-toggle.plugin.js",
+    "/plugins/core/model-tools.plugin.js",
+    "/plugins/core/fileparser.plugin.js",
+    "/plugins/core/tipo.plugin.js",
+    "/plugins/core/perchance.plugin.js",
+    "/plugins/core/gallery.tab.plugin.js",
+    "/plugins/core/tiled-image-download.plugin.js",
+]
+
+async function loadRequiredUIPlugins() {
+    for (const plugin of REQUIRED_UI_PLUGINS) {
+        await loadScript(plugin)
     }
 }
 

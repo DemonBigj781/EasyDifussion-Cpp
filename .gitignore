@@ -1,6 +1,7 @@
 # Installed runtimes and generated backend binaries
 /installer_files/
 /backends/
+/.venv/
 
 # Models live in a separately managed shared tree
 /models
@@ -18,6 +19,8 @@
 /backups/
 /config.yaml.bak
 /config.yaml.pre-*
-
+*.pre-*
+/options.json
+/source/artifacts
 # Keep the upstream/source checkout as its own Git repository
-/sd-ui-files/
+/source

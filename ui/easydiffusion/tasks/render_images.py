@@ -256,7 +256,9 @@ def generate_images_internal(
         vae_tiling=task_data.enable_vae_tiling,
         stream_image_progress=stream_image_progress,
         stream_image_progress_interval=stream_image_progress_interval,
-        clip_skip=2 if task_data.clip_skip else 1,
+        # A non-positive value lets the backend choose the architecture's trained
+        # default. SDXL uses both CLIP-L and CLIP-G penultimate hidden states.
+        clip_skip=2 if task_data.clip_skip else -1,
     )
 
     images = backend.generate_images(context, callback=callback, output_type="base64", **req.dict())

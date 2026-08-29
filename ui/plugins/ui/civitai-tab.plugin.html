@@ -1,0 +1,33 @@
+<h2>Civitai Browser</h2>
+<div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+    <label><input type="radio" name="civitai-downloader-mode" value="models" checked> Models</label>
+    <label><input type="radio" name="civitai-downloader-mode" value="images"> Images</label>
+    <span style="flex:1"></span>
+    <label><input type="checkbox" id="civitai-downloader-nsfw"> Include NSFW</label>
+</div>
+<div style="display:flex; gap:6px; margin-bottom:6px;">
+    <input id="civitai-downloader-query" type="text" autocomplete="off" spellcheck="false" placeholder="Search term or Civitai URN (blank browses)" style="flex:1">
+    <button class="secondaryButton" id="civitai-downloader-search" type="button">Search</button>
+</div>
+<div style="display:flex; gap:6px; margin-bottom:6px;">
+    <select id="civitai-downloader-sort" style="flex:1"></select>
+    <select id="civitai-downloader-period" style="flex:1">
+        <option value="AllTime">All Time</option><option value="Year">Year</option><option value="Month">Month</option><option value="Week">Week</option><option value="Day">Day</option>
+    </select>
+</div>
+<small>Image search uses Civitai's images-v6 query when available and falls back to the public image API.</small>
+<div id="civitai-downloader-imgfilters" style="display:none; gap:6px; margin:8px 0">
+    <input id="civitai-downloader-postid" type="number" placeholder="postId (optional)" style="flex:1">
+    <input id="civitai-downloader-username" type="text" placeholder="username (optional)" style="flex:1">
+</div>
+<div style="display:flex; gap:6px; align-items:center; margin:8px 0">
+    <input id="civitai-downloader-apikey" type="password" placeholder="API key (only required for downloads/private access)" style="flex:1">
+    <button class="secondaryButton" id="civitai-downloader-clear">Clear key</button>
+</div>
+<div id="civitai-downloader-status" style="min-height:18px; margin-bottom:6px"></div>
+<div id="civitai-downloader-results" style="max-height:70vh; overflow:auto; display:flex; flex-direction:column; gap:8px"></div>
+<div style="display:flex; justify-content:space-between; margin-top:6px">
+    <button class="secondaryButton" id="civitai-downloader-prev" disabled>Prev</button>
+    <span id="civitai-downloader-page">Page 1</span>
+    <button class="secondaryButton" id="civitai-downloader-next" disabled>Next</button>
+</div>

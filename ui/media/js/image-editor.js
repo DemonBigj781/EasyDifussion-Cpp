@@ -1,6 +1,7 @@
 var editorControlsLeft = document.getElementById("image-editor-controls-left")
 
-const IMAGE_EDITOR_MAX_SIZE = 800
+const IMAGE_EDITOR_MAX_UPSCALE = 2
+const IMAGE_EDITOR_MIN_VISIBLE = 48
 
 const IMAGE_EDITOR_BUTTONS = [
     {
@@ -38,7 +39,210 @@ const defaultToolEnd = (editor, ctx, x, y, is_overlay = false) => {
 }
 const toolDoNothing = (editor, ctx, x, y, is_overlay = false) => { }
 
+function magicWandSelect(editor, targetCtx, x, y) {
+    const width = editor.width
+    const height = editor.height
+    const startX = Math.max(0, Math.min(width - 1, Math.floor(x)))
+    const startY = Math.max(0, Math.min(height - 1, Math.floor(y)))
+    const source = editor.layers.background.ctx.getImageData(0, 0, width, height).data
+    const selected = new Uint8Array(width * height)
+    const queue = new Int32Array(width * height)
+    const start = startY * width + startX
+    const baseOffset = start * 4
+    const baseR = source[baseOffset]
+    const baseG = source[baseOffset + 1]
+    const baseB = source[baseOffset + 2]
+    const threshold = Number(editor.options.wand_threshold || 30)
+    const thresholdSquared = threshold * threshold
+    let read = 0
+    let write = 0
+
+    selected[start] = 1
+    queue[write++] = start
+    while (read < write) {
+        const pixel = queue[read++]
+        const px = pixel % width
+        const py = Math.floor(pixel / width)
+        const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
+        for (let i = 0; i < neighbors.length; i++) {
+            const next = neighbors[i]
+            if (next < 0 || next >= selected.length || selected[next]) continue
+            if ((i === 0 && px === 0) || (i === 1 && px === width - 1)) continue
+            const offset = next * 4
+            const dr = source[offset] - baseR
+            const dg = source[offset + 1] - baseG
+            const db = source[offset + 2] - baseB
+            if (dr * dr + dg * dg + db * db > thresholdSquared) continue
+            selected[next] = 1
+            queue[write++] = next
+        }
+    }
+
+    // Grow the selected region by the requested pixel buffer. A multi-source
+    // breadth-first pass keeps this linear even for large mobile images.
+    const buffer = Math.max(0, Math.floor(Number(editor.options.selection_buffer || 0)))
+    if (buffer > 0) {
+        const distance = new Uint16Array(width * height)
+        read = 0
+        for (let i = 0; i < selected.length; i++) {
+            if (selected[i]) {
+                distance[i] = 1
+                queue[read++] = i
+            }
+        }
+        write = read
+        read = 0
+        while (read < write) {
+            const pixel = queue[read++]
+            const px = pixel % width
+            const depth = distance[pixel]
+            if (depth > buffer) continue
+            const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
+            for (let i = 0; i < neighbors.length; i++) {
+                const next = neighbors[i]
+                if (next < 0 || next >= selected.length || distance[next]) continue
+                if ((i === 0 && px === 0) || (i === 1 && px === width - 1)) continue
+                distance[next] = depth + 1
+                selected[next] = 1
+                queue[write++] = next
+            }
+        }
+    }
+
+    const color = editor.inpainter ? { r: 255, g: 255, b: 255 } : hexToRgb(editor.options.color || "#ffffff")
+    const alpha = Math.round(255 * (1 - Number(editor.options.opacity || 0)))
+    const mask = new ImageData(width, height)
+    for (let i = 0; i < selected.length; i++) {
+        if (!selected[i]) continue
+        const offset = i * 4
+        mask.data[offset] = color.r
+        mask.data[offset + 1] = color.g
+        mask.data[offset + 2] = color.b
+        mask.data[offset + 3] = alpha
+    }
+
+    const temporary = document.createElement("canvas")
+    temporary.width = width
+    temporary.height = height
+    temporary.getContext("2d").putImageData(mask, 0, 0)
+    targetCtx.save()
+    targetCtx.globalCompositeOperation = "source-over"
+    targetCtx.globalAlpha = 1
+    const feather = Math.floor(Number(editor.options.sharpness || 0) * Number(editor.options.brush_size || 48))
+    targetCtx.filter = feather > 0 ? `blur(${feather}px)` : "none"
+    targetCtx.drawImage(temporary, 0, 0)
+    targetCtx.restore()
+}
+
+function expandBinaryMask(mask, width, height, radius) {
+    radius = Math.max(0, Math.floor(radius))
+    if (!radius) return mask
+    const queue = new Int32Array(width * height)
+    const distance = new Uint16Array(width * height)
+    let read = 0
+    let write = 0
+    for (let i = 0; i < mask.length; i++) {
+        if (mask[i]) {
+            distance[i] = 1
+            queue[write++] = i
+        }
+    }
+    while (read < write) {
+        const pixel = queue[read++]
+        const x = pixel % width
+        const depth = distance[pixel]
+        if (depth > radius) continue
+        const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
+        for (let i = 0; i < neighbors.length; i++) {
+            const next = neighbors[i]
+            if (next < 0 || next >= mask.length || distance[next]) continue
+            if ((i === 0 && x === 0) || (i === 1 && x === width - 1)) continue
+            distance[next] = depth + 1
+            mask[next] = 1
+            queue[write++] = next
+        }
+    }
+    return mask
+}
+
+function removeImageBackground(editor) {
+    const width = editor.width
+    const height = editor.height
+    const pixels = editor.layers.background.ctx.getImageData(0, 0, width, height).data
+    const threshold = Number(editor.options.wand_threshold || 30)
+    const thresholdSquared = threshold * threshold
+    const background = new Uint8Array(width * height)
+    const visited = new Uint8Array(width * height)
+    const queue = new Int32Array(width * height)
+    const seeds = [0, width - 1, (height - 1) * width, width * height - 1]
+
+    seeds.forEach((seed) => {
+        if (visited[seed]) return
+        const seedOffset = seed * 4
+        const baseR = pixels[seedOffset]
+        const baseG = pixels[seedOffset + 1]
+        const baseB = pixels[seedOffset + 2]
+        let read = 0
+        let write = 0
+        queue[write++] = seed
+        visited[seed] = 1
+        while (read < write) {
+            const pixel = queue[read++]
+            background[pixel] = 1
+            const x = pixel % width
+            const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
+            for (let i = 0; i < neighbors.length; i++) {
+                const next = neighbors[i]
+                if (next < 0 || next >= background.length || visited[next]) continue
+                if ((i === 0 && x === 0) || (i === 1 && x === width - 1)) continue
+                const offset = next * 4
+                const dr = pixels[offset] - baseR
+                const dg = pixels[offset + 1] - baseG
+                const db = pixels[offset + 2] - baseB
+                if (dr * dr + dg * dg + db * db > thresholdSquared) continue
+                visited[next] = 1
+                queue[write++] = next
+            }
+        }
+    })
+
+    expandBinaryMask(background, width, height, Number(editor.options.selection_buffer || 0))
+    const maskCanvas = document.createElement("canvas")
+    maskCanvas.width = width
+    maskCanvas.height = height
+    const maskCtx = maskCanvas.getContext("2d")
+    const maskData = maskCtx.createImageData(width, height)
+    for (let i = 0; i < background.length; i++) {
+        if (!background[i]) continue
+        const offset = i * 4
+        maskData.data[offset] = 255
+        maskData.data[offset + 1] = 255
+        maskData.data[offset + 2] = 255
+        maskData.data[offset + 3] = 255
+    }
+    maskCtx.putImageData(maskData, 0, 0)
+
+    const target = editor.inpainter ? editor.layers.drawing.ctx : editor.layers.background.ctx
+    target.save()
+    target.globalAlpha = 1
+    target.filter = `blur(${Math.floor(Number(editor.options.sharpness || 0) * Number(editor.options.brush_size || 48))}px)`
+    target.globalCompositeOperation = editor.inpainter ? "source-over" : "destination-out"
+    target.drawImage(maskCanvas, 0, 0)
+    target.restore()
+    editor.setBrush()
+}
+
 const IMAGE_EDITOR_TOOLS = [
+    {
+        id: "pan",
+        name: "Hand",
+        icon: "fa-solid fa-hand",
+        cursor: "grab",
+        begin: toolDoNothing,
+        move: toolDoNothing,
+        end: toolDoNothing,
+        hotkey: "h",
+    },
     {
         id: "draw",
         name: "Draw",
@@ -95,6 +299,18 @@ const IMAGE_EDITOR_TOOLS = [
         move: toolDoNothing,
         end: toolDoNothing,
         hotkey: "f",
+    },
+    {
+        id: "magicwand",
+        name: "Magic Wand",
+        icon: "fa-solid fa-wand-magic-sparkles",
+        cursor: "crosshair",
+        begin: (editor, ctx, x, y, is_overlay = false) => {
+            if (!is_overlay) magicWandSelect(editor, ctx, x, y)
+        },
+        move: toolDoNothing,
+        end: toolDoNothing,
+        hotkey: "m",
     },
     {
         id: "colorpicker",
@@ -170,6 +386,13 @@ const IMAGE_EDITOR_ACTIONS = [
         trackHistory: true,
     },
     {
+        id: "remove_background",
+        name: "Remove background",
+        icon: "fa-solid fa-person-circle-minus",
+        handler: removeImageBackground,
+        trackHistory: true,
+    },
+    {
         id: "clear",
         name: "Clear",
         icon: "fa-solid fa-xmark",
@@ -195,6 +418,13 @@ const IMAGE_EDITOR_ACTIONS = [
         handler: (editor) => {
             editor.history.redo()
         },
+        trackHistory: false,
+    },
+    {
+        id: "reset_view",
+        name: "Reset zoom / pan",
+        icon: "fa-solid fa-magnifying-glass",
+        handler: (editor) => editor.resetView(),
         trackHistory: false,
     },
 ]
@@ -300,6 +530,26 @@ var IMAGE_EDITOR_SECTIONS = [
         },
     },
     {
+        name: "wand_threshold",
+        title: "Wand Threshold",
+        default: 30,
+        options: [10, 20, 30, 45, 65, 90],
+        initElement: (element, option) => {
+            element.textContent = option
+            element.title = `Select colors within ${option} RGB distance`
+        },
+    },
+    {
+        name: "selection_buffer",
+        title: "Selection Buffer",
+        default: 0,
+        options: [0, 2, 4, 8, 16, 32],
+        initElement: (element, option) => {
+            element.textContent = option
+            element.title = `Expand Magic Wand selections by ${option} pixels`
+        },
+    },
+    {
         name: "opacity",
         title: "Opacity",
         default: 0,
@@ -388,6 +638,9 @@ class EditorHistory {
 
         var ctx = this.editor.layers.drawing.ctx
         ctx.clearRect(0, 0, this.editor.width, this.editor.height)
+        if (this.editor.baseBackgroundImageData) {
+            this.editor.layers.background.ctx.putImageData(this.editor.baseBackgroundImageData, 0, 0)
+        }
 
         var target_index = this.events.length - 1 - new_rewind_index
         var snapshot_index = target_index
@@ -452,18 +705,37 @@ class ImageEditor {
             }
         })
         this.containerScale = 1.0
+        this.viewZoom = 1.0
+        this.viewPanX = 0
+        this.viewPanY = 0
+        this.gesture = null
+        this.panning = null
+        this.activePointers = new Map()
+        this.activePointerId = null
+        this.touchGestureActive = false
+        this.touchStrokeSnapshot = null
+        this.spacePressed = false
+        this.fitFrame = null
+        this.fitShouldReset = false
+        this.container.style.touchAction = "none"
 
-        // add mouse handlers
-        this.container.addEventListener("mousedown", this.mouseHandler.bind(this))
-        this.container.addEventListener("mouseup", this.mouseHandler.bind(this))
-        this.container.addEventListener("mousemove", this.mouseHandler.bind(this))
-        this.container.addEventListener("mouseout", this.mouseHandler.bind(this))
-        this.container.addEventListener("mouseenter", this.mouseHandler.bind(this))
+        // Pointer capture keeps drawing and panning stable when a transformed
+        // canvas moves out from underneath a desktop pointer.
+        this.pointerHandlerBound = this.pointerHandler.bind(this)
+        ;["pointerdown", "pointermove", "pointerup", "pointercancel", "lostpointercapture"].forEach((type) => {
+            this.container.addEventListener(type, this.pointerHandlerBound)
+        })
+        this.wheelHandlerBound = this.wheelHandler.bind(this)
+        this.container.addEventListener("wheel", this.wheelHandlerBound, { passive: false })
+        this.container.addEventListener("contextmenu", (event) => event.preventDefault())
 
-        this.container.addEventListener("touchstart", this.mouseHandler.bind(this))
-        this.container.addEventListener("touchmove", this.mouseHandler.bind(this))
-        this.container.addEventListener("touchcancel", this.mouseHandler.bind(this))
-        this.container.addEventListener("touchend", this.mouseHandler.bind(this))
+        if (typeof ResizeObserver === "function") {
+            this.resizeObserver = new ResizeObserver(() => this.scheduleFitToViewport())
+            this.resizeObserver.observe(this.popup.querySelector(".editor-controls-center"))
+        } else {
+            this.windowResizeHandlerBound = () => this.scheduleFitToViewport()
+            window.addEventListener("resize", this.windowResizeHandlerBound)
+        }
 
         // initialize editor controls
         this.options = {}
@@ -486,7 +758,7 @@ class ImageEditor {
                 var optionElement = document.createElement("div")
                 optionHolder.appendChild(optionElement)
                 section.initElement(optionElement, option)
-                optionElement.addEventListener("click", (target) => this.selectOption(section.name, index))
+                optionHolder.addEventListener("click", () => this.selectOption(section.name, index))
                 optionsContainer.appendChild(optionHolder)
                 this.optionElements[section.name].push(optionElement)
             })
@@ -541,18 +813,40 @@ class ImageEditor {
         this.popup.querySelector(".editor-controls-right").appendChild(buttonContainer)
 
         this.keyHandlerBound = this.keyHandler.bind(this)
+        this.windowBlurHandlerBound = () => this.cancelInteractions()
 
         this.setSize(512, 512)
     }
-    show() {
-        this.popup.classList.add("active")
+    activateInput() {
+        if (this.inputActive) return
+        this.inputActive = true
         document.addEventListener("keydown", this.keyHandlerBound, true)
         document.addEventListener("keyup", this.keyHandlerBound, true)
+        window.addEventListener("blur", this.windowBlurHandlerBound)
+    }
+    deactivateInput() {
+        if (!this.inputActive) return
+        this.inputActive = false
+        document.removeEventListener("keydown", this.keyHandlerBound, true)
+        document.removeEventListener("keyup", this.keyHandlerBound, true)
+        window.removeEventListener("blur", this.windowBlurHandlerBound)
+        this.spacePressed = false
+        this.cancelInteractions()
+    }
+    show() {
+        if (this.popup.classList.contains("editor-page-pane") && typeof window.openImageEditorPage === "function") {
+            window.openImageEditorPage(this.inpainter ? "inpaint" : "draw")
+        }
+        this.popup.classList.add("active")
+        this.activateInput()
+        this.scheduleFitToViewport()
     }
     hide() {
         this.popup.classList.remove("active")
-        document.removeEventListener("keydown", this.keyHandlerBound, true)
-        document.removeEventListener("keyup", this.keyHandlerBound, true)
+        this.deactivateInput()
+        if (this.popup.classList.contains("editor-page-pane") && typeof window.closeImageEditorPage === "function") {
+            window.closeImageEditorPage()
+        }
     }
     setSize(width, height) {
         width = parseInt(width)
@@ -562,30 +856,15 @@ class ImageEditor {
             return
         }
 
-        let windowWidth = window.innerWidth
-        if (window.innerWidth > 700) {  // keep in sync with main.css: @media screen and (max-width: 700px) {..}
-            // the tools are on the sides, so max size is smaller
-            let controlsLeft = this.popup.querySelector(".editor-controls-left")
-            let controlsRight = this.popup.querySelector(".editor-controls-right")
-            let controlsLeftWidth = parseInt(getComputedStyle(controlsLeft).width)
-            let controlsRightWidth = parseInt(getComputedStyle(controlsRight).width)
-            windowWidth = windowWidth - controlsLeftWidth - controlsRightWidth - 80 // extra padding
-        }
-
-        var max_size = Math.min(parseInt(windowWidth * 0.9), width, 768)
-        this.containerScale = max_size / width
-        let containerWidth = (this.containerScale * width).toFixed()
-        let containerHeight = (this.containerScale * height).toFixed()
         this.width = parseInt(width)
         this.height = parseInt(height)
-
-        this.container.style.width = containerWidth + "px"
-        this.container.style.height = containerHeight + "px"
 
         Object.values(this.layers).forEach((layer) => {
             layer.canvas.width = width
             layer.canvas.height = height
         })
+
+        this.scheduleFitToViewport(true)
 
         if (this.inpainter) {
             this.saveImage() // We've reset the size of the image so inpainting is different
@@ -599,7 +878,114 @@ class ImageEditor {
     }
     loadTool() {
         this.drawing = false
-        this.container.style.cursor = this.tool.cursor
+        this.updateEditorCursor()
+    }
+    updateEditorCursor() {
+        if (this.panning) this.container.style.cursor = "grabbing"
+        else if (this.spacePressed || this.tool.id === "pan") this.container.style.cursor = "grab"
+        else this.container.style.cursor = this.tool.cursor
+    }
+    scheduleFitToViewport(resetView = false) {
+        this.fitShouldReset = this.fitShouldReset || resetView
+        if (this.fitFrame !== null) cancelAnimationFrame(this.fitFrame)
+        this.fitFrame = requestAnimationFrame(() => {
+            const shouldReset = this.fitShouldReset
+            this.fitFrame = null
+            this.fitShouldReset = false
+            this.fitToViewport(shouldReset)
+        })
+    }
+    fitToViewport(resetView = false) {
+        if (!this.width || !this.height) return
+        const viewport = this.popup.querySelector(".editor-controls-center")
+        const style = getComputedStyle(viewport)
+        const horizontalPadding = parseFloat(style.paddingLeft || 0) + parseFloat(style.paddingRight || 0)
+        const verticalPadding = parseFloat(style.paddingTop || 0) + parseFloat(style.paddingBottom || 0)
+        let availableWidth = viewport.clientWidth - horizontalPadding
+        let availableHeight = viewport.clientHeight - verticalPadding
+
+        // The legacy popup is measured before it is first shown. Use a sane
+        // viewport fallback until the editor page has real layout dimensions.
+        if (availableWidth < 64) availableWidth = Math.max(240, window.innerWidth * 0.88)
+        if (availableHeight < 64) availableHeight = Math.max(240, window.innerHeight * 0.7)
+
+        const nextScale = Math.max(
+            0.01,
+            Math.min(availableWidth / this.width, availableHeight / this.height, IMAGE_EDITOR_MAX_UPSCALE)
+        )
+        const scaleChanged = Math.abs(nextScale - this.containerScale) > 0.001
+        this.containerScale = nextScale
+        // Preserve the exact source ratio. Rounding each axis separately can
+        // make narrow or very wide images visibly drift by a pixel and puts
+        // the overlay out of alignment with the image at mobile sizes.
+        this.container.style.aspectRatio = `${this.width} / ${this.height}`
+        this.container.style.width = `${this.width * nextScale}px`
+        this.container.style.height = `${this.height * nextScale}px`
+        if (scaleChanged && this.options) this.setBrush()
+
+        if (resetView) this.resetView()
+        else {
+            this.clampView()
+            this.applyViewTransform()
+        }
+    }
+    applyViewTransform() {
+        this.container.style.transformOrigin = "0 0"
+        this.container.style.transform = `translate(${this.viewPanX}px, ${this.viewPanY}px) scale(${this.viewZoom})`
+    }
+    clampView() {
+        const viewport = this.popup.querySelector(".editor-controls-center")
+        const viewportWidth = viewport.clientWidth
+        const viewportHeight = viewport.clientHeight
+        const baseWidth = this.container.offsetWidth
+        const baseHeight = this.container.offsetHeight
+        if (!viewportWidth || !viewportHeight || !baseWidth || !baseHeight) return
+
+        const renderedWidth = baseWidth * this.viewZoom
+        const renderedHeight = baseHeight * this.viewZoom
+        const baseLeft = (viewportWidth - baseWidth) / 2
+        const baseTop = (viewportHeight - baseHeight) / 2
+        const visibleX = Math.min(IMAGE_EDITOR_MIN_VISIBLE, renderedWidth / 2)
+        const visibleY = Math.min(IMAGE_EDITOR_MIN_VISIBLE, renderedHeight / 2)
+
+        if (renderedWidth <= viewportWidth - 16) this.viewPanX = (baseWidth - renderedWidth) / 2
+        else {
+            const minX = visibleX - baseLeft - renderedWidth
+            const maxX = viewportWidth - visibleX - baseLeft
+            this.viewPanX = Math.max(minX, Math.min(maxX, this.viewPanX))
+        }
+        if (renderedHeight <= viewportHeight - 16) this.viewPanY = (baseHeight - renderedHeight) / 2
+        else {
+            const minY = visibleY - baseTop - renderedHeight
+            const maxY = viewportHeight - visibleY - baseTop
+            this.viewPanY = Math.max(minY, Math.min(maxY, this.viewPanY))
+        }
+    }
+    resetView() {
+        this.viewZoom = 1
+        this.viewPanX = 0
+        this.viewPanY = 0
+        this.gesture = null
+        this.panning = null
+        this.applyViewTransform()
+    }
+    setViewZoom(nextZoom, clientX, clientY) {
+        nextZoom = Math.max(0.5, Math.min(8, nextZoom))
+        const bbox = this.container.getBoundingClientRect()
+        const relativeX = clientX - bbox.left
+        const relativeY = clientY - bbox.top
+        const ratio = nextZoom / this.viewZoom
+        this.viewPanX += relativeX - relativeX * ratio
+        this.viewPanY += relativeY - relativeY * ratio
+        this.viewZoom = nextZoom
+        this.clampView()
+        this.applyViewTransform()
+    }
+    wheelHandler(event) {
+        event.preventDefault()
+        const delta = Math.max(-120, Math.min(120, event.deltaY))
+        const multiplier = Math.exp(-delta * 0.0012)
+        this.setViewZoom(this.viewZoom * multiplier, event.clientX, event.clientY)
     }
     setImage(url, width, height) {
         this.setSize(width, height)
@@ -611,6 +997,7 @@ class ImageEditor {
             var image = new Image()
             image.onload = () => {
                 this.layers.background.ctx.drawImage(image, 0, 0, this.width, this.height)
+                this.captureBaseBackground()
             }
             image.src = url
         } else {
@@ -618,8 +1005,12 @@ class ImageEditor {
             this.layers.background.ctx.beginPath()
             this.layers.background.ctx.rect(0, 0, this.width, this.height)
             this.layers.background.ctx.fill()
+            this.captureBaseBackground()
         }
         this.history.clear()
+    }
+    captureBaseBackground() {
+        this.baseBackgroundImageData = this.layers.background.ctx.getImageData(0, 0, this.width, this.height)
     }
     saveImage() {
         if (!this.inpainter) {
@@ -678,7 +1069,7 @@ class ImageEditor {
             layer.ctx.globalCompositeOperation = "source-over"
             var tool = IMAGE_EDITOR_TOOLS.find((t) => t.id == options.tool)
             if (tool && tool.setBrush) {
-                tool.setBrush(editor, layer)
+                tool.setBrush(this, layer)
             }
         } else {
             Object.values(["drawing", "overlay"])
@@ -701,13 +1092,22 @@ class ImageEditor {
     keyHandler(event) {
         // handles keybinds like ctrl+z, ctrl+y
         if (!this.popup.classList.contains("active")) {
-            document.removeEventListener("keydown", this.keyHandlerBound)
-            document.removeEventListener("keyup", this.keyHandlerBound)
+            this.deactivateInput()
             return // this catches if something else closes the window but doesnt properly unbind the key handler
         }
 
+        const target = event.target
+        const isTyping = target?.matches?.("input, textarea, select, [contenteditable='true']")
+        if (event.code === "Space" && (!isTyping || this.spacePressed)) {
+            this.spacePressed = event.type === "keydown"
+            this.updateEditorCursor()
+            event.stopPropagation()
+            event.preventDefault()
+            return
+        }
+
         // keybindings
-        if (event.type == "keydown") {
+        if (event.type == "keydown" && !isTyping) {
             if ((event.key == "z" || event.key == "Z") && event.ctrlKey) {
                 if (!event.shiftKey) {
                     this.history.undo()
@@ -752,54 +1152,198 @@ class ImageEditor {
             )
         }
     }
-    mouseHandler(event) {
-        var bbox = this.layers.overlay.canvas.getBoundingClientRect()
-        var x = (event.clientX || 0) - bbox.left
-        var y = (event.clientY || 0) - bbox.top
-        var type = event.type
-        var touchmap = {
-            touchstart: "mousedown",
-            touchmove: "mousemove",
-            touchend: "mouseup",
-            touchcancel: "mouseup",
+    eventToCanvasPoint(event) {
+        const bbox = this.layers.overlay.canvas.getBoundingClientRect()
+        const rawX = bbox.width > 0 ? (event.clientX - bbox.left) * this.width / bbox.width : 0
+        const rawY = bbox.height > 0 ? (event.clientY - bbox.top) * this.height / bbox.height : 0
+        return {
+            x: Math.max(0, Math.min(this.width, rawX)),
+            y: Math.max(0, Math.min(this.height, rawY)),
         }
-        if (type in touchmap) {
-            type = touchmap[type]
-            if (event.touches && event.touches[0]) {
-                var touch = event.touches[0]
-                var x = (touch.clientX || 0) - bbox.left
-                var y = (touch.clientY || 0) - bbox.top
-            }
+    }
+    rememberPointer(event) {
+        this.activePointers.set(event.pointerId, {
+            pointerId: event.pointerId,
+            pointerType: event.pointerType,
+            clientX: event.clientX,
+            clientY: event.clientY,
+        })
+    }
+    get touchPointers() {
+        return Array.from(this.activePointers.values()).filter((pointer) => pointer.pointerType === "touch")
+    }
+    shouldPan(event) {
+        return event.button === 1 || event.button === 2 ||
+            (event.button === 0 && (event.altKey || this.spacePressed || this.tool.id === "pan"))
+    }
+    beginPan(event) {
+        this.panning = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            panX: this.viewPanX,
+            panY: this.viewPanY,
+        }
+        this.updateEditorCursor()
+    }
+    movePan(event) {
+        if (!this.panning || event.pointerId !== this.panning.pointerId) return
+        this.viewPanX = this.panning.panX + event.clientX - this.panning.x
+        this.viewPanY = this.panning.panY + event.clientY - this.panning.y
+        this.clampView()
+        this.applyViewTransform()
+    }
+    endPan(pointerId) {
+        if (!this.panning || pointerId !== this.panning.pointerId) return
+        this.panning = null
+        this.updateEditorCursor()
+    }
+    beginDrawing(event) {
+        const point = this.eventToCanvasPoint(event)
+        this.activePointerId = event.pointerId
+        this.drawing = true
+        this.tool.begin(this, this.ctx_current, point.x, point.y)
+        this.tool.begin(this, this.ctx_overlay, point.x, point.y, true)
+        this.history.editBegin(point.x, point.y)
+    }
+    moveDrawing(event) {
+        if (!this.drawing || event.pointerId !== this.activePointerId) return
+        const events = typeof event.getCoalescedEvents === "function" ? event.getCoalescedEvents() : [event]
+        for (const sample of events.length ? events : [event]) {
+            const point = this.eventToCanvasPoint(sample)
+            this.tool.move(this, this.ctx_current, point.x, point.y)
+            this.tool.move(this, this.ctx_overlay, point.x, point.y, true)
+            this.history.editMove(point.x, point.y)
+        }
+    }
+    finishDrawing(event) {
+        if (!this.drawing || event.pointerId !== this.activePointerId) return
+        const point = this.eventToCanvasPoint(event)
+        this.tool.move(this, this.ctx_current, point.x, point.y)
+        this.tool.move(this, this.ctx_overlay, point.x, point.y, true)
+        this.history.editMove(point.x, point.y)
+        this.tool.end(this, this.ctx_current, point.x, point.y)
+        this.tool.end(this, this.ctx_overlay, point.x, point.y, true)
+        this.history.editEnd(point.x, point.y)
+        this.drawing = false
+        this.activePointerId = null
+        this.touchStrokeSnapshot = null
+    }
+    cancelDrawing(restoreSnapshot = false) {
+        if (restoreSnapshot && this.touchStrokeSnapshot) {
+            this.layers.drawing.ctx.putImageData(this.touchStrokeSnapshot, 0, 0)
+        }
+        this.ctx_overlay.clearRect(0, 0, this.width, this.height)
+        this.canvas_current.style.opacity = ""
+        this.history.current_edit = null
+        this.drawing = false
+        this.activePointerId = null
+        this.touchStrokeSnapshot = null
+        this.setBrush()
+    }
+    startTouchGesture() {
+        const touches = this.touchPointers
+        if (touches.length < 2) return
+        const centerX = (touches[0].clientX + touches[1].clientX) / 2
+        const centerY = (touches[0].clientY + touches[1].clientY) / 2
+        const distance = Math.hypot(
+            touches[1].clientX - touches[0].clientX,
+            touches[1].clientY - touches[0].clientY
+        )
+        const bbox = this.container.getBoundingClientRect()
+        this.gesture = {
+            centerX,
+            centerY,
+            distance: Math.max(1, distance),
+            zoom: this.viewZoom,
+            panX: this.viewPanX,
+            panY: this.viewPanY,
+            relativeX: centerX - bbox.left,
+            relativeY: centerY - bbox.top,
+        }
+    }
+    moveTouchGesture() {
+        const touches = this.touchPointers
+        if (touches.length < 2) return
+        if (!this.gesture) this.startTouchGesture()
+        if (!this.gesture) return
+        const centerX = (touches[0].clientX + touches[1].clientX) / 2
+        const centerY = (touches[0].clientY + touches[1].clientY) / 2
+        const distance = Math.hypot(
+            touches[1].clientX - touches[0].clientX,
+            touches[1].clientY - touches[0].clientY
+        )
+        const zoom = Math.max(0.5, Math.min(8, this.gesture.zoom * distance / this.gesture.distance))
+        const ratio = zoom / this.gesture.zoom
+        this.viewZoom = zoom
+        this.viewPanX = this.gesture.panX + (centerX - this.gesture.centerX) + this.gesture.relativeX * (1 - ratio)
+        this.viewPanY = this.gesture.panY + (centerY - this.gesture.centerY) + this.gesture.relativeY * (1 - ratio)
+        this.clampView()
+        this.applyViewTransform()
+    }
+    releasePointer(pointerId) {
+        if (this.container.hasPointerCapture?.(pointerId)) this.container.releasePointerCapture(pointerId)
+    }
+    cancelInteractions() {
+        if (this.drawing) {
+            const pointer = this.activePointers.get(this.activePointerId)
+            if (pointer) this.finishDrawing(pointer)
+            else this.cancelDrawing(false)
+        }
+        this.panning = null
+        this.gesture = null
+        this.touchGestureActive = false
+        this.activePointers.clear()
+        this.updateEditorCursor()
+    }
+    pointerHandler(event) {
+        if (event.type === "pointerdown") {
+            if (event.pointerType === "mouse" && ![0, 1, 2].includes(event.button)) return
+            event.preventDefault()
+            this.rememberPointer(event)
+            this.container.setPointerCapture?.(event.pointerId)
+
+            if (event.pointerType === "touch") {
+                if (this.touchPointers.length >= 2) {
+                    this.cancelDrawing(true)
+                    this.touchGestureActive = true
+                    this.startTouchGesture()
+                } else if (!this.touchGestureActive) {
+                    this.touchStrokeSnapshot = this.layers.drawing.ctx.getImageData(0, 0, this.width, this.height)
+                    this.beginDrawing(event)
+                }
+            } else if (this.shouldPan(event)) this.beginPan(event)
+            else if (event.button === 0) this.beginDrawing(event)
+            return
         }
 
-        x = x / this.containerScale
-        y = y / this.containerScale
+        if (event.type === "pointermove") {
+            if (!this.activePointers.has(event.pointerId)) return
+            event.preventDefault()
+            this.rememberPointer(event)
+            if (event.pointerType === "touch" && this.touchGestureActive) this.moveTouchGesture()
+            else if (this.panning) this.movePan(event)
+            else this.moveDrawing(event)
+            return
+        }
+
+        if (event.type === "lostpointercapture") {
+            if (!this.activePointers.has(event.pointerId)) return
+        } else if (event.type !== "pointerup" && event.type !== "pointercancel") return
 
         event.preventDefault()
-        // do drawing-related stuff
-        if (type == "mousedown" || (type == "mouseenter" && event.buttons == 1)) {
-            this.drawing = true
-            this.tool.begin(this, this.ctx_current, x, y)
-            this.tool.begin(this, this.ctx_overlay, x, y, true)
-            this.history.editBegin(x, y)
+        if (event.pointerType === "touch" && this.touchGestureActive) {
+            this.activePointers.delete(event.pointerId)
+            if (this.touchPointers.length < 2) this.gesture = null
+            if (this.touchPointers.length === 0) this.touchGestureActive = false
+        } else if (this.panning) {
+            this.endPan(event.pointerId)
+            this.activePointers.delete(event.pointerId)
+        } else {
+            this.finishDrawing(event)
+            this.activePointers.delete(event.pointerId)
         }
-        if (type == "mouseup" || type == "mousemove") {
-            if (this.drawing) {
-                if (x > 0 && y > 0) {
-                    this.tool.move(this, this.ctx_current, x, y)
-                    this.tool.move(this, this.ctx_overlay, x, y, true)
-                    this.history.editMove(x, y)
-                }
-            }
-        }
-        if (type == "mouseup" || type == "mouseout") {
-            if (this.drawing) {
-                this.drawing = false
-                this.tool.end(this, this.ctx_current, x, y)
-                this.tool.end(this, this.ctx_overlay, x, y, true)
-                this.history.editEnd(x, y)
-            }
-        }
+        this.releasePointer(event.pointerId)
     }
     getOptionValue(section_name) {
         var section = IMAGE_EDITOR_SECTIONS.find((s) => s.name == section_name)

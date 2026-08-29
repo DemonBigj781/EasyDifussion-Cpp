@@ -1,0 +1,41 @@
+        <h4 class="collapsible">IP-Adapter <small>native image prompt</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <div class="ip-adapter-grid">
+                <label for="ip-adapter-enabled">Enable</label>
+                <input id="ip-adapter-enabled" type="checkbox">
+
+                <label for="ip-adapter-model">Adapter</label>
+                <input id="ip-adapter-model" type="text" spellcheck="false"
+                       autocomplete="off" class="model-filter" data-path="">
+
+                <label for="ip-adapter-clip">CLIP Vision</label>
+                <input id="ip-adapter-clip" type="text" spellcheck="false"
+                       autocomplete="off" class="model-filter" data-path="">
+
+                <label for="ip-adapter-strength">Strength</label>
+                <input id="ip-adapter-strength" type="number" value="1" min="-10" max="10" step="0.05">
+
+                <label>Step range (%)</label>
+                <div>
+                    <input id="ip-adapter-start" type="number" value="0" min="0" max="100" step="1">
+                    –
+                    <input id="ip-adapter-end" type="number" value="100" min="0" max="100" step="1">
+                </div>
+
+                <label for="ip-adapter-image-input">Reference image</label>
+                <div>
+                    <input id="ip-adapter-image-input" type="file" accept="image/*">
+                    <button id="ip-adapter-use-init" type="button" class="tertiaryButton">Use Initial Image</button>
+                </div>
+            </div>
+
+            <div id="ip-adapter-image-wrapper" class="ip-adapter-preview displayNone">
+                <img id="ip-adapter-image-preview" alt="IP-Adapter reference preview">
+                <button id="ip-adapter-image-clear" type="button" class="image_clear_btn"
+                        aria-label="Clear IP-Adapter reference"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <small id="ip-adapter-status">
+                Native base IP-Adapter checkpoints are supported for SD 1.x and SDXL.
+            </small>
+        </div>

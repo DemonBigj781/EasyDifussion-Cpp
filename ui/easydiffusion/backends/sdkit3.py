@@ -20,6 +20,7 @@ from webui_common import (
     flush_model_changes,
     set_options,
     generate_images,
+    generate_video,
     filter_images,
     get_url,
     stop_rendering,
@@ -149,26 +150,13 @@ def start_backend():
     if backend_config.get("auto_update", True) or not is_installed():
         update_backend()
 
-    extra_args = ["--log-level", "debug"]
-
-    vram_usage_level = config.get("vram_usage_level", "balanced")
-    # if vram_usage_level == "low":
-    #     extra_args.append("--control-net-cpu")
-    #     extra_args.append("--clip-on-cpu")
-    #     extra_args.append("--vae-on-cpu")
-
-    extra_args.append("--diffusion-fa")
-    extra_args.append("--chroma-disable-dit-mask")
-
-    if vram_usage_level in ("low", "balanced"):
-        extra_args.append("--offload-to-cpu")
-        extra_args.append("--vae-tiling")  # defaults to tile size 256x256
-
-    if vram_usage_level == "balanced":
-        extra_args += ["--vae-tile-size", "512x512"]
-
     user_args = backend_config.get("COMMANDLINE_ARGS")
-    user_args = user_args.split(" ") if user_args else []
+    if isinstance(user_args, str):
+        user_args = user_args.split()
+    elif user_args:
+        user_args = [str(arg) for arg in user_args]
+    else:
+        user_args = []
 
     webui_common.WEBUI_API_PREFIX = "/v1"
     webui_common.USE_SDKIT3_API = True
@@ -176,7 +164,7 @@ def start_backend():
     def run_fn():
         exe_name = "sdkit.exe" if OS_NAME == "Windows" else "sdkit"
         common_cli_args = get_common_cli_args(return_string=False)
-        cmd = [os.path.join(backend_dir, exe_name)] + common_cli_args + extra_args + user_args
+        cmd = [os.path.join(backend_dir, exe_name)] + common_cli_args + user_args
 
         log.info(f"starting: {cmd}")
 

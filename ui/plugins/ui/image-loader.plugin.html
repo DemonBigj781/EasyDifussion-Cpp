@@ -1,0 +1,63 @@
+            <h4 class="collapsible">
+                Image Loader <small>Initial / Reference</small>
+                <i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top">
+                    Load an img2img source or one or more model reference images using Browse, drag and drop, a rendered image, or the clipboard with Ctrl+V.<br><br>
+                    Metadata embedded in PNG, WEBP, or JPEG images can also be reloaded.
+                </span></i>
+            </h4>
+            <div id="editor-inputs-init-image" class="collapsible-content settings-panel-entries">
+                <div>
+                    <label>Initial Image (img2img) <small>(optional)</small></label>
+                    <div id="init_image_preview_container" class="image-input-section image-input-section--single">
+                        <div id="init_image_wrapper" class="image-input-wrapper">
+                            <img id="init_image_preview" class="input-image-preview" src="" crossorigin="anonymous">
+                            <span id="init_image_size_box" class="img_bottom_label"></span>
+                            <button class="init_image_clear image_clear_btn"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="init_image_buttons" class="image-input-buttons">
+                            <div class="button">
+                                <i class="fa-regular fa-folder-open"></i>
+                                Browse
+                                <input id="init_image" name="init_image" type="file">
+                            </div>
+                            <div id="queue_image_button" class="button" title="Import an image as a completed queue result for post-processing">
+                                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                                Load Image as Queue
+                                <input id="queue_image_input" type="file" accept="image/*">
+                            </div>
+                            <div id="init_image_button_draw" class="button">
+                                <i class="fa-solid fa-pencil"></i>
+                                Draw
+                            </div>
+                            <div id="inpaint_button_container">
+                                <div id="init_image_button_inpaint" class="button">
+                                    <i class="fa-solid fa-paintbrush"></i>
+                                    Inpaint
+                                </div>
+                                <input id="enable_mask" name="enable_mask" type="checkbox">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="apply_color_correction_setting" class="pl-5"><input id="apply_color_correction" name="apply_color_correction" type="checkbox"> <label for="apply_color_correction">Preserve color profile <small>(helps during inpainting)</small></label></div>
+                    <div id="strict_mask_border_setting" class="pl-5"><input id="strict_mask_border" name="strict_mask_border" type="checkbox"> <label for="strict_mask_border">Strict Mask Border <small>(won't modify outside the mask, but the mask border might be visible)</small></label></div>
+                </div>
+
+                <div id="editor-inputs-ref-images" class="row gated-feature" data-feature-keys="backend_sdkit3">
+                    <label>Reference Images <small>(optional)</small></label>
+                    <i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top">
+                        Add reference images for vision-based models (e.g. Qwen image editing). Add one or more using Browse or drag and drop.<br><br>
+                        Reference images guide the model's visual understanding during generation.
+                    </span></i>
+                    <div id="ref_images_preview_container" class="image-input-section image-input-section--multi">
+                        <div id="ref_images_list" class="image-input-list"></div>
+                        <div id="ref_images_buttons" class="image-input-buttons">
+                            <div class="button">
+                                <i class="fa-regular fa-folder-open"></i>
+                                Browse
+                                <input id="ref_image_input" name="ref_image_input" type="file" accept="image/*" multiple>
+                            </div>
+                            <button id="ref_images_clear_all" class="tertiaryButton smallButton displayNone">Clear All</button>
+                        </div>
+                    </div>
+                </div>
+            </div>

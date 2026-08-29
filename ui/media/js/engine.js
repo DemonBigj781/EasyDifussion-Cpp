@@ -1046,6 +1046,40 @@
             return Task.run(promiseGenerator)
         }
     }
+    class VideoTask extends RenderTask {
+        async post(timeout = -1) {
+            let jsonResponse = await Task.prototype.post.call(this, "/video", timeout)
+            if (typeof jsonResponse?.task !== "number") {
+                console.warn("Video endpoint error response: ", jsonResponse)
+                const event = Object.assign({ task: this }, jsonResponse)
+                await eventSource.fireEvent(EVENT_UNEXPECTED_RESPONSE, event)
+                if ("continueWith" in event) {
+                    jsonResponse = await Promise.resolve(event.continueWith)
+                }
+                if (typeof jsonResponse?.task !== "number") {
+                    const err = new Error(jsonResponse?.detail || "Video response does not contain a task ID.")
+                    this.abort(err)
+                    throw err
+                }
+            }
+            this._setId(jsonResponse.task)
+            if (jsonResponse.stream) this.streamUrl = jsonResponse.stream
+            this._setStatus(TaskStatus.waiting)
+            return jsonResponse
+        }
+        enqueue(progressCallback) {
+            return Task.enqueueNew(this, VideoTask, progressCallback)
+        }
+        static start(task, progressCallback) {
+            if (!(task instanceof Task)) {
+                task = new VideoTask(task?.reqBody || task)
+            }
+            return task.start(progressCallback)
+        }
+        static run(task, progressCallback) {
+            return Task.run(VideoTask.start(task, progressCallback))
+        }
+    }
     class FilterTask extends Task {
         constructor(options = {}) {
             super(options)
@@ -1378,6 +1412,7 @@
         TaskStatus,
         Task,
         RenderTask,
+        VideoTask,
         FilterTask,
 
         Events: EVENTS_TYPES,
@@ -1409,6 +1444,7 @@
         getModels,
 
         render: (...args) => RenderTask.run(...args),
+        video: (...args) => VideoTask.run(...args),
         filter: (...args) => FilterTask.run(...args),
         waitUntil,
     }

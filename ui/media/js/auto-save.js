@@ -62,7 +62,9 @@ const SETTINGS_IDS_LIST = [
     "lora_model",
     "text_encoder_model",
     "enable_vae_tiling",
+    "controlnet_enabled",
     "controlnet_alpha",
+    "controlnet_union_type",
 ]
 
 const IGNORE_BY_DEFAULT = ["prompt"]
@@ -76,6 +78,7 @@ const SETTINGS_SECTIONS = [
     // gets the "keys" property filled in with an ordered list of settings in this section via initSettings
     { id: "editor-inputs", name: "Prompt" },
     { id: "editor-settings", name: "Image Settings" },
+    { id: "lora-settings-panel", name: "LoRA Settings" },
     { id: "system-settings", name: "System Settings" },
     { id: "container", name: "Other" },
 ]

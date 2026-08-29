@@ -1,0 +1,49 @@
+<template id="post-generation-tools-popup-template">
+    <span id="madrang-plugin-popup-close-btn">X</span>
+    <h1 id="madrang-plugin-popup-title">Post-generation Settings</h1>
+    <p id="madrang-plugin-popup-subtitle"></p>
+    <label for="madrang-plugin-num_outputs_total">Number of Images:</label>
+    <input id="madrang-plugin-num_outputs_total" name="num_outputs_total" value="1" size="1">
+    <label><small>(total)</small></label>
+    <input id="madrang-plugin-num_outputs_parallel" name="num_outputs_parallel" value="1" size="1">
+    <label for="madrang-plugin-num_outputs_parallel"><small>(in parallel)</small></label><br>
+    <label for="madrang-plugin-diffusion_model">Model:</label>
+    <input id="madrang-plugin-diffusion_model" type="text" spellcheck="false" autocomplete="off" class="model-filter model-selector" style="width: 280px;"><br>
+    <label for="madrang-plugin-vae_model">Custom VAE:</label>
+    <input id="madrang-plugin-vae_model" type="text" spellcheck="false" autocomplete="off" class="model-filter model-selector" style="width: 280px;"><br>
+    <label for="madrang-plugin-sampler_name">Sampler:</label><br>
+    <label for="madrang-plugin-scheduler_name">Scheduler:</label><br>
+    <label for="madrang-plugin-guidance_scale_slider">Guidance Scale:</label>
+    <input id="madrang-plugin-guidance_scale_slider" name="guidance_scale_slider" class="editor-slider" value="75" type="range" min="10" max="500">
+    <input id="madrang-plugin-guidance_scale" name="guidance_scale" size="4"><br>
+    <label for="madrang-plugin-num_inference_steps">Inference Steps:</label>
+    <input id="madrang-plugin-num_inference_steps" name="madrang-plugin-num_inference_steps" size="4" value="25"><br>
+    <label for="madrang-plugin-prompt_strength_slider">Prompt Strength:</label>
+    <input id="madrang-plugin-prompt_strength_slider" name="prompt_strength_slider" class="editor-slider" value="50" type="range" min="0" max="99">
+    <input id="madrang-plugin-prompt_strength" name="prompt_strength" size="4"><br>
+    <div id="madrang-plugin-warp_input_surface_container">
+        <canvas is="input-surface" id="madrang-plugin-warp_input_surface" name="warp_input_surface" value="200" type="range" min="101" max="300"></canvas><br>
+        <div class="madrang-plugin-warp-size-controls">
+            <label for="madrang-plugin-warp_slider">Warp canvas:</label>
+            <input id="madrang-plugin-warp_slider" name="warp_slider" class="editor-slider" value="512" type="range" min="64" max="4096" step="64">
+            <span class="madrang-plugin-warp-pixel-fields"><input id="madrang-plugin-warp_width" name="width" size="5" type="number" min="64" step="64" inputmode="numeric" aria-label="Outpaint canvas width in pixels"> x <input id="madrang-plugin-warp_height" name="height" size="5" type="number" min="64" step="64" inputmode="numeric" aria-label="Outpaint canvas height in pixels"> px</span>
+        </div>
+    </div>
+    <div id="madrang-plugin-resolution_container">
+        <label for="madrang-plugin-scale_slider">Resolution:</label>
+        <input id="madrang-plugin-scale_slider" name="scale_slider" class="editor-slider" value="200" type="range" min="101" max="300">
+        <input id="madrang-plugin-width" name="width" size="4"> x <input id="madrang-plugin-height" name="height" size="4"><br>
+    </div>
+    <div id="madrang-plugin-compoundChanges_container" title="Keep alterations made to this result">
+        <input id="madrang-plugin-compoundChanges" name="compoundChanges" type="checkbox" checked>
+        <label for="madrang-plugin-compoundChanges">Compound changes</label>
+    </div>
+    <div id="madrang-plugin-vram_level_container">
+        <label for="madrang-plugin-vram_level">GPU Memory Usage</label>
+        <select id="madrang-plugin-vram_level" name="vram_level"><option value="high">High</option><option value="balanced">Balanced</option><option value="low">Low</option></select>
+    </div>
+    <p style="text-align: left;">Prompt:</p>
+    <textarea id="madrang-plugin-prompt"></textarea>
+    <p><small>Click outside to close. Hold Ctrl while closing to apply immediately.</small></p>
+    <button id="madrang-plugin-popup-apply-btn" class="secondaryButton"><i class="fa-solid fa-check"></i> Apply</button>
+</template>

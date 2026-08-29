@@ -60,6 +60,10 @@ const taskConfigSetup = {
         preserve_init_image_color_profile: "Preserve Color Profile",
         strict_mask_border: "Strict Mask Border",
         use_controlnet_model: "ControlNet Model",
+        controlnet_union_type: {
+            label: "ControlNet Union Condition",
+            visible: ({ reqBody }) => !!reqBody?.use_controlnet_model,
+        },
         control_alpha: {
             label: "ControlNet Strength",
             visible: ({ reqBody }) => !!reqBody?.use_controlnet_model,
@@ -118,8 +122,10 @@ let controlImagePreview = document.querySelector("#control_image_preview")
 let controlImageClearBtn = document.querySelector(".control_image_clear")
 let controlImageContainer = document.querySelector("#control_image_wrapper")
 let controlImageFilterField = document.querySelector("#control_image_filter")
+let controlNetEnabledField = document.querySelector("#controlnet_enabled")
 let controlAlphaSlider = document.querySelector("#controlnet_alpha_slider")
 let controlAlphaField = document.querySelector("#controlnet_alpha")
+let controlNetUnionTypeField = document.querySelector("#controlnet_union_type")
 let applyColorCorrectionField = document.querySelector("#apply_color_correction")
 let strictMaskBorderField = document.querySelector("#strict_mask_border")
 let colorCorrectionSetting = document.querySelector("#apply_color_correction_setting")
@@ -1065,11 +1071,20 @@ function makeImage() {
     }
     numInferenceStepsField.classList.remove("validation-failed")
 
-    if (controlnetModelField.value === "" && IMAGE_REGEX.test(controlImagePreview.src)) {
-        alert("Please choose a ControlNet model, to use the ControlNet image.")
-        document.getElementById("controlnet_model").classList.add("validation-failed")
-        return
+    if (controlNetEnabledField.checked) {
+        if (!IMAGE_REGEX.test(controlImagePreview.src)) {
+            alert("Please load a ControlNet image, or disable ControlNet.")
+            controlImageSelector.classList.add("validation-failed")
+            return
+        }
+        controlImageSelector.classList.remove("validation-failed")
+        if (controlnetModelField.value === "") {
+            alert("Please choose a ControlNet model, or disable ControlNet.")
+            document.getElementById("controlnet_model").classList.add("validation-failed")
+            return
+        }
     }
+    controlImageSelector.classList.remove("validation-failed")
     document.getElementById("controlnet_model").classList.remove("validation-failed")
 
     if (numOutputsTotalField.value == "" || numOutputsTotalField.value == 0) {
@@ -1416,6 +1431,7 @@ function getCurrentUserRequest() {
         newTask.reqBody.use_hypernetwork_model = hypernetworkModelField.value
         newTask.reqBody.hypernetwork_strength = parseFloat(hypernetworkStrengthField.value)
     }
+    newTask.reqBody.enable_vae_tiling = enableVAETilingField.checked
     if (testDiffusers.checked) {
         // lora
         let loraModelData = loraModelField.value
@@ -1455,7 +1471,6 @@ function getCurrentUserRequest() {
         if (tilingField.value !== "none") {
             newTask.reqBody.tiling = tilingField.value
         }
-        newTask.reqBody.enable_vae_tiling = enableVAETilingField.checked
     }
     if (testDiffusers.checked && document.getElementById("toggle-tensorrt-install").innerHTML == "Uninstall") {
         // TRT is installed
@@ -1477,10 +1492,11 @@ function getCurrentUserRequest() {
         })
         newTask.reqBody.trt_build_config = trtBuildConfig
     }
-    if (controlnetModelField.value !== "" && IMAGE_REGEX.test(controlImagePreview.src)) {
+    if (controlNetEnabledField.checked && controlnetModelField.value !== "" && IMAGE_REGEX.test(controlImagePreview.src)) {
         newTask.reqBody.use_controlnet_model = controlnetModelField.value
         newTask.reqBody.control_image = controlImagePreview.src
         newTask.reqBody.control_alpha = parseFloat(controlAlphaField.value)
+        newTask.reqBody.controlnet_union_type = controlNetUnionTypeField?.value || "canny"
         if (controlImageFilterField.value !== "") {
             newTask.reqBody.control_filter_to_apply = controlImageFilterField.value
         }
@@ -1884,7 +1900,15 @@ function onDimensionChange() {
     if (!initImagePreviewContainer.classList.contains("has-image")) {
         imageEditor.setImage(null, widthValue, heightValue)
     } else {
-        imageInpainter.setImage(initImagePreview.src, widthValue, heightValue)
+        // Keep the editor and mask in the source image's coordinate space.
+        // The generation dimensions may use a different aspect ratio and are
+        // applied later by the pipeline; using them here visibly stretches the
+        // inpaint canvas and makes pointer-to-mask coordinates misleading.
+        imageInpainter.setImage(
+            initImagePreview.src,
+            initImagePreview.naturalWidth,
+            initImagePreview.naturalHeight
+        )
     }
     if (widthValue < 512 && heightValue < 512) {
         smallImageWarning.classList.remove("displayNone")
@@ -1917,14 +1941,8 @@ gfpganModelField.addEventListener("change", onFixFaceModelChange)
 onFixFaceModelChange()
 
 function onControlnetModelChange() {
-    let configBox = document.querySelector("#controlnet_config")
-    if (IMAGE_REGEX.test(controlImagePreview.src)) {
-        configBox.classList.remove("displayNone")
-        controlImageContainer.classList.remove("displayNone")
-    } else {
-        configBox.classList.add("displayNone")
-        controlImageContainer.classList.add("displayNone")
-    }
+    const hasControlImage = IMAGE_REGEX.test(controlImagePreview.src)
+    controlImageContainer.classList.toggle("displayNone", !hasControlImage)
 }
 controlImagePreview.addEventListener("load", onControlnetModelChange)
 controlImagePreview.addEventListener("unload", onControlnetModelChange)
@@ -2413,7 +2431,8 @@ function checkRandomSeed() {
 randomSeedField.addEventListener("input", checkRandomSeed)
 checkRandomSeed()
 
-// warning: the core plugin `image-editor-improvements.js:172` replaces loadImg2ImgFromFile() with a custom version
+// The Image Loader plugin owns the surrounding Initial Image panel while this
+// native handler remains the single source of truth for decoding selected files.
 function loadImg2ImgFromFile() {
     if (initImageSelector.files.length === 0) {
         return
@@ -2444,7 +2463,7 @@ function img2imgLoad() {
 
     initImageSizeBox.textContent = initImagePreview.naturalWidth + " x " + initImagePreview.naturalHeight
     imageEditor.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
-    imageInpainter.setImage(this.src, parseInt(widthField.value), parseInt(heightField.value))
+    imageInpainter.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
 }
 
 function img2imgUnload() {
@@ -2558,6 +2577,10 @@ if (refImagesClearAllBtn) {
 }
 
 function controlImageLoad() {
+    if (!controlNetEnabledField.checked) {
+        controlNetEnabledField.checked = true
+        controlNetEnabledField.dispatchEvent(new Event("change"))
+    }
     let w = controlImagePreview.naturalWidth
     let h = controlImagePreview.naturalHeight
     w = w - (w % IMAGE_STEP_SIZE)
@@ -2577,6 +2600,10 @@ function controlImageUnload() {
     controlImageSelector.value = null
     controlImagePreview.src = ""
     controlImagePreview.dispatchEvent(new Event("unload"))
+    if (controlNetEnabledField.checked) {
+        controlNetEnabledField.checked = false
+        controlNetEnabledField.dispatchEvent(new Event("change"))
+    }
 }
 controlImageClearBtn.addEventListener("click", controlImageUnload)
 

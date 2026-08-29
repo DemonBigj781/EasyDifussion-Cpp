@@ -14,7 +14,7 @@ unset PYTHONHOME
 
 # Bootstrap only the contained Python environment when it is absent. Runtime
 # startup never fetches or replaces the checked-in Easy Diffusion source.
-if [ ! -x "installer_files/env/bin/python" ]; then
+if [ ! -x ".venv/bin/python" ]; then
     ./scripts/bootstrap.sh
 fi
 

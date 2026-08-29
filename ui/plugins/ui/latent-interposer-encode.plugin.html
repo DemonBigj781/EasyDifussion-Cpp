@@ -1,0 +1,18 @@
+        <h4 class="collapsible">Encode Interpose <small>VAE → model</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <label>
+                <input id="latent-interposer-encode-enabled" type="checkbox">
+                Convert encoded VAE latents into the checkpoint standard
+            </label>
+            <div class="latent-interposer-grid">
+                <label>Source (Custom VAE)</label><span id="latent-interposer-encode-source">—</span>
+                <label>Destination (Model)</label><span id="latent-interposer-encode-destination">—</span>
+                <label>Direction</label><strong id="latent-interposer-encode-direction">—</strong>
+                <label for="latent-interposer-encode-model">Conversion model</label>
+                <input id="latent-interposer-encode-model" type="text" spellcheck="false"
+                       autocomplete="off" class="model-filter" data-path="">
+            </div>
+            <small id="latent-interposer-encode-status">
+                Source is detected from Custom VAE; destination is detected from Model.
+            </small>
+        </div>

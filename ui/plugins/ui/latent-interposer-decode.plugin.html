@@ -1,0 +1,18 @@
+        <h4 class="collapsible">Decode Interpose <small>model → VAE</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <label>
+                <input id="latent-interposer-decode-enabled" type="checkbox">
+                Convert sampled checkpoint latents back into the VAE standard
+            </label>
+            <div class="latent-interposer-grid">
+                <label>Source (Model)</label><span id="latent-interposer-decode-source">—</span>
+                <label>Destination (Custom VAE)</label><span id="latent-interposer-decode-destination">—</span>
+                <label>Direction</label><strong id="latent-interposer-decode-direction">—</strong>
+                <label for="latent-interposer-decode-model">Conversion model</label>
+                <input id="latent-interposer-decode-model" type="text" spellcheck="false"
+                       autocomplete="off" class="model-filter" data-path="">
+            </div>
+            <small id="latent-interposer-decode-status">
+                Decode reverses the encode direction: Model → Custom VAE.
+            </small>
+        </div>

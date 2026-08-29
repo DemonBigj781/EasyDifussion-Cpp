@@ -226,28 +226,38 @@ function getTaskUpdater(task, reqBody, outputContainer) {
             if (!("step" in stepUpdate)) {
                 return
             }
-            // task.instances can be a mix of different tasks with uneven number of steps (Render Vs Filter Tasks)
-            const instancesWithProgressUpdates = task.instances.filter((instance) => instance.step !== undefined)
-            const overallStepCount =
-                instancesWithProgressUpdates.reduce(
-                    (sum, instance) =>
-                        sum +
-                        (instance.isPending
-                            ? Math.max(0, instance.step || stepUpdate.step) /
-                            (instance.total_steps || stepUpdate.total_steps)
-                            : 1),
-                    0 // Initial value
-                ) * stepUpdate.total_steps // Scale to current number of steps.
-            const totalSteps = instancesWithProgressUpdates.reduce(
-                (sum, instance) => sum + (instance.total_steps || stepUpdate.total_steps),
-                stepUpdate.total_steps * (batchCount - task.batchesDone) // Initial value at (unstarted task count * Nbr of steps)
+            // Count actual steps across started batches and reserve the current
+            // batch size for batches that have not started yet. This remains
+            // correct when img2img uses fewer effective steps than txt2img.
+            const fallbackTotal = Math.max(1, Number(stepUpdate.total_steps) || 1)
+            const instancesWithProgressUpdates = task.instances.filter(
+                (instance) => instance.step !== undefined || instance.total_steps !== undefined
             )
+            let overallStepCount = 0
+            let totalSteps = fallbackTotal * Math.max(0, batchCount - task.instances.length)
+            for (const instance of instancesWithProgressUpdates) {
+                const instanceTotal = Math.max(1, Number(instance.total_steps) || fallbackTotal)
+                const instanceStep = instance.isPending
+                    ? Math.max(0, Math.min(instanceTotal, Number(instance.step) || 0))
+                    : instanceTotal
+                overallStepCount += instanceStep
+                totalSteps += instanceTotal
+            }
+            // The first update can arrive before the reader has copied the
+            // values onto its instance.
+            if (instancesWithProgressUpdates.length === 0) {
+                overallStepCount = Math.max(0, Math.min(fallbackTotal, Number(stepUpdate.step) || 0))
+                totalSteps = fallbackTotal * batchCount
+            }
+            totalSteps = Math.max(1, totalSteps)
             const percent = Math.min(100, 100 * (overallStepCount / totalSteps)).toFixed(0)
 
             const timeTaken = stepUpdate.step_time // sec
             const stepsRemaining = Math.max(0, totalSteps - overallStepCount)
             const timeRemaining = timeTaken < 0 ? "" : millisecondsToStr(stepsRemaining * timeTaken * 1000)
-            outputMsg.innerHTML = `Batch ${task.batchesDone} of ${batchCount}. Generating image(s): ${percent}%. Time remaining (approx): ${timeRemaining}`
+            const currentStep = Math.max(0, Number(stepUpdate.step) || 0)
+            const currentTotal = Math.max(1, Number(stepUpdate.total_steps) || fallbackTotal)
+            outputMsg.innerHTML = `Batch ${task.batchesDone} of ${batchCount}. Generating image(s): ${percent}% (step ${currentStep} of ${currentTotal}). Time remaining (approx): ${timeRemaining}`
             outputMsg.style.display = "block"
             progressBarInner.style.width = `${percent}%`
 

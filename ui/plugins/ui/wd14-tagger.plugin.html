@@ -1,0 +1,23 @@
+        <h4 class="collapsible">WD14 Tagger <small>image tagging</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <div class="controlled-generation-grid">
+                <label for="wd14-model">Model</label>
+                <input id="wd14-model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="">
+                <label for="wd14-image-input">Image</label>
+                <div>
+                    <input id="wd14-image-input" type="file" accept="image/*">
+                    <button id="wd14-use-init" type="button" class="tertiaryButton smallButton">Use Initial Image</button>
+                    <img id="wd14-image-preview" alt="WD14 input preview" style="display:none; margin-top:6px; max-width:190px; max-height:140px; object-fit:contain">
+                </div>
+                <label>General / character</label>
+                <div><input id="wd14-threshold" type="number" value="0.35" min="0" max="1" step="0.05"> / <input id="wd14-character-threshold" type="number" value="0.85" min="0" max="1" step="0.05"></div>
+                <label for="wd14-exclude">Exclude tags</label><input id="wd14-exclude" type="text" placeholder="tag_one, tag_two">
+                <label>Formatting</label>
+                <div><label><input id="wd14-replace-underscore" type="checkbox"> spaces</label> <label><input id="wd14-trailing-comma" type="checkbox"> trailing comma</label></div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center">
+                <button id="wd14-replace-prompt" type="button" class="secondaryButton">Tag → replace prompt</button>
+                <button id="wd14-append-prompt" type="button" class="secondaryButton">Tag → append prompt</button>
+                <span id="wd14-status"></span>
+            </div>
+        </div>

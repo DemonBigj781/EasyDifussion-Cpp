@@ -17,7 +17,7 @@ case "$(uname -m)" in
     *) fail "Unsupported Linux architecture: $(uname -m)" ;;
 esac
 
-INSTALL_ENV_DIR="$ROOT_DIR/installer_files/env"
+INSTALL_ENV_DIR="$ROOT_DIR/.venv"
 if [ -x "$INSTALL_ENV_DIR/bin/python" ]; then
     exit 0
 fi

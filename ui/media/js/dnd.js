@@ -351,6 +351,15 @@ const TASK_MAPPING = {
         readUI: () => parseFloat(controlAlphaField.value),
         parse: (val) => val === null ? 1.0 : parseFloat(val),
     },
+    controlnet_union_type: {
+        name: "ControlNet Union Condition",
+        setUI: (value) => {
+            const field = document.getElementById("controlnet_union_type")
+            if (field) field.value = value || "canny"
+        },
+        readUI: () => document.getElementById("controlnet_union_type")?.value || "canny",
+        parse: (val) => val || "canny",
+    },
     use_lora_model: {
         name: "LoRA model",
         setUI: (use_lora_model) => {

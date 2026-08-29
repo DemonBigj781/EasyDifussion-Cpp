@@ -32,6 +32,7 @@ TASK_TEXT_MAPPING = {
     "use_controlnet_model": "ControlNet model",
     "control_filter_to_apply": "ControlNet Filter",
     "control_alpha": "ControlNet Strength",
+    "controlnet_union_type": "ControlNet Union Condition",
     "use_vae_model": "VAE model",
     "sampler_name": "Sampler",
     "scheduler_name": "Scheduler",
@@ -150,61 +151,29 @@ def save_images_to_disk(
         now=now,
     )
 
-    if task_data.show_only_filtered_image or filtered_images is images:
-        save_images(
-            filtered_images,
-            save_dir_path,
-            file_name=make_filename,
-            output_format=output_format.output_format,
-            output_quality=output_format.output_quality,
-            output_lossless=output_format.output_lossless,
-        )
-        if save_data.metadata_output_format:
-            for metadata_output_format in save_data.metadata_output_format.split(","):
-                if metadata_output_format.lower() in ["json", "txt", "embed"]:
-                    save_dicts(
-                        metadata_entries,
-                        save_dir_path,
-                        file_name=make_filename,
-                        output_format=metadata_output_format,
-                        file_format=output_format.output_format,
-                    )
-    else:
-        make_filter_filename = make_filename_callback(
-            app_config.get("filename_format", "$p_$tsb64"),
-            req,
-            task_data,
-            file_number,
-            now=now,
-            suffix="filtered",
-        )
-
-        save_images(
-            images,
-            save_dir_path,
-            file_name=make_filename,
-            output_format=output_format.output_format,
-            output_quality=output_format.output_quality,
-            output_lossless=output_format.output_lossless,
-        )
-        save_images(
-            filtered_images,
-            save_dir_path,
-            file_name=make_filter_filename,
-            output_format=output_format.output_format,
-            output_quality=output_format.output_quality,
-            output_lossless=output_format.output_lossless,
-        )
-        if save_data.metadata_output_format:
-            for metadata_output_format in save_data.metadata_output_format.split(","):
-                if metadata_output_format.lower() in ["json", "txt", "embed"]:
-                    save_dicts(
-                        metadata_entries,
-                        save_dir_path,
-                        file_name=make_filter_filename,
-                        output_format=metadata_output_format,
-                        file_format=output_format.output_format,
-                    )
+    # The local gallery scans this save directory directly.  Face correction,
+    # upscaling, and other render filters used to save both the raw render and
+    # the final render, making every generated image appear twice.  Persist only
+    # the final output; whether the UI also displays the raw render is a display
+    # preference and must not create another gallery file.
+    save_images(
+        filtered_images,
+        save_dir_path,
+        file_name=make_filename,
+        output_format=output_format.output_format,
+        output_quality=output_format.output_quality,
+        output_lossless=output_format.output_lossless,
+    )
+    if save_data.metadata_output_format:
+        for metadata_output_format in save_data.metadata_output_format.split(","):
+            if metadata_output_format.lower() in ["json", "txt", "embed"]:
+                save_dicts(
+                    metadata_entries,
+                    save_dir_path,
+                    file_name=make_filename,
+                    output_format=metadata_output_format,
+                    file_format=output_format.output_format,
+                )
 
 
 def get_metadata_entries_for_request(

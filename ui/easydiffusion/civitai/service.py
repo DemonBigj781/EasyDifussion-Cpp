@@ -34,6 +34,14 @@ PLUGIN_VERSION = "0.4.0"
 
 ALLOWED_SORT_MODELS = {"Highest Rated", "Most Downloaded", "Newest"}
 ALLOWED_SORT_IMAGES = {"Most Reactions", "Most Comments", "Newest"}
+ALLOWED_PERIODS = {"AllTime", "Year", "Month", "Week", "Day"}
+
+_PERIOD_SECONDS = {
+    "Year": 365 * 24 * 60 * 60,
+    "Month": 30 * 24 * 60 * 60,
+    "Week": 7 * 24 * 60 * 60,
+    "Day": 24 * 60 * 60,
+}
 
 ROOT = Path(easy_app.ROOT_DIR)
 CONFIG_PATH = ROOT / "config.yaml"
@@ -171,7 +179,7 @@ def _discover_search_config() -> Tuple[str, str, str]:
         os.environ.get("CIVITAI_SEARCH_HOST") or "https://search-new.civitai.com"
     ).strip().rstrip("/")
     configured_gallery = str(
-        os.environ.get("CIVITAI_GALLERY_URL") or "https://civitai.red"
+        os.environ.get("CIVITAI_GALLERY_URL") or "https://civitai.com"
     ).strip().rstrip("/")
     if configured_key:
         return configured_host, configured_key, configured_gallery
@@ -188,14 +196,13 @@ def _discover_search_config() -> Tuple[str, str, str]:
                 raise RuntimeError("CivitAI website search configuration is temporarily unavailable")
 
         preferred_gallery = str(
-            os.environ.get("CIVITAI_GALLERY_URL") or "https://civitai.red"
+            os.environ.get("CIVITAI_GALLERY_URL") or "https://civitai.com"
         ).strip().rstrip("/")
         gallery_sources = list(
             dict.fromkeys(
                 source
                 for source in (
                     preferred_gallery,
-                    "https://civitai.red",
                     "https://civitai.com",
                 )
                 if source
@@ -383,9 +390,12 @@ def _to_float(v: Any, default: float = 0.0) -> float:
 def _image_sort_key(item: Dict[str, Any], sort: Optional[str]) -> tuple[float, float]:
     stats = item.get("stats") or {}
     if sort == "Most Reactions":
-        val = (
-            _to_float(stats.get("reactionCount"))
-            + _to_float(stats.get("likeCount"))
+        # Some responses expose a total while others expose only individual
+        # reactions.  Do not add both forms or the same reactions are counted
+        # twice.
+        reaction_count = stats.get("reactionCount")
+        val = _to_float(reaction_count) if reaction_count is not None else (
+            _to_float(stats.get("likeCount"))
             + _to_float(stats.get("heartCount"))
             + _to_float(stats.get("laughCount"))
             + _to_float(stats.get("cryCount"))
@@ -775,6 +785,8 @@ def _global_images_civitai(
     username: Optional[str] = None,
     created_from: Optional[str] = None,
     created_to: Optional[str] = None,
+    sort: Optional[str] = None,
+    period: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean_search_key = str(search_key or "").strip()
     if clean_search_key:
@@ -784,13 +796,15 @@ def _global_images_civitai(
         ).strip().rstrip("/")
         gallery_origin = str(
             os.environ.get("CIVITAI_GALLERY_URL")
-            or "https://civitai.red"
+            or "https://civitai.com"
         ).strip().rstrip("/")
     else:
         search_host, clean_search_key, gallery_origin = _discover_search_config()
 
     limit = max(1, min(int(limit or 51), 100))
     page = max(1, int(page or 1))
+    selected_sort = sort if sort in ALLOWED_SORT_IMAGES else "Most Reactions"
+    selected_period = period if period in ALLOWED_PERIODS else "AllTime"
     filters: list[Any] = []
 
     def exact_filter(field: str, value: Optional[str]) -> None:
@@ -819,6 +833,13 @@ def _global_images_civitai(
         return int(timestamp)
 
     created_from_unix = unix_milliseconds(created_from)
+    # images_v6 does not accept the public API's period enum.  Translate it to
+    # the index's creation timestamp so the date-range control still constrains
+    # full-text image searches.
+    if created_from_unix is None and selected_period in _PERIOD_SECONDS:
+        created_from_unix = int(
+            (time.time() - _PERIOD_SECONDS[selected_period]) * 1000
+        )
     created_to_unix = unix_milliseconds(created_to)
     if created_from_unix is not None:
         filters.append(f"createdAtUnix >= {created_from_unix}")
@@ -903,6 +924,7 @@ def _global_images_civitai(
                 "nsfw": hit.get("nsfwLevel"),
                 "combinedNsfwLevel": hit.get("combinedNsfwLevel"),
                 "createdAt": hit.get("createdAt"),
+                "createdAtUnix": hit.get("createdAtUnix"),
                 "postId": hit.get("postId"),
                 "index": hit.get("index"),
                 "stats": hit.get("stats") or {},
@@ -919,6 +941,10 @@ def _global_images_civitai(
                 "generationProcess": hit.get("generationProcess"),
             }
         )
+
+    # images_v6 ranks text relevance.  Preserve that candidate selection, then
+    # honor the gallery's requested image ordering for the returned page.
+    items = _sort_unified_images(items, selected_sort)
 
     estimated_total = first.get("estimatedTotalHits")
     try:
@@ -941,6 +967,8 @@ def _global_images_civitai(
             "searchBackend": "website-images_v6",
             "searchIndex": "images_v6",
             "gallerySource": gallery_origin,
+            "sort": selected_sort,
+            "period": selected_period,
         },
     }
 
@@ -1365,6 +1393,8 @@ def _images_civitai(
         norm_cursor = _normalize_cursor(cursor)
         if norm_cursor:
             image_params["cursor"] = norm_cursor
+        else:
+            image_params["page"] = max(1, int(page or 1))
         if model_version_id is not None:
             image_params["modelVersionId"] = int(model_version_id)
         if post_id is not None:
@@ -1712,8 +1742,6 @@ def _validate_download_url(url: str) -> str:
     if parsed.scheme != "https" or parsed.hostname not in {
         "civitai.com",
         "www.civitai.com",
-        "civitai.red",
-        "www.civitai.red",
     }:
         raise ValueError("Download URL must use an official CivitAI HTTPS host")
     return parsed.geturl()

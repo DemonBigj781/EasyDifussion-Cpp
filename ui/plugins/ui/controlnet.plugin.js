@@ -1,33 +1,69 @@
+// Standalone native ControlNet settings panel for Easy Diffusion.
+
 ;(function () {
     "use strict"
+    if (window.__controlNetSettingsPluginLoaded) return
+    window.__controlNetSettingsPluginLoaded = true
 
-    const row = document.querySelector("#controlnet_model_container")
-    const outputSettings = document.querySelector("#output-settings")
-    if (!row || !outputSettings?.parentNode || document.querySelector("#sdkit3-controlnet-panel")) return
+    const editor = document.getElementById("editor-settings")
+    if (!editor?.parentNode) {
+        console.error("ControlNet plugin: Image Settings anchor was not found")
+        return
+    }
 
     const panel = document.createElement("div")
     panel.id = "sdkit3-controlnet-panel"
-    panel.className = "settings-box panel-box sdkit3-extra-settings-panel"
-    panel.innerHTML = `
-        <h4 class="collapsible">ControlNet <small>image conditioning</small></h4>
-        <div class="collapsible-content controlled-generation-content">
-            <table class="controlled-generation-image-table"><tbody id="controlled-generation-controlnet"></tbody></table>
-        </div>`
+    panel.className = "settings-box panel-box sdkit3-extra-settings-panel gated-feature"
+    panel.dataset.featureKeys = "backend_ed_diffusers backend_webui backend_sdkit3"
+    panel.innerHTML = window.loadRequiredPluginHTML("/plugins/core/controlnet.plugin.html")
+    editor.after(panel)
 
-    outputSettings.parentNode.insertBefore(panel, outputSettings.nextSibling)
-    panel.querySelector("#controlled-generation-controlnet").appendChild(row)
+    function orderPanels() {
+        const order = [
+            "lora-settings-panel",
+            "sdkit3-controlnet-panel",
+            "sdkit3-controlnet-union-panel",
+            "sdkit3-controlnet-uni-panel",
+            "sdkit3-controlnet-lite-panel",
+            "sdkit3-controlnet-preprocessor-panel",
+            "sdkit3-lllite-panel",
+            "sdkit3-encode-interpose-panel",
+            "sdkit3-decode-interpose-panel",
+            "sdkit3-wd14-panel",
+        ]
+        let previous = document.getElementById("editor-settings")
+        if (!previous?.parentNode) return
+        for (const id of order) {
+            const item = document.getElementById(id)
+            if (item?.parentNode === previous.parentNode) {
+                previous.after(item)
+                previous = item
+            }
+        }
+    }
+    window.orderSdkitSettingsPanels = orderPanels
+    orderPanels()
+    setTimeout(orderPanels, 0)
+    setTimeout(orderPanels, 250)
 
-    const style = document.createElement("style")
-    style.textContent = `
-        #sdkit3-controlnet-panel { margin-top: 10px; }
-        #sdkit3-controlnet-panel h4 { cursor: pointer; }
-        #sdkit3-controlnet-panel h4 small { float: right; }
-        #sdkit3-controlnet-panel .controlled-generation-content { padding-top: 8px; }
-        #controlled-generation-controlnet, #sdkit3-controlnet-panel table { width: 100%; }
-        #sdkit3-controlnet-panel table > tbody > tr > td:first-child { padding-right: 4px; white-space: nowrap; vertical-align: top; text-align: right; }
-    `
-    document.head.appendChild(style)
-
-    if (typeof createCollapsibles === "function") createCollapsibles(panel)
-    if (typeof prettifyInputs === "function") prettifyInputs(panel)
+    if (!document.getElementById("controlled-generation-panel-style")) {
+        const style = document.createElement("style")
+        style.id = "controlled-generation-panel-style"
+        style.textContent = `
+            .sdkit3-extra-settings-panel h4 { cursor: pointer; }
+            .sdkit3-extra-settings-panel h4 small { float: right; }
+            .controlled-generation-image-table { width: 100%; }
+            .controlled-generation-image-table > tbody > tr > td:first-child {
+                padding-right: 4px; white-space: nowrap; vertical-align: top; text-align: right;
+            }
+            .controlled-generation-grid {
+                display: grid; grid-template-columns: minmax(135px, auto) minmax(0, 1fr);
+                gap: 6px 9px; align-items: center; margin: 7px 0;
+            }
+            .controlled-generation-grid input[type="number"] { width: 78px; }
+            @media (max-width: 700px) {
+                .controlled-generation-grid { grid-template-columns: 1fr; }
+            }`
+        document.head.appendChild(style)
+    }
 })()

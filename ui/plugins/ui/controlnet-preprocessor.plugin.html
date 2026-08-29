@@ -1,0 +1,124 @@
+        <h4 class="collapsible">ControlNet Preprocessor <small>image processing</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <table class="controlled-generation-image-table"><tbody>
+                <tr class="pl-5">
+                    <td><label for="control_image">ControlNet Image:</label></td>
+                    <td>
+                        <div id="control_image_wrapper" class="preview_image_wrapper">
+                            <img id="control_image_preview" class="image_preview" src="" crossorigin="anonymous">
+                            <span id="control_image_size_box" class="img_bottom_label"></span>
+                            <button class="control_image_clear image_clear_btn" type="button" aria-label="Clear ControlNet image"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <input id="control_image" name="control_image" type="file" accept="image/*">
+                    </td>
+                </tr>
+                <tr class="pl-5 gated-feature" data-feature-keys="backend_sdkit3">
+                    <td><label for="lllite-image-input">LLLite Image:</label></td>
+                    <td>
+                        <div id="lllite-image-wrapper" class="preview_image_wrapper displayNone">
+                            <img id="lllite-image-preview" class="image_preview" alt="LLLite condition preview">
+                            <button id="lllite-image-clear" type="button" class="image_clear_btn" aria-label="Clear ControlNet-LLLite image"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <input id="lllite-image-input" type="file" accept="image/*">
+                        <button id="lllite-use-init" type="button" class="tertiaryButton smallButton">Use Initial Image</button>
+                    </td>
+                </tr>
+            </tbody></table>
+            <div class="controlled-generation-grid">
+                <label for="control_image_filter">Preprocessor</label>
+                <div id="controlled-generation-controlnet-preprocessor">
+                <select id="control_image_filter">
+                <option value="">None</option>
+                <optgroup label="Pose" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                <option value="openpose">OpenPose (*)</option>
+                <option value="openpose_face">OpenPose face</option>
+                <option value="openpose_faceonly">OpenPose face-only</option>
+                <option value="openpose_hand">OpenPose hand</option>
+                <option value="openpose_full">OpenPose full</option>
+                <option value="animal_openpose" class="gated-feature" data-feature-keys="backend_webui">animal_openpose</option>
+                <option value="densepose_parula (black bg & blue torso)" class="gated-feature" data-feature-keys="backend_webui">densepose_parula (black bg & blue torso)</option>
+                <option value="densepose (pruple bg & purple torso)" class="gated-feature" data-feature-keys="backend_webui">densepose (pruple bg & purple torso)</option>
+                <option value="dw_openpose_full" class="gated-feature" data-feature-keys="backend_webui">dw_openpose_full</option>
+                <option value="mediapipe_face" class="gated-feature" data-feature-keys="backend_webui">mediapipe_face</option>
+                <option value="instant_id_face_keypoints" class="gated-feature" data-feature-keys="backend_webui">instant_id_face_keypoints</option>
+                <option value="InsightFace+CLIP-H (IPAdapter)" class="gated-feature" data-feature-keys="backend_webui">InsightFace+CLIP-H (IPAdapter)</option>
+                <option value="InsightFace (InstantID)" class="gated-feature" data-feature-keys="backend_webui">InsightFace (InstantID)</option>
+                </optgroup>
+                <optgroup label="Outline">
+                <option value="canny">Canny (*)</option>
+                <option value="mlsd" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Straight lines</option>
+                <option value="scribble_hed" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Scribble hed (*)</option>
+                <option value="scribble_hedsafe" class="gated-feature" data-feature-keys="backend_diffusers">Scribble hedsafe</option>
+                <option value="scribble_pidinet" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Scribble pidinet</option>
+                <option value="scribble_pidsafe" class="gated-feature" data-feature-keys="backend_diffusers">Scribble pidsafe</option>
+                <option value="scribble_xdog" class="gated-feature" data-feature-keys="backend_webui">scribble_xdog</option>
+                <option value="softedge_hed" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge hed</option>
+                <option value="softedge_hedsafe" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge hedsafe</option>
+                <option value="softedge_pidinet" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge pidinet</option>
+                <option value="softedge_pidsafe" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">Softedge pidsafe</option>
+                <option value="softedge_teed" class="gated-feature" data-feature-keys="backend_webui">softedge_teed</option>
+                </optgroup>
+                <optgroup label="Depth" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                <option value="normal_bae">Normal bae (*)</option>
+                <option value="depth_midas">Depth midas</option>
+                <option value="normal_midas" class="gated-feature" data-feature-keys="backend_webui">normal_midas</option>
+                <option value="depth_zoe">Depth zoe</option>
+                <option value="depth_leres">Depth leres</option>
+                <option value="depth_leres++">Depth leres++</option>
+                <option value="depth_anything_v2" class="gated-feature" data-feature-keys="backend_webui">depth_anything_v2</option>
+                <option value="depth_anything" class="gated-feature" data-feature-keys="backend_webui">depth_anything</option>
+                <option value="depth_hand_refiner" class="gated-feature" data-feature-keys="backend_webui">depth_hand_refiner</option>
+                <option value="depth_marigold" class="gated-feature" data-feature-keys="backend_webui">depth_marigold</option>
+                </optgroup>
+                <optgroup label="Line art" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                <option value="lineart_coarse">Lineart coarse</option>
+                <option value="lineart_realistic">Lineart realistic</option>
+                <option value="lineart_anime">Lineart anime</option>
+                <option value="lineart_standard (from white bg & black line)" class="gated-feature" data-feature-keys="backend_webui">lineart_standard (from white bg & black line)</option>
+                <option value="lineart_anime_denoise" class="gated-feature" data-feature-keys="backend_webui">lineart_anime_denoise</option>
+                </optgroup>
+                <optgroup label="Reference" class="gated-feature" data-feature-keys="backend_webui">
+                <option value="reference_adain">reference_adain</option>
+                <option value="reference_only">reference_only</option>
+                <option value="reference_adain+attn">reference_adain+attn</option>
+                </optgroup>
+                <optgroup label="Tile" class="gated-feature" data-feature-keys="backend_webui">
+                <option value="tile_colorfix">tile_colorfix</option>
+                <option value="tile_resample">tile_resample</option>
+                <option value="tile_colorfix+sharp">tile_colorfix+sharp</option>
+                </optgroup>
+                <optgroup label="CLIP (IPAdapter)" class="gated-feature" data-feature-keys="backend_webui">
+                <option value="CLIP-ViT-H (IPAdapter)">CLIP-ViT-H (IPAdapter)</option>
+                <option value="CLIP-G (Revision)">CLIP-G (Revision)</option>
+                <option value="CLIP-G (Revision ignore prompt)">CLIP-G (Revision ignore prompt)</option>
+                <option value="CLIP-ViT-bigG (IPAdapter)">CLIP-ViT-bigG (IPAdapter)</option>
+                <option value="InsightFace+CLIP-H (IPAdapter)">InsightFace+CLIP-H (IPAdapter)</option>
+                </optgroup>
+                <optgroup label="Inpaint" class="gated-feature" data-feature-keys="backend_webui">
+                <option value="inpaint_only">inpaint_only</option>
+                <option value="inpaint_only+lama">inpaint_only+lama</option>
+                <option value="inpaint_global_harmonious">inpaint_global_harmonious</option>
+                </optgroup>
+                <optgroup label="Segment" class="gated-feature" data-feature-keys="backend_webui">
+                <option value="seg_ufade20k">seg_ufade20k</option>
+                <option value="seg_ofade20k">seg_ofade20k</option>
+                <option value="seg_anime_face">seg_anime_face</option>
+                <option value="seg_ofcoco">seg_ofcoco</option>
+                </optgroup>
+                <optgroup label="Misc" class="gated-feature" data-feature-keys="backend_ed_diffusers backend_webui">
+                <option value="shuffle">Shuffle</option>
+                <option value="segment" class="gated-feature" data-feature-keys="backend_diffusers">Segment</option>
+                <option value="invert (from white bg & black line)" class="gated-feature" data-feature-keys="backend_webui">invert (from white bg & black line)</option>
+                <option value="threshold" class="gated-feature" data-feature-keys="backend_webui">threshold</option>
+                <option value="t2ia_sketch_pidi" class="gated-feature" data-feature-keys="backend_webui">t2ia_sketch_pidi</option>
+                <option value="t2ia_color_grid" class="gated-feature" data-feature-keys="backend_webui">t2ia_color_grid</option>
+                <option value="recolor_intensity" class="gated-feature" data-feature-keys="backend_webui">recolor_intensity</option>
+                <option value="recolor_luminance" class="gated-feature" data-feature-keys="backend_webui">recolor_luminance</option>
+                <option value="blur_gaussian" class="gated-feature" data-feature-keys="backend_webui">blur_gaussian</option>
+                </optgroup>
+                </select>
+
+            </div>
+            </div>
+            <small>Select None to pass the ControlNet image through unchanged. Preprocessing is cached once per queued image. LLLite receives its condition image directly.</small>
+        </div>

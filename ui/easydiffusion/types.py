@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, Union
+from typing import Any, List, Dict, Optional, Union
 
 from pydantic import BaseModel
 
@@ -22,11 +22,18 @@ class GenerateImageRequest(BaseModel):
     control_image: Any = None
     control_alpha: Union[float, List[float]] = None
     controlnet_filter: str = None
+    controlnet_union_type: str = "canny"
     control_net_lllite_image: Any = None
     control_net_lllite_model: str = None
     control_net_lllite_strength: float = 1.0
     control_net_lllite_start_percent: float = 0.0
     control_net_lllite_end_percent: float = 100.0
+    ip_adapter_image: Any = None
+    ip_adapter_model: str = None
+    ip_adapter_clip_vision: str = None
+    ip_adapter_strength: float = 1.0
+    ip_adapter_start_percent: float = 0.0
+    ip_adapter_end_percent: float = 100.0
     latent_interposer_model: str = None
     latent_interposer_enabled: bool = False
     latent_interposer_source: str = "fx"
@@ -34,6 +41,10 @@ class GenerateImageRequest(BaseModel):
     latent_interposer_source_seed: int = 1
     latent_interposer_phase_x: int = 0
     latent_interposer_phase_y: int = 0
+    latent_interposer_encode_enabled: bool = False
+    latent_interposer_decode_enabled: bool = False
+    latent_interposer_encode_model: str = None
+    latent_interposer_decode_model: str = None
     prompt_strength: float = 0.8
     preserve_init_image_color_profile: bool = False
     strict_mask_border: bool = False
@@ -49,6 +60,29 @@ class FilterImageRequest(BaseModel):
     image: Any = None
     filter: Union[str, List[str]] = None
     filter_params: dict = {}
+
+
+class VideoGenerationRequest(BaseModel):
+    prompt: str = ""
+    negative_prompt: str = ""
+    seed: int = 42
+    width: int = 512
+    height: int = 512
+    num_inference_steps: int = 20
+    guidance_scale: float = 5.0
+    init_image: Any = None
+    end_image: Any = None
+    prompt_strength: float = 0.75
+    video_frames: int = 25
+    fps: int = 8
+    sampler_name: str = "euler"
+    scheduler_name: str = "simple"
+    flow_shift: float = None
+    moe_boundary: float = 0.875
+    cache_mode: str = "disabled"
+    cache_threshold: float = None
+    cache_start_percent: float = 15.0
+    cache_end_percent: float = 95.0
 
 
 class ModelsData(BaseModel):
@@ -75,7 +109,7 @@ class OutputFormatData(BaseModel):
 
 
 class SaveToDiskData(BaseModel):
-    save_to_disk_path: str = None
+    save_to_disk_path: Optional[str] = None
     metadata_output_format: str = "txt"  # or "json"
 
 
@@ -103,7 +137,7 @@ class RenderTaskData(TaskData):
     filter_params: Dict[str, Dict[str, Any]] = {}
     control_filter_to_apply: Union[str, List[str]] = None
     control_image_preprocessed: bool = False
-    enable_vae_tiling: bool = True
+    enable_vae_tiling: bool = False
 
     show_only_filtered_image: bool = False
     block_nsfw: bool = False

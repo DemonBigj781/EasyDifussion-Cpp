@@ -22,6 +22,8 @@ KNOWN_MODEL_TYPES = [
     "embeddings",
     "controlnet",
     "controlnet-lllite",
+    "ip-adapter",
+    "clip-vision",
     "latent-interposer",
     "furception-vae",
     "wd14-tagger",
@@ -38,6 +40,8 @@ MODEL_EXTENSIONS = {
     "embeddings": [".pt", ".bin", ".safetensors", ".sft"],
     "controlnet": [".pth", ".safetensors", ".sft"],
     "controlnet-lllite": [".safetensors", ".sft"],
+    "ip-adapter": [".safetensors", ".sft"],
+    "clip-vision": [".safetensors", ".sft", ".bin"],
     "latent-interposer": [".safetensors", ".sft"],
     "furception-vae": [".safetensors", ".sft"],
     "wd14-tagger": [".onnx"],
@@ -71,6 +75,8 @@ ALTERNATE_FOLDER_NAMES = {  # for WebUI compatibility
     "lora": "Lora",
     "controlnet": "ControlNet",
     "controlnet-lllite": "controlnetLLLite",
+    "ip-adapter": "ipadapter",
+    "clip-vision": "clip_vision",
     # Keep the recovered staged-interposer models in the user's established
     # shared model folder.
     "latent-interposer": "interpose",

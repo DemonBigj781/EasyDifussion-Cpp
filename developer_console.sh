@@ -10,7 +10,7 @@ if [ "$(uname -s)" != "Linux" ]; then
     exit 1
 fi
 
-PYTHON="$ROOT_DIR/installer_files/env/bin/python"
+PYTHON="$ROOT_DIR/.venv/bin/python"
 if [ ! -x "$PYTHON" ]; then
     echo "Easy Diffusion's contained Python environment is missing. Run ./start.sh first." >&2
     exit 1
