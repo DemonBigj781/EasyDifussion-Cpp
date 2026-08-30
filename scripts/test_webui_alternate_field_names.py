@@ -143,6 +143,26 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn('self.request.sampler_name = "euler"', render_video_py)
         self.assertIn("Native Mochi currently supports text-to-video only", render_video_py)
 
+    def test_native_video_cpu_offload_flags_are_scoped_to_video_requests(self):
+        main_cpp = (self.repo_root / "source" / "sdkit3-port-source" / "src" / "main.cpp").read_text()
+        generator_cpp = (
+            self.repo_root / "source" / "sdkit3-port-source" / "src" / "image_generator.cpp"
+        ).read_text()
+        config = (self.repo_root / "config.yaml").read_text()
+
+        self.assertIn('arg == "--video-clip-on-cpu"', main_cpp)
+        self.assertIn('arg == "--video-vae-on-cpu"', main_cpp)
+        self.assertIn('arg == "--image-clip-on-cpu"', main_cpp)
+        self.assertIn('arg == "--image-vae-on-cpu"', main_cpp)
+        self.assertNotIn('arg == "--clip-on-cpu"', main_cpp)
+        self.assertNotIn('arg == "--vae-on-cpu"', main_cpp)
+        self.assertIn("!native_video_request && image_clip_on_cpu_", generator_cpp)
+        self.assertIn("!native_video_request && image_vae_on_cpu_", generator_cpp)
+        self.assertIn("native_video_request && video_clip_on_cpu_", generator_cpp)
+        self.assertIn("native_video_request && video_vae_on_cpu_", generator_cpp)
+        self.assertIn("--video-clip-on-cpu", config)
+        self.assertIn("--video-vae-on-cpu", config)
+
     def test_explicit_no_image_checkpoint_does_not_fall_back_to_config(self):
         types_py = (self.repo_root / "ui" / "easydiffusion" / "types.py").read_text(encoding="utf-8")
         model_manager_py = (

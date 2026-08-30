@@ -90,7 +90,7 @@ struct CommandLineArgs {
     std::string embeddings_dir;
     std::string controlnet_dir;
     std::string text_encoder_dir;
-    bool vae_on_cpu = false;
+    bool image_vae_on_cpu = false;
     bool vae_tiling = false;
     std::string vae_tile_size;
     bool offload_to_cpu = false;
@@ -105,7 +105,9 @@ struct CommandLineArgs {
     bool cuda_malloc = false;
     bool xformers_compat = false;
     bool control_net_cpu = false;
-    bool clip_on_cpu = false;
+    bool image_clip_on_cpu = false;
+    bool video_clip_on_cpu = false;
+    bool video_vae_on_cpu = false;
     bool chroma_disable_dit_mask = false;
 };
 
@@ -127,7 +129,7 @@ void print_usage(const char* program_name) {
     std::cerr << "  --embeddings-dir <path>            Embeddings directory" << std::endl;
     std::cerr << "  --controlnet-dir <path>            ControlNet models directory" << std::endl;
     std::cerr << "  --text-encoder-dir <path>          Text encoder models directory" << std::endl;
-    std::cerr << "  --vae-on-cpu                       Keep VAE on CPU (default: false)" << std::endl;
+    std::cerr << "  --image-vae-on-cpu                 Keep image-generation VAE on CPU (default: false)" << std::endl;
     std::cerr << "  --vae-tiling                       Enable VAE tiling (default: false)" << std::endl;
     std::cerr << "  --vae-tile-size <size>             VAE tile size (in pixels), format [X]x[Y] (default: 256x256)"
               << std::endl;
@@ -144,7 +146,11 @@ void print_usage(const char* program_name) {
     std::cerr << "  --stream-layers                   Stream model layers within the --max-vram budget" << std::endl;
     std::cerr << "  --cuda-malloc                     Use the flushable legacy cudaMalloc pool instead of CUDA VMM" << std::endl;
     std::cerr << "  --control-net-cpu                  Keep ControlNet on CPU (default: false)" << std::endl;
-    std::cerr << "  --clip-on-cpu                      Keep CLIP on CPU (default: false)" << std::endl;
+    std::cerr << "  --image-clip-on-cpu                Keep image-generation text encoders on CPU (default: false)"
+              << std::endl;
+    std::cerr << "  --video-clip-on-cpu                Keep native-video text encoders on CPU (default: false)"
+              << std::endl;
+    std::cerr << "  --video-vae-on-cpu                 Keep native-video VAE on CPU (default: false)" << std::endl;
     std::cerr << "  --chroma-disable-dit-mask          Disable DiT mask for Chroma models (default: false)"
               << std::endl;
 }
@@ -193,8 +199,8 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.controlnet_dir = argv[++i];
         } else if (arg == "--text-encoder-dir" && i + 1 < argc) {
             args.text_encoder_dir = argv[++i];
-        } else if (arg == "--vae-on-cpu") {
-            args.vae_on_cpu = true;
+        } else if (arg == "--image-vae-on-cpu") {
+            args.image_vae_on_cpu = true;
         } else if (arg == "--vae-tiling") {
             args.vae_tiling = true;
         } else if (arg == "--vae-tile-size" && i + 1 < argc) {
@@ -229,8 +235,12 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.cuda_malloc = true;
         } else if (arg == "--control-net-cpu") {
             args.control_net_cpu = true;
-        } else if (arg == "--clip-on-cpu") {
-            args.clip_on_cpu = true;
+        } else if (arg == "--image-clip-on-cpu") {
+            args.image_clip_on_cpu = true;
+        } else if (arg == "--video-clip-on-cpu") {
+            args.video_clip_on_cpu = true;
+        } else if (arg == "--video-vae-on-cpu") {
+            args.video_vae_on_cpu = true;
         } else if (arg == "--chroma-disable-dit-mask") {
             args.chroma_disable_dit_mask = true;
         } else if (arg == "--help" || arg == "-h") {
@@ -324,7 +334,7 @@ int main(int argc, char* argv[]) {
         ServerParams server_params;
         server_params.port = args.port;
         server_params.model_manager = model_manager;
-        server_params.vae_on_cpu = args.vae_on_cpu;
+        server_params.image_vae_on_cpu = args.image_vae_on_cpu;
         server_params.vae_tiling = args.vae_tiling;
         server_params.vae_tile_size = args.vae_tile_size;
         server_params.offload_to_cpu = args.offload_to_cpu;
@@ -337,7 +347,9 @@ int main(int argc, char* argv[]) {
         server_params.max_vram = args.max_vram;
         server_params.stream_layers = args.stream_layers;
         server_params.control_net_cpu = args.control_net_cpu;
-        server_params.clip_on_cpu = args.clip_on_cpu;
+        server_params.image_clip_on_cpu = args.image_clip_on_cpu;
+        server_params.video_clip_on_cpu = args.video_clip_on_cpu;
+        server_params.video_vae_on_cpu = args.video_vae_on_cpu;
         server_params.chroma_disable_dit_mask = args.chroma_disable_dit_mask;
 
         // Create and start the server

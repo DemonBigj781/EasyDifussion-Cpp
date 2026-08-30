@@ -173,7 +173,8 @@ class ImageGenerator {
                            const std::string& furception_vae_path = "",
                            const std::string& latent_interposer_encode_model_path = "",
                            const std::string& latent_interposer_decode_model_path = "",
-                           sd_vae_format_t latent_interposer_vae_format = SD_VAE_FORMAT_AUTO);
+                           sd_vae_format_t latent_interposer_vae_format = SD_VAE_FORMAT_AUTO,
+                           bool native_video_request = false);
 
     sd_ctx_t* sd_ctx_;
     std::shared_ptr<TaskStateManager> task_state_manager_;
@@ -215,9 +216,10 @@ class ImageGenerator {
     // continue streaming from the CPU backend.
     std::string cpu_vae_fallback_model_path_;
     bool current_vae_uses_cpu_ = false;
+    bool current_text_encoder_uses_cpu_ = false;
 
     // SD context parameters from CLI
-    bool vae_on_cpu_;
+    bool image_vae_on_cpu_;
     bool vae_tiling_;
     std::string vae_tile_size_;
     bool offload_to_cpu_;
@@ -229,7 +231,9 @@ class ImageGenerator {
     std::string max_vram_;
     bool stream_layers_;
     bool control_net_cpu_;
-    bool clip_on_cpu_;
+    bool image_clip_on_cpu_;
+    bool video_clip_on_cpu_;
+    bool video_vae_on_cpu_;
     bool chroma_disable_dit_mask_;
 };
 

@@ -33,6 +33,9 @@ backend_config:
     - info
     - --diffusion-fa
     - --sage-attention
+    - --video-clip-on-cpu
+    - --video-vae-on-cpu
+    - --stream-layers
 
 # Set force_save_path to enforce an auto save path. Clients will not be able to change or
 # disable auto save when this option is set. Please adapt the path in the examples to your

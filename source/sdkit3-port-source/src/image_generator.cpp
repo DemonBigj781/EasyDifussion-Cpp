@@ -91,7 +91,7 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       active_generation_ctx_(nullptr),
       cancel_requested_(false),
       initialized_(false),
-      vae_on_cpu_(server_params.vae_on_cpu),
+      image_vae_on_cpu_(server_params.image_vae_on_cpu),
       vae_tiling_(server_params.vae_tiling),
       vae_tile_size_(server_params.vae_tile_size),
       offload_to_cpu_(server_params.offload_to_cpu),
@@ -103,7 +103,9 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       max_vram_(server_params.max_vram),
       stream_layers_(server_params.stream_layers),
       control_net_cpu_(server_params.control_net_cpu),
-      clip_on_cpu_(server_params.clip_on_cpu),
+      image_clip_on_cpu_(server_params.image_clip_on_cpu),
+      video_clip_on_cpu_(server_params.video_clip_on_cpu),
+      video_vae_on_cpu_(server_params.video_vae_on_cpu),
       chroma_disable_dit_mask_(server_params.chroma_disable_dit_mask) {
     LOG_INFO("ImageGenerator created");
 }
@@ -178,7 +180,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
                                                        const std::string& task_id) {
     // Video checkpoints use the same context loader and options model selector.
     // Empty adapter/control paths deliberately release image-only extensions.
-    if (!ensureModelLoaded()) {
+    if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true)) {
         throw std::runtime_error("Failed to load video model from options");
     }
 
@@ -601,7 +603,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         // enabled, but VAE encode/decode may still require one monolithic CUDA
         // buffer. Rebuild this checkpoint with only the VAE runtime on CPU and
         // retry once; diffusion remains accelerated on the GPU.
-        if (allow_ram_fallback && !vae_on_cpu_ && current_vae_uses_cpu_ == false) {
+        if (allow_ram_fallback && !image_vae_on_cpu_ && current_vae_uses_cpu_ == false) {
             cpu_vae_fallback_model_path_ = current_model_path_;
             LOG_WARNING("CUDA generation failed; retrying VAE encode/decode on CPU/RAM");
             lock.unlock();
@@ -828,7 +830,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        const std::string& furception_vae_path,
                                        const std::string& latent_interposer_encode_model_path,
                                        const std::string& latent_interposer_decode_model_path,
-                                       sd_vae_format_t latent_interposer_vae_format) {
+                                       sd_vae_format_t latent_interposer_vae_format,
+                                       bool native_video_request) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     // Get options
@@ -941,9 +944,12 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
 
     std::string lora_dir_str = model_manager_->getLoraDir();
     std::string embeddings_dir_str = model_manager_->getEmbeddingsDir();
-    const bool use_cpu_vae = vae_on_cpu_ ||
-                             (!cpu_vae_fallback_model_path_.empty() &&
+    const bool use_cpu_vae = (!native_video_request && image_vae_on_cpu_) ||
+                             (native_video_request && video_vae_on_cpu_) ||
+                             (!native_video_request && !cpu_vae_fallback_model_path_.empty() &&
                               model_path == cpu_vae_fallback_model_path_);
+    const bool use_cpu_text_encoder = (!native_video_request && image_clip_on_cpu_) ||
+                                      (native_video_request && video_clip_on_cpu_);
 
     // Check if we need to reload the model (check all paths including controlnet)
     bool needs_reload = !initialized_ || !sd_ctx_ || model_path != current_model_path_ ||
@@ -960,7 +966,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                         latent_interposer_vae_format != current_latent_interposer_vae_format_ ||
                         furception_vae_path != current_furception_vae_path_ ||
                         embeddings_dir_str != current_embeddings_dir_ ||
-                        use_cpu_vae != current_vae_uses_cpu_;
+                        use_cpu_vae != current_vae_uses_cpu_ ||
+                        use_cpu_text_encoder != current_text_encoder_uses_cpu_;
 
     if (!needs_reload) {
         LOG_DEBUG("Model already loaded: %s", model_path.c_str());
@@ -1113,7 +1120,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (offload_to_cpu_) {
         prepend_backend_assignment(backend_params, "*=cpu");
     }
-    if (clip_on_cpu_) {
+    if (use_cpu_text_encoder) {
         prepend_backend_assignment(backend, "te=cpu");
     }
     if (use_cpu_vae) {
@@ -1145,8 +1152,10 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.chroma_use_dit_mask = !chroma_disable_dit_mask_;
 
     if (use_cpu_vae) {
-        LOG_INFO("VAE compute will use CPU/RAM%s",
-                 vae_on_cpu_ ? " (configured)" : " (automatic CUDA fallback)");
+        const char* reason = native_video_request ? "native video"
+                                                   : (image_vae_on_cpu_ ? "image generation"
+                                                                        : "automatic CUDA fallback");
+        LOG_INFO("VAE compute will use CPU/RAM (%s)", reason);
     }
     if (offload_to_cpu_) {
         LOG_INFO("Parameters will be offloaded to CPU");
@@ -1175,8 +1184,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (control_net_cpu_) {
         LOG_INFO("ControlNet will be kept on CPU");
     }
-    if (clip_on_cpu_) {
-        LOG_INFO("CLIP will be kept on CPU");
+    if (use_cpu_text_encoder) {
+        LOG_INFO("%s text encoder will be kept on CPU", native_video_request ? "Native video" : "Image");
     }
     if (chroma_disable_dit_mask_) {
         LOG_INFO("DiT mask disabled for Chroma models");
@@ -1209,6 +1218,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     current_latent_interposer_vae_format_ = latent_interposer_vae_format;
     current_furception_vae_path_ = furception_vae_path;
     current_vae_uses_cpu_ = use_cpu_vae;
+    current_text_encoder_uses_cpu_ = use_cpu_text_encoder;
 
     initialized_ = true;
     LOG_INFO("SD context initialized successfully");
