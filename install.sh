@@ -6,7 +6,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LLAMA_SOURCE="$PROJECT_ROOT/source/llama.cpp"
 LLAMA_BUILD_DIR="$LLAMA_SOURCE/build"
 SDKIT_SOURCE="$PROJECT_ROOT/source/sdkit3-port-source"
-GGUF_ENV="$PROJECT_ROOT/.venv-llama-cpp"
+GGUF_ENV="$PROJECT_ROOT/.venv/llama-cpp"
 
 show_help() {
     cat <<'EOF'

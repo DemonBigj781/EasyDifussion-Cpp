@@ -63,7 +63,7 @@ def _converter_python() -> Optional[Path]:
         candidates.append(Path(configured).expanduser())
     candidates.extend(
         [
-            Path(app.ROOT_DIR) / ".venv-llama-cpp" / "bin" / "python",
+            Path(app.ROOT_DIR) / ".venv" / "llama-cpp" / "bin" / "python",
             Path(sys.executable),
         ]
     )
@@ -103,7 +103,7 @@ def converter_readiness() -> Dict[str, Any]:
             [
                 str(python),
                 "-c",
-                "import numpy, sentencepiece, torch, transformers, google.protobuf",
+                "import gguf, numpy, sentencepiece, torch, transformers, google.protobuf",
             ],
             cwd=str(llama_root),
             capture_output=True,

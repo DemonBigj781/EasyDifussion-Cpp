@@ -2,7 +2,6 @@
 /installer_files/
 /backends/
 /.venv/
-/.venv-llama-cpp/
 
 # Models live in a separately managed shared tree
 /models
