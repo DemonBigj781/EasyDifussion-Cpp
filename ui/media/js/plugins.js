@@ -86,7 +86,7 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/inpainting.plugin.js",
     "/plugins/core/prompt-assist.plugin.js",
     "/plugins/core/negative-history.plugin.js",
-    "/plugins/core/civitai-tab.plugin.js",
+    "/plugins/core/online-model-browser.plugin.js",
     "/plugins/core/editor-page.plugin.js",
     "/plugins/core/Autoscroll.plugin.js",
     "/plugins/core/custom-modifiers.plugin.js",

@@ -6,6 +6,7 @@
   const SEARCH_ENDPOINT = `${API_ROOT}/search`
   const IMAGES_ENDPOINT = `${API_ROOT}/global-images`
   const DOWNLOAD_ENDPOINT = `${API_ROOT}/download`
+  const HF_API_ROOT = "/huggingface-api"
   const LS_SETTINGS_KEY = "civitaiSettings"
 
   // CivitAI enforces different sort enums for models vs. images; keep them separate.
@@ -20,6 +21,11 @@
       "Most Comments",
       "Newest",
     ],
+    huggingface: [
+      "Most Downloaded",
+      "Most Liked",
+      "Recently Updated",
+    ],
   }
 
   function ready() {
@@ -30,9 +36,38 @@
     panel.className = "panel-box"
     panel.style =
       "padding:12px; margin-bottom:8px; border:1px solid var(--background-color3); border-radius:8px;"
-    panel.innerHTML = loadRequiredPluginHTML("/plugins/core/civitai-tab.plugin.html")
-    createTab({ id: "civitai", label: "Civitai", icon: "cloud-arrow-down", content: panel })
+    panel.innerHTML = loadRequiredPluginHTML("/plugins/core/online-model-browser.plugin.html")
+    createTab({ id: "civitai", label: "Online Model Browser", icon: "cloud-arrow-down", content: panel })
 
+    const settingsTable = document.querySelector("#system-settings-table")
+    if (settingsTable && !document.getElementById(`${PLUGIN_ID}-settings`)) {
+      const row = document.createElement("div")
+      row.id = `${PLUGIN_ID}-settings`
+      row.innerHTML = `
+        <div><i class="fa-solid fa-cloud-arrow-down"></i></div>
+        <div>
+          <label>Online Model Browser</label>
+          <small>Credentials are sent only to their matching provider. The Hugging Face token is session-only.</small>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; min-width:0;">
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input id="${PLUGIN_ID}-apikey" type="password" autocomplete="off"
+              placeholder="Civitai API key" style="flex:1; min-width:0;">
+            <button class="secondaryButton" id="${PLUGIN_ID}-clear" type="button">Clear</button>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input id="${PLUGIN_ID}-hf-token" type="password" autocomplete="off"
+              placeholder="Hugging Face token (optional)" style="flex:1; min-width:0;">
+            <button class="secondaryButton" id="${PLUGIN_ID}-clear-hf" type="button">Clear</button>
+          </div>
+          <label style="display:flex; gap:6px; align-items:center;">
+            <input type="checkbox" id="${PLUGIN_ID}-nsfw"> Include NSFW Civitai results
+          </label>
+        </div>`
+      settingsTable.appendChild(row)
+    }
+
+    const providerEl = panel.querySelector(`#${PLUGIN_ID}-provider`)
     const queryEl = panel.querySelector(`#${PLUGIN_ID}-query`)
     const searchBtn = panel.querySelector(`#${PLUGIN_ID}-search`)
     const resultsEl = panel.querySelector(`#${PLUGIN_ID}-results`)
@@ -40,12 +75,16 @@
     const prevBtn = panel.querySelector(`#${PLUGIN_ID}-prev`)
     const nextBtn = panel.querySelector(`#${PLUGIN_ID}-next`)
     const pageLabel = panel.querySelector(`#${PLUGIN_ID}-page`)
-    const apiKeyEl = panel.querySelector(`#${PLUGIN_ID}-apikey`)
-    const clearBtn = panel.querySelector(`#${PLUGIN_ID}-clear`)
-    const nsfwEl = panel.querySelector(`#${PLUGIN_ID}-nsfw`)
+    const apiKeyEl = document.querySelector(`#${PLUGIN_ID}-apikey`)
+    const hfTokenEl = document.querySelector(`#${PLUGIN_ID}-hf-token`)
+    const clearBtn = document.querySelector(`#${PLUGIN_ID}-clear`)
+    const clearHfBtn = document.querySelector(`#${PLUGIN_ID}-clear-hf`)
+    const nsfwEl = document.querySelector(`#${PLUGIN_ID}-nsfw`)
     const sortEl = panel.querySelector(`#${PLUGIN_ID}-sort`)
     const periodEl = panel.querySelector(`#${PLUGIN_ID}-period`)
     const modeEls = panel.querySelectorAll(`input[name="${PLUGIN_ID}-mode"]`)
+    const imagesLabel = panel.querySelector(`#${PLUGIN_ID}-images-label`)
+    const helpEl = panel.querySelector(`#${PLUGIN_ID}-help`)
 
     const imgFiltersRow = panel.querySelector(`#${PLUGIN_ID}-imgfilters`)
     const postIdEl = panel.querySelector(`#${PLUGIN_ID}-postid`)
@@ -54,6 +93,7 @@
     // Paging state
     let currentPage = 1
     let currentMode = "models" // models | images
+    let currentProvider = "civitai"
     let activeSearch = null
     let activeSearchController = null
     let searchGeneration = 0
@@ -71,21 +111,43 @@
     function applyModeUI() {
       currentMode = getMode()
       imgFiltersRow.style.display = currentMode === "images" ? "flex" : "none"
-      refreshSortOptions(currentMode)
+      refreshSortOptions()
     }
 
-    function refreshSortOptions(mode) {
-      const allowed = SORT_OPTIONS[mode] || SORT_OPTIONS.models
+    function applyProviderUI() {
+      currentProvider = providerEl.value === "huggingface" ? "huggingface" : "civitai"
+      const imageRadio = panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="images"]`)
+      const isHuggingFace = currentProvider === "huggingface"
+      imageRadio.disabled = isHuggingFace
+      imagesLabel.style.opacity = isHuggingFace ? "0.5" : "1"
+      if (isHuggingFace && getMode() === "images") {
+        panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="models"]`).checked = true
+      }
+      periodEl.disabled = isHuggingFace
+      queryEl.placeholder = isHuggingFace
+        ? "Search Hugging Face models or enter owner/repository"
+        : "Search term or Civitai URN (blank browses)"
+      helpEl.textContent = isHuggingFace
+        ? "Browse Hugging Face model repositories and download supported weight files into your configured models folder."
+        : "Image search uses Civitai's images-v6 query when available and falls back to the public image API."
+      applyModeUI()
+    }
+
+    function refreshSortOptions() {
+      const key = currentProvider === "huggingface" ? "huggingface" : currentMode
+      const allowed = SORT_OPTIONS[key] || SORT_OPTIONS.models
       const current = sortEl.value
       sortEl.innerHTML = allowed.map((s) => `<option value="${s}">${s}</option>`).join("")
       // Preserve value if still valid; otherwise reset to first option
       sortEl.value = allowed.includes(current) ? current : allowed[0]
     }
 
-    function headersForRequest(keyOverride = undefined) {
+    function headersForRequest(keyOverride = undefined, providerOverride = currentProvider) {
       const h = {}
-      const k = String(keyOverride === undefined ? apiKeyEl.value || "" : keyOverride).trim()
-      if (k) h["x-civitai-key"] = k
+      const provider = providerOverride === "huggingface" ? "huggingface" : "civitai"
+      const input = provider === "huggingface" ? hfTokenEl : apiKeyEl
+      const k = String(keyOverride === undefined ? input.value || "" : keyOverride).trim()
+      if (k) h[provider === "huggingface" ? "x-huggingface-token" : "x-civitai-key"] = k
       return h
     }
 
@@ -115,6 +177,7 @@
         period: periodEl.value,
         nsfw: nsfwEl.checked,
         apikey: apiKeyEl.value.trim(),
+        provider: currentProvider,
         mode: getMode(),
         postId: (postIdEl.value || "").trim(),
         username: (usernameEl.value || "").trim(),
@@ -130,6 +193,8 @@
           periodEl.value = settings.period || "AllTime"
           nsfwEl.checked = !!settings.nsfw
           apiKeyEl.value = settings.apikey || ""
+          providerEl.value = settings.provider === "huggingface" ? "huggingface" : "civitai"
+          currentProvider = providerEl.value
           postIdEl.value = settings.postId || ""
           usernameEl.value = settings.username || ""
 
@@ -137,14 +202,15 @@
           const radio = panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="${m}"]`)
           if (radio) radio.checked = true
           currentMode = m
-          refreshSortOptions(currentMode)
-          const allowed = SORT_OPTIONS[currentMode] || []
+          refreshSortOptions()
+          const sortKey = currentProvider === "huggingface" ? "huggingface" : currentMode
+          const allowed = SORT_OPTIONS[sortKey] || []
           sortEl.value = allowed.includes(settings.sort) ? settings.sort : allowed[0]
         } catch (e) {
           console.warn("Failed to parse CivitAI settings", e)
         }
       }
-      applyModeUI()
+      applyProviderUI()
     }
 
     loadSettings()
@@ -160,9 +226,25 @@
       })
     )
 
+    providerEl.addEventListener("change", () => {
+      applyProviderUI()
+      saveSettings()
+      resultsEl.innerHTML = ""
+      statusEl.textContent = currentProvider === "huggingface" ? "Hugging Face model mode." : "Civitai model mode."
+      activeSearch = null
+      currentPage = 1
+      pageLabel.textContent = "Page 1"
+      prevBtn.disabled = true
+      nextBtn.disabled = true
+    })
+
     clearBtn.addEventListener("click", () => {
       apiKeyEl.value = ""
       saveSettings()
+    })
+
+    clearHfBtn.addEventListener("click", () => {
+      hfTokenEl.value = ""
     })
 
     function parseUrn(raw) {
@@ -175,8 +257,23 @@
       return { modelId: parseInt(m[1], 10), versionId: m[2] ? parseInt(m[2], 10) : null }
     }
 
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
+      })[character])
+    }
+
+    function safeExternalUrl(value) {
+      try {
+        const parsed = new URL(String(value || ""))
+        return parsed.protocol === "https:" ? parsed.href : ""
+      } catch (_) {
+        return ""
+      }
+    }
+
     function tagChip(text) {
-      return `<span style="font-size:0.75em; padding:2px 6px; border-radius:999px; background:var(--background-color3); color:var(--text-color2);">${text}</span>`
+      return `<span style="font-size:0.75em; padding:2px 6px; border-radius:999px; background:var(--background-color3); color:var(--text-color2);">${escapeHTML(text)}</span>`
     }
 
     async function runSearch(search, cursorOverride = undefined) {
@@ -192,11 +289,30 @@
       const generation = ++searchGeneration
 
       resultsEl.innerHTML = ""
-      statusEl.textContent =
-        mode === "images" ? "Searching CivitAI images..." : "Searching CivitAI models..."
+      statusEl.textContent = search.provider === "huggingface"
+        ? "Searching Hugging Face models..."
+        : mode === "images" ? "Searching Civitai images..." : "Searching Civitai models..."
       pageLabel.textContent = `Page ${currentPage}`
 
       try {
+        if (search.provider === "huggingface") {
+          let url = `${HF_API_ROOT}/search?limit=20&page=${encodeURIComponent(String(currentPage))}`
+          url += `&query=${encodeURIComponent(q || "")}`
+          if (search.sort) url += `&sort=${encodeURIComponent(search.sort)}`
+          const requestOptions = { headers: headersForRequest(search.apiKey, search.provider) }
+          if (controller) requestOptions.signal = controller.signal
+          const res = await fetch(url, requestOptions)
+          const json = await safeJson(res)
+          if (generation !== searchGeneration) return
+          if (!res.ok || !json.ok) throw new Error(json.detail || json.error || "Search failed")
+          renderModels(json.items || [])
+          prevBtn.disabled = currentPage <= 1
+          nextBtn.disabled = !json.metadata?.hasNext
+          nextCursor = null
+          statusEl.textContent = `${json.items?.length || 0} Hugging Face models`
+          return
+        }
+
         const urn = parseUrn(q)
         const endpoint = mode === "images" ? IMAGES_ENDPOINT : SEARCH_ENDPOINT
 
@@ -246,7 +362,7 @@
           if (search.username) url += `&username=${encodeURIComponent(search.username)}`
         }
 
-        const requestOptions = { headers: headersForRequest(search.apiKey) }
+        const requestOptions = { headers: headersForRequest(search.apiKey, search.provider) }
         if (controller) requestOptions.signal = controller.signal
         const res = await fetch(url, requestOptions)
         const json = await safeJson(res)
@@ -303,7 +419,7 @@
           {}
 
         const previewImage = (mv.images && mv.images[0]) || {}
-        const thumb = previewImage.thumbnailUrl || previewImage.url || ""
+        const thumb = safeExternalUrl(previewImage.thumbnailUrl || previewImage.url || "")
         const files = mv.files || []
 
         const creatorName =
@@ -324,28 +440,35 @@
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;">
             <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-              <div style="font-weight:600; font-size:0.95em;">${item.name || "Untitled"}</div>
+              <div style="font-weight:600; font-size:0.95em;">${escapeHTML(item.name || "Untitled")}</div>
             </div>
 
             <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
               ${tagChip(`Type: ${item.type || "?"}`)}
               ${tagChip(`Base: ${mv.baseModel || "?"}`)}
               ${tagChip(`Creator: ${creatorName}`)}
+              ${item.provider === "huggingface" ? tagChip("Hugging Face") : tagChip("Civitai")}
             </div>
 
             <div style="font-size:0.8em;color:var(--text-color2);">
-              ModelID: ${item.id || "?"} • VersionID: ${mv.id || "?"}
+              ${item.provider === "huggingface" ? "Repository" : "ModelID"}: ${escapeHTML(item.id || "?")}
+              ${item.provider === "huggingface" ? ` • Downloads: ${Number(item.downloads || 0)} • Likes: ${Number(item.likes || 0)}` : ` • VersionID: ${escapeHTML(mv.id || "?")}`}
             </div>
 
             <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
               ${
-                previewImage.url
-                  ? `<a class="secondaryButton" href="${previewImage.url}" target="_blank" rel="noopener">Preview</a>`
+                safeExternalUrl(previewImage.url)
+                  ? `<a class="secondaryButton" href="${safeExternalUrl(previewImage.url)}" target="_blank" rel="noopener">Preview</a>`
                   : ""
               }
               ${
-                item.id && mv.id
+                item.provider !== "huggingface" && item.id && mv.id
                   ? `<button class="secondaryButton" data-action="copy-urn">Copy URN</button>`
+                  : ""
+              }
+              ${
+                safeExternalUrl(item.pageUrl)
+                  ? `<a class="secondaryButton" href="${safeExternalUrl(item.pageUrl)}" target="_blank" rel="noopener">Model page</a>`
                   : ""
               }
             </div>
@@ -359,7 +482,7 @@
                         return `
                           <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8em;background:var(--background-color2);padding:2px 6px;border-radius:4px;">
                             <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${
-                              f.name || `File ${idx + 1}`
+                              escapeHTML(f.name || `File ${idx + 1}`)
                             }</span>
                             <button class="primaryButton" style="padding:1px 6px;" data-action="dl" data-idx="${idx}">Get</button>
                             <span style="font-size:0.75em;color:var(--text-color2);margin-left:6px;">${sizeMB}</span>
@@ -406,7 +529,7 @@
       resultsEl.appendChild(grid)
 
       items.forEach((img) => {
-        const url = img.url || img.thumbnailUrl || ""
+        const url = safeExternalUrl(img.url || img.thumbnailUrl || "")
         const card = document.createElement("div")
         card.style =
           "border:1px solid var(--background-color3); border-radius:8px; overflow:hidden; background:var(--background-color2); display:flex; flex-direction:column;"
@@ -420,7 +543,7 @@
           </div>
           <div style="padding:6px; display:flex; flex-direction:column; gap:4px;">
             <div style="font-size:0.75em; color:var(--text-color2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-              ID: ${img.id || "?"}
+              ID: ${escapeHTML(img.id || "?")}
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
               ${img.width && img.height ? tagChip(`${img.width}x${img.height}`) : ""}
@@ -526,12 +649,14 @@
     async function handleDownload(item, file) {
       statusEl.textContent = "Starting download..."
       try {
+        const provider = item.provider === "huggingface" ? "huggingface" : "civitai"
+        const endpoint = provider === "huggingface" ? `${HF_API_ROOT}/download` : DOWNLOAD_ENDPOINT
         const headers = {
           "Content-Type": "application/json",
-          ...headersForRequest(),
+          ...headersForRequest(undefined, provider),
         }
 
-        const res = await fetch(DOWNLOAD_ENDPOINT, {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers,
           body: JSON.stringify({ model: item, file }),
@@ -542,8 +667,8 @@
         if (!downloadId) throw new Error("Download did not return a job ID")
         while (true) {
           await new Promise((resolve) => setTimeout(resolve, 750))
-          const statusResponse = await fetch(`${DOWNLOAD_ENDPOINT}/${encodeURIComponent(downloadId)}`, {
-            headers: headersForRequest(),
+          const statusResponse = await fetch(`${endpoint}/${encodeURIComponent(downloadId)}`, {
+            headers: headersForRequest(undefined, provider),
           })
           const job = await safeJson(statusResponse)
           if (!job.ok) throw new Error(job.error || "Download status failed")
@@ -568,7 +693,8 @@
         sort: sortEl.value,
         period: periodEl.value,
         nsfw: nsfwEl.checked,
-        apiKey: apiKeyEl.value.trim(),
+        provider: currentProvider,
+        apiKey: (currentProvider === "huggingface" ? hfTokenEl.value : apiKeyEl.value).trim(),
         postId: (postIdEl.value || "").trim(),
         username: (usernameEl.value || "").trim(),
       }
@@ -591,6 +717,11 @@
 
     nextBtn.addEventListener("click", () => {
       if (!activeSearch) return
+      if (activeSearch.provider === "huggingface") {
+        currentPage++
+        runSearch(activeSearch, undefined)
+        return
+      }
       if (activeSearch.mode === "images") {
         currentPage++
         runSearch(activeSearch, undefined)
@@ -612,6 +743,11 @@
 
     prevBtn.addEventListener("click", () => {
       if (!activeSearch) return
+      if (activeSearch.provider === "huggingface") {
+        currentPage = Math.max(1, currentPage - 1)
+        runSearch(activeSearch, undefined)
+        return
+      }
       if (activeSearch.mode === "images") {
         currentPage = Math.max(1, currentPage - 1)
         runSearch(activeSearch, undefined)
@@ -630,7 +766,9 @@
     })
 
     // initial mode UI text
-    statusEl.textContent = currentMode === "images" ? "Image mode." : "Model mode."
+    statusEl.textContent = currentProvider === "huggingface"
+      ? "Hugging Face model mode."
+      : currentMode === "images" ? "Civitai image mode." : "Civitai model mode."
     return true
   }
 

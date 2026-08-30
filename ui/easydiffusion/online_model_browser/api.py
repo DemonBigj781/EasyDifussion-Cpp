@@ -1,4 +1,4 @@
-"""Native Easy Diffusion routes for CivitAI browsing and downloads."""
+"""Native Easy Diffusion routes for online model browsing and downloads."""
 from __future__ import annotations
 
 import os
@@ -13,11 +13,13 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
+from . import huggingface as hf
 from . import service as civ
 from easydiffusion import gallery
 from easydiffusion.utils import log as _logger
 
 APP = APIRouter()
+HUGGINGFACE_APP = APIRouter()
 
 _download_jobs: Dict[str, Dict[str, Any]] = {}
 _download_jobs_lock = threading.Lock()
@@ -133,6 +135,65 @@ def _download_worker(
         _logger.error("POST /civitai/download -> 500 (%.1fms): %s", elapsed_ms, message)
 
 
+def _huggingface_download_worker(
+    download_id: str,
+    target: Dict[str, Any],
+    file_choice: Dict[str, Any],
+    token: Optional[str],
+) -> None:
+    start = time.perf_counter()
+    try:
+        url, filename, dest_dir = hf.download_target(target, file_choice)
+        _set_download_job(
+            download_id,
+            status="downloading",
+            filename=filename,
+            destDir=dest_dir,
+            startedAt=time.time(),
+        )
+
+        def on_progress(downloaded_bytes: int, total_bytes: Optional[int]) -> None:
+            percent = None
+            if total_bytes:
+                percent = min(100.0, round((downloaded_bytes / total_bytes) * 100.0, 1))
+            _set_download_job(
+                download_id,
+                status="downloading",
+                downloadedBytes=downloaded_bytes,
+                totalBytes=total_bytes,
+                percent=percent,
+            )
+
+        dest_path, size = hf.download_file(
+            url,
+            dest_dir,
+            filename,
+            token,
+            progress_callback=on_progress,
+        )
+        _set_download_job(
+            download_id,
+            status="completed",
+            path=dest_path,
+            size=size,
+            downloadedBytes=size,
+            completedAt=time.time(),
+            percent=100.0,
+        )
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        _logger.info("POST /huggingface/download -> 200 (%.1fms)", elapsed_ms)
+    except Exception as exc:
+        message = _safe_error(exc)
+        _set_download_job(
+            download_id,
+            status="failed",
+            error=message,
+            completedAt=time.time(),
+        )
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        _logger.error("POST /huggingface/download -> 500 (%.1fms): %s", elapsed_ms, message)
+
+
 def _resolve_key(request: Request, body: Optional[Dict[str, Any]] = None) -> Optional[str]:
     key = civ._env_key() or civ._load_config_key()
     if key:
@@ -155,6 +216,21 @@ def _resolve_search_key(request: Request) -> Optional[str]:
         os.environ.get("CIVITAI_SEARCH_KEY")
         or request.headers.get("x-civitai-search-key")
     )
+
+
+def _resolve_huggingface_token(request: Request, body: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    token = (
+        os.environ.get("HF_TOKEN")
+        or os.environ.get("HUGGINGFACE_TOKEN")
+        or request.headers.get("x-huggingface-token")
+    )
+    if token:
+        return token
+    if body and isinstance(body, dict):
+        value = body.get("token")
+        if value:
+            return str(value)
+    return None
 
 
 def _created_at_range(request: Request):
@@ -698,6 +774,74 @@ async def civitai_global_images(request: Request):
         raise HTTPException(status_code=500, detail=_safe_error(exc))
 
 
+@HUGGINGFACE_APP.get("/search")
+async def huggingface_search(request: Request):
+    qp = request.query_params
+    try:
+        return hf.search(
+            query=qp.get("query") or "",
+            sort=qp.get("sort") or "Most Downloaded",
+            page=max(1, int(qp.get("page") or 1)),
+            limit=max(1, min(50, int(qp.get("limit") or 20))),
+            token=_resolve_huggingface_token(request),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=_safe_error(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=_safe_error(exc)) from exc
+    except Exception as exc:
+        _logger.error("GET /huggingface/search -> 502: %s", _safe_error(exc))
+        raise HTTPException(status_code=502, detail=_safe_error(exc)) from exc
+
+
+@HUGGINGFACE_APP.post("/download")
+async def huggingface_download(request: Request):
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            payload = {}
+    except Exception:
+        payload = {}
+
+    target = payload.get("model") or {}
+    file_choice = payload.get("file") or {}
+    if not isinstance(target, dict) or not isinstance(file_choice, dict) or not target or not file_choice:
+        raise HTTPException(status_code=400, detail="model and file payloads are required")
+
+    try:
+        # Resolve and validate the destination before scheduling the background job.
+        hf.download_target(target, file_choice)
+        download_id = uuid4().hex
+        _set_download_job(
+            download_id,
+            status="queued",
+            downloadedBytes=0,
+            totalBytes=None,
+            percent=0.0,
+            createdAt=time.time(),
+        )
+        worker = threading.Thread(
+            target=_huggingface_download_worker,
+            args=(download_id, target, file_choice, _resolve_huggingface_token(request, payload)),
+            daemon=True,
+        )
+        worker.start()
+        return {"ok": True, "downloadId": download_id, "status": "queued"}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=_safe_error(exc)) from exc
+    except Exception as exc:
+        _logger.error("POST /huggingface/download -> 500: %s", _safe_error(exc))
+        raise HTTPException(status_code=500, detail=_safe_error(exc)) from exc
+
+
+@HUGGINGFACE_APP.get("/download/{download_id}")
+async def huggingface_download_status(download_id: str):
+    job = _get_download_job(download_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="download not found")
+    return {"ok": True, "downloadId": download_id, **job}
+
+
 @APP.post("/civitai/download")
 async def civitai_download(request: Request):
     try:
@@ -753,3 +897,4 @@ async def civitai_download_status(download_id: str):
 
 
 router = APP
+huggingface_router = HUGGINGFACE_APP

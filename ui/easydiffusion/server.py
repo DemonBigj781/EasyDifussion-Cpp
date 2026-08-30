@@ -89,9 +89,14 @@ def init():
     mimetypes.add_type("text/css", ".css")
     gallery.migrate_legacy_settings()
 
-    from easydiffusion.civitai import router as civitai_router
+    from easydiffusion.online_model_browser import (
+        huggingface_router,
+        router as online_model_browser_router,
+    )
 
-    server_api.include_router(civitai_router, prefix="/civitai-api")
+    # Keep the existing route prefix for compatibility with saved plugin URLs.
+    server_api.include_router(online_model_browser_router, prefix="/civitai-api")
+    server_api.include_router(huggingface_router, prefix="/huggingface-api")
 
     if os.path.isdir(app.CUSTOM_MODIFIERS_DIR):
         server_api.mount(
