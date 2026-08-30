@@ -1012,6 +1012,13 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     }
 
     params.vae_path = vae_path_str.empty() ? nullptr : vae_path_str.c_str();
+    // stable-diffusion.cpp normally enables its overflow-safe Conv2D scaling
+    // for the VAE embedded in an SDXL checkpoint, but disables it as soon as
+    // an external VAE is supplied. Low-precision SDXL/PonyXL VAEs can then
+    // overflow during decode and produce a blank image. The library still
+    // gates this flag on SDXL internally, so enabling it for an external VAE
+    // does not alter SD1, SD2, SD3, or Flux decoding.
+    params.force_sdxl_vae_conv_scale = !vae_path_str.empty();
     params.clip_l_path = clip_l_path_str.empty() ? nullptr : clip_l_path_str.c_str();
     params.clip_g_path = clip_g_path_str.empty() ? nullptr : clip_g_path_str.c_str();
     params.clip_vision_path = clip_vision_path_str.empty() ? nullptr : clip_vision_path_str.c_str();
