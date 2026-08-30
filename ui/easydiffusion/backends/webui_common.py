@@ -136,8 +136,15 @@ def load_model(context, model_type, **kwargs):
     model_path = context.model_paths[model_type]
 
     if model_type == "stable-diffusion":
-        base_dir = get_model_dirs(model_type, models_dir)[0]
-        model_path = os.path.relpath(model_path, base_dir)
+        if USE_SDKIT3_API:
+            # Native video checkpoints may live in sibling model folders such
+            # as models/mochi rather than below models/checkpoints. Preserve
+            # the resolved absolute path instead of emitting a rejected
+            # parent-relative name such as ../mochi/transformer/model.gguf.
+            model_path = os.path.realpath(model_path)
+        else:
+            base_dir = get_model_dirs(model_type, models_dir)[0]
+            model_path = os.path.relpath(model_path, base_dir)
 
     # print(f"load model: {model_type=} {model_path=} {curr_models=}")
     curr_models[model_type] = model_path

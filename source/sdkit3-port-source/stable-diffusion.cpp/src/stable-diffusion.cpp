@@ -32,6 +32,7 @@
 #include "model/diffusion/lens.hpp"
 #include "model/diffusion/ltxv.hpp"
 #include "model/diffusion/mmdit.hpp"
+#include "model/diffusion/mochi.hpp"
 #include "model/diffusion/model.hpp"
 #include "model/diffusion/pid.hpp"
 #include "model/diffusion/qwen_image.hpp"
@@ -43,6 +44,7 @@
 #include "model/vae/auto_encoder_kl.hpp"
 #include "model/vae/ltx_audio_vae.hpp"
 #include "model/vae/ltx_vae.hpp"
+#include "model/vae/mochi_vae.hpp"
 #include "model/vae/tae.hpp"
 #include "model/vae/vae.hpp"
 #include "model/vae/wan_vae.hpp"
@@ -84,6 +86,7 @@ const char* model_version_to_str[] = {
     "Wan 2.x",
     "Wan 2.2 I2V",
     "Wan 2.2 TI2V",
+    "Mochi 1 Preview",
     "Qwen Image",
     "Anima",
     "Flux.2",
@@ -792,6 +795,19 @@ public:
                                                                       tensor_storage_map,
                                                                       "model.diffusion_model",
                                                                       model_manager);
+            } else if (sd_version_is_mochi(version)) {
+                auto mochi_conditioner = std::make_shared<T5CLIPEmbedder>(backend_for(SDBackendModule::TE),
+                                                                          tensor_storage_map,
+                                                                          true,
+                                                                          0,
+                                                                          false,
+                                                                          model_manager);
+                mochi_conditioner->chunk_len = 256;
+                cond_stage_model             = mochi_conditioner;
+                diffusion_model              = std::make_shared<MOCHI::MochiRunner>(backend_for(SDBackendModule::DIFFUSION),
+                                                                                    tensor_storage_map,
+                                                                                    "model.diffusion_model",
+                                                                                    model_manager);
             } else if (sd_version_is_wan(version)) {
                 cond_stage_model = std::make_shared<T5CLIPEmbedder>(backend_for(SDBackendModule::TE),
                                                                     tensor_storage_map,
@@ -1158,7 +1174,12 @@ public:
             }
 
             auto create_vae = [&]() -> std::shared_ptr<VAE> {
-                if (sd_version_is_ltxav(version)) {
+                if (sd_version_is_mochi(version)) {
+                    return std::make_shared<MOCHI::MochiVAERunner>(backend_for(SDBackendModule::VAE),
+                                                                   tensor_storage_map,
+                                                                   "first_stage_model",
+                                                                   model_manager);
+                } else if (sd_version_is_ltxav(version)) {
                     return std::make_shared<LTXVideoVAE>(backend_for(SDBackendModule::VAE),
                                                          tensor_storage_map,
                                                          "first_stage_model",
@@ -1449,6 +1470,11 @@ public:
         if (version == VERSION_SVD) {
             ignore_tensors.insert("conditioner.embedders.3");
         }
+        if (sd_version_is_mochi(version)) {
+            // Text-to-video generation only needs the decoder. Full Comfy VAE
+            // files also carry encoder tensors; decoder-only Genmo files do not.
+            ignore_tensors.insert("first_stage_model.encoder.");
+        }
         if (sd_version_is_ernie_image(version)) {
             ignore_tensors.insert("text_encoders.llm.vision_tower.");
             ignore_tensors.insert("text_encoders.llm.multi_modal_projector.");
@@ -1562,6 +1588,7 @@ public:
                     pred_type = EDM_V_PRED;
                 } else if (sd_version_is_sd3(version) ||
                            sd_version_is_wan(version) ||
+                           sd_version_is_mochi(version) ||
                            sd_version_is_qwen_image(version) ||
                            version == VERSION_HIDREAM_O1 ||
                            sd_version_is_anima(version) ||
@@ -1573,6 +1600,8 @@ public:
                     pred_type = FLOW_PRED;
                     if (sd_version_is_wan(version)) {
                         default_flow_shift = 5.f;
+                    } else if (sd_version_is_mochi(version)) {
+                        default_flow_shift = 1.f;
                     } else if (sd_version_is_ernie_image(version)) {
                         default_flow_shift = 4.f;
                     } else if (sd_version_is_pid(version)) {
@@ -2662,7 +2691,7 @@ public:
     int get_diffusion_model_down_factor() {
         int down_factor = 8;  // unet
         if (sd_version_is_dit(version)) {
-            if (sd_version_is_wan(version)) {
+            if (sd_version_is_wan(version) || sd_version_is_mochi(version)) {
                 down_factor = 2;
             } else {
                 down_factor = 1;
@@ -2678,6 +2707,8 @@ public:
                 latent_channel = 128;
             } else if (version == VERSION_WAN2_2_TI2V) {
                 latent_channel = 48;
+            } else if (sd_version_is_mochi(version)) {
+                latent_channel = 12;
             } else if (version == VERSION_HIDREAM_O1) {
                 latent_channel = 3;
             } else if (version == VERSION_CHROMA_RADIANCE) {
@@ -2913,6 +2944,8 @@ public:
             latent_frames = ((frames - 1) / 8) + 1;
         } else if (sd_version_is_wan(version)) {
             latent_frames = ((frames - 1) / 4) + 1;
+        } else if (sd_version_is_mochi(version)) {
+            latent_frames = ((frames - 1) / 6) + 1;
         }
         return latent_frames;
     }
@@ -2926,6 +2959,9 @@ public:
         }
         if (sd_version_is_wan(version)) {
             return (latent_frames - 1) * 4 + 1;
+        }
+        if (sd_version_is_mochi(version)) {
+            return (latent_frames - 1) * 6 + 1;
         }
         return latent_frames;
     }
@@ -3220,6 +3256,7 @@ const char* scheduler_to_str[] = {
     "bong_tangent",
     "ltx2",
     "logit_normal",
+    "mochi",
 };
 
 const char* sd_scheduler_name(enum scheduler_t scheduler) {
@@ -3743,7 +3780,7 @@ struct sd_ctx_t {
 };
 
 static bool sd_version_supports_video_generation(SDVersion version) {
-    return version == VERSION_SVD || sd_version_is_wan(version) || sd_version_is_ltxav(version);
+    return version == VERSION_SVD || sd_version_is_wan(version) || sd_version_is_ltxav(version) || sd_version_is_mochi(version);
 }
 
 static bool sd_version_supports_image_generation(SDVersion version) {
@@ -3869,6 +3906,8 @@ enum scheduler_t sd_get_default_scheduler(const sd_ctx_t* sd_ctx, enum sample_me
         return SIMPLE_SCHEDULER;
     } else if (sd_ctx != nullptr && sd_ctx->sd != nullptr && sd_version_is_ltxav(sd_ctx->sd->version)) {
         return LTX2_SCHEDULER;
+    } else if (sd_ctx != nullptr && sd_ctx->sd != nullptr && sd_version_is_mochi(sd_ctx->sd->version)) {
+        return MOCHI_SCHEDULER;
     } else if(sd_ctx != nullptr && sd_ctx->sd != nullptr && sd_version_is_ideogram4(sd_ctx->sd->version)) {
         return LOGIT_NORMAL_SCHEDULER;
     }

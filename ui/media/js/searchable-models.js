@@ -551,9 +551,17 @@ class ModelDropdown {
         modelTree.forEach((model) => {
             if (Array.isArray(model)) {
                 const [childFolderName, childModels] = model
+                const childFolderPath = `${folderName || ""}/${childFolderName}`
+                const childList = this.createModelNodeList(childFolderPath, childModels, false)
                 foldersMap.set(
                     childFolderName,
-                    this.createModelNodeList(`${folderName || ""}/${childFolderName}`, childModels, false)
+                    createElement("li", { "data-folder-path": childFolderPath.substring(1) }, ["model-folder"], [
+                        createElement("span", undefined, ["model-folder-label"], [
+                            createElement("i", undefined, ["fa-regular", "fa-folder-open", "icon"]),
+                            childFolderName,
+                        ]),
+                        childList,
+                    ])
                 )
             } else {
                 let modelId = model
@@ -590,19 +598,9 @@ class ModelDropdown {
         }
         const modelElements = modelNames.map((name) => modelsMap.get(name))
 
-        if (modelElements.length && folderName) {
-            listElement.appendChild(
-                createElement(
-                    "li",
-                    undefined,
-                    ["model-folder"],
-                    [createElement("i", undefined, ["fa-regular", "fa-folder-open", "icon"]), folderName.substring(1)]
-                )
-            )
-        }
-
-        // const allModelElements = isRootFolder ? [...folderElements, ...modelElements] : [...modelElements, ...folderElements]
-        const allModelElements = [...modelElements, ...folderElements]
+        // Keep directories ahead of files so deeply nested models are not
+        // buried below every checkpoint in a large parent folder.
+        const allModelElements = [...folderElements, ...modelElements]
         allModelElements.forEach((e) => listElement.appendChild(e))
         return listElement
     }
@@ -676,6 +674,7 @@ function buildTree(models) {
 function convertToLegacyModelOptions(models) {
     const legacyModelOptions = {
         "stable-diffusion": [],
+        "video": [],
         "vae": [],
         "hypernetwork": [],
         "gfpgan": [],

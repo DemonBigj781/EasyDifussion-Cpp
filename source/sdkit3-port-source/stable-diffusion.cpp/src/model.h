@@ -35,6 +35,7 @@ enum SDVersion {
     VERSION_WAN2,
     VERSION_WAN2_2_I2V,
     VERSION_WAN2_2_TI2V,
+    VERSION_MOCHI,
     VERSION_QWEN_IMAGE,
     VERSION_ANIMA,
     VERSION_FLUX2,
@@ -122,6 +123,10 @@ static inline bool sd_version_is_wan(SDVersion version) {
         return true;
     }
     return false;
+}
+
+static inline bool sd_version_is_mochi(SDVersion version) {
+    return version == VERSION_MOCHI;
 }
 
 static inline bool sd_version_is_qwen_image(SDVersion version) {
@@ -225,6 +230,7 @@ static inline bool sd_version_is_dit(SDVersion version) {
         sd_version_is_ltxav(version) ||
         sd_version_is_sd3(version) ||
         sd_version_is_wan(version) ||
+        sd_version_is_mochi(version) ||
         sd_version_is_qwen_image(version) ||
         version == VERSION_HIDREAM_O1 ||
         sd_version_is_anima(version) ||

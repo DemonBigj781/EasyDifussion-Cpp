@@ -4,6 +4,7 @@ import time
 from easydiffusion import model_manager, runtime
 from easydiffusion.types import ModelsData, OutputFormatData, TaskData, VideoGenerationRequest
 from easydiffusion.utils import log
+from easydiffusion.utils.model_identifier import identify_model_type
 
 from .task import Task
 
@@ -35,6 +36,24 @@ class VideoTask(Task):
         context = runtime.context
         task_manager.current_state = task_manager.ServerStates.LoadingModel
         model_manager.resolve_model_paths(self.models_data)
+
+        checkpoint_path = self.models_data.model_paths.get("stable-diffusion")
+        model_class = identify_model_type(checkpoint_path) if checkpoint_path else None
+        if model_class == "mochi_v1_preview":
+            missing = [
+                label
+                for label, model_type in (("Video VAE", "vae"), ("Video Text Encoder", "text-encoder"))
+                if not self.models_data.model_paths.get(model_type)
+            ]
+            if missing:
+                raise RuntimeError(f"Mochi requires a separate {' and '.join(missing)} selection")
+            if self.request.init_image or self.request.end_image:
+                raise RuntimeError("Native Mochi currently supports text-to-video only")
+            # The Genmo linear/quadratic sigma schedule is part of Mochi's
+            # inference recipe. Enforce it for API clients as well as the UI.
+            self.request.sampler_name = "euler"
+            self.request.scheduler_name = "mochi"
+
         model_manager.reload_models_if_necessary(context, self.models_data)
         model_manager.fail_if_models_did_not_load(context)
 

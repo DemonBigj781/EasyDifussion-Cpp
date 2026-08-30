@@ -151,7 +151,11 @@ let latentUpscalerStepsSlider = document.querySelector("#latent_upscaler_steps_s
 let latentUpscalerStepsField = document.querySelector("#latent_upscaler_steps")
 let codeformerFidelitySlider = document.querySelector("#codeformer_fidelity_slider")
 let codeformerFidelityField = document.querySelector("#codeformer_fidelity")
-let stableDiffusionModelField = new ModelDropdown(document.querySelector("#stable_diffusion_model"), "stable-diffusion")
+let stableDiffusionModelField = new ModelDropdown(
+    document.querySelector("#stable_diffusion_model"),
+    "stable-diffusion",
+    "None"
+)
 let clipSkipField = document.querySelector("#clip_skip")
 let tilingField = document.querySelector("#tiling")
 let controlnetModelField = new ModelDropdown(document.querySelector("#controlnet_model"), "controlnet", "None", false)

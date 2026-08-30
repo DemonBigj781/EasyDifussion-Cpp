@@ -263,9 +263,15 @@ def convert_legacy_render_req_to_new(old_req: dict):
     filter_params = new_req["filter_params"] = {}
 
     # move the model info
-    model_paths["stable-diffusion"] = old_req.get("use_stable_diffusion_model")
-    model_paths["vae"] = old_req.get("use_vae_model")
-    model_paths["text-encoder"] = old_req.get("use_text_encoder_model")
+    selected_checkpoint = old_req.get("use_stable_diffusion_model")
+    # An empty legacy selector is an explicit "None" choice. Preserve it as
+    # None so model resolution does not fall back to the configured image
+    # checkpoint. A video task replaces this value with its own selection.
+    model_paths["stable-diffusion"] = None if selected_checkpoint == "" else selected_checkpoint
+    selected_vae = old_req.get("use_vae_model")
+    selected_text_encoder = old_req.get("use_text_encoder_model")
+    model_paths["vae"] = None if selected_vae == "" else selected_vae
+    model_paths["text-encoder"] = None if selected_text_encoder == "" else selected_text_encoder
     model_paths["hypernetwork"] = old_req.get("use_hypernetwork_model")
     model_paths["lora"] = old_req.get("use_lora_model")
     model_paths["controlnet"] = old_req.get("use_controlnet_model")

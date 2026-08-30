@@ -509,7 +509,7 @@ def read_web_data_internal(key: str = None, **kwargs):
     elif key == "other":
         selector_types = {"stable-diffusion", "lora", "vae"}
         return JSONResponse(
-            {"models": model_manager.list_models(set(model_manager.KNOWN_MODEL_TYPES) - selector_types)},
+            {"models": model_manager.list_models(set(model_manager.LISTABLE_MODEL_TYPES) - selector_types)},
             headers=NOCACHE_HEADERS,
         )
     elif key in ("model/metadata", "lora/metadata", "vae/metadata", "tipo/metadata"):

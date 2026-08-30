@@ -32,8 +32,10 @@ KNOWN_MODEL_TYPES = [
     "wd14-tagger",
     "text-encoder",
 ]
+LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video"]
 MODEL_EXTENSIONS = {
     "stable-diffusion": [".ckpt", ".safetensors", ".sft", ".gguf"],
+    "video": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "vae": [".vae.pt", ".ckpt", ".safetensors", ".sft", ".gguf"],
     "hypernetwork": [".pt", ".safetensors", ".sft"],
     "gfpgan": [".pth"],
@@ -109,6 +111,27 @@ PREFER_ALTERNATE_FOLDER_TYPES = {
     "controlnet-lite",
 }
 
+# Native stable-diffusion.cpp video weights are commonly stored outside the
+# image checkpoint hierarchy. Keep a separate selector index while accepting
+# both Easy Diffusion and ComfyUI-style layouts.
+DEDICATED_VIDEO_MODEL_FOLDER_NAMES = (
+    "checkpoints/video",
+    "video",
+    "SVD",
+    "svd",
+    "lighttricks",
+    "LTXVideo",
+    "ltx-video",
+    "Wan",
+    "wan",
+    "mochi",
+    "Mochi",
+)
+VIDEO_MODEL_FOLDER_NAMES = DEDICATED_VIDEO_MODEL_FOLDER_NAMES + (
+    "diffusion_models",
+    "DiffusionModels",
+)
+
 
 def init():
     make_model_folders()
@@ -119,9 +142,20 @@ def load_default_models(context: Context):
     from easydiffusion.backend_manager import backend
 
     runtime.set_vram_optimizations(context)
+    configured_models = app.getConfig().get("model", {})
 
     # init default model paths
     for model_type in MODELS_TO_LOAD_ON_START:
+        # A persisted null checkpoint is the explicit Image Settings "None"
+        # selection. Do not replace it with the bundled default at startup;
+        # native video can load its independently selected checkpoint later.
+        if (
+            model_type == "stable-diffusion"
+            and model_type in configured_models
+            and configured_models[model_type] is None
+        ):
+            context.model_paths[model_type] = None
+            continue
         context.model_paths[model_type] = resolve_model_to_use(model_type=model_type, fail_if_not_found=False)
         try:
             backend.load_model(
@@ -181,6 +215,22 @@ def resolve_model_to_use_single(model_name: str = None, model_type: str = None, 
         # config = getConfig()
         if "model" in config and model_type in config["model"]:
             model_name = config["model"][model_type]
+
+    # Dedicated model selectors return paths relative to models_dir (for
+    # example SVD/svd_xt_1_1). Resolve those paths before trying the image
+    # checkpoint roots, while preventing traversal outside the model store.
+    if model_type == "stable-diffusion" and model_name:
+        normalized_name = str(model_name).replace("\\", "/").lstrip("/")
+        models_root = os.path.realpath(app.MODELS_DIR)
+        candidate_stem = os.path.realpath(os.path.join(models_root, normalized_name))
+        try:
+            confined = os.path.commonpath([models_root, candidate_stem]) == models_root
+        except ValueError:
+            confined = False
+        if confined:
+            for candidate in [candidate_stem] + [candidate_stem + ext for ext in model_extensions]:
+                if os.path.isfile(candidate):
+                    return candidate
 
     # Dedicated native ControlNet panels prefix their selections with the
     # top-level architecture folder. Resolve those paths from models_dir while
@@ -304,6 +354,12 @@ def resolve_model_paths(models_data: ModelsData):
 
     for model_type in model_paths:
         if model_type in skip_models:  # doesn't use model paths
+            continue
+
+        # ModelsData uses None to request an unload. In particular, the image
+        # model selector can now be left at None while another task (such as
+        # native video) supplies its own checkpoint.
+        if model_paths[model_type] is None:
             continue
 
         if model_type in ("vae", "codeformer", "controlnet", "text-encoder") and model_paths[model_type]:
@@ -443,6 +499,20 @@ def get_model_dirs(model_type: str, base_dir=None):
     if base_dir is None:
         base_dir = app.MODELS_DIR
 
+    if model_type == "video":
+        dirs = []
+        seen = set()
+        for folder_name in VIDEO_MODEL_FOLDER_NAMES:
+            candidate = os.path.join(base_dir, folder_name)
+            if not os.path.isdir(candidate):
+                continue
+            real_candidate = os.path.realpath(candidate)
+            if real_candidate in seen:
+                continue
+            seen.add(real_candidate)
+            dirs.append(candidate)
+        return dirs or [os.path.join(base_dir, DEDICATED_VIDEO_MODEL_FOLDER_NAMES[0])]
+
     primary_dir = os.path.join(base_dir, model_type)
     dirs = [primary_dir]
 
@@ -464,5 +534,26 @@ def get_model_dirs(model_type: str, base_dir=None):
                     dirs.append(primary_dir)
             else:
                 dirs.append(alt_dir)
+
+    # Video companion weights stay separate from Image Settings while using
+    # the normal VAE/text-encoder model types in the render request.
+    companion_folders = {
+        "vae": ("mochi/vae", "Mochi/vae"),
+        "text-encoder": (
+            "Text-encoder",
+            "Text_Encoder",
+            "mochi/t5xxl",
+            "Mochi/t5xxl",
+        ),
+    }
+    seen = {os.path.realpath(candidate) for candidate in dirs if os.path.isdir(candidate)}
+    for folder_name in companion_folders.get(model_type, ()):
+        candidate = os.path.join(base_dir, folder_name)
+        if not os.path.isdir(candidate):
+            continue
+        real_candidate = os.path.realpath(candidate)
+        if real_candidate not in seen:
+            seen.add(real_candidate)
+            dirs.append(candidate)
 
     return dirs

@@ -50,6 +50,43 @@ struct DiscreteScheduler : SigmaScheduler {
     }
 };
 
+struct MochiScheduler : SigmaScheduler {
+    std::vector<float> get_sigmas(uint32_t n,
+                                  float /*sigma_min*/,
+                                  float /*sigma_max*/,
+                                  t_to_sigma_t /*t_to_sigma*/) override {
+        if (n == 0) {
+            return {};
+        }
+        const uint32_t linear_steps    = n / 2;
+        const uint32_t quadratic_steps = n - linear_steps;
+        const float threshold_noise    = 0.025f;
+        std::vector<float> sigmas;
+        sigmas.reserve(n + 1);
+        if (linear_steps == 0 || quadratic_steps == 0) {
+            sigmas.push_back(1.f);
+            sigmas.push_back(0.f);
+            return sigmas;
+        }
+        for (uint32_t i = 0; i < linear_steps; ++i) {
+            sigmas.push_back(1.f - static_cast<float>(i) * threshold_noise /
+                                      static_cast<float>(linear_steps));
+        }
+        const float step_diff = static_cast<float>(linear_steps) - threshold_noise * static_cast<float>(n);
+        const float q         = step_diff /
+                        (static_cast<float>(linear_steps) * static_cast<float>(quadratic_steps * quadratic_steps));
+        const float l = threshold_noise / static_cast<float>(linear_steps) -
+                        2.f * step_diff / static_cast<float>(quadratic_steps * quadratic_steps);
+        const float c = q * static_cast<float>(linear_steps * linear_steps);
+        for (uint32_t i = linear_steps; i < n; ++i) {
+            const float fi = static_cast<float>(i);
+            sigmas.push_back(1.f - (q * fi * fi + l * fi + c));
+        }
+        sigmas.push_back(0.f);
+        return sigmas;
+    }
+};
+
 struct ExponentialScheduler : SigmaScheduler {
     std::vector<float> get_sigmas(uint32_t n, float sigma_min, float sigma_max, t_to_sigma_t t_to_sigma) override {
         std::vector<float> sigmas;
@@ -825,6 +862,10 @@ struct Denoiser {
                 scheduler = std::make_shared<LogitNormalScheduler>(image_seq_len, extra_sample_args);
                 break;
             }
+            case MOCHI_SCHEDULER:
+                LOG_INFO("get_sigmas with Mochi linear-quadratic scheduler");
+                scheduler = std::make_shared<MochiScheduler>();
+                break;
             default:
                 LOG_INFO("get_sigmas with discrete scheduler (default)");
                 scheduler = std::make_shared<DiscreteScheduler>();

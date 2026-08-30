@@ -1,8 +1,20 @@
-        <h4 class="collapsible">Native Video <small>Wan / LTX 2; SVD experimental</small></h4>
+        <h4 class="collapsible">Video Options <small>Mochi / Wan / LTX 2; SVD experimental</small></h4>
         <div class="collapsible-content settings-panel-entries">
             <div class="native-video-grid">
                 <label for="native-video-enabled">Enable</label>
                 <input id="native-video-enabled" type="checkbox">
+
+                <label for="native-video-vae">Video VAE</label>
+                <div class="model-input">
+                    <input id="native-video-vae" type="text" spellcheck="false" autocomplete="off"
+                           class="model-filter" data-path="">
+                </div>
+
+                <label for="native-video-text-encoder">Video Text Encoder</label>
+                <div class="model-input">
+                    <input id="native-video-text-encoder" type="text" spellcheck="false" autocomplete="off"
+                           class="model-filter" data-path="">
+                </div>
 
                 <label for="native-video-frames">Frames</label>
                 <input id="native-video-frames" type="number" value="25" min="1" max="513" step="1">
@@ -37,6 +49,6 @@
             <img id="native-video-end-preview" class="native-video-end-preview displayNone"
                  alt="Native video end-frame preview">
             <small id="native-video-status">
-                Choose a video checkpoint in Model. Initial Image switches to image-to-video; without it the backend uses text-to-video.
+                Select the video checkpoint under Options. Companion VAE/text-encoder choices are saved separately for each checkpoint. Mochi currently supports text-to-video.
             </small>
         </div>

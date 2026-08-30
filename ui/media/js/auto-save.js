@@ -77,7 +77,7 @@ if (!testDiffusers.checked) {
 const SETTINGS_SECTIONS = [
     // gets the "keys" property filled in with an ordered list of settings in this section via initSettings
     { id: "editor-inputs", name: "Prompt" },
-    { id: "editor-settings", name: "Image Settings" },
+    { id: "editor-settings", name: "Options" },
     { id: "lora-settings-panel", name: "LoRA Settings" },
     { id: "system-settings", name: "System Settings" },
     { id: "container", name: "Other" },

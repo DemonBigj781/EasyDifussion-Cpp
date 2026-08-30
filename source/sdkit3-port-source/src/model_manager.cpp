@@ -306,12 +306,11 @@ ModelInfo ModelManager::getModelByName(const std::string& name, ModelType type) 
         }
     }
 
-    // Easy Diffusion keeps Union, Uni-ControlNet, and ControlNet-LITE in
-    // separate top-level folders. The native API sends their already-resolved
-    // absolute path so identically named Diffusers checkpoints remain
-    // unambiguous. Restrict direct paths to the configured models root and the
-    // four supported ControlNet folders.
-    if (type == ModelType::CONTROLNET) {
+    // Easy Diffusion keeps video checkpoints and several ControlNet families
+    // in sibling top-level folders. The native API sends their already-
+    // resolved absolute paths. Accept those paths only when they point to a
+    // regular model file inside the configured models store.
+    if (type == ModelType::CHECKPOINT || type == ModelType::CONTROLNET) {
         const auto directory_it = model_directories_.find(type);
         std::error_code ec;
         fs::path candidate = fs::weakly_canonical(fs::path(name), ec);
@@ -321,7 +320,13 @@ ModelInfo ModelManager::getModelByName(const std::string& name, ModelType type) 
             if (!ec) {
                 fs::path models_root = configured.parent_path();
                 fs::path relative = fs::relative(candidate, models_root, ec);
-                if (!ec && !relative.empty() && !relative.is_absolute()) {
+                const bool inside_models = !ec && !relative.empty() && !relative.is_absolute() &&
+                                           relative.begin() != relative.end() && *relative.begin() != "..";
+                if (inside_models && type == ModelType::CHECKPOINT) {
+                    return ModelInfo(relative.string(), candidate.string(), type,
+                                     static_cast<size_t>(fs::file_size(candidate, ec)));
+                }
+                if (inside_models) {
                     const std::string category = (*relative.begin()).string();
                     if (category == configured.filename().string() || category == "Controlnet_Union" ||
                         category == "Uni_Controlnet" || category == "Controlnet_LITE") {

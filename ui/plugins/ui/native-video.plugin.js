@@ -44,6 +44,9 @@
 
     const byId = (id) => document.getElementById(id)
     const enabled = byId("native-video-enabled")
+    const modelInput = byId("stable_diffusion_model")
+    const vaeInput = byId("native-video-vae")
+    const textEncoderInput = byId("native-video-text-encoder")
     const cache = byId("native-video-cache")
     const threshold = byId("native-video-threshold")
     const endInput = byId("native-video-end-input")
@@ -59,9 +62,24 @@
         catch (_) { return {} }
     }
 
+    const state = readState()
+    const companions = state.companions && typeof state.companions === "object" ? state.companions : {}
+
+    function selectedModel() {
+        return modelInput?.dataset.path || ""
+    }
+
     function saveState() {
+        const model = selectedModel()
+        if (model) {
+            companions[model] = {
+                vae: videoVae.value,
+                textEncoder: videoTextEncoder.value,
+            }
+        }
         localStorage.setItem(STATE_KEY, JSON.stringify({
             enabled: enabled.checked,
+            companions,
             frames: byId("native-video-frames").value,
             fps: byId("native-video-fps").value,
             cache: cache.value,
@@ -79,7 +97,10 @@
         const defaults = cache.value === "teacache"
             ? "TeaCache defaults: 0.05 for LTX, 0.20 for Wan."
             : (cache.value === "easycache" ? "EasyCache default threshold: 0.20." : "Caching is disabled; every denoising step is exact.")
-        byId("native-video-status").textContent = `${defaults} Use native Wan or LTX 2 weights; the installed LTX 0.9 container is an older layout and SVD remains experimental. Frames are returned as a numbered strip while MP4 encoding is still being added.`
+        const companionHint = selectedModel().toLowerCase().includes("mochi")
+            ? " Mochi needs one Mochi VAE variant and T5 XXL; it is text-to-video only."
+            : " Select the video checkpoint under Options; each checkpoint keeps its own VAE and text encoder selections."
+        byId("native-video-status").textContent = `${defaults}${companionHint} Frames are returned as a numbered strip while MP4 encoding is still being added.`
         saveState()
     }
 
@@ -99,7 +120,13 @@
         endPreview.classList.add("displayNone")
     })
 
-    const state = readState()
+    const savedCompanions = companions[selectedModel()] || {}
+    vaeInput.dataset.path = typeof savedCompanions.vae === "string" ? savedCompanions.vae : ""
+    textEncoderInput.dataset.path = typeof savedCompanions.textEncoder === "string"
+        ? savedCompanions.textEncoder
+        : ""
+    const videoVae = new ModelDropdown(vaeInput, "vae", "None / embedded")
+    const videoTextEncoder = new ModelDropdown(textEncoderInput, "text-encoder", "None / embedded")
     enabled.checked = Boolean(state.enabled)
     byId("native-video-frames").value = state.frames ?? "25"
     byId("native-video-fps").value = state.fps ?? "8"
@@ -108,7 +135,33 @@
     byId("native-video-cache-start").value = state.start ?? "15"
     byId("native-video-cache-end").value = state.end ?? "95"
     panel.querySelectorAll("input, select").forEach((input) => input.addEventListener("change", saveState))
+    let previousVideoModel = selectedModel()
+    modelInput.addEventListener("change", () => {
+        if (previousVideoModel) {
+            companions[previousVideoModel] = {
+                vae: videoVae.value,
+                textEncoder: videoTextEncoder.value,
+            }
+        }
+        previousVideoModel = selectedModel()
+        const selectedCompanions = companions[previousVideoModel] || {}
+        videoVae.value = selectedCompanions.vae || ""
+        videoTextEncoder.value = selectedCompanions.textEncoder || ""
+        updateCacheUI()
+    })
     cache.addEventListener("change", updateCacheUI)
+
+    PLUGINS.TASK_BUILD.push(function (event) {
+        if (!enabled.checked) return
+        // Video uses the checkpoint selected in the shared Options panel, but
+        // keeps its companion VAE and text encoder independent from images.
+        event.reqBody.use_vae_model = videoVae.value || null
+        event.reqBody.use_text_encoder_model = videoTextEncoder.value || null
+        if ((event.reqBody.use_stable_diffusion_model || selectedModel()).toLowerCase().includes("mochi")) {
+            event.reqBody.sampler_name = "euler"
+            event.reqBody.scheduler_name = "mochi"
+        }
+    })
 
     PLUGINS.TASK_CREATE.push(function (event) {
         if (!enabled.checked) return
