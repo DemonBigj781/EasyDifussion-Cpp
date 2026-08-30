@@ -22,5 +22,9 @@
 *.pre-*
 /options.json
 /source/artifacts
-# Keep the upstream/source checkout as its own Git repository
-/source
+
+# sdkit is vendored as a de-gitted source snapshot. Keep local native builds
+# and private/runtime configuration out of the main repository.
+/source/sdkit3-port-source/build*/
+/source/sdkit3-port-source/**/.creds.json
+/source/sdkit3-port-source/**/.vscode/

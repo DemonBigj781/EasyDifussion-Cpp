@@ -36,6 +36,10 @@ Easy Diffusion's `models` symlink):
 Both native generation features require the locally patched sdkit3 build.
 WD14 runs in Easy Diffusion's Python process and is backend-independent.
 
+The de-gitted source snapshot for that native backend is tracked in
+`source/sdkit3-port-source`. Its upstream revisions and snapshot exclusions are
+recorded in `source/sdkit3-port-source/SOURCE_SNAPSHOT.md`.
+
 The active conversion matrix is v1↔SDXL, v1↔SD3, SDXL↔SD3, and Flux→v1,
 Flux→SDXL, or Flux→SD3. Same-family sources need no converter. Destination
 Flux conversions and Stable Cascade are not exposed. Cascade is deferred until

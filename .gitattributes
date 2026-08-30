@@ -1,0 +1,3 @@
+# Preserve the de-gitted upstream/vendor snapshot without rewriting its native
+# line endings or reporting its existing whitespace as EasyDifussion-Cpp errors.
+/source/sdkit3-port-source/** -whitespace

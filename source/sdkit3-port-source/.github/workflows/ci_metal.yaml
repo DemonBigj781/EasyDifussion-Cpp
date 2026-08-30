@@ -1,0 +1,40 @@
+name: CI Metal for v3
+
+on:
+  workflow_dispatch:
+
+jobs:
+  macOS-metal-build:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for v3 codebase
+        run: |
+          if [ ! -f CMakeLists.txt ]; then
+            echo "CMakeLists.txt not found"
+            exit 1
+          fi
+
+      - name: Update submodules
+        run: git submodule update --init --recursive
+
+      - name: Dependencies
+        run: |
+          brew install cmake
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install requests
+
+      - name: Build + Upload Artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m scripts.ci
