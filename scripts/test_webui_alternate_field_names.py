@@ -175,6 +175,39 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn("g_callback_data.video_generation   = true", generator_cpp)
         self.assertIn("Video sampling step %d/%d", generator_cpp)
 
+    def test_native_video_interrupt_survives_preparation_and_aborts_graph_work(self):
+        render_video_py = (
+            self.repo_root / "ui" / "easydiffusion" / "tasks" / "render_video.py"
+        ).read_text(encoding="utf-8")
+        generator_cpp = (
+            self.repo_root / "source" / "sdkit3-port-source" / "src" / "image_generator.cpp"
+        ).read_text(encoding="utf-8")
+        generator_h = (
+            self.repo_root / "source" / "sdkit3-port-source" / "include" / "image_generator.h"
+        ).read_text(encoding="utf-8")
+        ggml_runner = (
+            self.repo_root
+            / "source"
+            / "sdkit3-port-source"
+            / "stable-diffusion.cpp"
+            / "src"
+            / "core"
+            / "ggml_extend.hpp"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("video_generation_pending_", generator_h)
+        self.assertIn("Generation interrupt requested while native video was preparing", generator_cpp)
+        self.assertIn("gen_params.preserve_cancel_state = true", generator_cpp)
+        self.assertIn("Native video generation cancelled while encoding frames", generator_cpp)
+        self.assertIn("execution_cancelled()", ggml_runner)
+        self.assertIn("graph execution cancelled before segment", ggml_runner)
+        self.assertIn("sd_backend_set_abort_callback", ggml_runner)
+        self.assertIn("cancellation_requested(forward_to_backend=True)", render_video_py)
+        self.assertRegex(
+            render_video_py,
+            re.compile(r"except Exception:\s+if cancellation_requested\(\):\s+return"),
+        )
+
     def test_explicit_no_image_checkpoint_does_not_fall_back_to_config(self):
         types_py = (self.repo_root / "ui" / "easydiffusion" / "types.py").read_text(encoding="utf-8")
         model_manager_py = (

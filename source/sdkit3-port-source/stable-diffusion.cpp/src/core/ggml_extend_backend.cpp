@@ -364,6 +364,27 @@ bool sd_backend_cpu_set_n_threads(ggml_backend_t backend, int n_threads) {
     return false;
 }
 
+bool sd_backend_set_abort_callback(ggml_backend_t backend,
+                                   ggml_abort_callback abort_callback,
+                                   void* abort_callback_data) {
+    if (backend == nullptr) {
+        return false;
+    }
+    auto dev = ggml_backend_get_device(backend);
+    if (dev == nullptr) {
+        return false;
+    }
+    auto reg = ggml_backend_dev_backend_reg(dev);
+    auto set_abort_callback = (ggml_backend_set_abort_callback_t)ggml_backend_reg_get_proc_address(
+        reg,
+        "ggml_backend_set_abort_callback");
+    if (set_abort_callback == nullptr) {
+        return false;
+    }
+    set_abort_callback(backend, abort_callback, abort_callback_data);
+    return true;
+}
+
 const char* sd_get_system_info() {
     static std::string cache_info = []() -> std::string {
         ggml_backend_load_all_once();

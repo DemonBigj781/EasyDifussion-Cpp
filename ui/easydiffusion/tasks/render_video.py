@@ -10,7 +10,7 @@ from .task import Task
 
 
 class VideoTask(Task):
-    """Queued native SVD/Wan/LTX frame generation for the sdkit3 backend."""
+    """Queued native video frame generation for the sdkit3 backend."""
 
     def __init__(
         self,
@@ -34,6 +34,21 @@ class VideoTask(Task):
             raise RuntimeError("The selected backend does not provide native video generation")
 
         context = runtime.context
+
+        def cancellation_requested(forward_to_backend=False):
+            cancelled = isinstance(task_manager.current_state_error, (SystemExit, StopAsyncIteration)) or isinstance(
+                self.error, StopAsyncIteration
+            )
+            if not cancelled:
+                return False
+            if forward_to_backend:
+                backend.stop_rendering(context)
+            if isinstance(task_manager.current_state_error, StopAsyncIteration):
+                self.error = task_manager.current_state_error
+                task_manager.current_state_error = None
+                log.info(f"Session {self.session_id} sent cancel signal for video task {self.id}")
+            return True
+
         task_manager.current_state = task_manager.ServerStates.LoadingModel
         model_manager.resolve_model_paths(self.models_data)
 
@@ -56,11 +71,15 @@ class VideoTask(Task):
 
         model_manager.reload_models_if_necessary(context, self.models_data)
         model_manager.fail_if_models_did_not_load(context)
+        if cancellation_requested():
+            return
 
         task_manager.current_state = task_manager.ServerStates.Rendering
         last_callback = [None]
 
         def progress(_images, step, *_args):
+            if cancellation_requested(forward_to_backend=True):
+                return
             now = time.monotonic()
             step_time = -1 if last_callback[0] is None else now - last_callback[0]
             last_callback[0] = now
@@ -75,7 +94,14 @@ class VideoTask(Task):
             )
             task_manager.keep_task_alive(self)
 
-        result = backend.generate_video(context, callback=progress, **self.request.dict())
+        try:
+            result = backend.generate_video(context, callback=progress, **self.request.dict())
+        except Exception:
+            if cancellation_requested():
+                return
+            raise
+        if cancellation_requested():
+            return
         frames = result.get("frames") or []
         if not frames:
             raise RuntimeError("The native video backend returned no frames")

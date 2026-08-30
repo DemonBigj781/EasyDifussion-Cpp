@@ -881,7 +881,7 @@ crow::response Server::handleInterrupt(const crow::request& req) {
         // Interrupt the image generator
         if (image_generator_) {
             image_generator_->interrupt();
-            LOG_INFO("Image generation interrupted");
+            LOG_INFO("Image or video generation interrupt forwarded");
         }
 
         return crow::response(200, "OK");

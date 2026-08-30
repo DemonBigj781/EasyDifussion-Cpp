@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -99,6 +100,7 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       image_filters_(image_filters),
       active_generation_ctx_(nullptr),
       cancel_requested_(false),
+      video_generation_pending_(false),
       initialized_(false),
       image_vae_on_cpu_(server_params.image_vae_on_cpu),
       vae_tiling_(server_params.vae_tiling),
@@ -169,14 +171,18 @@ std::string ImageGenerator::getCurrentModelPath() const { return current_model_p
 
 void ImageGenerator::interrupt() {
     std::lock_guard<std::mutex> lock(interrupt_mutex_);
-    if (active_generation_ctx_ == nullptr) {
+    if (active_generation_ctx_ == nullptr && !video_generation_pending_) {
         LOG_INFO("No active generation to interrupt");
         return;
     }
 
     cancel_requested_ = true;
-    sd_cancel_generation(active_generation_ctx_, SD_CANCEL_ALL);
-    LOG_INFO("Generation interrupt requested");
+    if (active_generation_ctx_ != nullptr) {
+        sd_cancel_generation(active_generation_ctx_, SD_CANCEL_ALL);
+        LOG_INFO("Generation interrupt requested");
+    } else {
+        LOG_INFO("Generation interrupt requested while native video was preparing");
+    }
 }
 
 std::vector<std::string> ImageGenerator::generateTxt2Img(const ImageGenerationParams& params,
@@ -191,6 +197,29 @@ std::vector<std::string> ImageGenerator::generateImg2Img(const ImageGenerationPa
 
 std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationParams& params,
                                                        const std::string& task_id) {
+    {
+        std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
+        cancel_requested_         = false;
+        video_generation_pending_ = true;
+    }
+    struct VideoGenerationStateGuard {
+        std::function<void()> cleanup;
+        ~VideoGenerationStateGuard() { cleanup(); }
+    } generation_state_guard{[this, task_id]() {
+        {
+            std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
+            active_generation_ctx_    = nullptr;
+            video_generation_pending_ = false;
+        }
+        if (!task_id.empty()) {
+            std::lock_guard<std::mutex> cb_lock(g_callback_mutex);
+            if (g_callback_data.task_id == task_id) {
+                g_callback_data.task_id.clear();
+                g_callback_data.video_generation = false;
+            }
+        }
+    }};
+
     // Video checkpoints use the same context loader and options model selector.
     // Empty adapter/control paths deliberately release image-only extensions.
     if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true)) {
@@ -201,7 +230,6 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     if (!sd_ctx_supports_video_generation(sd_ctx_)) {
         throw std::runtime_error("The selected checkpoint does not support native video generation");
     }
-
     current_task_id_ = task_id;
     {
         std::lock_guard<std::mutex> cb_lock(g_callback_mutex);
@@ -284,36 +312,60 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     sd_image_t* frames = nullptr;
     sd_audio_t* audio  = nullptr;
     int frame_count    = 0;
+    bool cancelled_during_preparation = false;
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
-        active_generation_ctx_ = sd_ctx_;
-        cancel_requested_ = false;
+        if (cancel_requested_) {
+            LOG_INFO("Native video generation cancelled during preparation");
+            cancelled_during_preparation = true;
+        } else {
+            // generate_video normally resets stale cancellation at entry. Reset it
+            // while holding our state lock, then preserve it so an interrupt in
+            // the hand-off window cannot be discarded by the native API.
+            sd_cancel_generation(sd_ctx_, SD_CANCEL_RESET);
+            gen_params.preserve_cancel_state = true;
+            active_generation_ctx_           = sd_ctx_;
+            video_generation_pending_        = false;
+        }
+    }
+    if (cancelled_during_preparation) {
+        if (init_image.data) freeImage(init_image);
+        if (end_image.data) freeImage(end_image);
+        return {};
     }
     const bool ok = generate_video(sd_ctx_, &gen_params, &frames, &frame_count, &audio);
     bool generation_cancelled = false;
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
         generation_cancelled = cancel_requested_;
-        active_generation_ctx_ = nullptr;
     }
     if (init_image.data) freeImage(init_image);
     if (end_image.data) freeImage(end_image);
     free_sd_audio(audio);
 
+    if (generation_cancelled) {
+        if (frames != nullptr) free_sd_images(frames, frame_count);
+        LOG_INFO("Native video generation cancelled");
+        return {};
+    }
     if (!ok || frames == nullptr || frame_count <= 0) {
         if (frames != nullptr) free_sd_images(frames, frame_count);
         std::lock_guard<std::mutex> cb_lock(g_callback_mutex);
         g_callback_data.task_id.clear();
-        if (generation_cancelled) {
-            LOG_INFO("Native video generation cancelled");
-            return {};
-        }
         throw std::runtime_error("Native video generation failed");
     }
 
     std::vector<std::string> encoded_frames;
     encoded_frames.reserve(static_cast<size_t>(frame_count));
     for (int i = 0; i < frame_count; ++i) {
+        {
+            std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
+            if (cancel_requested_) {
+                free_sd_images(frames, frame_count);
+                LOG_INFO("Native video generation cancelled while encoding frames");
+                return {};
+            }
+        }
         encoded_frames.push_back(imageToBase64(frames[i]));
     }
     free_sd_images(frames, frame_count);

@@ -1721,6 +1721,7 @@ protected:
 
     size_t max_graph_vram_bytes           = 0;
     bool stream_layers_enabled            = false;
+    std::function<bool()> execution_cancel_callback_;
     // The live streaming budget is allowed to shrink as other CUDA allocations
     // consume VRAM.  Keeping the largest observed value defeats the free-memory
     // clamp and can make a later graph reuse an allocation plan that no longer
@@ -1759,6 +1760,15 @@ protected:
             return {};
         }
         return std::move(*tensor);
+    }
+
+    bool execution_cancelled() const {
+        return execution_cancel_callback_ && execution_cancel_callback_();
+    }
+
+    static bool backend_abort_callback(void* data) {
+        auto* runner = static_cast<GGMLRunner*>(data);
+        return runner != nullptr && runner->execution_cancelled();
     }
 
     template <typename T>
@@ -2424,6 +2434,10 @@ protected:
                                                bool preserve_backend_tensor_data_map,
                                                bool no_return                                          = false,
                                                const std::unordered_set<std::string>* cache_keep_names = nullptr) {
+        if (execution_cancelled()) {
+            LOG_INFO("%s graph execution cancelled before dispatch", get_desc().c_str());
+            return std::nullopt;
+        }
         std::vector<ggml_tensor*> graph_param_tensors;
         std::vector<ggml_tensor*> params_to_prepare;
         if (!prepare_execute_graph_weights(gf, graph_param_tensors, params_to_prepare, !free_compute_params)) {
@@ -2484,9 +2498,34 @@ protected:
             sd_backend_cpu_set_n_threads(runtime_backend, n_threads);
         }
 
+        struct BackendAbortGuard {
+            ggml_backend_t backend = nullptr;
+            bool installed         = false;
+
+            ~BackendAbortGuard() {
+                if (installed) {
+                    sd_backend_set_abort_callback(backend, nullptr, nullptr);
+                }
+            }
+        } abort_guard;
+        abort_guard.backend = runtime_backend;
+        if (execution_cancel_callback_) {
+            abort_guard.installed = sd_backend_set_abort_callback(runtime_backend,
+                                                                  backend_abort_callback,
+                                                                  this);
+        }
+
         ggml_status status = ggml_backend_graph_compute(runtime_backend, gf);
         if (status != GGML_STATUS_SUCCESS) {
+            if (execution_cancelled() || status == GGML_STATUS_ABORTED) {
+                LOG_INFO("%s graph execution cancelled", get_desc().c_str());
+                return std::nullopt;
+            }
             LOG_ERROR("%s compute failed: %s", get_desc().c_str(), ggml_status_to_string(status));
+            return std::nullopt;
+        }
+        if (execution_cancelled()) {
+            LOG_INFO("%s graph execution cancelled after dispatch", get_desc().c_str());
             return std::nullopt;
         }
 
@@ -2571,6 +2610,16 @@ protected:
 
         std::optional<sd::Tensor<T>> output = sd::Tensor<T>();
         for (size_t seg_idx = 0; seg_idx < plan.segments.size(); ++seg_idx) {
+            if (execution_cancelled()) {
+                LOG_INFO("%s graph execution cancelled before segment %zu/%zu",
+                         get_desc().c_str(),
+                         seg_idx + 1,
+                         plan.segments.size());
+                free_cache_ctx_and_buffer();
+                free_compute_buffer();
+                free_compute_ctx();
+                return std::nullopt;
+            }
             const auto& segment   = plan.segments[seg_idx];
             const bool is_last    = seg_idx + 1 == plan.segments.size();
             auto future_cut_names = sd::ggml_graph_cut::collect_future_input_names(gf, plan, seg_idx);
@@ -2862,6 +2911,10 @@ public:
 
     void set_stream_layers_enabled(bool enabled) {
         stream_layers_enabled = enabled;
+    }
+
+    void set_execution_cancel_callback(std::function<bool()> callback) {
+        execution_cancel_callback_ = std::move(callback);
     }
 };
 

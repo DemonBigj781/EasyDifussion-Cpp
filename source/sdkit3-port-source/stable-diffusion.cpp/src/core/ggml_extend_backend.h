@@ -71,6 +71,9 @@ bool sd_backend_is(ggml_backend_t backend, const std::string& name);
 bool sd_backend_is_cpu(ggml_backend_t backend);
 ggml_backend_t sd_backend_cpu_init();
 bool sd_backend_cpu_set_n_threads(ggml_backend_t backend_cpu, int n_threads);
+bool sd_backend_set_abort_callback(ggml_backend_t backend,
+                                   ggml_abort_callback abort_callback,
+                                   void* abort_callback_data);
 std::string sd_backend_resolve_name(const std::string& name);
 const char* sd_backend_module_name(SDBackendModule module);
 void ggml_ext_im_set_f32_1d(const struct ggml_tensor* tensor, int i, float value);

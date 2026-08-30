@@ -189,6 +189,7 @@ class ImageGenerator {
     std::mutex interrupt_mutex_;
     sd_ctx_t* active_generation_ctx_;
     bool cancel_requested_;
+    bool video_generation_pending_;
     bool initialized_;
     std::string current_task_id_;
 

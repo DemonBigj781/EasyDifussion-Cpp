@@ -2,6 +2,7 @@
 #define __SD_CONDITIONING_CONDITIONER_HPP__
 
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <optional>
 
@@ -194,6 +195,7 @@ public:
     virtual void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors)           = 0;
     virtual void set_max_graph_vram_bytes(size_t max_vram_bytes) {}
     virtual void set_stream_layers_enabled(bool enabled) {}
+    virtual void set_execution_cancel_callback(std::function<bool()> callback) {}
     virtual void set_flash_attention_enabled(bool enabled) = 0;
     virtual void set_weight_adapter(const std::shared_ptr<WeightAdapter>& adapter) {}
     virtual void runner_done() {}
@@ -1335,6 +1337,12 @@ struct T5CLIPEmbedder : public Conditioner {
     void set_stream_layers_enabled(bool enabled) override {
         if (t5) {
             t5->set_stream_layers_enabled(enabled);
+        }
+    }
+
+    void set_execution_cancel_callback(std::function<bool()> callback) override {
+        if (t5) {
+            t5->set_execution_cancel_callback(std::move(callback));
         }
     }
 

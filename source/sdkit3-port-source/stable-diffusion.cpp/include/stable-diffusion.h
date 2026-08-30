@@ -479,6 +479,9 @@ typedef struct {
     sd_tiling_params_t vae_tiling_params;
     sd_cache_params_t cache;
     sd_hires_params_t hires;
+    // Let an embedding host reset and arm cancellation atomically before this
+    // call. Ordinary API callers should retain the initialized false value.
+    bool preserve_cancel_state;
 } sd_vid_gen_params_t;
 
 typedef struct sd_ctx_t sd_ctx_t;

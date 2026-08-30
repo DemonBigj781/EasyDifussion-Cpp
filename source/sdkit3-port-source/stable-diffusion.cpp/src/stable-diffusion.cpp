@@ -978,6 +978,9 @@ public:
             }
 
             cond_stage_model->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::TE));
+            cond_stage_model->set_execution_cancel_callback([this]() {
+                return get_cancel_flag() == SD_CANCEL_ALL;
+            });
             if (!register_runner_params("Conditioner model",
                                         cond_stage_model,
                                         SDBackendModule::TE,
@@ -987,6 +990,9 @@ public:
 
             diffusion_model->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::DIFFUSION));
             diffusion_model->set_stream_layers_enabled(stream_layers);
+            diffusion_model->set_execution_cancel_callback([this]() {
+                return get_cancel_flag() == SD_CANCEL_ALL;
+            });
             if (!register_runner_params("Diffusion model",
                                         diffusion_model,
                                         SDBackendModule::DIFFUSION,
@@ -1110,6 +1116,9 @@ public:
             if (high_noise_diffusion_model) {
                 high_noise_diffusion_model->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::DIFFUSION));
                 high_noise_diffusion_model->set_stream_layers_enabled(stream_layers);
+                high_noise_diffusion_model->set_execution_cancel_callback([this]() {
+                    return get_cancel_flag() == SD_CANCEL_ALL;
+                });
                 if (!register_runner_params("High noise diffusion model",
                                             high_noise_diffusion_model,
                                             SDBackendModule::DIFFUSION,
@@ -1257,11 +1266,25 @@ public:
                 }
             }
 
+            if (first_stage_model) {
+                first_stage_model->set_execution_cancel_callback([this]() {
+                    return get_cancel_flag() == SD_CANCEL_ALL;
+                });
+            }
+            if (preview_vae) {
+                preview_vae->set_execution_cancel_callback([this]() {
+                    return get_cancel_flag() == SD_CANCEL_ALL;
+                });
+            }
+
             if (use_audio_vae) {
                 audio_vae_model = std::make_shared<LTXV::LTXAudioVAERunner>(backend_for(SDBackendModule::VAE),
                                                                             tensor_storage_map,
                                                                             "",
                                                                             model_manager);
+                audio_vae_model->set_execution_cancel_callback([this]() {
+                    return get_cancel_flag() == SD_CANCEL_ALL;
+                });
                 if (!register_runner_params("LTX audio VAE",
                                             audio_vae_model,
                                             SDBackendModule::VAE,
@@ -6363,7 +6386,9 @@ SD_API bool generate_video(sd_ctx_t* sd_ctx,
         *audio_out = nullptr;
     }
 
-    sd_ctx->sd->reset_cancel_flag();
+    if (!sd_vid_gen_params->preserve_cancel_state) {
+        sd_ctx->sd->reset_cancel_flag();
+    }
 
     if (num_frames_out != nullptr) {
         *num_frames_out = 0;
