@@ -150,6 +150,13 @@ def save_images_to_disk(
         file_number,
         now=now,
     )
+    saved_paths = [
+        os.path.join(
+            save_dir_path,
+            f"{make_filename(index)}.{output_format.output_format.lower()}",
+        )
+        for index in range(len(filtered_images))
+    ]
 
     # The local gallery scans this save directory directly.  Face correction,
     # upscaling, and other render filters used to save both the raw render and
@@ -174,6 +181,8 @@ def save_images_to_disk(
                     output_format=metadata_output_format,
                     file_format=output_format.output_format,
                 )
+
+    return saved_paths
 
 
 def get_metadata_entries_for_request(

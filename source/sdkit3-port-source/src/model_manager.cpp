@@ -300,8 +300,35 @@ ModelInfo ModelManager::getModelByName(const std::string& name, ModelType type) 
     auto it = models_.find(type);
     if (it != models_.end()) {
         for (const auto& model : it->second) {
-            if (model.filename == name) {
+            if (model.filename == name || model.full_path == name) {
                 return model;
+            }
+        }
+    }
+
+    // Easy Diffusion keeps Union, Uni-ControlNet, and ControlNet-LITE in
+    // separate top-level folders. The native API sends their already-resolved
+    // absolute path so identically named Diffusers checkpoints remain
+    // unambiguous. Restrict direct paths to the configured models root and the
+    // four supported ControlNet folders.
+    if (type == ModelType::CONTROLNET) {
+        const auto directory_it = model_directories_.find(type);
+        std::error_code ec;
+        fs::path candidate = fs::weakly_canonical(fs::path(name), ec);
+        if (!ec && candidate.is_absolute() && fs::is_regular_file(candidate, ec) && !ec &&
+            isValidModelFile(candidate.filename().string()) && directory_it != model_directories_.end()) {
+            fs::path configured = fs::weakly_canonical(fs::path(directory_it->second), ec);
+            if (!ec) {
+                fs::path models_root = configured.parent_path();
+                fs::path relative = fs::relative(candidate, models_root, ec);
+                if (!ec && !relative.empty() && !relative.is_absolute()) {
+                    const std::string category = (*relative.begin()).string();
+                    if (category == configured.filename().string() || category == "Controlnet_Union" ||
+                        category == "Uni_Controlnet" || category == "Controlnet_LITE") {
+                        return ModelInfo(candidate.stem().string(), candidate.string(), type,
+                                         static_cast<size_t>(fs::file_size(candidate, ec)));
+                    }
+                }
             }
         }
     }

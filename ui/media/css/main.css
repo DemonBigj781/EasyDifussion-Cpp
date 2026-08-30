@@ -157,16 +157,23 @@ code {
 .imgPreviewItemClearBtn {
     opacity: 0;
 }
+.imgPreviewItemEraseBtn {
+    opacity: 0;
+    right: 25px;
+    color: #ff7777;
+}
 .imgContainer .img_bottom_label {
     opacity: 0;
 }
-.imgPreviewItemClearBtn:hover {
+.imgPreviewItemClearBtn:hover,
+.imgPreviewItemEraseBtn:hover {
     background: var(--button-hover-background);
 }
 .imgContainer:hover > .imgItemInfo {
     opacity: 1;
 }
-.imgContainer:hover > .imgPreviewItemClearBtn {
+.imgContainer:hover > .imgPreviewItemClearBtn,
+.imgContainer:hover > .imgPreviewItemEraseBtn {
     opacity: 1;
 }
 .imgContainer:hover > .img_bottom_label {
@@ -791,6 +798,11 @@ div.img-preview img {
 }
 .stopTask {
     float: right;
+}
+.eraseTask {
+    float: right;
+    margin-left: 4pt;
+    color: #ff7777;
 }
 #preview-tools {
     padding: 4pt;

@@ -1,26 +1,14 @@
-        <h4 class="collapsible">ControlNet Preprocessor <small>image processing</small></h4>
-        <div class="collapsible-content settings-panel-entries">
+            <h5>Shared condition image</h5>
             <table class="controlled-generation-image-table"><tbody>
                 <tr class="pl-5">
-                    <td><label for="control_image">ControlNet Image:</label></td>
+                    <td><label for="control_image">Image:</label></td>
                     <td>
                         <div id="control_image_wrapper" class="preview_image_wrapper">
                             <img id="control_image_preview" class="image_preview" src="" crossorigin="anonymous">
                             <span id="control_image_size_box" class="img_bottom_label"></span>
-                            <button class="control_image_clear image_clear_btn" type="button" aria-label="Clear ControlNet image"><i class="fa-solid fa-xmark"></i></button>
+                            <button class="control_image_clear image_clear_btn" type="button" aria-label="Clear shared ControlNet image"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                         <input id="control_image" name="control_image" type="file" accept="image/*">
-                    </td>
-                </tr>
-                <tr class="pl-5 gated-feature" data-feature-keys="backend_sdkit3">
-                    <td><label for="lllite-image-input">LLLite Image:</label></td>
-                    <td>
-                        <div id="lllite-image-wrapper" class="preview_image_wrapper displayNone">
-                            <img id="lllite-image-preview" class="image_preview" alt="LLLite condition preview">
-                            <button id="lllite-image-clear" type="button" class="image_clear_btn" aria-label="Clear ControlNet-LLLite image"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                        <input id="lllite-image-input" type="file" accept="image/*">
-                        <button id="lllite-use-init" type="button" class="tertiaryButton smallButton">Use Initial Image</button>
                     </td>
                 </tr>
             </tbody></table>
@@ -117,8 +105,6 @@
                 <option value="blur_gaussian" class="gated-feature" data-feature-keys="backend_webui">blur_gaussian</option>
                 </optgroup>
                 </select>
-
+                </div>
             </div>
-            </div>
-            <small>Select None to pass the ControlNet image through unchanged. Preprocessing is cached once per queued image. LLLite receives its condition image directly.</small>
-        </div>
+            <small>This image and preprocessor are shared by Standard, Union, Uni, LITE, and LLLite modes.</small>

@@ -67,7 +67,7 @@ const SETTINGS_IDS_LIST = [
     "controlnet_union_type",
 ]
 
-const IGNORE_BY_DEFAULT = ["prompt"]
+const IGNORE_BY_DEFAULT = []
 
 if (!testDiffusers.checked) {
     SETTINGS_IDS_LIST.push("hypernetwork_model")

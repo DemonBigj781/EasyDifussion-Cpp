@@ -787,6 +787,16 @@ function createTab(request) {
         return
     }
 
+    const tabId = `tab-${request.id}`
+    const contentId = `tab-content-${request.id}`
+    const existingTabs = document.querySelectorAll(`[id="${tabId}"]`)
+    const existingContents = document.querySelectorAll(`[id="${contentId}"]`)
+    if (existingTabs.length || existingContents.length) {
+        Array.from(existingTabs).slice(1).forEach((tab) => tab.remove())
+        Array.from(existingContents).slice(1).forEach((content) => content.remove())
+        return
+    }
+
     const tabsContainer = document.querySelector(".tab-container")
     if (!tabsContainer) {
         return
@@ -813,7 +823,7 @@ function createTab(request) {
 
     const tab = createElement(
         "span",
-        { id: `tab-${request.id}`, "data-times-opened": 0 },
+        { id: tabId, "data-times-opened": 0 },
         ["tab"],
         createElement("span", undefined, undefined, [
             createElement("i", { style: "margin-right: 0.25em" }, [
@@ -829,7 +839,7 @@ function createTab(request) {
 
     const wrapper = createElement("div", { id: request.id }, ["tab-content-inner"], "Loading..")
 
-    const tabContent = createElement("div", { id: `tab-content-${request.id}` }, ["tab-content"], wrapper)
+    const tabContent = createElement("div", { id: contentId }, ["tab-content"], wrapper)
     tabsContentWrapper.insertAdjacentElement("beforeend", tabContent)
 
     linkTabContents(tab)
@@ -868,6 +878,34 @@ function createTab(request) {
             replaceContent(result)
         }
     })
+}
+
+// Mobile browsers can resume a page while a plugin loader is still retrying.
+// Keep top-level tab and content IDs unique even if a third-party plugin does
+// not use createTab() or has an old retry loop.
+function removeDuplicateTopLevelTabs() {
+    const removeRepeatedIds = (nodes) => {
+        const seen = new Set()
+        nodes.forEach((node) => {
+            if (!node.id || !seen.has(node.id)) {
+                if (node.id) seen.add(node.id)
+                return
+            }
+            node.remove()
+        })
+    }
+
+    removeRepeatedIds(document.querySelectorAll("#tab-container > .tab[id]"))
+    removeRepeatedIds(document.querySelectorAll("#tab-content-wrapper > .tab-content[id]"))
+}
+
+const topLevelTabContainer = document.querySelector("#tab-container")
+const topLevelTabContent = document.querySelector("#tab-content-wrapper")
+if (topLevelTabContainer && topLevelTabContent) {
+    removeDuplicateTopLevelTabs()
+    const topLevelTabDeduper = new MutationObserver(removeDuplicateTopLevelTabs)
+    topLevelTabDeduper.observe(topLevelTabContainer, { childList: true })
+    topLevelTabDeduper.observe(topLevelTabContent, { childList: true })
 }
 
 

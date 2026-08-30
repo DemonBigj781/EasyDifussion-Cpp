@@ -1,31 +1,48 @@
         <h4 class="collapsible">ControlNet <small>image conditioning</small></h4>
-        <div class="collapsible-content settings-panel-entries">
-            <div id="controlnet_model_container" class="pl-5 diffusers-restart-needed">
-                <div id="controlnet_config" class="controlled-generation-grid">
-                    <label for="controlnet_enabled">Enable</label>
-                    <input id="controlnet_enabled" name="controlnet_enabled" type="checkbox">
-                    <label for="controlnet_model">Model</label>
-                    <div>
-                        <input id="controlnet_model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="">
-                        <a href="https://github.com/easydiffusion/easydiffusion/wiki/ControlNet" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">ControlNet information</span></i></a>
+        <div id="controlnet-unified-content" class="collapsible-content settings-panel-entries">
+            <div class="controlled-generation-grid">
+                <label for="controlnet_mode">Mode</label>
+                <select id="controlnet_mode">
+                    <option value="off">Off</option>
+                    <option value="standard">Standard ControlNet</option>
+                    <option value="union">ControlNet Union</option>
+                    <option value="uni">Uni-ControlNet</option>
+                    <option value="lite">ControlNet-LITE</option>
+                    <option value="lllite">ControlNet-LLLite</option>
+                </select>
+            </div>
+
+            <input id="controlnet_enabled" name="controlnet_enabled" type="checkbox" class="displayNone" aria-hidden="true">
+
+            <div id="controlnet-mode-standard" class="controlnet-mode-section" data-controlnet-mode="standard">
+                <div id="controlnet_model_container" class="pl-5 diffusers-restart-needed">
+                    <div id="controlnet_config" class="controlled-generation-grid">
+                        <label for="controlnet_model">Model</label>
+                        <div>
+                            <input id="controlnet_model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="">
+                            <a href="https://github.com/easydiffusion/easydiffusion/wiki/ControlNet" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top-left">ControlNet information</span></i></a>
+                        </div>
+                        <label for="controlnet_alpha_slider">Strength</label>
+                        <div>
+                            <input id="controlnet_alpha_slider" name="controlnet_alpha_slider" class="editor-slider" value="10" type="range" min="0" max="10">
+                            <input id="controlnet_alpha" name="controlnet_alpha" size="4" pattern="^[0-9\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal">
+                        </div>
+                        <label for="controlnet_union_type">Condition type</label>
+                        <select id="controlnet_union_type" name="controlnet_union_type">
+                            <option value="canny" selected>Canny / line art</option>
+                            <option value="mlsd">MLSD</option>
+                            <option value="softedge">HED / soft edge</option>
+                            <option value="sketch">Sketch / scribble</option>
+                            <option value="openpose">OpenPose</option>
+                            <option value="depth">Depth</option>
+                            <option value="normal">Normal</option>
+                            <option value="segment">Segmentation</option>
+                            <option value="content">Content / global</option>
+                        </select>
                     </div>
-                    <label for="controlnet_alpha_slider">Strength</label>
-                    <div>
-                        <input id="controlnet_alpha_slider" name="controlnet_alpha_slider" class="editor-slider" value="10" type="range" min="0" max="10">
-                        <input id="controlnet_alpha" name="controlnet_alpha" size="4" pattern="^[0-9\\.]+$" onkeypress="preventNonNumericalInput(event)" inputmode="decimal">
-                    </div>
-                    <label for="controlnet_union_type">Condition type</label>
-                    <select id="controlnet_union_type" name="controlnet_union_type">
-                        <option value="canny" selected>Canny / line art</option>
-                        <option value="mlsd">MLSD</option>
-                        <option value="softedge">HED / soft edge</option>
-                        <option value="sketch">Sketch / scribble</option>
-                        <option value="openpose">OpenPose</option>
-                        <option value="depth">Depth</option>
-                        <option value="normal">Normal</option>
-                        <option value="segment">Segmentation</option>
-                        <option value="content">Content / global</option>
-                    </select>
                 </div>
             </div>
+
+            <div id="controlnet-extension-modes"></div>
+            <div id="controlnet-shared-slot"></div>
         </div>

@@ -55,6 +55,7 @@ async function onTaskStart(task) {
     }
 
     task["stopTask"].innerHTML = '<i class="fa-solid fa-circle-stop"></i> Stop'
+    if (task.eraseTask) task.eraseTask.disabled = true
     task["taskStatusLabel"].innerText = "Starting"
     task["taskStatusLabel"].classList.add("waitingTaskLabel")
 
@@ -68,6 +69,9 @@ async function onTaskStart(task) {
             }
 
             task.reqBody.control_image = processedImage
+            if (task.reqBody.control_net_lllite_model) {
+                task.reqBody.control_net_lllite_image = processedImage
+            }
             task.reqBody.control_image_preprocessed = true
             // Older already-running backends do not know the flag above. The
             // image has already been processed, so do not ask them to run the
@@ -316,6 +320,7 @@ function onRenderTaskCompleted(task, reqBody, instance, outputContainer, stepUpd
 
     task.isProcessing = false
     task["stopTask"].innerHTML = '<i class="fa-solid fa-trash-can"></i> Remove'
+    if (task.eraseTask) task.eraseTask.disabled = false
     task["taskStatusLabel"].style.display = "none"
 
     let time = millisecondsToStr(Date.now() - task.startTime)
@@ -377,6 +382,7 @@ function abortTask(task) {
     task.progressBar.classList.remove("active")
     task["taskStatusLabel"].style.display = "none"
     task["stopTask"].innerHTML = '<i class="fa-solid fa-trash-can"></i> Remove'
+    if (task.eraseTask) task.eraseTask.disabled = false
     if (!task.instances?.some((r) => r.isPending)) {
         return
     }

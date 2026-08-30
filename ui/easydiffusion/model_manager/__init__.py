@@ -21,6 +21,9 @@ KNOWN_MODEL_TYPES = [
     "codeformer",
     "embeddings",
     "controlnet",
+    "controlnet-union",
+    "uni-controlnet",
+    "controlnet-lite",
     "controlnet-lllite",
     "ip-adapter",
     "clip-vision",
@@ -38,7 +41,10 @@ MODEL_EXTENSIONS = {
     "lora": [".ckpt", ".safetensors", ".sft", ".pt"],
     "codeformer": [".pth"],
     "embeddings": [".pt", ".bin", ".safetensors", ".sft"],
-    "controlnet": [".pth", ".safetensors", ".sft"],
+    "controlnet": [".pth", ".ckpt", ".safetensors", ".sft"],
+    "controlnet-union": [".pth", ".ckpt", ".safetensors", ".sft"],
+    "uni-controlnet": [".pth", ".ckpt", ".safetensors", ".sft"],
+    "controlnet-lite": [".pth", ".ckpt", ".safetensors", ".sft"],
     "controlnet-lllite": [".safetensors", ".sft"],
     "ip-adapter": [".safetensors", ".sft"],
     "clip-vision": [".safetensors", ".sft", ".bin"],
@@ -74,6 +80,9 @@ ALTERNATE_FOLDER_NAMES = {  # for WebUI compatibility
     "realesrgan": "RealESRGAN",
     "lora": "Lora",
     "controlnet": "ControlNet",
+    "controlnet-union": "Controlnet_Union",
+    "uni-controlnet": "Uni_Controlnet",
+    "controlnet-lite": "Controlnet_LITE",
     "controlnet-lllite": "controlnetLLLite",
     "ip-adapter": "ipadapter",
     "clip-vision": "clip_vision",
@@ -86,6 +95,19 @@ ALTERNATE_FOLDER_NAMES = {  # for WebUI compatibility
 }
 
 known_models = {}
+
+CONTROLNET_CATEGORY_FOLDERS = {
+    "Controlnet_Union",
+    "Uni_Controlnet",
+    "Controlnet_LITE",
+}
+
+PREFER_ALTERNATE_FOLDER_TYPES = {
+    "stable-diffusion",
+    "controlnet-union",
+    "uni-controlnet",
+    "controlnet-lite",
+}
 
 
 def init():
@@ -159,6 +181,24 @@ def resolve_model_to_use_single(model_name: str = None, model_type: str = None, 
         # config = getConfig()
         if "model" in config and model_type in config["model"]:
             model_name = config["model"][model_type]
+
+    # Dedicated native ControlNet panels prefix their selections with the
+    # top-level architecture folder. Resolve those paths from models_dir while
+    # keeping the request's established `controlnet` model type.
+    if model_type == "controlnet" and model_name:
+        normalized_name = str(model_name).replace("\\", "/").lstrip("/")
+        category, separator, relative_name = normalized_name.partition("/")
+        if separator and category in CONTROLNET_CATEGORY_FOLDERS and relative_name:
+            category_root = os.path.realpath(os.path.join(app.MODELS_DIR, category))
+            candidate_stem = os.path.realpath(os.path.join(category_root, relative_name))
+            try:
+                confined = os.path.commonpath([category_root, candidate_stem]) == category_root
+            except ValueError:
+                confined = False
+            if confined:
+                for candidate in [candidate_stem] + [candidate_stem + ext for ext in model_extensions]:
+                    if os.path.isfile(candidate):
+                        return candidate
 
     for model_dir in get_model_dirs(model_type):
         if model_name:
@@ -414,10 +454,11 @@ def get_model_dirs(model_type: str, base_dir=None):
             and os.path.isdir(alt_dir)
             and os.path.realpath(primary_dir) != os.path.realpath(alt_dir)
         ):
-            if model_type == "stable-diffusion":
-                # Prefer checkpoints/ directly. Do not depend on the removed
-                # stable-diffusion alias; retain a genuinely distinct legacy
-                # folder as a secondary lookup location only.
+            if model_type in PREFER_ALTERNATE_FOLDER_TYPES:
+                # Prefer explicit canonical shared-store folders. Do not
+                # create duplicate lower-case architecture directories; a
+                # genuinely distinct legacy folder remains a secondary lookup
+                # location when it already exists.
                 dirs = [alt_dir]
                 if os.path.exists(primary_dir):
                     dirs.append(primary_dir)

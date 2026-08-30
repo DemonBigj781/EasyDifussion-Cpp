@@ -472,6 +472,8 @@ typedef struct {
     int64_t seed;
     int video_frames;
     int fps;
+    int motion_bucket_id;
+    float augmentation_level;
     float vace_strength;
     sd_tiling_params_t vae_tiling_params;
     sd_cache_params_t cache;

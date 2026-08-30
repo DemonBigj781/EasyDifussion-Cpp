@@ -100,6 +100,35 @@
             color: var(--small-label-color);
         }
 
+        /*********** GGUF conversion UI ***********/
+        .gguf-converter-grid {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr);
+            gap: 10px 14px;
+            align-items: center;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+        .gguf-converter-grid input,
+        .gguf-converter-grid select { width: 100%; box-sizing: border-box; }
+        #gguf-convert-log {
+            grid-column: 1 / -1;
+            min-height: 180px;
+            max-height: 360px;
+            overflow: auto;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            background: var(--background-color1);
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+        }
+        @media screen and (max-width: 700px) {
+            .gguf-converter-grid { grid-template-columns: 1fr; }
+            #gguf-convert-log { grid-column: 1; }
+        }
+
         /*********** LORA UI ***********/
         .lora-manager-grid {  
             display: grid;
@@ -309,6 +338,47 @@
             </div>
         </div>`
 
+    let ggufUI = `
+        <div class="panel-box gguf-converter-grid">
+            <div>
+                <label for="gguf-source-folder"><b>Hugging Face model folder</b></label><br>
+                <small>Path relative to the configured models directory. The folder must contain <code>config.json</code>.</small>
+            </div>
+            <input id="gguf-source-folder" type="text" spellcheck="false" autocomplete="off"
+                placeholder="LLM/organization--model">
+
+            <label for="gguf-output-name"><b>Output name</b></label>
+            <div>
+                <input id="gguf-output-name" type="text" spellcheck="false" autocomplete="off"
+                    placeholder="model-name">
+                <small>Saved under <code>models/Image_GGUF</code>.</small>
+            </div>
+
+            <div>
+                <label for="gguf-output-type"><b>GGUF tensor type</b></label><br>
+                <small>Q8_0 is smaller; auto preserves the source model's high-fidelity 16-bit type.</small>
+            </div>
+            <select id="gguf-output-type">
+                <option value="auto">Auto (recommended source conversion)</option>
+                <option value="f16">F16</option>
+                <option value="bf16">BF16</option>
+                <option value="f32">F32</option>
+                <option value="q8_0">Q8_0</option>
+                <option value="tq1_0">TQ1_0</option>
+                <option value="tq2_0">TQ2_0</option>
+            </select>
+
+            <div id="gguf-readiness" style="grid-column:1 / -1; color:var(--small-label-color);">
+                Checking llama.cpp converter…
+            </div>
+            <div style="grid-column:1 / -1; text-align:center;">
+                <button id="gguf-convert-button" class="primaryButton" type="button" disabled>
+                    Convert model to GGUF
+                </button>
+            </div>
+            <pre id="gguf-convert-log">No conversion started.</pre>
+        </div>`
+
     let tabHTML = `
         <div id="model-tool-tab-bar" class="tab-container tab-centered">
             <span id="tab-model-loraUI" class="tab active">
@@ -316,6 +386,9 @@
             </span>
             <span id="tab-model-mergeUI" class="tab">
                 <span><i class="fa-solid fa-code-merge"></i> Merge Models</small></span>
+            </span>
+            <span id="tab-model-ggufUI" class="tab">
+                <span><i class="fa-solid fa-file-export"></i> Convert to GGUF</span>
             </span>
         </div>
         <div id="model-tool-tab-content" class="panel-box">
@@ -328,6 +401,12 @@
             <div id="tab-content-model-mergeUI" class="tab-content">
                 <div class="tab-content-inner">
                     ${mergeUI}
+                </div>
+            </div>
+
+            <div id="tab-content-model-ggufUI" class="tab-content">
+                <div class="tab-content-inner">
+                    ${ggufUI}
                 </div>
             </div>
         </div>`
@@ -607,6 +686,75 @@
         })
     }
 
+    async function initGgufUI() {
+        const sourceEl = document.querySelector("#gguf-source-folder")
+        const outputEl = document.querySelector("#gguf-output-name")
+        const outtypeEl = document.querySelector("#gguf-output-type")
+        const readinessEl = document.querySelector("#gguf-readiness")
+        const button = document.querySelector("#gguf-convert-button")
+        const logEl = document.querySelector("#gguf-convert-log")
+
+        async function jsonResponse(response) {
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok) throw new Error(payload.detail || payload.error || `HTTP ${response.status}`)
+            return payload
+        }
+
+        try {
+            const readiness = await fetch("/model-tools/gguf/readiness", { cache: "no-store" }).then(jsonResponse)
+            readinessEl.textContent = readiness.detail
+            if (!readiness.ready && readiness.installCommand) {
+                readinessEl.textContent += ` Run ${readiness.installCommand} from the Easy Diffusion folder.`
+            }
+            button.disabled = !readiness.ready
+        } catch (error) {
+            readinessEl.textContent = `Unable to check the GGUF converter: ${error.message}`
+            button.disabled = true
+        }
+
+        button.addEventListener("click", async () => {
+            const source = sourceEl.value.trim()
+            if (!source) {
+                logEl.textContent = "Choose a source model folder relative to the configured models directory."
+                sourceEl.focus()
+                return
+            }
+            button.disabled = true
+            logEl.textContent = "Starting llama.cpp conversion…"
+            try {
+                const started = await fetch("/model-tools/gguf/convert", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        source,
+                        outputName: outputEl.value.trim(),
+                        outtype: outtypeEl.value,
+                    }),
+                }).then(jsonResponse)
+
+                while (true) {
+                    await new Promise((resolve) => setTimeout(resolve, 1000))
+                    const job = await fetch(`/model-tools/gguf/jobs/${encodeURIComponent(started.jobId)}`, {
+                        cache: "no-store",
+                    }).then(jsonResponse)
+                    logEl.textContent = (job.log || []).join("\n") || `Conversion status: ${job.status}`
+                    logEl.scrollTop = logEl.scrollHeight
+                    if (job.status === "failed") throw new Error(job.error || "GGUF conversion failed")
+                    if (job.status === "completed") {
+                        const size = (Number(job.size || 0) / (1024 * 1024)).toFixed(1)
+                        readinessEl.textContent = `Conversion complete: ${job.output} (${size} MB)`
+                        break
+                    }
+                }
+            } catch (error) {
+                logEl.textContent += `\n${error.message}`
+                readinessEl.textContent = `Conversion failed: ${error.message}`
+            } finally {
+                button.disabled = false
+            }
+        })
+    }
+
     const LoraUI = {
         modelField: undefined,
         keywordsField: undefined,
@@ -756,11 +904,14 @@
                 return
             }
             initMergeUI()
+            initGgufUI()
             LoraUI.init()
             const tabMergeUI = document.querySelector("#tab-model-mergeUI")
             const tabLoraUI = document.querySelector("#tab-model-loraUI")
+            const tabGgufUI = document.querySelector("#tab-model-ggufUI")
             linkTabContents(tabMergeUI)
             linkTabContents(tabLoraUI)
+            linkTabContents(tabGgufUI)
         },
     })
 })()

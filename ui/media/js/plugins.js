@@ -30,6 +30,7 @@ const PLUGINS = {
     IMAGE_INFO_BUTTONS: [],
     GET_PROMPTS_HOOK: [],
     MODIFIERS_LOAD: [],
+    TASK_BUILD: [],
     TASK_CREATE: [],
     OUTPUTS_FORMATS: new ServiceContainer(
         function png() {
@@ -54,16 +55,26 @@ PLUGINS.OUTPUTS_FORMATS.register = function (...args) {
     return service
 }
 
+const loadedScriptPromises = new Map()
+
 function loadScript(url) {
+    if (loadedScriptPromises.has(url)) {
+        return loadedScriptPromises.get(url)
+    }
+
     const script = document.createElement("script")
     const promiseSrc = new PromiseSource()
-    script.addEventListener("error", () => promiseSrc.reject(new Error(`Script "${url}" couldn't be loaded.`)))
+    script.addEventListener("error", () => {
+        loadedScriptPromises.delete(url)
+        promiseSrc.reject(new Error(`Script "${url}" couldn't be loaded.`))
+    })
     script.addEventListener("load", () => promiseSrc.resolve(url))
     script.src = url + "?t=" + Date.now()
 
     console.log("loading script", url)
     document.head.appendChild(script)
 
+    loadedScriptPromises.set(url, promiseSrc.promise)
     return promiseSrc.promise
 }
 
@@ -99,7 +110,6 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/tipo.plugin.js",
     "/plugins/core/perchance.plugin.js",
     "/plugins/core/gallery.tab.plugin.js",
-    "/plugins/core/tiled-image-download.plugin.js",
 ]
 
 async function loadRequiredUIPlugins() {

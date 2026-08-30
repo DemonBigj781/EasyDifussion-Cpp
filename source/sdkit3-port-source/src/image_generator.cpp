@@ -207,6 +207,8 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     gen_params.height          = params.height;
     gen_params.video_frames    = params.frames;
     gen_params.fps             = params.fps;
+    gen_params.motion_bucket_id = params.motion_bucket_id;
+    gen_params.augmentation_level = params.augmentation_level;
     gen_params.strength        = params.strength;
     gen_params.seed            = params.seed < 0 ? static_cast<int64_t>(time(nullptr)) : params.seed;
     gen_params.clip_skip       = params.clip_skip;

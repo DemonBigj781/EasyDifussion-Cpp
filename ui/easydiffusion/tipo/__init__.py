@@ -9,6 +9,7 @@ from .service import (
     list_model_metadata,
     list_models,
     selector_models,
+    shutdown,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "list_model_metadata",
     "list_models",
     "selector_models",
+    "shutdown",
 ]

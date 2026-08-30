@@ -624,7 +624,18 @@ struct FrozenCLIPVisionEmbedder : public GGMLRunner {
                 break;
             }
         }
-        vision_model = CLIPVisionModelProjection(version, false, proj_in);
+        // OpenCLIP stores visual.proj as [hidden, projection], while the HF
+        // visual_projection weight used by this block is [projection, hidden].
+        // Name conversion deliberately gives both formats the same canonical
+        // key, so use the stored dimensions to retain the correct orientation.
+        const CLIPVisionModelProjection dimensions(version, false, proj_in);
+        bool transpose_proj_w = false;
+        const auto projection = tensor_storage_map.find(weight_prefix + ".visual_projection.weight");
+        if (projection != tensor_storage_map.end() && dimensions.hidden_size != dimensions.projection_dim) {
+            transpose_proj_w = projection->second.ne[0] == dimensions.projection_dim &&
+                               projection->second.ne[1] == dimensions.hidden_size;
+        }
+        vision_model = CLIPVisionModelProjection(version, transpose_proj_w, proj_in);
         vision_model.init(params_ctx, tensor_storage_map, weight_prefix);
     }
 

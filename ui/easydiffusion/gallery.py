@@ -1,6 +1,7 @@
 """Filesystem-backed image gallery built into Easy Diffusion."""
 
 from pathlib import Path
+from typing import Optional
 from urllib.parse import quote
 import hashlib
 import json
@@ -122,22 +123,41 @@ def save_settings(payload: dict) -> dict:
     return {"gallery_directory": str(directory), "exists": True}
 
 
-def resolve_gallery_file(relative_path: str) -> Path:
+def _resolve_gallery_path(relative_path: str, require_ready: bool) -> Path:
     root = configured_directory()
-    candidate = (root / relative_path).resolve()
+    unresolved = root / relative_path
+    if unresolved.is_symlink():
+        raise HTTPException(status_code=404, detail="Gallery image not found.")
+    candidate = unresolved.resolve()
     try:
         candidate.relative_to(root)
     except ValueError as error:
         raise HTTPException(status_code=403, detail="Path is outside the gallery directory.") from error
-    if not candidate.is_file() or candidate.is_symlink() or candidate.suffix.lower() not in IMAGE_EXTENSIONS:
+    if not candidate.is_file() or candidate.suffix.lower() not in IMAGE_EXTENSIONS:
         raise HTTPException(status_code=404, detail="Gallery image not found.")
     try:
         stat = candidate.stat()
     except OSError as error:
         raise HTTPException(status_code=404, detail="Gallery image not found.") from error
-    if stat.st_size == 0 or time.time_ns() - stat.st_mtime_ns < MINIMUM_FILE_AGE_NS:
+    if require_ready and (stat.st_size == 0 or time.time_ns() - stat.st_mtime_ns < MINIMUM_FILE_AGE_NS):
         raise HTTPException(status_code=409, detail="Gallery image is still being written; retry shortly.")
     return candidate
+
+
+def resolve_gallery_file(relative_path: str) -> Path:
+    return _resolve_gallery_path(relative_path, require_ready=True)
+
+
+def relative_gallery_path(path) -> Optional[str]:
+    root = configured_directory()
+    candidate = Path(path).expanduser().resolve()
+    try:
+        relative = candidate.relative_to(root)
+    except ValueError:
+        return None
+    if candidate.suffix.lower() not in IMAGE_EXTENSIONS:
+        return None
+    return relative.as_posix()
 
 
 def thumbnail_path(source: Path) -> Path:
@@ -234,7 +254,9 @@ def list_images(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> dict:
 
 
 def delete_file(relative_path: str) -> dict:
-    path = resolve_gallery_file(relative_path)
+    # A generated result is only returned after its save has completed, so a
+    # DELETE does not need the two-second read stabilization delay used by GET.
+    path = _resolve_gallery_path(relative_path, require_ready=False)
     try:
         thumbnail = thumbnail_path(path)
     except OSError:
@@ -248,7 +270,17 @@ def delete_file(relative_path: str) -> dict:
             thumbnail.unlink(missing_ok=True)
         except OSError:
             pass
-    return {"deleted": relative_path}
+    deleted_sidecars = []
+    for suffix in (".json", ".txt"):
+        sidecar = path.with_suffix(suffix)
+        if sidecar.is_symlink() or not sidecar.is_file():
+            continue
+        try:
+            sidecar.unlink()
+            deleted_sidecars.append(sidecar.name)
+        except OSError:
+            pass
+    return {"deleted": relative_path, "deleted_sidecars": deleted_sidecars}
 
 
 def file_media_type(path: Path) -> str:

@@ -13,7 +13,7 @@
 
     const panel = document.createElement("div")
     panel.id = "sdkit3-controlnet-preprocessor-panel"
-    panel.className = "settings-box panel-box sdkit3-extra-settings-panel gated-feature"
+    panel.className = "gated-feature"
     panel.dataset.featureKeys = "backend_ed_diffusers backend_webui backend_sdkit3"
     panel.innerHTML = window.loadRequiredPluginHTML("/plugins/core/controlnet-preprocessor.plugin.html")
 
@@ -21,9 +21,7 @@
     if (!filter) throw new Error("ControlNet Preprocessor plugin: selector was not created")
     filter.style.width = "100%"
 
-    const controlPanel = document.getElementById("sdkit3-controlnet-panel")
-    if (controlPanel) controlPanel.after(panel)
-    else editor.after(panel)
-    window.orderSdkitSettingsPanels?.()
-    setTimeout(() => window.orderSdkitSettingsPanels?.(), 250)
+    const sharedSlot = document.getElementById("controlnet-shared-slot")
+    if (!sharedSlot) throw new Error("ControlNet Preprocessor plugin: shared slot was not created")
+    sharedSlot.appendChild(panel)
 })()

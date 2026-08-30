@@ -482,6 +482,7 @@ struct ggml_cuda_pool_vmm : public ggml_cuda_pool {
     size_t pool_used = 0;
     size_t pool_size = 0;
     size_t granularity;
+    std::vector<std::pair<void *, size_t>> managed_overflow_allocations;
 #if defined(GGML_USE_HIP)
     std::vector<std::pair<CUdeviceptr, size_t>> mappings;
 #endif
@@ -492,6 +493,9 @@ struct ggml_cuda_pool_vmm : public ggml_cuda_pool {
     }
 
     ~ggml_cuda_pool_vmm() {
+        for (const auto & allocation : managed_overflow_allocations) {
+            CUDA_CHECK(cudaFree(allocation.first));
+        }
         if (pool_addr != 0) {
 #if defined(GGML_USE_HIP)
             // Workaround for https://github.com/ROCm/ROCR-Runtime/issues/285
@@ -504,6 +508,27 @@ struct ggml_cuda_pool_vmm : public ggml_cuda_pool {
             CU_CHECK(cuMemAddressFree(pool_addr, CUDA_POOL_VMM_MAX_SIZE));
         }
     }
+
+#if !defined(GGML_USE_HIP)
+    size_t release_unused_tail() {
+        if (pool_addr == 0 || pool_size == 0) {
+            return 0;
+        }
+
+        const size_t retained_size = granularity * ((pool_used + granularity - 1) / granularity);
+        if (retained_size >= pool_size) {
+            return 0;
+        }
+
+        // Pool allocations are stream-ordered. Synchronize before unmapping
+        // cached tail pages which may still be referenced by queued kernels.
+        CUDA_CHECK(cudaDeviceSynchronize());
+        const size_t released_size = pool_size - retained_size;
+        CU_CHECK(cuMemUnmap(pool_addr + retained_size, released_size));
+        pool_size = retained_size;
+        return released_size;
+    }
+#endif
 
     void * alloc(size_t size, size_t * actual_size) override {
         // round up the allocation size to the alignment to ensure that all allocations are aligned for all data types
@@ -525,7 +550,47 @@ struct ggml_cuda_pool_vmm : public ggml_cuda_pool {
             prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
             prop.location.id = device;
             CUmemGenericAllocationHandle handle;
+#if !defined(GGML_USE_HIP)
+            CUresult allocation_result = cuMemCreate(&handle, reserve_size, &prop, 0);
+            if (allocation_result != CUDA_SUCCESS) {
+                const size_t released_size = release_unused_tail();
+                if (released_size > 0) {
+                    allocation_result = cuMemCreate(&handle, reserve_size, &prop, 0);
+                }
+                if (allocation_result == CUDA_SUCCESS) {
+                    GGML_LOG_DEBUG(
+                        GGML_CUDA_NAME " VMM pool[%d]: reclaimed %.2f MiB of cached VRAM before allocating %.2f MiB\n",
+                        device,
+                        released_size / 1024.0 / 1024.0,
+                        reserve_size / 1024.0 / 1024.0);
+                } else {
+                    void * managed_ptr = nullptr;
+                    const cudaError_t managed_result = cudaMallocManaged(
+                        &managed_ptr,
+                        size,
+                        cudaMemAttachGlobal);
+                    if (managed_result == cudaSuccess) {
+                        managed_overflow_allocations.push_back({managed_ptr, size});
+                        *actual_size = size;
+                        GGML_LOG_WARN(
+                            GGML_CUDA_NAME " VMM pool[%d]: device allocation of %.2f MiB failed; "
+                            "released %.2f MiB of cached VRAM and spilled this scratch buffer to managed RAM\n",
+                            device,
+                            size / 1024.0 / 1024.0,
+                            released_size / 1024.0 / 1024.0);
+                        return managed_ptr;
+                    }
+
+                    // Preserve the original driver error because it identifies the
+                    // allocation which exhausted VRAM more accurately than a
+                    // secondary managed-memory failure.
+                    (void)cudaGetLastError();
+                    CU_CHECK(allocation_result);
+                }
+            }
+#else
             CU_CHECK(cuMemCreate(&handle, reserve_size, &prop, 0));
+#endif
 
             // reserve virtual address space (if not already reserved)
             if (pool_addr == 0) {
@@ -574,6 +639,16 @@ struct ggml_cuda_pool_vmm : public ggml_cuda_pool {
 #ifdef DEBUG_CUDA_MALLOC
         printf("cuda pool[%d]: freed %llu bytes at %llx\n", device, (unsigned long long) size, ptr);
 #endif
+
+        auto managed = std::find_if(
+            managed_overflow_allocations.begin(),
+            managed_overflow_allocations.end(),
+            [ptr](const auto & allocation) { return allocation.first == ptr; });
+        if (managed != managed_overflow_allocations.end()) {
+            CUDA_CHECK(cudaFree(managed->first));
+            managed_overflow_allocations.erase(managed);
+            return;
+        }
 
         pool_used -= size;
 

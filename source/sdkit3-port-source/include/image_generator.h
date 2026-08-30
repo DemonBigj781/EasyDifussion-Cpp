@@ -94,6 +94,8 @@ struct VideoGenerationParams {
     int steps = 20;
     int frames = 25;
     int fps = 8;
+    int motion_bucket_id = 127;
+    float augmentation_level = 0.0f;
     float cfg_scale = 5.0f;
     float strength = 0.75f;
     float flow_shift = INFINITY;

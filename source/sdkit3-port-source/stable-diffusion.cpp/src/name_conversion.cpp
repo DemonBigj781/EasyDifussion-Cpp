@@ -731,16 +731,7 @@ std::string convert_diffusers_dit_to_original_krea2(std::string name) {
         {"last.modulation.weight", "last.modulation.lin"},
     };
 
-    // This prefix overlaps with the shorter SDXL conditioner prefix below.
-    // Resolve it deterministically before consulting the unordered map; an
-    // arbitrary iteration order otherwise leaves SVD OpenCLIP weights under
-    // cond_stage_model.open_clip.* instead of converting them to HF names.
-    constexpr const char* open_clip_prefix = "conditioner.embedders.0.open_clip.";
-    if (starts_with(name, open_clip_prefix)) {
-        name = "cond_stage_model." + name.substr(strlen(open_clip_prefix));
-    } else {
-        replace_with_prefix_map(name, prefix_map);
-    }
+    replace_with_prefix_map(name, prefix_map);
     replace_with_name_map(name, name_map);
     return name;
 }
@@ -1283,7 +1274,16 @@ std::string convert_tensor_name(std::string name, SDVersion version) {
         prefix_map["te1."] = "text_encoders.clip_l.transformer.";
     }
 
-    replace_with_prefix_map(name, prefix_map);
+    // The OpenCLIP prefix overlaps with the shorter SDXL conditioner prefix.
+    // Resolve it deterministically before consulting the unordered map;
+    // arbitrary iteration order can otherwise leave SVD weights under
+    // cond_stage_model.open_clip.* instead of converting them to HF names.
+    constexpr const char* open_clip_prefix = "conditioner.embedders.0.open_clip.";
+    if (starts_with(name, open_clip_prefix)) {
+        name = "cond_stage_model." + name.substr(strlen(open_clip_prefix));
+    } else {
+        replace_with_prefix_map(name, prefix_map);
+    }
 
     if ((sd_version_is_boogu_image(version) || sd_version_is_krea2(version)) && starts_with(name, "text_encoders.llm.visual.")) {
         name = convert_qwen3_vl_vision_name(std::move(name));

@@ -1,0 +1,8 @@
+Prompt Assist plugin
+
+The supplied source identifies version 1.7.3 and links to:
+https://gitlab.com/SoliDissipation/sd-ui-plugins
+
+The file does not state a standard license. The source link is retained in
+ui/plugins/ui/prompt-assist.plugin.js. This attribution notice does not add or
+invent a license.

@@ -47,5 +47,9 @@ model:
   stable-diffusion: sdxl/fruitHeart_v10
 vram_usage_level: balanced
 backend: sdkit3
+tipo:
+  # The vendored CUDA llama.cpp server offloads all TIPO layers on this RTX 3060.
+  device: cuda
+  gpu_layers: 999
 gallery:
   directory: /mnt/1812FB8512FB6662/easy-diffusion-save-backup

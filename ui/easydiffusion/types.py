@@ -161,16 +161,19 @@ class Image:
     seed: int
     is_nsfw: bool
     path_abs: str = None
+    gallery_path: str = None
 
-    def __init__(self, data, seed):
+    def __init__(self, data, seed, gallery_path=None):
         self.data = data
         self.seed = seed
+        self.gallery_path = gallery_path
 
     def json(self):
         return {
             "data": self.data,
             "seed": self.seed,
             "path_abs": self.path_abs,
+            "gallery_path": self.gallery_path,
         }
 
 

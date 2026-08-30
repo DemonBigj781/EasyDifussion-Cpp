@@ -149,6 +149,7 @@ public:
                             int64_t time_depth        = 1,
                             int max_time_embed_period = 10000)
         : SpatialTransformer(in_channels, n_head, d_head, depth, context_dim, use_linear),
+          time_depth(time_depth),
           max_time_embed_period(max_time_embed_period) {
         // We will convert unet transformer linear to conv2d 1x1 when loading the weights, so use_linear is always False
         // use_spatial_context is always True
@@ -200,8 +201,8 @@ public:
         // GGML_ASSERT(ggml_n_dims(context) == 3);
 
         auto norm             = std::dynamic_pointer_cast<GroupNorm32>(blocks["norm"]);
-        auto proj_in          = std::dynamic_pointer_cast<Conv2d>(blocks["proj_in"]);
-        auto proj_out         = std::dynamic_pointer_cast<Conv2d>(blocks["proj_out"]);
+        auto proj_in          = std::dynamic_pointer_cast<UnaryBlock>(blocks["proj_in"]);
+        auto proj_out         = std::dynamic_pointer_cast<UnaryBlock>(blocks["proj_out"]);
         auto time_pos_embed_0 = std::dynamic_pointer_cast<Linear>(blocks["time_pos_embed.0"]);
         auto time_pos_embed_2 = std::dynamic_pointer_cast<Linear>(blocks["time_pos_embed.2"]);
         auto time_mixer       = std::dynamic_pointer_cast<AlphaBlender>(blocks["time_mixer"]);
@@ -232,10 +233,15 @@ public:
         time_context                     = ggml_repeat(ctx->ggml_ctx, time_context_first_timestep, time_context);  // [b*h*w, n_context, context_dim]
 
         x = norm->forward(ctx, x);
-        x = proj_in->forward(ctx, x);  // [N, inner_dim, h, w]
-
-        x = ggml_cont(ctx->ggml_ctx, ggml_permute(ctx->ggml_ctx, x, 1, 2, 0, 3));  // [N, h, w, inner_dim]
-        x = ggml_reshape_3d(ctx->ggml_ctx, x, inner_dim, w * h, n);                // [N, h * w, inner_dim]
+        if (use_linear) {
+            x = ggml_cont(ctx->ggml_ctx, ggml_permute(ctx->ggml_ctx, x, 1, 2, 0, 3));
+            x = ggml_reshape_3d(ctx->ggml_ctx, x, inner_dim, w * h, n);
+            x = proj_in->forward(ctx, x);
+        } else {
+            x = proj_in->forward(ctx, x);
+            x = ggml_cont(ctx->ggml_ctx, ggml_permute(ctx->ggml_ctx, x, 1, 2, 0, 3));
+            x = ggml_reshape_3d(ctx->ggml_ctx, x, inner_dim, w * h, n);
+        }
 
         auto num_frames = ggml_arange(ctx->ggml_ctx, 0.f, static_cast<float>(timesteps), 1.f);
         // since b is 1, no need to do repeat
@@ -278,11 +284,15 @@ public:
             x = time_mixer->forward(ctx, x, x_mix);  // [N, h * w, inner_dim]
         }
 
-        x = ggml_cont(ctx->ggml_ctx, ggml_permute(ctx->ggml_ctx, x, 1, 0, 2, 3));  // [N, inner_dim, h * w]
-        x = ggml_reshape_4d(ctx->ggml_ctx, x, w, h, inner_dim, n);                 // [N, inner_dim, h, w]
-
-        // proj_out
-        x = proj_out->forward(ctx, x);  // [N, in_channels, h, w]
+        if (use_linear) {
+            x = proj_out->forward(ctx, x);
+            x = ggml_cont(ctx->ggml_ctx, ggml_permute(ctx->ggml_ctx, x, 1, 0, 2, 3));
+            x = ggml_reshape_4d(ctx->ggml_ctx, x, w, h, inner_dim, n);
+        } else {
+            x = ggml_cont(ctx->ggml_ctx, ggml_permute(ctx->ggml_ctx, x, 1, 0, 2, 3));
+            x = ggml_reshape_4d(ctx->ggml_ctx, x, w, h, inner_dim, n);
+            x = proj_out->forward(ctx, x);
+        }
 
         x = ggml_add(ctx->ggml_ctx, x, x_in);
         return x;

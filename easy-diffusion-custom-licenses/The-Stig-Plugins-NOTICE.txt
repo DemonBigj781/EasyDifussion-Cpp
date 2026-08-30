@@ -1,0 +1,13 @@
+Supplied Easy Diffusion plugins by The Stig
+
+- LoRA Metadata Reader v1.4 / internal version 1.5
+  (ui/plugins/ui/fileparser.plugin.js)
+- LocalStorage Manager v1.0
+  (ui/plugins/ui/stig-localstorage.plugin.js)
+- Relocate Modifiers Plugin v1.1
+  (ui/plugins/ui/stig-relocateModifiers.plugin.js)
+
+The LoRA Metadata Reader source states that it is free to use with the CMDR2
+Stable Diffusion UI. The LocalStorage Manager and Relocate Modifiers files
+identify their author but do not state a standard license. Their original
+headers are retained. This attribution notice does not add or invent a license.

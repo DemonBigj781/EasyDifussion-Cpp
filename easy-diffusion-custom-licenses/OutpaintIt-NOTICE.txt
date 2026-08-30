@@ -1,0 +1,10 @@
+OutpaintIt
+Version 1.8.10, last updated July 25, 2026
+Author: Gary W.
+
+The supplied source states:
+"Free to use with the CMDR2 Stable Diffusion UI, Easy Diffusion."
+
+The original notice is retained at the top of
+ui/plugins/ui/OutpaintIt.plugin.js. The supplied file does not identify a
+standard open-source license, so this attribution notice does not assert one.

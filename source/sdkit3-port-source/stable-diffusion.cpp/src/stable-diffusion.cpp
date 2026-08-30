@@ -1186,10 +1186,6 @@ public:
                     if (sd_version_is_sdxl(version) &&
                         (strlen(SAFE_STR(sd_ctx_params->vae_path)) == 0 || sd_ctx_params->force_sdxl_vae_conv_scale || external_vae_is_invalid)) {
                         float vae_conv_2d_scale = 1.f / 32.f;
-                        LOG_WARN(
-                            "No valid VAE specified with --vae or --force-sdxl-vae-conv-scale flag set, "
-                            "using Conv2D scale %.3f",
-                            vae_conv_2d_scale);
                         model->set_conv2d_scale(vae_conv_2d_scale);
                     }
                     return model;
@@ -1562,6 +1558,8 @@ public:
                     } else {
                         pred_type = EPS_PRED;
                     }
+                } else if (version == VERSION_SVD) {
+                    pred_type = EDM_V_PRED;
                 } else if (sd_version_is_sd3(version) ||
                            sd_version_is_wan(version) ||
                            sd_version_is_qwen_image(version) ||
@@ -1967,6 +1965,8 @@ public:
                 }
             }
             return new_timesteps;
+        } else if (version == VERSION_SVD && init_latent.dim() == 4) {
+            return std::vector<float>(static_cast<size_t>(init_latent.shape()[3]), timesteps[0]);
         } else {
             return timesteps;
         }
@@ -2461,8 +2461,10 @@ public:
                 diffusion_params.y           = condition.c_vector.empty() ? nullptr : &condition.c_vector;
                 diffusion_params.ref_latents = ref_latents_override != nullptr ? ref_latents_override : (condition.c_ref_images.empty() ? &ref_latents : &condition.c_ref_images);
 
-                if (sd_version_is_unet(version)) {
-                    diffusion_params.extra = UNetDiffusionExtra{-1,
+                if (sd_version_is_unet(version) || version == VERSION_SVD) {
+                    diffusion_params.extra = UNetDiffusionExtra{version == VERSION_SVD
+                                                                    ? static_cast<int>(noised_input.shape()[3])
+                                                                    : -1,
                                                                  &controls,
                                                                  control_strength,
                                                                  control_net_lllite_image.empty() ? nullptr : &control_net_lllite_image,
@@ -3718,6 +3720,8 @@ void sd_vid_gen_params_init(sd_vid_gen_params_t* sd_vid_gen_params) {
     sd_vid_gen_params->seed                                  = -1;
     sd_vid_gen_params->video_frames                          = 6;
     sd_vid_gen_params->fps                                   = 16;
+    sd_vid_gen_params->motion_bucket_id                      = 127;
+    sd_vid_gen_params->augmentation_level                    = 0.f;
     sd_vid_gen_params->moe_boundary                          = 0.875f;
     sd_vid_gen_params->vace_strength                         = 1.f;
     sd_vid_gen_params->vae_tiling_params                     = {false, false, 0, 0, 0.5f, 0.0f, 0.0f, nullptr};
@@ -3961,6 +3965,8 @@ struct GenerationRequest {
     int frames                               = -1;
     int requested_frames                     = -1;
     int fps                                  = 16;
+    int motion_bucket_id                     = 127;
+    float augmentation_level                 = 0.f;
     float vace_strength                      = 1.f;
 
     GenerationRequest(sd_ctx_t* sd_ctx, const sd_img_gen_params_t* sd_img_gen_params) {
@@ -4010,6 +4016,8 @@ struct GenerationRequest {
         frames                      = sd_ctx->sd->align_video_frames(requested_frames);
         clip_skip                   = sd_vid_gen_params->clip_skip;
         fps                         = std::max(1, sd_vid_gen_params->fps);
+        motion_bucket_id            = sd_vid_gen_params->motion_bucket_id;
+        augmentation_level          = sd_vid_gen_params->augmentation_level;
         vae_scale_factor            = sd_ctx->sd->get_vae_scale_factor();
         diffusion_model_down_factor = sd_ctx->sd->get_diffusion_model_down_factor();
         seed                        = sd_vid_gen_params->seed;
@@ -5679,6 +5687,43 @@ static std::optional<ImageGenerationLatents> prepare_video_generation_latents(sd
         end_image = sd_image_to_tensor(sd_vid_gen_params->end_image, request->width, request->height);
     }
 
+    if (sd_ctx->sd->version == VERSION_SVD) {
+        if (start_image.empty()) {
+            LOG_ERROR("SVD image-to-video generation requires an initial image");
+            return std::nullopt;
+        }
+        if (!end_image.empty()) {
+            LOG_WARN("SVD does not support an ending image; ignoring it");
+        }
+
+        int64_t t1 = ggml_time_ms();
+        latents.clip_vision_output = sd_ctx->sd->get_clip_vision_output(start_image, true);
+        if (latents.clip_vision_output.empty()) {
+            LOG_ERROR("failed to compute SVD CLIP vision conditioning");
+            return std::nullopt;
+        }
+
+        sd::Tensor<float> conditioned_image = start_image;
+        if (request->augmentation_level > 0.f) {
+            conditioned_image += sd::Tensor<float>::randn_like(conditioned_image, sd_ctx->sd->rng) *
+                                 request->augmentation_level;
+        }
+        latents.concat_latent = sd_ctx->sd->encode_first_stage(conditioned_image);
+        if (latents.concat_latent.empty()) {
+            LOG_ERROR("failed to encode SVD initial image conditioning");
+            return std::nullopt;
+        }
+
+        const int W = request->width / request->vae_scale_factor;
+        const int H = request->height / request->vae_scale_factor;
+        const int C = sd_ctx->sd->get_latent_channel();
+        // SVD's temporal UNet treats frames as the 4-D batch dimension.
+        // Other video models use the shared 5-D [W,H,T,C,B] layout.
+        latents.init_latent = sd::zeros<float>({W, H, C, request->frames});
+        LOG_INFO("SVD image conditioning completed, taking %.2fs",
+                 (ggml_time_ms() - t1) * 1.0f / 1000);
+    }
+
     if (sd_version_is_ltxav(sd_ctx->sd->version)) {
         latents.audio_length = get_ltxav_num_audio_latents(request->frames, request->fps);
         latents.audio_latent = make_ltxav_empty_audio_latent(latents.audio_length);
@@ -5977,6 +6022,25 @@ static ImageGenerationEmbeds prepare_video_generation_embeds(sd_ctx_t* sd_ctx,
     ConditionerRunnerDoneOnExit conditioner_runner_done{sd_ctx->sd->cond_stage_model.get()};
 
     ImageGenerationEmbeds embeds;
+    if (sd_ctx->sd->version == VERSION_SVD) {
+        embeds.cond.c_crossattn = latents.clip_vision_output;
+        embeds.cond.c_concat    = latents.concat_latent;
+        embeds.cond.c_vector    = sd::Tensor<float>({768});
+        set_timestep_embedding({static_cast<float>(request.fps - 1),
+                                static_cast<float>(request.motion_bucket_id),
+                                request.augmentation_level},
+                               &embeds.cond.c_vector,
+                               256);
+
+        if (request.use_uncond) {
+            embeds.uncond.c_crossattn = sd::Tensor<float>::zeros_like(latents.clip_vision_output);
+            embeds.uncond.c_concat    = sd::Tensor<float>::zeros_like(latents.concat_latent);
+            embeds.uncond.c_vector    = embeds.cond.c_vector;
+        }
+        LOG_INFO("prepared SVD image and motion conditioning");
+        return embeds;
+    }
+
     ConditionerParams condition_params;
     condition_params.clip_skip       = request.clip_skip;
     condition_params.text            = request.prompt;
@@ -6037,20 +6101,21 @@ static sd_image_t* decode_video_outputs(sd_ctx_t* sd_ctx,
               (int)vid.shape()[1],
               (int)vid.shape()[2],
               (int)vid.shape()[3]);
-    if (request.frames > 0 &&
-        vid.shape()[2] > request.frames) {
-        vid = sd::ops::slice(vid, 2, 0, request.frames);
+    const int frame_dim = vid.dim() == 5 ? 2 : 3;
+    if (request.frames > 0 && vid.shape()[frame_dim] > request.frames) {
+        vid = sd::ops::slice(vid, frame_dim, 0, request.frames);
     }
 
-    sd_image_t* result_images = (sd_image_t*)calloc(vid.shape()[2], sizeof(sd_image_t));
+    const int64_t frame_count = vid.shape()[frame_dim];
+    sd_image_t* result_images = (sd_image_t*)calloc(frame_count, sizeof(sd_image_t));
     if (result_images == nullptr) {
         return nullptr;
     }
     if (num_frames_out != nullptr) {
-        *num_frames_out = static_cast<int>(vid.shape()[2]);
+        *num_frames_out = static_cast<int>(frame_count);
     }
 
-    for (int64_t i = 0; i < vid.shape()[2]; i++) {
+    for (int64_t i = 0; i < frame_count; i++) {
         result_images[i] = tensor_to_sd_image(vid, static_cast<int>(i));
     }
 

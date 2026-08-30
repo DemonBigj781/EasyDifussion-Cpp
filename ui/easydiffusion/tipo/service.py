@@ -12,16 +12,11 @@ from pydantic import BaseModel
 from .kgen.formatter import apply_dtg_prompt, apply_format, seperate_tags
 from .kgen.metainfo import TARGET
 from .kgen.tipo import run_tipo
+from .llama_backend import LlamaServer, backend_readiness
 from .sidecar import load_model_settings, public_settings
 
-try:
-    from llama_cpp import Llama
-    LLAMA_AVAILABLE = True
-except Exception as exc:  # pragma: no cover - best-effort import
-    LLAMA_AVAILABLE = False
-    LLAMA_IMPORT_ERROR = exc
 
-
+_tipo_config = easy_app.getConfig().get("tipo") or {}
 _env_model_dir = os.environ.get("TIPO_MODEL_DIR")
 MODEL_DIR = (
     Path(_env_model_dir).expanduser().resolve()
@@ -32,8 +27,8 @@ MODEL_DIR = (
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 _logger.info(f"TIPO model dir: {MODEL_DIR}")
 
-DEFAULT_DEVICE = os.environ.get("TIPO_DEVICE", "cpu")
-DEFAULT_GPU_LAYERS = int(os.environ.get("TIPO_GPU_LAYERS", "0"))
+DEFAULT_DEVICE = os.environ.get("TIPO_DEVICE", str(_tipo_config.get("device", "cpu")))
+DEFAULT_GPU_LAYERS = int(os.environ.get("TIPO_GPU_LAYERS", _tipo_config.get("gpu_layers", 0)))
 
 
 SEED_MAX = 2**31 - 1
@@ -90,11 +85,12 @@ _current_model = {"name": None, "instance": None}
 
 
 def _assert_llama_available():
-    if not LLAMA_AVAILABLE:
-        _logger.error(f"LLAMA import failed: {LLAMA_IMPORT_ERROR}")
+    readiness = backend_readiness()
+    if not readiness["ready"]:
+        _logger.error(readiness["detail"])
         raise HTTPException(
-            status_code=500,
-            detail=f"TIPO server missing dependencies: {LLAMA_IMPORT_ERROR}",
+            status_code=503,
+            detail=readiness["detail"],
         )
 
 
@@ -279,13 +275,7 @@ def _load_model(tipo_model: str, device: str, settings):
         if close:
             close()
     _logger.info(f"Loading TIPO model: {model_path} (device={device})")
-    model = Llama(
-        model_path=str(model_path),
-        n_ctx=settings["context_length"],
-        n_gpu_layers=n_gpu_layers,
-        seed=0,
-        verbose=False,
-    )
+    model = LlamaServer(model_path, settings["context_length"], n_gpu_layers)
     _current_model["name"] = model_key
     _current_model["instance"] = model
     return model
@@ -330,7 +320,7 @@ def _generate_tags(
                 seed=(seed + retry) if seed is not None else retry,
             )
         except TypeError:
-            _logger.warning("llama_cpp missing min_p support; retrying without it")
+            _logger.warning("llama.cpp backend missing min_p support; retrying without it")
             result = model.create_completion(
                 prompt,
                 temperature=temperature,
@@ -365,9 +355,26 @@ def _generate_tags(
 
 
 def health():
-    if not LLAMA_AVAILABLE:
-        return {"status": "error", "detail": str(LLAMA_IMPORT_ERROR)}
-    return {"status": "ok", "models": len(_list_models()), "model_dir": str(MODEL_DIR)}
+    readiness = backend_readiness()
+    return {
+        "status": "ok" if readiness["ready"] else "error",
+        "backend": readiness["backend"],
+        "detail": readiness["detail"],
+        "executable": readiness["executable"],
+        "models": len(_list_models()),
+        "model_dir": str(MODEL_DIR),
+        "default_device": DEFAULT_DEVICE,
+        "gpu_layers": DEFAULT_GPU_LAYERS,
+    }
+
+
+def shutdown():
+    with _model_lock:
+        model = _current_model.get("instance")
+        _current_model["name"] = None
+        _current_model["instance"] = None
+        if model is not None:
+            model.close()
 
 
 def list_models():

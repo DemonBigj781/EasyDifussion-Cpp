@@ -1,0 +1,27 @@
+# Third-party software notices
+
+This fork includes and adapts software from other projects. The project-level
+license is in [`LICENSE`](LICENSE). Model licenses can impose additional terms;
+the bundled CreativeML Open RAIL-M text is in
+[`easy-diffusion-custom-licenses/CreativeML Open RAIL-M License`](easy-diffusion-custom-licenses/CreativeML%20Open%20RAIL-M%20License).
+
+| Component or adapted code | Upstream | License or supplied permission | License/notice in this tree |
+| --- | --- | --- | --- |
+| Easy Diffusion and sdkit3 source snapshot | [easydiffusion/easydiffusion](https://github.com/easydiffusion/easydiffusion), [easydiffusion/sdkit](https://github.com/easydiffusion/sdkit) | Easy Diffusion use-restricted software license | [`easy-diffusion-custom-licenses/LICENSE`](easy-diffusion-custom-licenses/LICENSE), [`source/sdkit3-port-source/LICENSE`](source/sdkit3-port-source/LICENSE) |
+| stable-diffusion.cpp | [leejet/stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) | MIT, copyright 2023 leejet | [`source/sdkit3-port-source/stable-diffusion.cpp/LICENSE`](source/sdkit3-port-source/stable-diffusion.cpp/LICENSE) |
+| ggml embedded by stable-diffusion.cpp | [ggml-org/ggml](https://github.com/ggml-org/ggml) | MIT, copyright 2023-2026 The ggml authors | [`source/sdkit3-port-source/stable-diffusion.cpp/ggml/LICENSE`](source/sdkit3-port-source/stable-diffusion.cpp/ggml/LICENSE) |
+| llama.cpp source snapshot and GGUF conversion tools | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | MIT, copyright 2023-2026 The ggml authors | [`source/llama.cpp/LICENSE`](source/llama.cpp/LICENSE), [`source/llama.cpp/SOURCE_SNAPSHOT.md`](source/llama.cpp/SOURCE_SNAPSHOT.md); additional bundled dependency licenses remain under `source/llama.cpp/licenses`, `vendor`, and `gguf-py` |
+| TIPO/KGen prompt protocol helpers | [KohakuBlueleaf/KGen](https://github.com/KohakuBlueleaf/KGen) | Apache-2.0, copyright 2024 KBlueLeaf | [`easy-diffusion-custom-licenses/KGen-Apache-2.0.txt`](easy-diffusion-custom-licenses/KGen-Apache-2.0.txt) |
+| SD-Latent-Interposer integration | [city96/SD-Latent-Interposer](https://github.com/city96/SD-Latent-Interposer) | Apache-2.0 | [`easy-diffusion-custom-licenses/SD-Latent-Interposer-Apache-2.0.txt`](easy-diffusion-custom-licenses/SD-Latent-Interposer-Apache-2.0.txt) |
+| ComfyUI-WD14-Tagger-derived integration | [pythongosssss/ComfyUI-WD14-Tagger](https://github.com/pythongosssss/ComfyUI-WD14-Tagger) | MIT, copyright 2024 pythongosssss | [`easy-diffusion-custom-licenses/ComfyUI-WD14-Tagger-MIT.txt`](easy-diffusion-custom-licenses/ComfyUI-WD14-Tagger-MIT.txt) |
+| ControlNet-LLLite-ComfyUI-derived integration | [kohya-ss/ControlNet-LLLite-ComfyUI](https://github.com/kohya-ss/ControlNet-LLLite-ComfyUI) | GPL-3.0 | [`easy-diffusion-custom-licenses/ControlNet-LLLite-ComfyUI-GPL-3.0.txt`](easy-diffusion-custom-licenses/ControlNet-LLLite-ComfyUI-GPL-3.0.txt) |
+| Post-generation tools based on Madrang's Render Tasks plugin | [madrang/sd-ui-plugins](https://github.com/madrang/sd-ui-plugins) | WTFPL-2.0, copyright 2022 Marc-Andre Ferland | [`easy-diffusion-custom-licenses/Madrang-WTFPL-2.0.txt`](easy-diffusion-custom-licenses/Madrang-WTFPL-2.0.txt); notice also retained in the source file |
+| Jasmine browser test runner | [jasmine/jasmine](https://github.com/jasmine/jasmine) | MIT, copyright 2008-2022 Pivotal Labs | [`easy-diffusion-custom-licenses/Jasmine-MIT.txt`](easy-diffusion-custom-licenses/Jasmine-MIT.txt); notices also retained in the JavaScript files |
+| OutpaintIt plugin | Supplied Easy Diffusion plugin by Gary W. | Supplied notice says free to use with CMDR2 Stable Diffusion UI / Easy Diffusion | [`easy-diffusion-custom-licenses/OutpaintIt-NOTICE.txt`](easy-diffusion-custom-licenses/OutpaintIt-NOTICE.txt); original notice retained in the source file |
+| LocalStorage Manager, Relocate Modifiers, and LoRA Metadata Reader plugins | Supplied Easy Diffusion plugins by The Stig | The LoRA Metadata Reader includes a CMDR2 Stable Diffusion UI permission notice; the other supplied files identify their author but do not state a standard license | [`easy-diffusion-custom-licenses/The-Stig-Plugins-NOTICE.txt`](easy-diffusion-custom-licenses/The-Stig-Plugins-NOTICE.txt); original notices retained in the source files |
+| Inpainting and LoRA Prompt Parser plugins | Supplied Easy Diffusion plugins by Patrice | Supplied files identify the author but do not state a standard license | [`easy-diffusion-custom-licenses/Patrice-Plugins-NOTICE.txt`](easy-diffusion-custom-licenses/Patrice-Plugins-NOTICE.txt); original notices retained in the source files |
+| Prompt Assist plugin | [SoliDissipation/sd-ui-plugins](https://gitlab.com/SoliDissipation/sd-ui-plugins) | The supplied file identifies its source but does not state a standard license | [`easy-diffusion-custom-licenses/Prompt-Assist-NOTICE.txt`](easy-diffusion-custom-licenses/Prompt-Assist-NOTICE.txt); source link retained in the file |
+
+An attribution-only notice does not grant permissions beyond the notice that
+arrived with the supplied file. No new license has been invented for files
+whose authors did not include one.

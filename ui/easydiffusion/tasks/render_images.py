@@ -118,7 +118,7 @@ def make_images(
 ):
     print_task_info(req, task_data, models_data, output_format, save_data)
 
-    images, seeds = make_images_internal(
+    images, seeds, gallery_paths = make_images_internal(
         context,
         req,
         task_data,
@@ -132,7 +132,12 @@ def make_images(
     )
 
     res = GenerateImageResponse(
-        req, task_data, models_data, output_format, save_data, images=construct_response(images, seeds, output_format)
+        req,
+        task_data,
+        models_data,
+        output_format,
+        save_data,
+        images=construct_response(images, seeds, output_format, gallery_paths),
     )
     res = res.json()
     data_queue.put(json.dumps(res))
@@ -204,16 +209,35 @@ def make_images_internal(
     if task_data.block_nsfw:
         filtered_images = filter_nsfw(filtered_images)
 
+    saved_gallery_paths = [None] * len(filtered_images)
     if save_data.save_to_disk_path is not None:
+        # Import lazily: gallery reads app.BUCKET_DIR during module import,
+        # while app imports task_manager (and this module) before that runtime
+        # path has been initialized.
+        from easydiffusion import gallery
+
         images_pil = [base64_str_to_img(img) for img in images]
         filtered_images_pil = [base64_str_to_img(img) for img in filtered_images]
-        save_images_to_disk(images_pil, filtered_images_pil, req, task_data, models_data, output_format, save_data)
+        saved_paths = save_images_to_disk(
+            images_pil,
+            filtered_images_pil,
+            req,
+            task_data,
+            models_data,
+            output_format,
+            save_data,
+        )
+        saved_gallery_paths = [gallery.relative_gallery_path(path) for path in saved_paths]
 
     seeds = [*range(req.seed, req.seed + len(images))]
     if task_data.show_only_filtered_image or filtered_images is images:
-        return filtered_images, seeds
+        return filtered_images, seeds, saved_gallery_paths
     else:
-        return images + filtered_images, seeds + seeds
+        return (
+            images + filtered_images,
+            seeds + seeds,
+            [None] * len(images) + saved_gallery_paths,
+        )
 
 
 def generate_images_internal(
@@ -266,8 +290,18 @@ def generate_images_internal(
     return images
 
 
-def construct_response(images: list, seeds: list, output_format: OutputFormatData):
-    return [ResponseImage(data=img, seed=seed) for img, seed in zip(images, seeds)]
+def construct_response(
+    images: list,
+    seeds: list,
+    output_format: OutputFormatData,
+    gallery_paths=None,
+):
+    if gallery_paths is None:
+        gallery_paths = [None] * len(images)
+    return [
+        ResponseImage(data=img, seed=seed, gallery_path=gallery_path)
+        for img, seed, gallery_path in zip(images, seeds, gallery_paths)
+    ]
 
 
 def make_step_callback(

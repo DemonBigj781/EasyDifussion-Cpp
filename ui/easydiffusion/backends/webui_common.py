@@ -423,12 +423,17 @@ def generate_images(
 
     if control_image and context.model_paths.get("controlnet"):
         controlnet_model = context.model_paths["controlnet"]
-
-        model_hash = auto1111_hash(controlnet_model)
-        controlnet_model = os.path.basename(controlnet_model)
-        controlnet_model = os.path.splitext(controlnet_model)[0]
+        if USE_SDKIT3_API:
+            # sdkit3 accepts the resolved path, which is unambiguous for
+            # checkpoints with generic Diffusers filenames and for the
+            # separate Union/Uni/LITE model folders.
+            controlnet_model = os.path.abspath(controlnet_model)
+        else:
+            model_hash = auto1111_hash(controlnet_model)
+            controlnet_model = os.path.basename(controlnet_model)
+            controlnet_model = os.path.splitext(controlnet_model)[0]
+            controlnet_model = f"{controlnet_model} [{model_hash}]"
         print(f"setting controlnet model: {controlnet_model}")
-        controlnet_model = f"{controlnet_model} [{model_hash}]"
 
         cmd["alwayson_scripts"] = {
             "controlnet": {

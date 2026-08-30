@@ -98,6 +98,10 @@ def init():
     server_api.include_router(online_model_browser_router, prefix="/civitai-api")
     server_api.include_router(huggingface_router, prefix="/huggingface-api")
 
+    from easydiffusion.model_tools import router as model_tools_router
+
+    server_api.include_router(model_tools_router, prefix="/model-tools")
+
     if os.path.isdir(app.CUSTOM_MODIFIERS_DIR):
         server_api.mount(
             "/media/modifier-thumbnails/custom",
@@ -386,6 +390,9 @@ def init():
     @server_api.on_event("shutdown")
     def shutdown_event():  # Signal render thread to close on shutdown
         task_manager.current_state_error = SystemExit("Application shutting down.")
+        from easydiffusion.tipo import shutdown as shutdown_tipo
+
+        shutdown_tipo()
 
     @server_api.on_event("startup")
     def start_event():

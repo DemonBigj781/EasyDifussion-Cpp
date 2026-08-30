@@ -22,7 +22,7 @@
         minP: "0.05",
         topK: "80",
         seed: "-1",
-        device: "cpu",
+        device: "cuda",
         format: DEFAULT_FORMAT,
         model: "",
     };

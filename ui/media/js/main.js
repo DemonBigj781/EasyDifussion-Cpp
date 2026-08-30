@@ -383,6 +383,56 @@ function undoableRemove(element, doubleUndo = false) {
     }
 }
 
+function permanentlyRemove(element) {
+    if (!element) return
+
+    const relatedUndoEntries = undoBuffer.filter((entry) =>
+        entry.element === element ||
+        element.contains(entry.element) ||
+        element.contains(entry.parent)
+    )
+    undoBuffer = undoBuffer.filter((entry) => !relatedUndoEntries.includes(entry))
+
+    const removedElements = [element, ...relatedUndoEntries.map((entry) => entry.element)]
+    removedElements.forEach((removed) => {
+        removed.querySelectorAll?.("[data-imagecounter]").forEach((img) => {
+            delete imageRequest[img.dataset.imagecounter]
+        })
+    })
+
+    if (element.classList.contains("imageTaskContainer")) {
+        htmlTaskMap.delete(element)
+    }
+    element.remove()
+    undoButton.classList.toggle("displayNone", undoBuffer.length === 0)
+}
+
+function generatedGalleryPaths(taskContainer) {
+    if (!(taskContainer._generatedGalleryPaths instanceof Set)) {
+        taskContainer._generatedGalleryPaths = new Set()
+    }
+    return taskContainer._generatedGalleryPaths
+}
+
+async function eraseGalleryPath(relativePath) {
+    if (!relativePath) return
+    const encodedPath = relativePath
+        .split("/")
+        .map((part) => encodeURIComponent(part))
+        .join("/")
+    const response = await fetch(`/gallery/file/${encodedPath}`, { method: "DELETE" })
+    if (response.ok || response.status === 404) return
+
+    let message = `Could not erase gallery file (${response.status})`
+    try {
+        const result = await response.json()
+        message = result.detail || message
+    } catch (_) {
+        // Keep the HTTP status message.
+    }
+    throw new Error(message)
+}
+
 function undoRemove() {
     let data = undoBuffer.pop()
     if (!data) {
@@ -444,12 +494,14 @@ function showImages(reqBody, res, outputContainer, livePreview) {
                         </div>
                     </div>
                     <button class="imgPreviewItemClearBtn image_clear_btn"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="imgPreviewItemEraseBtn image_clear_btn displayNone" title="Erase image from results and gallery"><i class="fa-solid fa-eraser"></i></button>
                     <span class="img_bottom_label"></span>
                     <div class="spinner displayNone"><center>${spinnerPacmanHtml}</center><div class="spinnerStatus"></div></div>
                 </div>
             `
             outputContainer.appendChild(imageItemElem)
             const imageRemoveBtn = imageItemElem.querySelector(".imgPreviewItemClearBtn")
+            const imageEraseBtn = imageItemElem.querySelector(".imgPreviewItemEraseBtn")
             let parentTaskContainer = imageRemoveBtn.closest(".imageTaskContainer")
             imageRemoveBtn.addEventListener("click", (e) => {
                 undoableRemove(imageItemElem)
@@ -468,6 +520,34 @@ function showImages(reqBody, res, outputContainer, livePreview) {
                     }
                 }
             })
+            imageEraseBtn.addEventListener("click", (e) => {
+                shiftOrConfirm(
+                    e,
+                    "Permanently erase this image from the results and gallery?",
+                    async () => {
+                        imageEraseBtn.disabled = true
+                        try {
+                            const galleryPath = imageItemElem.dataset.galleryPath || ""
+                            await eraseGalleryPath(galleryPath)
+                            generatedGalleryPaths(parentTaskContainer).delete(galleryPath)
+                            permanentlyRemove(imageItemElem)
+
+                            const task = htmlTaskMap.get(parentTaskContainer)
+                            if (
+                                parentTaskContainer.querySelectorAll(".imgItem").length === 0 &&
+                                task && !task.isProcessing
+                            ) {
+                                permanentlyRemove(parentTaskContainer)
+                                updateInitialText()
+                            }
+                        } catch (error) {
+                            imageEraseBtn.disabled = false
+                            alert(error.message)
+                        }
+                    },
+                    false
+                )
+            })
         }
         const imageElem = imageItemElem.querySelector("img")
         imageElem.src = imageData
@@ -476,6 +556,19 @@ function showImages(reqBody, res, outputContainer, livePreview) {
         imageElem.setAttribute("data-prompt", imagePrompt)
         imageElem.setAttribute("data-steps", imageInferenceSteps)
         imageElem.setAttribute("data-guidance", imageGuidanceScale)
+
+        if (!livePreview) {
+            const galleryPath = typeof result?.gallery_path === "string" ? result.gallery_path : ""
+            imageItemElem.dataset.galleryPath = galleryPath
+            if (galleryPath) {
+                const parentTaskContainer = imageItemElem.closest(".imageTaskContainer")
+                generatedGalleryPaths(parentTaskContainer).add(galleryPath)
+            }
+            imageItemElem.querySelector(".imgPreviewItemEraseBtn")?.classList.remove("displayNone")
+            imageItemElem.closest(".imageTaskContainer")
+                ?.querySelector(".eraseTask")
+                ?.classList.remove("displayNone")
+        }
 
         imageElem.addEventListener("load", function () {
             imageItemElem.querySelector(".img_bottom_label").innerText = `${this.naturalWidth} x ${this.naturalHeight}`
@@ -1071,7 +1164,14 @@ function makeImage() {
     }
     numInferenceStepsField.classList.remove("validation-failed")
 
-    if (controlNetEnabledField.checked) {
+    const selectedControlNetMode = window.controlNetModeController?.mode || (controlNetEnabledField.checked ? "standard" : "off")
+    if (selectedControlNetMode !== "off" && selectedControlNetMode !== "standard") {
+        const controlNetError = window.controlNetModeController?.validate() || ""
+        if (controlNetError) {
+            alert(controlNetError)
+            return
+        }
+    } else if (controlNetEnabledField.checked) {
         if (!IMAGE_REGEX.test(controlImagePreview.src)) {
             alert("Please load a ControlNet image, or disable ControlNet.")
             controlImageSelector.classList.add("validation-failed")
@@ -1239,6 +1339,7 @@ function createTask(task) {
                                 <i class="drag-handle fa-solid fa-grip"></i>
                                 <div class="taskStatusLabel">Enqueued</div>
                                 <button class="secondaryButton stopTask"><i class="fa-solid fa-xmark"></i> Cancel</button>
+                                <button class="tertiaryButton eraseTask displayNone" disabled><i class="fa-solid fa-eraser"></i> Erase</button>
                                 <button class="tertiaryButton useSettings"><i class="fa-solid fa-redo"></i> Use these settings</button>
                                 <div class="preview-prompt"></div>
                                 <div class="taskConfig">${taskConfig}</div>
@@ -1302,6 +1403,7 @@ function createTask(task) {
     task["previewPrompt"] = taskEntry.querySelector(".preview-prompt")
     task["progressBar"] = taskEntry.querySelector(".progress-bar")
     task["stopTask"] = taskEntry.querySelector(".stopTask")
+    task["eraseTask"] = taskEntry.querySelector(".eraseTask")
 
     task["stopTask"].addEventListener("click", (e) => {
         e.stopPropagation()
@@ -1316,6 +1418,27 @@ function createTask(task) {
         } else {
             removeTask(taskEntry)
         }
+    })
+
+    task["eraseTask"].addEventListener("click", (e) => {
+        if (task.isProcessing) return
+        shiftOrConfirm(
+            e,
+            "Permanently erase every image in this task from the results and gallery?",
+            async () => {
+                task.eraseTask.disabled = true
+                try {
+                    await Promise.all(Array.from(generatedGalleryPaths(taskEntry), eraseGalleryPath))
+                    generatedGalleryPaths(taskEntry).clear()
+                    permanentlyRemove(taskEntry)
+                    updateInitialText()
+                } catch (error) {
+                    task.eraseTask.disabled = false
+                    alert(error.message)
+                }
+            },
+            false
+        )
     })
 
     task["useSettings"] = taskEntry.querySelector(".useSettings")
@@ -1506,6 +1629,11 @@ function getCurrentUserRequest() {
     }
     if (schedulerSelectionContainer.style.display !== "none") {
         newTask.reqBody.scheduler_name = schedulerField.value
+    }
+
+    const taskBuildEvent = { reqBody: newTask.reqBody }
+    for (const hook of PLUGINS["TASK_BUILD"] || []) {
+        if (typeof hook === "function") hook(taskBuildEvent)
     }
 
     return newTask
@@ -2655,8 +2783,15 @@ function selectTab(tab_id) {
     document.dispatchEvent(new CustomEvent("tabClick", { detail: tabInfo }))
 }
 function linkTabContents(tab) {
+    if (!tab || tabElements.some((info) => info.tab === tab || info.tab.id === tab.id)) {
+        return
+    }
     var name = tab.id.replace("tab-", "")
     var content = document.getElementById(`tab-content-${name}`)
+    if (!content) {
+        console.error(`No content panel found for tab ${tab.id}`)
+        return
+    }
     tabElements.push({
         name: name,
         tab: tab,

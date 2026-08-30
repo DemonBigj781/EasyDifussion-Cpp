@@ -29,7 +29,12 @@
   }
 
   function ready() {
-    if (typeof createTab !== "function" || document.getElementById(`${PLUGIN_ID}-panel`)) return
+    if (typeof createTab !== "function") return false
+    if (
+      document.getElementById(`${PLUGIN_ID}-panel`) ||
+      document.getElementById("tab-civitai") ||
+      document.getElementById("tab-content-civitai")
+    ) return true
 
     const panel = document.createElement("div")
     panel.id = `${PLUGIN_ID}-panel`

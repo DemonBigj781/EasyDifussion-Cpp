@@ -1,22 +1,21 @@
+"""Adapted from KGen 0.2.0 (Apache-2.0).
+
+Copyright 2024 KBlueLeaf. Modified for Easy Diffusion.
+See ``easy-diffusion-custom-licenses/KGen-Apache-2.0.txt``.
+"""
+
 import regex as re
 from contextlib import nullcontext
 from random import shuffle
 
 import torch
 
-try:
-    from llama_cpp import Llama
-except:
-
-    class Llama:
-        pass
-
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerBase
 
 
 def generate(
-    model: PreTrainedModel | Llama,
+    model,
     tokenizer: PreTrainedTokenizerBase,
     prompt="",
     temperature=0.5,
@@ -27,7 +26,7 @@ def generate(
     autocast_gen=lambda: torch.autocast("cpu", enabled=False),
     **kwargs,
 ):
-    if isinstance(model, Llama):
+    if hasattr(model, "create_completion"):
         result = model.create_completion(
             prompt,
             temperature=temperature,

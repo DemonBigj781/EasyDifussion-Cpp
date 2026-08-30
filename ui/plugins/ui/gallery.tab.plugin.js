@@ -2,8 +2,13 @@
 
     "use strict"
 
-    // Check if plugin is already running
-    if (document.querySelector("#gallery-tab") !== null) {
+    // Check if the plugin is already running. Older builds used the wrong ID
+    // here, so reloading plugins could append an unbounded number of tabs.
+    const existingTabs = document.querySelectorAll("#tab-gallery")
+    const existingPanels = document.querySelectorAll("#tab-content-gallery")
+    if (existingTabs.length || existingPanels.length) {
+        Array.from(existingTabs).slice(1).forEach((tab) => tab.remove())
+        Array.from(existingPanels).slice(1).forEach((panel) => panel.remove())
         return
     }
 

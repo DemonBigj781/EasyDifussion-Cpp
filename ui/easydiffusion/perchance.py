@@ -24,7 +24,10 @@ PERCHANCE_LOCK = threading.Lock()
 SETTINGS_LOCK = threading.Lock()
 IMAGE_TIMEOUT_SECONDS = 15 * 60
 TEXT_TIMEOUT_SECONDS = 10 * 60
-GALLERY_TIMEOUT_SECONDS = 15 * 60
+# The Perchance gallery performs an in-page fetch which currently has no abort
+# signal of its own. Bound the wrapper so an intermittent upstream stall does
+# not leave the Easy Diffusion UI busy for fifteen minutes.
+GALLERY_TIMEOUT_SECONDS = 2 * 60
 MAX_PROMPT_LENGTH = 20_000
 MAX_CAPTURE_LENGTH = 1_000_000
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}

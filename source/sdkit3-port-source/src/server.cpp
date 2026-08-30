@@ -376,6 +376,12 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
         params.steps     = json_body.has("steps") ? json_body["steps"].i() : 20;
         params.frames    = json_body.has("video_frames") ? json_body["video_frames"].i() : 25;
         params.fps       = json_body.has("fps") ? json_body["fps"].i() : 8;
+        params.motion_bucket_id = json_body.has("motion_bucket_id")
+                                      ? json_body["motion_bucket_id"].i()
+                                      : 127;
+        params.augmentation_level = json_body.has("augmentation_level")
+                                        ? static_cast<float>(json_body["augmentation_level"].d())
+                                        : 0.0f;
         params.cfg_scale = json_body.has("cfg_scale") ? static_cast<float>(json_body["cfg_scale"].d()) : 5.0f;
         params.strength  = json_body.has("denoising_strength")
                                ? static_cast<float>(json_body["denoising_strength"].d())
@@ -455,6 +461,12 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
         }
         if (params.fps < 1 || params.fps > 60) {
             throw std::invalid_argument("fps must be between 1 and 60");
+        }
+        if (params.motion_bucket_id < 0 || params.motion_bucket_id > 1023) {
+            throw std::invalid_argument("motion_bucket_id must be between 0 and 1023");
+        }
+        if (!std::isfinite(params.augmentation_level) || params.augmentation_level < 0.0f) {
+            throw std::invalid_argument("augmentation_level must be a finite non-negative number");
         }
         if (params.cache_start_percent < 0.0f || params.cache_end_percent > 1.0f ||
             params.cache_start_percent >= params.cache_end_percent) {

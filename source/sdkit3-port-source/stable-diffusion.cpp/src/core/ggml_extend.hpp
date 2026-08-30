@@ -3397,6 +3397,27 @@ public:
                 b = ctx->weight_adapter->patch_weight(ctx->ggml_ctx, ctx->backend, b, prefix + "bias");
             }
         }
+        // SVD's temporal residual blocks store tensors as [N,C,T,H*W].
+        // ggml_conv_3d expects channels folded into the last dimension, while
+        // the nx1x1 helper natively accepts this layout. Reinterpret the
+        // contiguous [1,1,K,IC*OC] weight as [1,K,IC,OC] for that path.
+        if (std::get<1>(kernel_size) == 1 &&
+            std::get<2>(kernel_size) == 1 &&
+            x->ne[2] == in_channels) {
+            w = ggml_reshape_4d(ctx->ggml_ctx,
+                                w,
+                                1,
+                                std::get<0>(kernel_size),
+                                in_channels,
+                                out_channels);
+            return ggml_ext_conv_3d_nx1x1(ctx->ggml_ctx,
+                                          x,
+                                          w,
+                                          b,
+                                          std::get<0>(stride),
+                                          std::get<0>(padding),
+                                          std::get<0>(dilation));
+        }
         return ggml_ext_conv_3d(ctx->ggml_ctx, x, w, b, in_channels,
                                 std::get<2>(stride), std::get<1>(stride), std::get<0>(stride),
                                 std::get<2>(padding), std::get<1>(padding), std::get<0>(padding),
