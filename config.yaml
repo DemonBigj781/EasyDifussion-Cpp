@@ -33,6 +33,7 @@ backend_config:
     - info
     - --diffusion-fa
     - --sage-attention
+    - --image-vae-on-cpu
     - --video-clip-on-cpu
     - --video-vae-on-cpu
     - --video-offload-to-cpu
