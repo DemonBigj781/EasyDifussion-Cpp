@@ -208,6 +208,39 @@ class TestTerminologyConsistency(unittest.TestCase):
             re.compile(r"except Exception:\s+if cancellation_requested\(\):\s+return"),
         )
 
+    def test_configured_image_vae_uses_larger_gpu_tiles(self):
+        config = (self.repo_root / "config.yaml").read_text(encoding="utf-8")
+        main_cpp = (self.repo_root / "source" / "sdkit3-port-source" / "src" / "main.cpp").read_text(
+            encoding="utf-8"
+        )
+        generator_cpp = (
+            self.repo_root / "source" / "sdkit3-port-source" / "src" / "image_generator.cpp"
+        ).read_text(encoding="utf-8")
+        stable_diffusion_cpp = (
+            self.repo_root
+            / "source"
+            / "sdkit3-port-source"
+            / "stable-diffusion.cpp"
+            / "src"
+            / "stable-diffusion.cpp"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("--vae-tiling", config)
+        self.assertIn("--vae-tiles", config)
+        self.assertIn("--vae-tiled-overlap", config)
+        self.assertNotIn("--image-vae-on-cpu", config)
+        self.assertIn('arg == "--vae-tiles"', main_cpp)
+        self.assertIn('arg == "--vae-tiled-overlap"', main_cpp)
+        self.assertIn("int vae_tiles = 32", main_cpp)
+        self.assertIn("int vae_tiled_overlap = 16", main_cpp)
+        self.assertIn(
+            "!vae_tiling_ && parsed_options[\"vae_tiling\"].t() == crow::json::type::False",
+            generator_cpp,
+        )
+        self.assertIn("vae_tiled_overlap_", generator_cpp)
+        self.assertIn("VAE decode cancelled; skipping tiled fallback", stable_diffusion_cpp)
+        self.assertIn("latent tiling and %d-pixel overlap", stable_diffusion_cpp)
+
     def test_explicit_no_image_checkpoint_does_not_fall_back_to_config(self):
         types_py = (self.repo_root / "ui" / "easydiffusion" / "types.py").read_text(encoding="utf-8")
         model_manager_py = (

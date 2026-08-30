@@ -227,6 +227,8 @@ class ImageGenerator {
     bool image_vae_on_cpu_;
     bool vae_tiling_;
     std::string vae_tile_size_;
+    int vae_tiles_;
+    int vae_tiled_overlap_;
     bool offload_to_cpu_;
     bool mmap_weights_;
     bool keep_model_loaded_;

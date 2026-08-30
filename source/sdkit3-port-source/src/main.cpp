@@ -93,6 +93,8 @@ struct CommandLineArgs {
     bool image_vae_on_cpu = false;
     bool vae_tiling = false;
     std::string vae_tile_size;
+    int vae_tiles = 32;
+    int vae_tiled_overlap = 16;
     bool offload_to_cpu = false;
     bool mmap_weights = false;
     bool mmap_explicitly_disabled = false;
@@ -135,6 +137,10 @@ void print_usage(const char* program_name) {
     std::cerr << "  --image-vae-on-cpu                 Keep image-generation VAE on CPU (default: false)" << std::endl;
     std::cerr << "  --vae-tiling                       Enable VAE tiling (default: false)" << std::endl;
     std::cerr << "  --vae-tile-size <size>             VAE tile size (in pixels), format [X]x[Y] (default: 256x256)"
+              << std::endl;
+    std::cerr << "  --vae-tiles <size>                 VAE latent tile size; 32 means 32x32 (default: 32)"
+              << std::endl;
+    std::cerr << "  --vae-tiled-overlap <pixels>       VAE latent tile overlap in pixels (default: 16)"
               << std::endl;
     std::cerr << "  --offload-to-cpu                   Offload parameters to CPU (default: false)" << std::endl;
     std::cerr << "  --mmap                             Memory-map weights instead of committing a RAM copy" << std::endl;
@@ -213,6 +219,18 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.vae_tiling = true;
         } else if (arg == "--vae-tile-size" && i + 1 < argc) {
             args.vae_tile_size = argv[++i];
+        } else if ((arg == "--vae-tiles" || arg == "--vae-tiled-overlap") && i + 1 < argc) {
+            try {
+                const int value = std::stoi(argv[++i]);
+                if (arg == "--vae-tiles") {
+                    args.vae_tiles = value;
+                } else {
+                    args.vae_tiled_overlap = value;
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Invalid " << arg << ": expected an integer" << std::endl;
+                exit(1);
+            }
         } else if (arg == "--offload-to-cpu") {
             args.offload_to_cpu = true;
         } else if (arg == "--mmap") {
@@ -265,6 +283,15 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             print_usage(argv[0]);
             exit(1);
         }
+    }
+
+    if (args.vae_tiles < 4) {
+        std::cerr << "--vae-tiles must be at least 4" << std::endl;
+        exit(1);
+    }
+    if (args.vae_tiled_overlap < 0 || args.vae_tiled_overlap * 2 > args.vae_tiles) {
+        std::cerr << "--vae-tiled-overlap must be between 0 and half of --vae-tiles" << std::endl;
+        exit(1);
     }
 
     return args;
@@ -351,6 +378,8 @@ int main(int argc, char* argv[]) {
         server_params.image_vae_on_cpu = args.image_vae_on_cpu;
         server_params.vae_tiling = args.vae_tiling;
         server_params.vae_tile_size = args.vae_tile_size;
+        server_params.vae_tiles = args.vae_tiles;
+        server_params.vae_tiled_overlap = args.vae_tiled_overlap;
         server_params.offload_to_cpu = args.offload_to_cpu;
         server_params.mmap_weights = args.mmap_weights ||
                                      (args.offload_to_cpu && !args.mmap_explicitly_disabled);

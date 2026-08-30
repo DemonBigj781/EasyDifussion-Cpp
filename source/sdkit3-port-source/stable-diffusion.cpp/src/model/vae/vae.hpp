@@ -45,7 +45,11 @@ protected:
         auto on_processing = [&](const sd::Tensor<float>& input_tile) {
             auto output_tile = _compute(n_threads, input_tile, decode_graph);
             if (output_tile.empty()) {
-                LOG_ERROR("%s", error_message);
+                if (execution_cancelled()) {
+                    LOG_INFO("VAE tile processing cancelled");
+                } else {
+                    LOG_ERROR("%s", error_message);
+                }
                 return sd::Tensor<float>();
             }
             return output_tile;
@@ -154,7 +158,11 @@ public:
         free_compute_buffer();
 
         if (output.empty()) {
-            LOG_ERROR("vae encode compute failed");
+            if (execution_cancelled()) {
+                LOG_INFO("VAE encode cancelled");
+            } else {
+                LOG_ERROR("vae encode compute failed");
+            }
             return {};
         }
         int64_t t1 = ggml_time_ms();
@@ -205,7 +213,11 @@ public:
         free_compute_buffer();
 
         if (output.empty()) {
-            LOG_ERROR("vae decode compute failed");
+            if (execution_cancelled()) {
+                LOG_INFO("VAE decode cancelled");
+            } else {
+                LOG_ERROR("vae decode compute failed");
+            }
             return {};
         }
         if (scale_input) {

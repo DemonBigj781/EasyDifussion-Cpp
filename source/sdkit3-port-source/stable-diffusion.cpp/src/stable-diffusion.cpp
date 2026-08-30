@@ -3128,11 +3128,23 @@ public:
                                                  decode_video,
                                                  circular_x,
                                                  circular_y);
+        if (decoded.empty() && get_cancel_flag() == SD_CANCEL_ALL) {
+            LOG_INFO("VAE decode cancelled; skipping tiled fallback");
+            return {};
+        }
         if (decoded.empty() && !vae_tiling_params.enabled && !decode_video) {
             sd_tiling_params_t fallback = vae_tiling_params;
             fallback.enabled            = true;
-            fallback.target_overlap     = 0.5f;
-            LOG_WARN("untiled VAE decode failed; retrying once with automatic 32x32 latent tiling");
+            const int fallback_tile_x   = fallback.tile_size_x >= 4 ? fallback.tile_size_x : 32;
+            const int fallback_tile_y   = fallback.tile_size_y >= 4 ? fallback.tile_size_y : 32;
+            fallback.tile_size_x        = fallback_tile_x;
+            fallback.tile_size_y        = fallback_tile_y;
+            const int fallback_overlap  = static_cast<int>(std::round(
+                std::min(fallback_tile_x, fallback_tile_y) * fallback.target_overlap));
+            LOG_WARN("untiled VAE decode failed; retrying once with automatic %dx%d latent tiling and %d-pixel overlap",
+                     fallback_tile_x,
+                     fallback_tile_y,
+                     fallback_overlap);
             decoded = first_stage_model->decode(n_threads,
                                                 latents,
                                                 fallback,
@@ -5201,13 +5213,17 @@ static sd_image_t* decode_image_outputs(sd_ctx_t* sd_ctx,
 
     for (size_t i = 0; i < final_latents.size(); i++) {
         if (sd_ctx->sd->get_cancel_flag() == SD_CANCEL_ALL) {
-            LOG_ERROR("cancelling latent decodings");
+            LOG_INFO("cancelling latent decodings");
             cancelled = true;
             break;
         }
         int64_t t1              = ggml_time_ms();
         sd::Tensor<float> image = sd_ctx->sd->decode_first_stage(final_latents[i]);
         if (image.empty()) {
+            if (sd_ctx->sd->get_cancel_flag() == SD_CANCEL_ALL) {
+                LOG_INFO("latent decode cancelled");
+                return nullptr;
+            }
             LOG_ERROR("decode_first_stage failed for latent %" PRId64, i + 1);
             return nullptr;
         }
@@ -5219,7 +5235,11 @@ static sd_image_t* decode_image_outputs(sd_ctx_t* sd_ctx,
     int64_t t4 = ggml_time_ms();
     LOG_INFO("decode_first_stage completed, taking %.2fs", (t4 - t0) * 1.0f / 1000);
     if (decoded_images.empty()) {
-        LOG_ERROR(cancelled ? "cancelled before any latent images were decoded" : "no decoded images");
+        if (cancelled) {
+            LOG_INFO("cancelled before any latent images were decoded");
+        } else {
+            LOG_ERROR("no decoded images");
+        }
         return nullptr;
     }
 

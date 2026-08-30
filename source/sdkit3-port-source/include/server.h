@@ -17,6 +17,8 @@ struct ServerParams {
     bool image_vae_on_cpu = false;
     bool vae_tiling = false;
     std::string vae_tile_size;
+    int vae_tiles = 32;
+    int vae_tiled_overlap = 16;
     bool offload_to_cpu = false;
     bool mmap_weights = false;
     bool keep_model_loaded = false;

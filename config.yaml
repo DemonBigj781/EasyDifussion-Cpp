@@ -33,7 +33,11 @@ backend_config:
     - info
     - --diffusion-fa
     - --sage-attention
-    - --image-vae-on-cpu
+    - --vae-tiling
+    - --vae-tiles
+    - '64'
+    - --vae-tiled-overlap
+    - '16'
     - --video-clip-on-cpu
     - --video-vae-on-cpu
     - --video-offload-to-cpu

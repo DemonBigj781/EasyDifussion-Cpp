@@ -105,6 +105,8 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       image_vae_on_cpu_(server_params.image_vae_on_cpu),
       vae_tiling_(server_params.vae_tiling),
       vae_tile_size_(server_params.vae_tile_size),
+      vae_tiles_(server_params.vae_tiles),
+      vae_tiled_overlap_(server_params.vae_tiled_overlap),
       offload_to_cpu_(server_params.offload_to_cpu),
       mmap_weights_(server_params.mmap_weights),
       keep_model_loaded_(server_params.keep_model_loaded),
@@ -564,49 +566,68 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         LOG_INFO("Using %d reference image(s)", gen_params.ref_images_count);
     }
 
-    // The per-render option overrides the CLI default when supplied by the UI.
+    // A startup tiling flag is an installation-level memory safety requirement
+    // and must not be disabled by the request schema's default false value.
+    // Without the startup flag, the per-render UI option remains authoritative.
     bool vae_tiling_enabled = vae_tiling_;
     if (parsed_options && parsed_options.has("vae_tiling")) {
         if (parsed_options["vae_tiling"].t() == crow::json::type::True) {
             vae_tiling_enabled = true;
-        } else if (parsed_options["vae_tiling"].t() == crow::json::type::False) {
+        } else if (!vae_tiling_ && parsed_options["vae_tiling"].t() == crow::json::type::False) {
             vae_tiling_enabled = false;
         }
     }
-    if (vae_tiling_enabled) {
-        gen_params.vae_tiling_params.enabled = true;
-
-        // Parse tile size (in pixel space, will convert to latent space)
-        int tile_size_x = 256;
-        int tile_size_y = 256;
+    {
+        // The new --vae-tiles option is already in latent pixels. Preserve
+        // --vae-tile-size as a pixel-space compatibility override. Disabled
+        // tiling still carries these values for the automatic retry.
+        int latent_tile_x = vae_tiles_;
+        int latent_tile_y = vae_tiles_;
         if (!vae_tile_size_.empty()) {
             size_t x_pos = vae_tile_size_.find('x');
             try {
                 if (x_pos != std::string::npos) {
                     std::string tile_x_str = vae_tile_size_.substr(0, x_pos);
                     std::string tile_y_str = vae_tile_size_.substr(x_pos + 1);
-                    tile_size_x = std::stoi(tile_x_str);
-                    tile_size_y = std::stoi(tile_y_str);
+                    latent_tile_x = std::stoi(tile_x_str) / 8;
+                    latent_tile_y = std::stoi(tile_y_str) / 8;
                 } else {
-                    tile_size_x = tile_size_y = std::stoi(vae_tile_size_);
+                    latent_tile_x = latent_tile_y = std::stoi(vae_tile_size_) / 8;
                 }
             } catch (const std::exception& e) {
-                LOG_WARNING("Invalid VAE tile size '%s', using default 256x256", vae_tile_size_.c_str());
-                tile_size_x = tile_size_y = 256;
+                LOG_WARNING("Invalid VAE tile size '%s', using --vae-tiles %d",
+                            vae_tile_size_.c_str(),
+                            vae_tiles_);
+                latent_tile_x = latent_tile_y = vae_tiles_;
             }
         }
 
-        // Convert from pixel space to latent space (VAE downscaling factor is 8)
-        int latent_tile_x = tile_size_x / 8;
-        int latent_tile_y = tile_size_y / 8;
+        latent_tile_x = std::max(latent_tile_x, 4);
+        latent_tile_y = std::max(latent_tile_y, 4);
+        const int overlap_limit = std::max(1, std::min(latent_tile_x, latent_tile_y) / 2);
+        const int overlap_pixels = std::min(vae_tiled_overlap_, overlap_limit);
+        const float overlap_ratio = static_cast<float>(overlap_pixels) /
+                                    static_cast<float>(std::min(latent_tile_x, latent_tile_y));
 
+        gen_params.vae_tiling_params.enabled = vae_tiling_enabled;
         gen_params.vae_tiling_params.tile_size_x = latent_tile_x;
         gen_params.vae_tiling_params.tile_size_y = latent_tile_y;
-        gen_params.vae_tiling_params.target_overlap = 0.5f;
+        gen_params.vae_tiling_params.target_overlap = overlap_ratio;
         gen_params.vae_tiling_params.rel_size_x = 0.0f;
         gen_params.vae_tiling_params.rel_size_y = 0.0f;
-        LOG_INFO("VAE tiling enabled with tile size %dx%d pixels (%dx%d latent)", tile_size_x, tile_size_y,
-                 latent_tile_x, latent_tile_y);
+        if (vae_tiling_enabled) {
+            LOG_INFO("VAE tiling enabled with %dx%d latent tiles, %d-pixel overlap (%dx%d image pixels)",
+                     latent_tile_x,
+                     latent_tile_y,
+                     overlap_pixels,
+                     latent_tile_x * 8,
+                     latent_tile_y * 8);
+        } else {
+            LOG_INFO("Automatic VAE fallback configured for %dx%d latent tiles with %d-pixel overlap",
+                     latent_tile_x,
+                     latent_tile_y,
+                     overlap_pixels);
+        }
     }
 
     // Generate images
