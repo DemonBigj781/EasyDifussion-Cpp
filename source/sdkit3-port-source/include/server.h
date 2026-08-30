@@ -29,6 +29,10 @@ struct ServerParams {
     bool image_clip_on_cpu = false;
     bool video_clip_on_cpu = false;
     bool video_vae_on_cpu = false;
+    bool video_offload_to_cpu = false;
+    bool video_mmap_weights = false;
+    std::string video_max_vram;
+    bool video_stream_layers = false;
     bool chroma_disable_dit_mask = false;
 };
 

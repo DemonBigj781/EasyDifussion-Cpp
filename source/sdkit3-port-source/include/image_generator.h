@@ -217,6 +217,10 @@ class ImageGenerator {
     std::string cpu_vae_fallback_model_path_;
     bool current_vae_uses_cpu_ = false;
     bool current_text_encoder_uses_cpu_ = false;
+    bool current_params_offloaded_to_cpu_ = false;
+    bool current_mmap_weights_ = false;
+    std::string current_max_vram_;
+    bool current_stream_layers_ = false;
 
     // SD context parameters from CLI
     bool image_vae_on_cpu_;
@@ -234,6 +238,10 @@ class ImageGenerator {
     bool image_clip_on_cpu_;
     bool video_clip_on_cpu_;
     bool video_vae_on_cpu_;
+    bool video_offload_to_cpu_;
+    bool video_mmap_weights_;
+    std::string video_max_vram_;
+    bool video_stream_layers_;
     bool chroma_disable_dit_mask_;
 };
 

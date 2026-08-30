@@ -28,6 +28,7 @@ struct CallbackData {
     std::string task_id;
     TaskStateManager* task_state_manager;
     int total_steps;
+    bool video_generation;
 };
 
 static CallbackData g_callback_data;
@@ -39,7 +40,15 @@ static void progress_callback(int step, int steps, float time, void* data) {
     if (g_callback_data.task_state_manager && !g_callback_data.task_id.empty()) {
         float progress = steps > 0 ? static_cast<float>(step) / static_cast<float>(steps) : 0.0f;
         g_callback_data.task_state_manager->updateTaskProgress(g_callback_data.task_id, progress, "", step, steps);
-        LOG_DEBUG("Progress: step %d/%d (%.1f%%), time: %.2fs", step, steps, progress * 100.0f, time);
+        if (g_callback_data.video_generation) {
+            LOG_INFO("Video sampling step %d/%d (%.1f%%, %.2fs)",
+                     step,
+                     steps,
+                     progress * 100.0f,
+                     time);
+        } else {
+            LOG_DEBUG("Progress: step %d/%d (%.1f%%), time: %.2fs", step, steps, progress * 100.0f, time);
+        }
     }
 }
 
@@ -106,6 +115,10 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       image_clip_on_cpu_(server_params.image_clip_on_cpu),
       video_clip_on_cpu_(server_params.video_clip_on_cpu),
       video_vae_on_cpu_(server_params.video_vae_on_cpu),
+      video_offload_to_cpu_(server_params.video_offload_to_cpu),
+      video_mmap_weights_(server_params.video_mmap_weights),
+      video_max_vram_(server_params.video_max_vram),
+      video_stream_layers_(server_params.video_stream_layers),
       chroma_disable_dit_mask_(server_params.chroma_disable_dit_mask) {
     LOG_INFO("ImageGenerator created");
 }
@@ -196,6 +209,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
         g_callback_data.task_id            = task_id;
         g_callback_data.task_state_manager = task_state_manager_.get();
         g_callback_data.total_steps        = params.steps;
+        g_callback_data.video_generation   = true;
     }
     sd_set_progress_callback(nullptr, nullptr);
     sd_set_sample_progress_callback(progress_callback, nullptr);
@@ -338,6 +352,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         g_callback_data.task_id = task_id;
         g_callback_data.task_state_manager = task_state_manager_.get();
         g_callback_data.total_steps = params.steps;
+        g_callback_data.video_generation = false;
     }
 
     // The legacy callback also receives text-encoder, tensor-transfer, and VAE
@@ -950,6 +965,15 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                               model_path == cpu_vae_fallback_model_path_);
     const bool use_cpu_text_encoder = (!native_video_request && image_clip_on_cpu_) ||
                                       (native_video_request && video_clip_on_cpu_);
+    const bool offload_params_to_cpu = offload_to_cpu_ ||
+                                       (native_video_request && video_offload_to_cpu_);
+    const bool use_mmap_weights = mmap_weights_ ||
+                                  (native_video_request && video_mmap_weights_);
+    const std::string& effective_max_vram = native_video_request && !video_max_vram_.empty()
+                                                ? video_max_vram_
+                                                : max_vram_;
+    const bool use_stream_layers = stream_layers_ ||
+                                   (native_video_request && video_stream_layers_);
 
     // Check if we need to reload the model (check all paths including controlnet)
     bool needs_reload = !initialized_ || !sd_ctx_ || model_path != current_model_path_ ||
@@ -967,7 +991,11 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                         furception_vae_path != current_furception_vae_path_ ||
                         embeddings_dir_str != current_embeddings_dir_ ||
                         use_cpu_vae != current_vae_uses_cpu_ ||
-                        use_cpu_text_encoder != current_text_encoder_uses_cpu_;
+                        use_cpu_text_encoder != current_text_encoder_uses_cpu_ ||
+                        offload_params_to_cpu != current_params_offloaded_to_cpu_ ||
+                        use_mmap_weights != current_mmap_weights_ ||
+                        effective_max_vram != current_max_vram_ ||
+                        use_stream_layers != current_stream_layers_;
 
     if (!needs_reload) {
         LOG_DEBUG("Model already loaded: %s", model_path.c_str());
@@ -1117,7 +1145,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     // Apply CLI parameters for SD context
     std::string backend, backend_params;
 
-    if (offload_to_cpu_) {
+    if (offload_params_to_cpu) {
         prepend_backend_assignment(backend_params, "*=cpu");
     }
     if (use_cpu_text_encoder) {
@@ -1137,7 +1165,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     // params-backend storage while letting the kernel reclaim clean model
     // pages under memory pressure. Converted tensors still fall back to an
     // allocated buffer, as handled by ModelManager.
-    params.enable_mmap = mmap_weights_;
+    params.enable_mmap = use_mmap_weights;
     params.keep_compute_params = keep_model_loaded_;
     // Keep one params-backend copy of every registered component. This turns
     // the checkpoint into a real model-context cache: the diffusion model,
@@ -1147,8 +1175,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.flash_attn = flash_attention_;
     params.diffusion_flash_attn = diffusion_fa_;
     params.diffusion_sage_attn = sage_attention_;
-    params.max_vram = max_vram_.empty() ? nullptr : max_vram_.c_str();
-    params.stream_layers = stream_layers_;
+    params.max_vram = effective_max_vram.empty() ? nullptr : effective_max_vram.c_str();
+    params.stream_layers = use_stream_layers;
     params.chroma_use_dit_mask = !chroma_disable_dit_mask_;
 
     if (use_cpu_vae) {
@@ -1157,10 +1185,11 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                                                         : "automatic CUDA fallback");
         LOG_INFO("VAE compute will use CPU/RAM (%s)", reason);
     }
-    if (offload_to_cpu_) {
-        LOG_INFO("Parameters will be offloaded to CPU");
+    if (offload_params_to_cpu) {
+        LOG_INFO("%s parameters will be offloaded to CPU",
+                 native_video_request && video_offload_to_cpu_ && !offload_to_cpu_ ? "Native video" : "Model");
     }
-    if (mmap_weights_) {
+    if (use_mmap_weights) {
         LOG_INFO("Model weights will use reclaimable read-only mmap storage");
     }
     if (keep_model_loaded_) {
@@ -1175,11 +1204,13 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (sage_attention_) {
         LOG_INFO("Native SageAttention SM80 preference enabled with automatic ggml fallback");
     }
-    if (!max_vram_.empty()) {
-        LOG_INFO("Graph VRAM budget: %s GiB", max_vram_.c_str());
+    if (!effective_max_vram.empty()) {
+        LOG_INFO("%s graph VRAM budget: %s GiB",
+                 native_video_request && !video_max_vram_.empty() ? "Native video" : "Model",
+                 effective_max_vram.c_str());
     }
-    if (stream_layers_) {
-        LOG_INFO("Layer streaming enabled");
+    if (use_stream_layers) {
+        LOG_INFO("%s layer streaming enabled", native_video_request ? "Native video" : "Model");
     }
     if (control_net_cpu_) {
         LOG_INFO("ControlNet will be kept on CPU");
@@ -1219,6 +1250,10 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     current_furception_vae_path_ = furception_vae_path;
     current_vae_uses_cpu_ = use_cpu_vae;
     current_text_encoder_uses_cpu_ = use_cpu_text_encoder;
+    current_params_offloaded_to_cpu_ = offload_params_to_cpu;
+    current_mmap_weights_ = use_mmap_weights;
+    current_max_vram_ = effective_max_vram;
+    current_stream_layers_ = use_stream_layers;
 
     initialized_ = true;
     LOG_INFO("SD context initialized successfully");

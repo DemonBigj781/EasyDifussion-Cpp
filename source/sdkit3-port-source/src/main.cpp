@@ -108,6 +108,9 @@ struct CommandLineArgs {
     bool image_clip_on_cpu = false;
     bool video_clip_on_cpu = false;
     bool video_vae_on_cpu = false;
+    bool video_offload_to_cpu = false;
+    std::string video_max_vram;
+    bool video_stream_layers = false;
     bool chroma_disable_dit_mask = false;
 };
 
@@ -151,6 +154,11 @@ void print_usage(const char* program_name) {
     std::cerr << "  --video-clip-on-cpu                Keep native-video text encoders on CPU (default: false)"
               << std::endl;
     std::cerr << "  --video-vae-on-cpu                 Keep native-video VAE on CPU (default: false)" << std::endl;
+    std::cerr << "  --video-offload-to-cpu             Offload native-video parameters to CPU (default: false)"
+              << std::endl;
+    std::cerr << "  --video-max-vram <GiB>             Native-video graph VRAM budget" << std::endl;
+    std::cerr << "  --video-stream-layers              Stream native-video diffusion layers within its VRAM budget"
+              << std::endl;
     std::cerr << "  --chroma-disable-dit-mask          Disable DiT mask for Chroma models (default: false)"
               << std::endl;
 }
@@ -241,6 +249,12 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.video_clip_on_cpu = true;
         } else if (arg == "--video-vae-on-cpu") {
             args.video_vae_on_cpu = true;
+        } else if (arg == "--video-offload-to-cpu") {
+            args.video_offload_to_cpu = true;
+        } else if (arg == "--video-max-vram" && i + 1 < argc) {
+            args.video_max_vram = argv[++i];
+        } else if (arg == "--video-stream-layers") {
+            args.video_stream_layers = true;
         } else if (arg == "--chroma-disable-dit-mask") {
             args.chroma_disable_dit_mask = true;
         } else if (arg == "--help" || arg == "-h") {
@@ -350,6 +364,10 @@ int main(int argc, char* argv[]) {
         server_params.image_clip_on_cpu = args.image_clip_on_cpu;
         server_params.video_clip_on_cpu = args.video_clip_on_cpu;
         server_params.video_vae_on_cpu = args.video_vae_on_cpu;
+        server_params.video_offload_to_cpu = args.video_offload_to_cpu;
+        server_params.video_mmap_weights = args.video_offload_to_cpu && !args.mmap_explicitly_disabled;
+        server_params.video_max_vram = args.video_max_vram;
+        server_params.video_stream_layers = args.video_stream_layers;
         server_params.chroma_disable_dit_mask = args.chroma_disable_dit_mask;
 
         // Create and start the server

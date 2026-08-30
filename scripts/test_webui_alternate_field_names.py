@@ -152,6 +152,9 @@ class TestTerminologyConsistency(unittest.TestCase):
 
         self.assertIn('arg == "--video-clip-on-cpu"', main_cpp)
         self.assertIn('arg == "--video-vae-on-cpu"', main_cpp)
+        self.assertIn('arg == "--video-offload-to-cpu"', main_cpp)
+        self.assertIn('arg == "--video-max-vram"', main_cpp)
+        self.assertIn('arg == "--video-stream-layers"', main_cpp)
         self.assertIn('arg == "--image-clip-on-cpu"', main_cpp)
         self.assertIn('arg == "--image-vae-on-cpu"', main_cpp)
         self.assertNotIn('arg == "--clip-on-cpu"', main_cpp)
@@ -160,8 +163,17 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn("!native_video_request && image_vae_on_cpu_", generator_cpp)
         self.assertIn("native_video_request && video_clip_on_cpu_", generator_cpp)
         self.assertIn("native_video_request && video_vae_on_cpu_", generator_cpp)
+        self.assertIn("native_video_request && video_offload_to_cpu_", generator_cpp)
+        self.assertIn("native_video_request && video_mmap_weights_", generator_cpp)
+        self.assertIn("native_video_request && !video_max_vram_.empty()", generator_cpp)
+        self.assertIn("native_video_request && video_stream_layers_", generator_cpp)
         self.assertIn("--video-clip-on-cpu", config)
         self.assertIn("--video-vae-on-cpu", config)
+        self.assertIn("--video-offload-to-cpu", config)
+        self.assertIn("--video-max-vram", config)
+        self.assertIn("--video-stream-layers", config)
+        self.assertIn("g_callback_data.video_generation   = true", generator_cpp)
+        self.assertIn("Video sampling step %d/%d", generator_cpp)
 
     def test_explicit_no_image_checkpoint_does_not_fall_back_to_config(self):
         types_py = (self.repo_root / "ui" / "easydiffusion" / "types.py").read_text(encoding="utf-8")
