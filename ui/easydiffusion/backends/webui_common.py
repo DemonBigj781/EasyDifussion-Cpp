@@ -1113,8 +1113,10 @@ def stop_backend():
     global backend_process
 
     if backend_process:
+        process = backend_process
         try:
-            kill(backend_process.pid)
+            kill(process.pid)
+            process.wait(timeout=10)
         except:
             pass
 

@@ -274,8 +274,29 @@ var PARAMETERS = [
         default: "auto",
         options: [
             { value: "auto", label: "Auto" },
+            { value: "sycl", label: "Intel oneAPI / SYCL (local build)" },
             { value: "vulkan", label: "Vulkan (experimental)" },
         ],
+    },
+    {
+        id: "backend_commandline_args",
+        type: ParameterType.custom,
+        label: "Native backend arguments",
+        note:
+            "Advanced sdkit3 arguments, parsed without a shell. Easy Diffusion continues to manage the server port and model-directory arguments.",
+        icon: "fa-terminal",
+        saveInAppConfig: true,
+        render: (parameter) =>
+            `<textarea id="${parameter.id}" name="${parameter.id}" rows="4" cols="48" spellcheck="false"></textarea>`,
+    },
+    {
+        id: "reload_backend",
+        type: ParameterType.checkbox,
+        label: "Reload native backend when saving",
+        note: "Applies native backend arguments immediately. This is allowed only while generation is idle and the queue is empty.",
+        icon: "fa-rotate",
+        default: false,
+        saveInAppConfig: true,
     },
     {
         id: "cloudflare",
@@ -467,11 +488,18 @@ async function changeAppConfig(configDelta) {
             },
             body: JSON.stringify(configDelta),
         })
-        res = await res.json()
+        const response = res
+        res = await response.json()
+        if (!response.ok) {
+            throw new Error(res.detail || `HTTP ${response.status}`)
+        }
 
         console.log("set config status response", res)
+        return res
     } catch (e) {
         console.log("set config status error", e)
+        showToast(`Settings were not saved: ${e.message}`, 7000, true)
+        throw e
     }
 }
 
@@ -592,6 +620,10 @@ function applySettingsFromConfig(config) {
                     } else {
                         parameterElement.value = configValue
                     }
+                    parameterElement.dispatchEvent(new Event("change"))
+                    break
+                case "TEXTAREA":
+                    parameterElement.value = Array.isArray(configValue) ? configValue.join(" ") : configValue
                     parameterElement.dispatchEvent(new Event("change"))
                     break
                 case "SELECT":
@@ -841,9 +873,12 @@ saveSettingsBtn.addEventListener("click", function () {
                         updateAppConfigRequest[parameterRow.dataset.settingId] = parameterElement.value
                     }
                     break
+                case "TEXTAREA":
+                    updateAppConfigRequest[parameterRow.dataset.settingId] = parameterElement.value
+                    break
                 default:
                     console.error(
-                        `Setting parameter ${parameterRow.dataset.settingId} couldn't be saved to app.config - element #${parameter.id} is a <${parameterElement?.tagName} /> instead of a <input /> or a <select />!`
+                        `Setting parameter ${parameterRow.dataset.settingId} couldn't be saved to app.config - element #${parameterRow.dataset.settingId} is a <${parameterElement?.tagName} /> instead of an <input />, <select />, or <textarea />!`
                     )
                     break
             }
@@ -851,9 +886,13 @@ saveSettingsBtn.addEventListener("click", function () {
     })
 
     const savePromise = changeAppConfig(updateAppConfigRequest)
-    showToast("Settings saved")
+        .then((result) => {
+            const reloadBackendField = document.getElementById("reload_backend")
+            if (reloadBackendField) reloadBackendField.checked = false
+            showToast(result.backend_restarted ? "Settings saved and native backend reloaded" : "Settings saved")
+        })
     saveSettingsBtn.classList.add("active")
-    Promise.all([savePromise, asyncDelay(300)]).then(() => saveSettingsBtn.classList.remove("active"))
+    Promise.allSettled([savePromise, asyncDelay(300)]).then(() => saveSettingsBtn.classList.remove("active"))
 })
 
 listenToNetworkField.addEventListener(

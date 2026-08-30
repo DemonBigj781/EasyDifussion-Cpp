@@ -19,6 +19,12 @@ set(CMAKE_PLATFORM_NO_VERSIONED_SONAME ON)
 option(SDKIT_BUILD_TOOLS "Build sdkit tools" OFF)
 option(SDKIT_BUILD_NATIVE_VISION "Build the isolated LibTorch YOLO sidecar" OFF)
 option(SDKIT_BUILD_IMAGE_TOOLS "Build lightweight native image helpers" ON)
+option(SDKIT_BUILD_LLAMA_RUNTIME
+    "Build llama-server beside sdkit as an isolated GGML runtime" OFF)
+set(SDKIT_LLAMA_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp" CACHE PATH
+    "Path to the vendored llama.cpp source")
+set(SDKIT_LLAMA_BUILD_JOBS "4" CACHE STRING
+    "Maximum parallel jobs used by the isolated llama.cpp build")
 set(SDKIT_TORCH_CUDART "" CACHE FILEPATH
     "Optional libcudart used by the selected LibTorch distribution")
 
@@ -79,6 +85,55 @@ endif()
 target_link_libraries(sdkit PRIVATE ggml)
 target_link_libraries(sdkit PRIVATE stable-diffusion)
 target_link_libraries(sdkit PRIVATE Threads::Threads)
+
+# stable-diffusion.cpp and llama.cpp intentionally pin different ggml
+# revisions. Linking both ggml libraries into one process would interpose
+# identically named C symbols and corrupt either runtime. Build llama-server as
+# part of the same native bundle, but keep its address space isolated.
+if(SDKIT_BUILD_LLAMA_RUNTIME)
+    if(NOT EXISTS "${SDKIT_LLAMA_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR "Vendored llama.cpp source not found: ${SDKIT_LLAMA_SOURCE_DIR}")
+    endif()
+    include(ExternalProject)
+    set(SDKIT_LLAMA_BUILD_DIR "${CMAKE_BINARY_DIR}/llama-runtime")
+    set(SDKIT_LLAMA_BACKEND_ARGS
+        -DGGML_CUDA=${SD_CUDA}
+        -DGGML_HIP=${SD_HIPBLAS}
+        -DGGML_METAL=${SD_METAL}
+        -DGGML_VULKAN=${SD_VULKAN}
+        -DGGML_SYCL=${SD_SYCL}
+        -DGGML_SYCL_F16=${SD_SYCL}
+    )
+    ExternalProject_Add(sdkit-llama-runtime
+        SOURCE_DIR "${SDKIT_LLAMA_SOURCE_DIR}"
+        BINARY_DIR "${SDKIT_LLAMA_BUILD_DIR}"
+        CMAKE_ARGS
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+            -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+            -DBUILD_SHARED_LIBS=OFF
+            -DLLAMA_CURL=OFF
+            -DLLAMA_BUILD_TESTS=OFF
+            -DLLAMA_BUILD_TOOLS=ON
+            -DLLAMA_BUILD_EXAMPLES=OFF
+            -DLLAMA_BUILD_SERVER=ON
+            -DLLAMA_BUILD_APP=OFF
+            -DLLAMA_BUILD_UI=OFF
+            -DLLAMA_USE_PREBUILT_UI=OFF
+            ${SDKIT_LLAMA_BACKEND_ARGS}
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target llama-server
+            --parallel ${SDKIT_LLAMA_BUILD_JOBS}
+        INSTALL_COMMAND ""
+        BUILD_BYPRODUCTS
+            "${SDKIT_LLAMA_BUILD_DIR}/bin/llama-server${CMAKE_EXECUTABLE_SUFFIX}"
+    )
+    add_dependencies(sdkit sdkit-llama-runtime)
+    add_custom_command(TARGET sdkit POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SDKIT_LLAMA_BUILD_DIR}/bin/llama-server${CMAKE_EXECUTABLE_SUFFIX}"
+            "$<TARGET_FILE_DIR:sdkit>"
+        COMMENT "Bundling the isolated llama.cpp runtime with sdkit")
+endif()
 
 # Platform-specific libraries
 if(WIN32)

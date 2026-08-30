@@ -6,8 +6,16 @@ Supplied Easy Diffusion plugins by The Stig
   (ui/plugins/ui/stig-localstorage.plugin.js)
 - Relocate Modifiers Plugin v1.1
   (ui/plugins/ui/stig-relocateModifiers.plugin.js)
+- Image to img2img
+  (plugins/ui/stig-image-to-img2img.plugin.js)
+- Image Utilities
+  (plugins/ui/stigs-image_utilities.plugin.js)
+- Text to Prompt
+  (plugins/ui/stig-text2prompt.plugin.js)
+- LoRA Shuttle Controls
+  (plugins/ui/stigs-lora-shuttle-controls.plugin.js)
 
-The LoRA Metadata Reader source states that it is free to use with the CMDR2
-Stable Diffusion UI. The LocalStorage Manager and Relocate Modifiers files
-identify their author but do not state a standard license. Their original
-headers are retained. This attribution notice does not add or invent a license.
+Several sources state that they are free to use with the CMDR2 Stable
+Diffusion UI. The remaining files identify their author but do not state a
+standard license. Their original headers are retained. This attribution notice
+does not add or invent a license.

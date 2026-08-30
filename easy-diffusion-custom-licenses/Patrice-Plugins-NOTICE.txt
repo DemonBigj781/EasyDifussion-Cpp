@@ -2,6 +2,20 @@ Supplied Easy Diffusion plugins by Patrice
 
 - Inpainting and Image Editor (ui/plugins/ui/inpainting.plugin.js)
 - LoRA Prompt Parser 1.0 (ui/plugins/ui/lora-prompt-parser.plugin.js)
+- Accessibility Improvements
+- Daily Folders
+- Disable Source Image Zoom
+- GPU Mode Quick Toggle
+- Make Image Always Visible
+- Processing Order Quick Toggle
+- Prompt Diff
+- Prompt Translator
+- Random Seed Quick Toggle
+- Seed Randomizer
+- Template Manager
+- Toggle Spellcheck
+
+The additional legacy files are installed under `plugins/ui/` and are opt-in.
 
 The supplied files identify Patrice as the author but do not state a standard
 license. Their original headers are retained. This attribution notice does not

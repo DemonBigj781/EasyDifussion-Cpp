@@ -9,6 +9,7 @@ import tempfile
 import traceback
 
 from easydiffusion.app import ROOT_DIR, getConfig
+from easydiffusion.backend_args import parse_backend_commandline_args
 from easydiffusion.utils import log
 
 from common import run
@@ -151,12 +152,7 @@ def start_backend():
         update_backend()
 
     user_args = backend_config.get("COMMANDLINE_ARGS")
-    if isinstance(user_args, str):
-        user_args = user_args.split()
-    elif user_args:
-        user_args = [str(arg) for arg in user_args]
-    else:
-        user_args = []
+    user_args = parse_backend_commandline_args(user_args or [])
 
     webui_common.WEBUI_API_PREFIX = "/v1"
     webui_common.USE_SDKIT3_API = True

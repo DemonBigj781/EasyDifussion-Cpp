@@ -112,10 +112,126 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/gallery.tab.plugin.js",
 ]
 
+// Local legacy plugins are installed with the application but remain opt-in.
+// Most of them predate a plugin lifecycle API, so enabling is live while
+// disabling takes effect on the next page load.
+const OPTIONAL_UI_PLUGIN_STORAGE_KEY = "easy-diffusion-enabled-local-plugins-v1"
+const OPTIONAL_UI_PLUGINS = Object.freeze([
+    { id: "cpp-gifs", name: "GIF output and GIF-to-GIF", path: "/plugins/core/mads-gifs-cpp.plugin.js", defaultEnabled: true },
+    { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/user/accessibility-improvements.plugin.js" },
+    { id: "animate", name: "Animate (legacy)", path: "/plugins/user/animate.plugin%20(1).js" },
+    { id: "daily-folders", name: "Daily output folders", path: "/plugins/user/daily-folders.plugin.js" },
+    { id: "disable-source-image-zoom", name: "Disable source-image zoom", path: "/plugins/user/disable-source-image-zoom.plugin.js" },
+    { id: "gpu-mode-quick-toggle", name: "GPU mode quick toggle", path: "/plugins/user/gpu-mode-quick-toggle.plugin.js" },
+    { id: "make-image-always-visible", name: "Always-visible Make Image button", path: "/plugins/user/make-image-button-always-visible.plugin.js" },
+    { id: "processing-order-quick-toggle", name: "Processing-order quick toggle", path: "/plugins/user/processing-order-quick-toggle.plugin.js" },
+    { id: "prompt-diff", name: "Prompt diff", path: "/plugins/user/prompt-diff.plugin.js" },
+    { id: "prompt-translator", name: "Prompt translator (uses Google Translate)", path: "/plugins/user/prompt-translator.plugin.js" },
+    { id: "queue-counter", name: "Queue counter", path: "/plugins/user/queue-counter.plugin.js" },
+    { id: "rabbit-hole", name: "Rabbit Hole UI", path: "/plugins/user/rabbithole.plugins.js" },
+    { id: "random-seed-quick-toggle", name: "Random-seed quick toggle", path: "/plugins/user/random-seed-quick-toggle.plugin.js" },
+    { id: "seed-randomizer", name: "Batch seed randomizer", path: "/plugins/user/seed-randomizer.plugin.js" },
+    { id: "spell-tokenizer", name: "Spell tokenizer and merged tag search", path: "/plugins/user/spell-tokenizer.plugin.js" },
+    { id: "stig-image-to-img2img", name: "Stig image-to-img2img tools", path: "/plugins/user/stig-image-to-img2img.plugin.js" },
+    { id: "stig-image-utilities", name: "Stig image utilities", path: "/plugins/user/stigs-image_utilities.plugin.js" },
+    { id: "stig-lora-shuttle", name: "Stig LoRA shuttle controls", path: "/plugins/user/stigs-lora-shuttle-controls.plugin.js" },
+    { id: "stig-text-to-prompt", name: "Stig text-to-prompt", path: "/plugins/user/stig-text2prompt.plugin.js" },
+    { id: "storyteller", name: "Storyteller tab", path: "/plugins/user/storyteller.plugin.js" },
+    { id: "template-manager", name: "Template manager", path: "/plugins/user/template-manager.plugin.js" },
+    { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/user/toggle-spellcheck.plugin.js" },
+])
+
+function getEnabledOptionalUIPluginIds() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY))
+        if (Array.isArray(saved)) {
+            return new Set(saved.filter((id) => OPTIONAL_UI_PLUGINS.some((plugin) => plugin.id === id)))
+        }
+    } catch (error) {
+        console.warn("Ignoring invalid optional-plugin settings", error)
+    }
+    return new Set(OPTIONAL_UI_PLUGINS.filter((plugin) => plugin.defaultEnabled).map((plugin) => plugin.id))
+}
+
+let enabledOptionalUIPluginIds = getEnabledOptionalUIPluginIds()
+
+function saveEnabledOptionalUIPlugins() {
+    localStorage.setItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY, JSON.stringify(Array.from(enabledOptionalUIPluginIds)))
+}
+
+async function loadOptionalUIPlugin(plugin) {
+    const status = document.getElementById(`optional-plugin-status-${plugin.id}`)
+    if (status) status.textContent = "loading…"
+    try {
+        await loadScript(plugin.path)
+        if (status) status.textContent = "loaded"
+    } catch (error) {
+        if (status) status.textContent = "failed"
+        console.error(`Optional plugin ${plugin.name} failed to load`, error)
+        if (typeof showToast === "function") showToast(`${plugin.name} failed to load: ${error.message}`, 7000, true)
+    }
+}
+
+async function loadEnabledOptionalUIPlugins() {
+    for (const plugin of OPTIONAL_UI_PLUGINS) {
+        if (enabledOptionalUIPluginIds.has(plugin.id)) {
+            await loadOptionalUIPlugin(plugin)
+        }
+    }
+}
+
+function renderOptionalUIPluginSettings() {
+    const container = document.createElement("div")
+    container.id = "optional-ui-plugin-settings"
+    container.style.cssText = "min-width: min(620px, 70vw); max-height: 45vh; overflow: auto"
+
+    for (const plugin of OPTIONAL_UI_PLUGINS) {
+        const row = document.createElement("label")
+        row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:center;padding:.3rem 0"
+        const checkbox = document.createElement("input")
+        checkbox.type = "checkbox"
+        checkbox.checked = enabledOptionalUIPluginIds.has(plugin.id)
+        checkbox.dataset.pluginId = plugin.id
+        const name = document.createElement("span")
+        name.textContent = plugin.name
+        const status = document.createElement("small")
+        status.id = `optional-plugin-status-${plugin.id}`
+        status.textContent = checkbox.checked ? "enabled" : "disabled"
+        row.append(checkbox, name, status)
+        container.appendChild(row)
+
+        checkbox.addEventListener("change", async () => {
+            if (checkbox.checked) {
+                enabledOptionalUIPluginIds.add(plugin.id)
+                saveEnabledOptionalUIPlugins()
+                await loadOptionalUIPlugin(plugin)
+            } else {
+                enabledOptionalUIPluginIds.delete(plugin.id)
+                saveEnabledOptionalUIPlugins()
+                status.textContent = "disabled after reload"
+                if (typeof showToast === "function") showToast(`${plugin.name} will be disabled after reloading the page.`)
+            }
+        })
+    }
+    return container
+}
+
+if (typeof PARAMETERS !== "undefined") {
+    PARAMETERS.push({
+        id: "optional_ui_plugins",
+        type: ParameterType.custom,
+        label: "Optional local plugins",
+        note: "Enable plugins immediately. Disable takes effect after a page reload because legacy plugins do not expose an unload hook.",
+        icon: "fa-puzzle-piece",
+        render: renderOptionalUIPluginSettings,
+    })
+}
+
 async function loadRequiredUIPlugins() {
     for (const plugin of REQUIRED_UI_PLUGINS) {
         await loadScript(plugin)
     }
+    await loadEnabledOptionalUIPlugins()
 }
 
 

@@ -6,11 +6,13 @@ Notes:
 import datetime
 import mimetypes
 import os
+import shlex
 import subprocess
 import traceback
 from typing import List, Union
 
 from easydiffusion import app, gallery, model_manager, package_manager, perchance, task_manager
+from easydiffusion.backend_args import parse_backend_commandline_args
 from easydiffusion.tasks import RenderTask, FilterTask, VideoTask
 from easydiffusion.types import (
     GenerateImageRequest,
@@ -82,6 +84,8 @@ class SetAppConfigRequest(BaseModel, extra=Extra.allow):
     backend_platform: str = "auto"
     models_dir: str = None
     vram_usage_level: str = "balanced"
+    backend_commandline_args: Union[List[str], str] = None
+    reload_backend: bool = False
 
 
 def init():
@@ -404,6 +408,27 @@ def init():
 # API implementations
 def set_app_config_internal(req: SetAppConfigRequest):
     config = app.getConfig()
+    backend_commandline_args = None
+    if req.backend_commandline_args is not None:
+        try:
+            backend_commandline_args = parse_backend_commandline_args(req.backend_commandline_args)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=f"Invalid backend command-line arguments: {error}")
+
+    if req.reload_backend:
+        selected_backend = req.backend or config.get("backend")
+        if selected_backend != "sdkit3":
+            raise HTTPException(status_code=400, detail="Live argument reload is supported by the sdkit3 backend.")
+        with task_manager.manager_lock:
+            backend_is_idle = (
+                task_manager.current_state == task_manager.ServerStates.Online
+                and not task_manager.tasks_queue
+            )
+        if not backend_is_idle:
+            raise HTTPException(
+                status_code=409,
+                detail="The backend can only reload while generation is idle and the queue is empty.",
+            )
     if req.update_branch is not None:
         config["update_branch"] = req.update_branch
     if req.render_devices is not None:
@@ -427,6 +452,8 @@ def set_app_config_internal(req: SetAppConfigRequest):
     config["vram_usage_level"] = req.vram_usage_level
 
     config["backend_config"] = config.get("backend_config") or {}
+    if backend_commandline_args is not None:
+        config["backend_config"]["COMMANDLINE_ARGS"] = backend_commandline_args
     config["backend_config"]["platform"] = None
     if req.backend_platform == "auto":
         del config["backend_config"]["platform"]
@@ -443,7 +470,15 @@ def set_app_config_internal(req: SetAppConfigRequest):
         if req.render_devices:
             app.update_render_threads()
 
-        return JSONResponse({"status": "OK"}, headers=NOCACHE_HEADERS)
+        if req.reload_backend:
+            from easydiffusion import backend_manager
+
+            backend_manager.restart_backend()
+
+        return JSONResponse(
+            {"status": "OK", "backend_restarted": bool(req.reload_backend)},
+            headers=NOCACHE_HEADERS,
+        )
     except Exception as e:
         log.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
@@ -465,10 +500,16 @@ def read_web_data_internal(key: str = None, **kwargs):
     if not key:  # /get without parameters, stable-diffusion easter egg.
         raise HTTPException(status_code=418, detail="StableDiffusion is drawing a teapot!")  # HTTP418 I'm a teapot
     elif key == "app_config":
-        config = app.getConfig()
+        config = dict(app.getConfig())
 
         if "models_dir" not in config:
             config["models_dir"] = app.MODELS_DIR
+
+        commandline_args = (config.get("backend_config") or {}).get("COMMANDLINE_ARGS", [])
+        if isinstance(commandline_args, (list, tuple)):
+            config["backend_commandline_args"] = shlex.join(map(str, commandline_args))
+        else:
+            config["backend_commandline_args"] = str(commandline_args or "")
 
         return JSONResponse(config, headers=NOCACHE_HEADERS)
     elif key == "system_info":

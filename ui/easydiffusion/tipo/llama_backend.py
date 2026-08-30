@@ -6,6 +6,7 @@ import socket
 import subprocess
 import threading
 import time
+from glob import glob
 from collections import deque
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -32,6 +33,10 @@ def server_executable() -> Optional[Path]:
             llama_root / "build" / "bin" / "Release" / "llama-server.exe",
             Path(easy_app.ROOT_DIR) / "backends" / "llama.cpp" / "llama-server",
         ]
+    )
+    candidates.extend(
+        Path(path)
+        for path in sorted(glob(str(Path(easy_app.ROOT_DIR) / "backends" / "sdkit3" / "*" / "llama-server")))
     )
     for candidate in candidates:
         if candidate.is_file() and os.access(candidate, os.X_OK):
