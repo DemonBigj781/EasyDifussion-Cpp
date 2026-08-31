@@ -7,16 +7,16 @@ def configure(backend,target,mode,suffix=''):
     system=platform.system().lower(); b=ROOT/'build'/f'ci-{system}-{backend}{suffix}'
     if system=='windows':
         if backend!='cpu': raise SystemExit(f'{backend} Windows provisioning is not wired yet')
-        args=['cmake','-S',SRC,'-B',b,'-A','x64','-DSDKIT_BUILD_LLAMA_RUNTIME=OFF','-DSDKIT_BUILD_NATIVE_VISION=OFF']
+        args=['cmake','-S',SRC,'-B',b,'-A','x64','-DSDKIT_BUILD_LLAMA_RUNTIME=OFF','-DSDKIT_BUILD_NATIVE_VISION=OFF','-DGGML_CCACHE=OFF']
     else:
-        args=['cmake','-S',SRC,'-B',b,'-G','Ninja','-DCMAKE_BUILD_TYPE=Release','-DSDKIT_BUILD_LLAMA_RUNTIME=OFF','-DSDKIT_BUILD_NATIVE_VISION=OFF','-DSDKIT_OPENGL_BACKEND=OFF','-DSD_CUDA=OFF','-DSD_HIPBLAS=OFF','-DSD_METAL=OFF','-DSD_VULKAN=OFF','-DSD_OPENCL=OFF','-DSD_SYCL=OFF','-DSD_MUSA=OFF']
+        args=['cmake','-S',SRC,'-B',b,'-G','Ninja','-DCMAKE_BUILD_TYPE=Release','-DSDKIT_BUILD_LLAMA_RUNTIME=OFF','-DSDKIT_BUILD_NATIVE_VISION=OFF','-DSDKIT_OPENGL_BACKEND=OFF','-DGGML_CCACHE=OFF','-DSD_CUDA=OFF','-DSD_HIPBLAS=OFF','-DSD_METAL=OFF','-DSD_VULKAN=OFF','-DSD_OPENCL=OFF','-DSD_SYCL=OFF','-DSD_MUSA=OFF']
         if backend=='cuda': args += ['-DSD_CUDA=ON',f"-DCMAKE_CUDA_ARCHITECTURES={';'.join(target['cuda'])}"]
         elif backend=='rocm': args += ['-DSD_HIPBLAS=ON',f"-DGPU_TARGETS={';'.join(target['rocm'])}",f"-DAMDGPU_TARGETS={';'.join(target['rocm'])}"]
         elif backend=='vulkan': args += ['-DSD_VULKAN=ON']
         elif backend=='opencl': args += ['-DSD_OPENCL=ON']
         elif backend=='opengl': args += ['-DSDKIT_OPENGL_BACKEND=ON']
         elif backend=='oneapi':
-            arch=target['_oneapi_arch']; args += ['-DCMAKE_C_COMPILER=icx','-DCMAKE_CXX_COMPILER=icpx','-DGGML_CCACHE=OFF','-DGGML_OPENMP=OFF','-DSD_SYCL=ON','-DGGML_SYCL_TARGET=INTEL','-DGGML_SYCL_F16=ON','-DGGML_SYCL_DNN=ON','-DGGML_SYCL_SUPPORT_LEVEL_ZERO=ON']
+            arch=target['_oneapi_arch']; args += ['-DCMAKE_C_COMPILER=icx','-DCMAKE_CXX_COMPILER=icpx','-DGGML_OPENMP=OFF','-DSD_SYCL=ON','-DGGML_SYCL_TARGET=INTEL','-DGGML_SYCL_F16=ON','-DGGML_SYCL_DNN=ON','-DGGML_SYCL_SUPPORT_LEVEL_ZERO=ON']
             if arch!='jit': args += [f'-DGGML_SYCL_DEVICE_ARCH={arch}']
         elif backend=='directml': raise SystemExit('DirectML/D3D12 implementation is not wired yet')
     run(*args)
