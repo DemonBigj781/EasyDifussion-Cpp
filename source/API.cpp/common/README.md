@@ -6,6 +6,7 @@ Backend-neutral contracts for `source/API.cpp` live here. Backend implementation
 
 - `api.hpp` / `api.cpp`: backend identifiers, operation identifiers, capability flags, device metadata, dispatch context, and name helpers.
 - `registry.hpp` / `registry.cpp`: fixed-size backend registration, capability lookup, and dispatch routing.
+- `attention/`: the shared optimized-attention contract and backend-neutral host FlexAttention implementation.
 
 ## Rules
 

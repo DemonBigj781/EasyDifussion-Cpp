@@ -20,7 +20,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "../common.cuh"
+#include "../../common.cuh"
 #include "cp_async.cuh"
 #include "mma.cuh"
 #include "permuted_smem.cuh"

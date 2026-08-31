@@ -1,11 +1,12 @@
 #include "sage-attention.cuh"
-#include "../fattn.cuh"
+#include "../flash/fattn.cuh"
+#include "../xformers/xformers-attention.cuh"
 
-#if defined(GGML_USE_HIP)
+#if defined(GGML_USE_HIP) || defined(GGML_USE_MUSA)
 
-// ROCm implementation hook. Until the native gfx/MFMA Sage kernel is wired,
-// report unsupported so the shared dispatcher selects the existing HIP
-// attention kernels instead of referencing CUDA-only symbols.
+// Non-CUDA implementation hook. Until native ROCm/MUSA Sage kernels are wired,
+// report unsupported so the shared dispatcher selects an existing attention
+// path instead of referencing CUDA-only symbols.
 bool ggml_sage_attn_supported(int device, const ggml_tensor * dst) {
     GGML_UNUSED(device);
     GGML_UNUSED(dst);
@@ -15,7 +16,7 @@ bool ggml_sage_attn_supported(int device, const ggml_tensor * dst) {
 void ggml_sage_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     GGML_UNUSED(ctx);
     GGML_UNUSED(dst);
-    GGML_ABORT("ROCm SageAttention implementation is not available for this target");
+    GGML_ABORT("SageAttention is not available for this target");
 }
 
 #else
@@ -32,19 +33,25 @@ void ggml_sage_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
 
 #endif
 
-// Native xFormers-style kernels are not wired into this ggml tree yet. Keep a
-// stable backend-neutral ABI now so CUDA, HIP/ROCm, Volta/Xavier, and future
-// implementations can provide their own kernels without changing callers.
 bool ggml_xformers_attn_supported(int device, const ggml_tensor * dst) {
+#if defined(GGML_USE_HIP) || defined(GGML_USE_MUSA)
     GGML_UNUSED(device);
     GGML_UNUSED(dst);
     return false;
+#else
+    return ggml_cuda_xformers_attn_supported(device, dst);
+#endif
 }
 
 void ggml_xformers_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+#if defined(GGML_USE_HIP) || defined(GGML_USE_MUSA)
     GGML_UNUSED(ctx);
     GGML_UNUSED(dst);
-    GGML_ABORT("xFormers attention implementation is not available for this backend");
+    GGML_ABORT("xFormers attention is not available for this target");
+#else
+    GGML_ASSERT(ggml_xformers_attn_supported(ctx.device, dst));
+    ggml_cuda_xformers_attn(ctx, dst);
+#endif
 }
 
 // FlashAttention retention is an API-compatibility contract, not an automatic

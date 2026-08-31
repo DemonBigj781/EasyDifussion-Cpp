@@ -4,8 +4,8 @@
 #include "fattn-tile.cuh"
 #include "fattn-vec.cuh"
 #include "fattn-wmma-f16.cuh"
-#include "sage/sage-attention-sm80.cuh"
-#include "xformers-attention.cuh"
+#include "../sage/sage-attention-sm80.cuh"
+#include "../xformers/xformers-attention.cuh"
 #include "fattn.cuh"
 
 template <int DKQ, int DV, int ncols2>

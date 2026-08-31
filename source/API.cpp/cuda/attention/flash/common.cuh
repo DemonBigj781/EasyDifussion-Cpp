@@ -1,2 +1,2 @@
 #pragma once
-#include "../common.cuh"
+#include "../../common.cuh"

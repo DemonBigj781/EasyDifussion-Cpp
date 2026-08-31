@@ -103,12 +103,23 @@ if (CUDAToolkit_FOUND)
     list(APPEND GGML_HEADERS_CUDA "../../include/ggml-cuda.h")
 
     file(GLOB   GGML_SOURCES_CUDA "*.cu")
-    # SageAttention's SM80 source is kept in its own Apache-2.0 attributed
-    # directory and uses a native ggml launcher (no PyTorch dependency).
-    list(APPEND GGML_SOURCES_CUDA sage/sage-attention-sm80.cu)
-    file(GLOB   SRCS "template-instances/fattn-tile*.cu")
+    set(GGML_API_CUDA_ATTENTION_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/cuda/attention")
+    set(GGML_API_CUDA_FLASH_DIR "${GGML_API_CUDA_ATTENTION_DIR}/flash")
+
+    # Compile canonical API.cpp attention sources directly. The legacy .cu
+    # files remain compatibility shims for downstream source-tree consumers.
+    list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch|xformers-attention)\\.cu$")
+    list(APPEND GGML_SOURCES_CUDA
+        "${GGML_API_CUDA_FLASH_DIR}/fattn.cu"
+        "${GGML_API_CUDA_FLASH_DIR}/fattn-tile.cu"
+        "${GGML_API_CUDA_FLASH_DIR}/fattn-wmma-f16.cu"
+        "${GGML_API_CUDA_ATTENTION_DIR}/sage/sage-attention.cu"
+        "${GGML_API_CUDA_ATTENTION_DIR}/sage/sage-attention-sm80.cu"
+        "${GGML_API_CUDA_ATTENTION_DIR}/xformers/xformers-attention.cu"
+    )
+    file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-tile*.cu")
     list(APPEND GGML_SOURCES_CUDA ${SRCS})
-    file(GLOB   SRCS "template-instances/fattn-mma*.cu")
+    file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-mma*.cu")
     list(APPEND GGML_SOURCES_CUDA ${SRCS})
     file(GLOB   SRCS "template-instances/mmq*.cu")
     list(APPEND GGML_SOURCES_CUDA ${SRCS})
@@ -116,15 +127,15 @@ if (CUDAToolkit_FOUND)
     list(APPEND GGML_SOURCES_CUDA ${SRCS})
 
     if (GGML_CUDA_FA_ALL_QUANTS)
-        file(GLOB   SRCS "template-instances/fattn-vec*.cu")
+        file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec*.cu")
         list(APPEND GGML_SOURCES_CUDA ${SRCS})
         add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)
     else()
         list(APPEND GGML_SOURCES_CUDA
-            template-instances/fattn-vec-instance-f16-f16.cu
-            template-instances/fattn-vec-instance-q4_0-q4_0.cu
-            template-instances/fattn-vec-instance-q8_0-q8_0.cu
-            template-instances/fattn-vec-instance-bf16-bf16.cu)
+            "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-f16-f16.cu"
+            "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-q4_0-q4_0.cu"
+            "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-q8_0-q8_0.cu"
+            "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-bf16-bf16.cu")
     endif()
 
     ggml_add_backend_library(ggml-cuda

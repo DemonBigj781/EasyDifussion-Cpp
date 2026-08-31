@@ -1,8 +1,9 @@
 # xFormers
 
 ## Status
-**Stub / not implemented.**
+**Implemented — ggml-native CUDA forward path.**
 
-The common xFormers API currently provides no usable CUDA xFormers execution path. JetPack 6 + CUDA 12.4 therefore remains unsupported even though Orin hardware is CUDA-capable.
+The API.cpp implementation provides fused, memory-efficient inference attention without a PyTorch/ATen dependency. It supports F32, F16, and BF16 Q/K/V tensors; independent K/V dimensions; broadcasted GQA/MQA heads and batches; additive F16 masks with ALiBi; logit soft-capping; and attention sinks. Unsupported inputs report false so ggml can select its normal fallback.
 
-Required work: implement CUDA execution, capability probing, dtype/shape rules, dispatch/fallback, and validation while preserving a compile-complete API surface.
+## Validation
+The source and build wiring are complete. Compilation and runtime comparison against the CPU reference remain required in the selected GitHub Actions CUDA environment.

@@ -18,6 +18,6 @@ The intended form is `API.cpp/<backend>/<code>`.
 
 Backend-specific code stays inside its backend directory. Code outside `API.cpp` should call the common API instead of directly depending on a backend implementation when a common operation exists.
 
-Attention implementations such as Flash Attention compatibility, Sage Attention, and xFormers-compatible paths can be migrated into this tree incrementally. Existing working implementations should not be moved until their replacement path is ready and individually build-tested.
+The stable-diffusion attention layer is owned here: backend-neutral FlexAttention and the common attention contract live under `common/attention`, while CUDA FlashAttention, SageAttention, xFormers-compatible forward attention, and their template instantiations live under `cuda/attention`. The legacy stable-diffusion.cpp paths contain compatibility forwarding files only. Shared ggml CUDA primitives that are also used by non-attention operations remain in ggml and are reached through `cuda/common.cuh`.
 
-The dedicated `99 - API` workflow is intended to compile/test this API layer in isolation. Normal backend workflows should eventually compile their corresponding `API.cpp/<backend>` implementation as part of the full project build.
+The dedicated `99 - API` workflow is intended to compile/test this API layer in isolation. Normal CUDA, HIP, and MUSA builds compile their corresponding canonical `API.cpp` attention sources directly.

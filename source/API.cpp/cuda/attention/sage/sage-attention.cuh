@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../ggml-attention-common.h"
-#include "../common.cuh"
+#include "../../../common/attention/ggml-attention-common.h"
+#include "../../common.cuh"
 
 // Backend-neutral optimized-attention interface used by the shared CUDA/HIP
 // dispatcher. Backend-specific implementations stay behind this API so callers
@@ -11,9 +11,9 @@
 bool ggml_sage_attn_supported(int device, const ggml_tensor * dst);
 void ggml_sage_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
-// xFormers common API. Backend-specific implementations may be added without
-// changing the high-level dispatcher. Until a native xFormers implementation
-// is wired for a backend, supported() returns false so callers safely fall back.
+// xFormers common API. CUDA delegates to the ggml-native implementation in the
+// sibling xformers directory. Other backends return false so callers safely
+// fall back without changing the high-level dispatcher.
 bool ggml_xformers_attn_supported(int device, const ggml_tensor * dst);
 void ggml_xformers_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
