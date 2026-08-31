@@ -61,6 +61,18 @@ target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp)
 
+# GCC 13 diagnoses two intentional/third-party cases in the CPU compile gate:
+# ModelManager is deliberately hidden to avoid ELF interposition with the
+# unrelated stable-diffusion.cpp ModelManager, while stb_image_resize.h uses
+# legacy enum arithmetic. Keep those diagnostics scoped to the sdkit executable
+# rather than weakening ModelManager visibility or modifying vendored STB code.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(sdkit PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-attributes>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>"
+    )
+endif()
+
 if(SDKIT_OPENGL_BACKEND)
     find_package(OpenGL REQUIRED)
     target_compile_definitions(sdkit PRIVATE SDKIT_ENABLE_OPENGL_BACKEND=1)
@@ -219,30 +231,8 @@ if(SDKIT_BUILD_NATIVE_VISION)
         if(NOT EXISTS "${SDKIT_TORCH_CUDART}")
             message(FATAL_ERROR "SDKIT_TORCH_CUDART does not exist: ${SDKIT_TORCH_CUDART}")
         endif()
-        if(TARGET CUDA::cudart)
-            set_target_properties(CUDA::cudart PROPERTIES
-                IMPORTED_LOCATION "${SDKIT_TORCH_CUDART}"
-                IMPORTED_LOCATION_RELEASE "${SDKIT_TORCH_CUDART}")
-        endif()
+        set(TORCH_CUDART_LIBRARY "${SDKIT_TORCH_CUDART}" CACHE FILEPATH
+            "CUDA runtime used by TorchConfig" FORCE)
     endif()
-    add_executable(sdkit-vision tools/native_vision.cpp)
-    target_include_directories(sdkit-vision PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
-    target_link_libraries(sdkit-vision PRIVATE ${TORCH_LIBRARIES})
-    if(SDKIT_TORCH_CUDART)
-        target_link_libraries(sdkit-vision PRIVATE "${SDKIT_TORCH_CUDART}")
-    endif()
-    if(UNIX AND NOT APPLE)
-        set_target_properties(sdkit-vision PROPERTIES
-            BUILD_RPATH_USE_ORIGIN TRUE
-            BUILD_RPATH "$ORIGIN"
-            INSTALL_RPATH "$ORIGIN"
-            INSTALL_RPATH_USE_LINK_PATH FALSE)
-    endif()
-endif()
-
-if(SDKIT_BUILD_IMAGE_TOOLS)
-    add_executable(sdkit-image-tools tools/native_image_tools.cpp)
-    target_include_directories(sdkit-image-tools PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
+    add_subdirectory(native_vision)
 endif()
