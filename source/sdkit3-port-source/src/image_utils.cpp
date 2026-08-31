@@ -8,7 +8,15 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../stable-diffusion.cpp/thirdparty/stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
+#if defined(__clang__) || defined(__INTEL_LLVM_COMPILER)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-value"
+#pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
+#endif
 #include "../stable-diffusion.cpp/thirdparty/stb_image_resize.h"
+#if defined(__clang__) || defined(__INTEL_LLVM_COMPILER)
+#pragma clang diagnostic pop
+#endif
 #include "base64.hpp"
 #include "logging.h"
 
