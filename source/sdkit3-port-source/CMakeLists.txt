@@ -12,6 +12,7 @@ set(CMAKE_PLATFORM_NO_VERSIONED_SONAME ON)
 option(SDKIT_BUILD_TOOLS "Build sdkit tools" OFF)
 option(SDKIT_BUILD_NATIVE_VISION "Build the isolated LibTorch YOLO sidecar" OFF)
 option(SDKIT_BUILD_IMAGE_TOOLS "Build lightweight native image helpers" ON)
+option(SDKIT_OPENGL_BACKEND "Build the experimental OpenGL/GLSL backend scaffold" OFF)
 option(SDKIT_BUILD_LLAMA_RUNTIME
     "Build llama-server beside sdkit as an isolated GGML runtime" OFF)
 set(SDKIT_LLAMA_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp" CACHE PATH
@@ -54,6 +55,13 @@ add_executable(sdkit ${ED_SRC})
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp)
+
+if(SDKIT_OPENGL_BACKEND)
+    find_package(OpenGL REQUIRED)
+    target_compile_definitions(sdkit PRIVATE SDKIT_ENABLE_OPENGL_BACKEND=1)
+    target_link_libraries(sdkit PRIVATE OpenGL::GL)
+    message(STATUS "OpenGL/GLSL Theory backend scaffold enabled (compile/link only)")
+endif()
 
 if(MSVC)
     target_compile_options(sdkit PRIVATE /wd4566)
