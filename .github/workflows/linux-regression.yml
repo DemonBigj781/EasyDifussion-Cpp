@@ -1,0 +1,66 @@
+name: Linux Regression
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend API regression lane
+        required: true
+        default: oneapi
+        type: choice
+        options:
+          - oneapi
+          - cuda
+          - rocm
+          - vulkan
+          - opencl
+          - cpu
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install base validation dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
+      - name: Validate source and backend configuration without executing built binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n install.sh
+          bash -n start.sh
+          bash -n scripts/bootstrap.sh
+          backend='${{ github.event.inputs.backend }}'
+          case "$backend" in
+            oneapi)
+              wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+              echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+              sudo apt-get update
+              sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
+              source /opt/intel/oneapi/setvars.sh
+              cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi -G Ninja -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              ;;
+            vulkan)
+              sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers
+              cmake -S source/sdkit3-port-source -B build/regress-linux-vulkan -G Ninja -DSD_VULKAN=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              ;;
+            opencl)
+              sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev opencl-headers
+              cmake -S source/sdkit3-port-source -B build/regress-linux-opencl -G Ninja -DSD_OPENCL=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              ;;
+            cpu)
+              cmake -S source/sdkit3-port-source -B build/regress-linux-cpu -G Ninja -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              ;;
+            cuda)
+              echo 'CUDA regression lane requires CUDA toolkit provisioning before configure validation.' >&2
+              exit 2
+              ;;
+            rocm)
+              echo 'ROCm regression lane requires ROCm toolkit provisioning before configure validation.' >&2
+              exit 2
+              ;;
+          esac
