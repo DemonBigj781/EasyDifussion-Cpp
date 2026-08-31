@@ -1,7 +1,8 @@
-# Cache feature
+# TeaCache
 
 ## Status
+**Implemented — backend-neutral host-side policy.**
 
-**Evaluation pending.**
+TeaCache is restricted to supported DiT model types, keeps reusable diffusion/residual state on host, and includes model-specific policy/coefficients such as LTX-Video and Wan variants. JetPack 5/CUDA 11.4 has no TeaCache GPU kernel.
 
-Track compile/link status, host-vs-device residency, Jetson GPU architecture constraints, native/adapted/fallback behavior, synchronization/transfer requirements, runtime correctness, and performance validation for this JetPack/CUDA combination.
+Jetson-specific work is transfer/synchronization or future device-resident acceleration.

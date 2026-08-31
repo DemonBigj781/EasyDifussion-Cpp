@@ -1,7 +1,8 @@
-# Attention feature
+# FlexAttention
 
 ## Status
+**Implemented as host C++; not a Jetson CUDA kernel.**
 
-**Evaluation pending.**
+The repository's visual-token-selection FlexAttention sums host float attention, normalizes, thresholds, adaptive-max-pools, and expands a host mask. JetPack 5/CUDA 11.8 adds no device implementation.
 
-Track compile/link status, Jetson GPU architecture support, native/adapted/fallback execution, datatype and kernel restrictions, fallback behavior, runtime correctness, and performance validation for this JetPack/CUDA combination.
+It can coexist with Xavier/Orin CUDA execution when the attention data is available on host; transfers and synchronization are the backend-specific concern.

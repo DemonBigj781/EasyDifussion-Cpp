@@ -1,7 +1,8 @@
-# Attention feature
+# xFormers
 
 ## Status
+**Stub / not implemented.**
 
-**Evaluation pending.**
+No usable CUDA xFormers execution path is currently provided by the common API, so JetPack 5 + CUDA 11.8 reports unsupported regardless of Xavier/Orin hardware.
 
-Track compile/link status, Jetson GPU architecture support, native/adapted/fallback execution, datatype and kernel restrictions, fallback behavior, runtime correctness, and performance validation for this JetPack/CUDA combination.
+Required work: implement CUDA execution, capability probing, dtype/shape rules, dispatch/fallback, and validation while keeping the API symbols compile-complete.

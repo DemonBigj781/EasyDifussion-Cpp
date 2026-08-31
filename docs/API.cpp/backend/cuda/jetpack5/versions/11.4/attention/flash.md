@@ -1,17 +1,8 @@
 # FlashAttention
 
 ## Status
+**Implemented — CUDA optimized compatibility path.**
 
-**Evaluation pending.**
+JetPack 5.x uses CUDA 11.4 by default and supports the tracked upgrade range through CUDA 12.2. API.cpp uses ggml CUDA `fattn`; no JetPack-specific Flash kernel was found. Eligibility remains determined by fattn's device/tensor dispatch.
 
-Track whether this JetPack/CUDA combination compiles the API.cpp FlashAttention compatibility surface and whether execution is native, adapted, fallback, or unsupported.
-
-## Required checks
-
-- Jetson GPU compute capability
-- CUDA toolkit/compiler requirements
-- datatype/head-size restrictions
-- kernel selection and fallback
-- build/link status
-- runtime correctness validation
-- performance validation
+JetPack 5 hardware may be Xavier (SM72) or Orin (SM87), so runtime validation is device-specific. If fattn is ineligible, use a correct standard-attention fallback.

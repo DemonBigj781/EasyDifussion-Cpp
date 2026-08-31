@@ -1,7 +1,8 @@
-# Cache feature
+# EasyCache
 
 ## Status
+**Implemented — backend-neutral host-side policy.**
 
-**Evaluation pending.**
+EasyCache is restricted to supported DiT model types and defaults to a 0.2 reuse threshold when unspecified. Its cache policy/state is host-resident; JetPack 5/CUDA 12.2 has no EasyCache GPU kernel.
 
-Track compile/link status, host-vs-device residency, Jetson GPU architecture constraints, native/adapted/fallback behavior, synchronization/transfer requirements, runtime correctness, and performance validation for this JetPack/CUDA combination.
+Jetson-specific API work is transfer/synchronization or future device-resident acceleration, not the generic cache algorithm.
