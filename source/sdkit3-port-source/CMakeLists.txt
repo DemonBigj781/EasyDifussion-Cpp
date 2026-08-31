@@ -1,21 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 project(sdkit)
 
-# Release bundles are copied directly into Easy Diffusion's backend directory.
-# Keep every shared-library lookup relative to that bundle instead of embedding
-# an absolute developer build path.
 if(UNIX AND NOT APPLE)
     set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 endif()
 
-# Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Disable versioned sonames on platforms that support it
 set(CMAKE_PLATFORM_NO_VERSIONED_SONAME ON)
 
-# Option to build tools
 option(SDKIT_BUILD_TOOLS "Build sdkit tools" OFF)
 option(SDKIT_BUILD_NATIVE_VISION "Build the isolated LibTorch YOLO sidecar" OFF)
 option(SDKIT_BUILD_IMAGE_TOOLS "Build lightweight native image helpers" ON)
@@ -28,25 +21,20 @@ set(SDKIT_LLAMA_BUILD_JOBS "4" CACHE STRING
 set(SDKIT_TORCH_CUDART "" CACHE FILEPATH
     "Optional libcudart used by the selected LibTorch distribution")
 
-# Define output directories for all build artifacts
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Set flags for shared library builds
 set(BUILD_SHARED_LIBS ON CACHE BOOL "Build ggml as a shared library")
 set(SD_BUILD_SHARED_LIBS ON CACHE BOOL "Build stable-diffusion as a shared library")
 set(SD_BUILD_SHARED_GGML_LIB ON CACHE BOOL "Build ggml as a separate shared library")
 
-# Enable /bigobj for MSVC to handle large object files (needed for debug builds)
 if(MSVC)
     add_compile_options($<$<CONFIG:Debug>:/bigobj>)
 endif()
 
-# Include stable-diffusion.cpp
 add_subdirectory(stable-diffusion.cpp)
 
-# Add the sdkit binary
 file(GLOB_RECURSE ED_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(sdkit ${ED_SRC})
 
@@ -54,7 +42,6 @@ target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp)
 
-# Suppress Unicode character warnings from Crow library headers on Windows
 if(MSVC)
     target_compile_options(sdkit PRIVATE /wd4566)
 endif()
@@ -99,9 +86,7 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
         -DGGML_SYCL=${SD_SYCL}
         -DGGML_SYCL_F16=${GGML_SYCL_F16}
     )
-    # Keep the isolated llama-server on the same Intel SYCL policy as the
-    # diffusion runtime. These cache variables are understood by both vendored
-    # GGML trees and make oneAPI behavior predictable across the bundle.
+
     if(SD_SYCL)
         list(APPEND SDKIT_LLAMA_BACKEND_ARGS
             -DGGML_SYCL_TARGET=${GGML_SYCL_TARGET}
@@ -113,6 +98,18 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
                 -DGGML_SYCL_DEVICE_ARCH=${GGML_SYCL_DEVICE_ARCH})
         endif()
     endif()
+
+    # Theory-only Intel CPU path: if the diffusion GGML tree is using BLAS,
+    # keep the isolated llama runtime on the same BLAS vendor policy. This is
+    # what lets oneAPI/Xeon builds use oneMKL consistently in both processes.
+    if(GGML_BLAS)
+        list(APPEND SDKIT_LLAMA_BACKEND_ARGS
+            -DGGML_BLAS=ON
+            -DGGML_BLAS_VENDOR=${GGML_BLAS_VENDOR}
+            -DGGML_NATIVE=${GGML_NATIVE}
+        )
+    endif()
+
     ExternalProject_Add(sdkit-llama-runtime
         SOURCE_DIR "${SDKIT_LLAMA_SOURCE_DIR}"
         BINARY_DIR "${SDKIT_LLAMA_BUILD_DIR}"
