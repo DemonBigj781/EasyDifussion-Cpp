@@ -35,7 +35,11 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
               cmake --build build/windows-cpu --target sdkit --config Release --parallel 2
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-              if (-not (Test-Path 'build/windows-cpu/bin/Release/sdkit.exe') -and -not (Test-Path 'build/windows-cpu/bin/sdkit.exe')) { throw 'sdkit.exe was not produced' }
+              $candidate = @('build/windows-cpu/bin/Release/sdkit.exe','build/windows-cpu/bin/sdkit.exe') | Where-Object { Test-Path $_ } | Select-Object -First 1
+              if (-not $candidate) { throw 'sdkit.exe was not produced' }
+              New-Item -ItemType Directory -Force -Path artifact | Out-Null
+              Copy-Item $candidate artifact/sdkit.exe
+              Get-ChildItem (Split-Path $candidate) -Filter '*.dll' -ErrorAction SilentlyContinue | Copy-Item -Destination artifact -Force
             }
             'oneapi' { throw 'Windows oneAPI toolchain provisioning is not wired yet.' }
             'cuda' { throw 'Windows CUDA toolchain provisioning is not wired yet.' }
@@ -43,3 +47,9 @@ jobs:
             'vulkan' { throw 'Windows Vulkan SDK provisioning is not wired yet.' }
             'opencl' { throw 'Windows OpenCL SDK provisioning is not wired yet.' }
           }
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ github.event.inputs.backend }}
+          path: artifact
+          if-no-files-found: error
