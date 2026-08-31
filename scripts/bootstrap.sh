@@ -11,38 +11,23 @@ if [ "$(uname -s)" != "Linux" ]; then
     fail "This local Easy Diffusion fork currently supports Linux only."
 fi
 
-case "$(uname -m)" in
-    x86_64|amd64) MAMBA_ARCH="64" ;;
-    arm64|aarch64) MAMBA_ARCH="aarch64" ;;
-    *) fail "Unsupported Linux architecture: $(uname -m)" ;;
-esac
-
 INSTALL_ENV_DIR="$ROOT_DIR/.venv"
 if [ -x "$INSTALL_ENV_DIR/bin/python" ]; then
     exit 0
 fi
 
-command -v curl >/dev/null || fail "curl is required to bootstrap Easy Diffusion."
-command -v tar >/dev/null || fail "tar is required to bootstrap Easy Diffusion."
-command -v bzip2 >/dev/null || fail "bzip2 is required to bootstrap Easy Diffusion."
-
 case "$ROOT_DIR" in
     *" "*) fail "The installation path contains a space, which the contained environment does not support." ;;
 esac
 
-MAMBA_ROOT_PREFIX="$ROOT_DIR/installer_files/mamba"
-MICROMAMBA="$MAMBA_ROOT_PREFIX/micromamba"
-MICROMAMBA_DOWNLOAD_URL="https://micro.mamba.pm/api/micromamba/linux-${MAMBA_ARCH}/latest"
+PYTHON_BIN="${EASY_DIFFUSION_PYTHON:-$(command -v python3.13 || true)}"
+[ -n "$PYTHON_BIN" ] || fail "Python 3.13 is required. Install python3.13 and python3.13-venv first."
 
-if [ ! -x "$MICROMAMBA" ]; then
-    mkdir -p "$MAMBA_ROOT_PREFIX"
-    temporary_archive="$(mktemp)"
-    trap 'rm -f "$temporary_archive"' EXIT
-    curl --fail --location "$MICROMAMBA_DOWNLOAD_URL" --output "$temporary_archive" \
-        || fail "Micromamba download failed."
-    tar -xvjf "$temporary_archive" -O bin/micromamba > "$MICROMAMBA"
-    chmod u+x "$MICROMAMBA"
-fi
+PYTHON_VERSION="$($PYTHON_BIN -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+[ "$PYTHON_VERSION" = "3.13" ] || fail "Python 3.13 is required; found $PYTHON_VERSION at $PYTHON_BIN."
 
-"$MICROMAMBA" create -y --prefix "$INSTALL_ENV_DIR" -c conda-forge python=3.9 pip \
-    || fail "Could not create Easy Diffusion's contained Python environment."
+"$PYTHON_BIN" -m venv "$INSTALL_ENV_DIR" \
+    || fail "Could not create the Python 3.13 environment. Install the python3.13-venv package and retry."
+
+"$INSTALL_ENV_DIR/bin/python" -m pip install --upgrade pip wheel \
+    || fail "Could not initialize pip in Easy Diffusion's Python environment."

@@ -250,21 +250,6 @@ var PARAMETERS = [
         default: false,
     },
     {
-        id: "backend",
-        type: ParameterType.select,
-        label: "Engine to use",
-        note:
-            "Use the native sdkit3 engine for Flux, SD3, ControlNet, and the local extensions in this fork. Save and restart after changing engines.",
-        icon: "fa-robot",
-        saveInAppConfig: true,
-        default: "sdkit3",
-        options: [
-            { value: "sdkit3", label: "sdkit3 native" },
-            { value: "ed_diffusers", label: "v3.0" },
-            { value: "ed_classic", label: "v2.0" },
-        ],
-    },
-    {
         id: "backend_platform",
         type: ParameterType.select,
         label: "Backend platform",
@@ -472,7 +457,6 @@ let useBetaChannelField = document.querySelector("#use_beta_channel")
 let uiOpenBrowserOnStartField = document.querySelector("#ui_open_browser_on_start")
 let confirmDangerousActionsField = document.querySelector("#confirm_dangerous_actions")
 let testDiffusers = document.querySelector("#use_v3_engine")
-let backendEngine = document.querySelector("#backend")
 let backendPlatformField = document.querySelector("#backend_platform")
 let profileNameField = document.querySelector("#profileName")
 let modelsDirField = document.querySelector("#models_dir")
@@ -543,12 +527,7 @@ async function getAppConfig() {
         }
         modelsDirField.value = config.models_dir
 
-        let testDiffusersEnabled = true
-        if (config.backend === "ed_classic") {
-            testDiffusersEnabled = false
-        }
-        testDiffusers.checked = testDiffusersEnabled
-        backendEngine.value = config.backend
+        testDiffusers.checked = true
         document.querySelector("#test_diffusers").checked = testDiffusers.checked // don't break plugins
         document.querySelector("#use_v3_engine").checked = testDiffusers.checked // don't break plugins
 
@@ -556,26 +535,14 @@ async function getAppConfig() {
             backendPlatformField.value = config.backend_config.platform
         }
 
-        if (config.config_on_startup) {
-            if (config.config_on_startup?.backend !== "ed_classic") {
-                document.body.classList.add("diffusers-enabled-on-startup")
-                document.body.classList.remove("diffusers-disabled-on-startup")
-            } else {
-                document.body.classList.add("diffusers-disabled-on-startup")
-                document.body.classList.remove("diffusers-enabled-on-startup")
-            }
-        }
-
-        if (config.backend === "ed_classic") {
-            IMAGE_STEP_SIZE = 64
-        } else {
-            IMAGE_STEP_SIZE = 8
-        }
+        document.body.classList.add("diffusers-enabled-on-startup")
+        document.body.classList.remove("diffusers-disabled-on-startup")
+        IMAGE_STEP_SIZE = 8
 
         customWidthField.step = IMAGE_STEP_SIZE
         customHeightField.step = IMAGE_STEP_SIZE
 
-        const currentBackendKey = "backend_" + config.backend
+        const currentBackendKey = "backend_sdkit3"
 
         document.querySelectorAll('.gated-feature').forEach((element) => {
             const featureKeys = element.getAttribute('data-feature-keys').split(' ')
@@ -802,7 +769,7 @@ async function getSystemInfo() {
             $("#use_gpus").val(activeDeviceIds)
         }
 
-        if (backendEngine.value != "sdkit3" || useCPUField.checked || activeDeviceIds.includes("mps")) {
+        if (useCPUField.checked || activeDeviceIds.includes("mps")) {
             let backendPlatformEntry = getParameterSettingsEntry("backend_platform")
             backendPlatformEntry.style.display = "none"
         }
@@ -824,10 +791,6 @@ async function getSystemInfo() {
         }
         setDiskPath(res["default_output_dir"], force)
 
-        // backend info
-        if (res["backend_url"]) {
-            document.querySelector("#backend-url").setAttribute("href", res["backend_url"])
-        }
     } catch (e) {
         console.log("error fetching devices", e)
     }

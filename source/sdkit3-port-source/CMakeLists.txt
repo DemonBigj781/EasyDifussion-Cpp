@@ -133,6 +133,27 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
             "${SDKIT_LLAMA_BUILD_DIR}/bin/llama-server${CMAKE_EXECUTABLE_SUFFIX}"
             "$<TARGET_FILE_DIR:sdkit>"
         COMMENT "Bundling the isolated llama.cpp runtime with sdkit")
+
+    # The upstream converters are Python programs and cannot be linked into
+    # stable-diffusion.cpp's C++ process. Ship them in the same native bundle,
+    # together with their local conversion modules, so the sdkit3 tool layer
+    # can launch them through Easy Diffusion's main Python 3.13 environment.
+    set(SDKIT_LLAMA_CONVERTER_DIR "$<TARGET_FILE_DIR:sdkit>/llama-converters")
+    add_custom_command(TARGET sdkit POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${SDKIT_LLAMA_CONVERTER_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SDKIT_LLAMA_SOURCE_DIR}/convert_hf_to_gguf.py"
+            "${SDKIT_LLAMA_SOURCE_DIR}/convert_hf_to_gguf_update.py"
+            "${SDKIT_LLAMA_SOURCE_DIR}/convert_llama_ggml_to_gguf.py"
+            "${SDKIT_LLAMA_SOURCE_DIR}/convert_lora_to_gguf.py"
+            "${SDKIT_LLAMA_CONVERTER_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${SDKIT_LLAMA_SOURCE_DIR}/conversion"
+            "${SDKIT_LLAMA_CONVERTER_DIR}/conversion"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${SDKIT_LLAMA_SOURCE_DIR}/gguf-py"
+            "${SDKIT_LLAMA_CONVERTER_DIR}/gguf-py"
+        COMMENT "Bundling llama.cpp GGUF conversion tools with sdkit")
 endif()
 
 # Platform-specific libraries

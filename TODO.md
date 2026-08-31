@@ -21,3 +21,12 @@
 [ ] openrouter client ui
 [ ] mcp api
 [ ] perchance windows build
+[ ] integrate the mads-gifs plugin, gif.js, and gif.worker.js into the current UI
+[ ] integrate the bundled legacy UI plugins while detecting and resolving duplicate plugins
+[ ] parse merged_2024-12-22_pt2-ia-dd-ed.csv for spellcheck and tokenizer suggestions
+[ ] repair the legacy plugin tab and keep RabbitHole working in the old 3.5 UI
+[ ] integrate Tangent101/Easy-Diffusion-Plugins-1 patch-14 plugins
+[ ] add per-plugin enable/disable controls
+[ ] add live runtime argument injection and reload support to Settings
+[ ] validate oneAPI/SYCL on the H3C XG310 32 GB Intel server GPU for cloud-gaming workloads
+[ ] merge llama.cpp into stable-diffusion.cpp without ggml ABI or symbol collisions

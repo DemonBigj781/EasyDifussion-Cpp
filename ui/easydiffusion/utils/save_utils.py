@@ -227,7 +227,9 @@ def get_printable_request(
     task_data_metadata.update(save_data.dict())
 
     app_config = app.getConfig()
-    using_diffusers = app_config.get("backend", "ed_diffusers") in ("ed_diffusers", "webui")
+    # sdkit3 exposes the same LoRA, embedding, tiling, clip-skip, and
+    # ControlNet request fields that this metadata branch preserves.
+    using_diffusers = app_config.get("backend", "sdkit3") == "sdkit3"
 
     # Save the metadata in the order defined in TASK_TEXT_MAPPING
     metadata = {}

@@ -59,7 +59,7 @@ APP_CONFIG_DEFAULTS = {
     "ui": {
         "open_browser_on_start": True,
     },
-    "backend": "ed_diffusers",
+    "backend": "sdkit3",
 }
 
 IMAGE_EXTENSIONS = [
@@ -127,7 +127,7 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
 
     def set_config_on_startup(config: dict):
         if getConfig.__use_backend_on_startup is None:
-            getConfig.__use_backend_on_startup = config.get("backend", "ed_diffusers")
+            getConfig.__use_backend_on_startup = "sdkit3"
         config["config_on_startup"] = {"backend": getConfig.__use_backend_on_startup}
 
     if os.path.isfile(config_yaml_path):
@@ -146,14 +146,10 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
                 else:
                     config["net"]["listen_to_network"] = True
 
-            if "backend" not in config:
-                if "use_v3_engine" in config:
-                    config["backend"] = "ed_diffusers" if config["use_v3_engine"] else "ed_classic"
-                else:
-                    config["backend"] = "ed_diffusers"
-                    # this default will need to be smarter when WebUI becomes the main backend, but needs to maintain backwards
-                    # compatibility with existing ED 3.0 installations that haven't opted into the WebUI backend, and haven't
-                    # set a "use_v3_engine" flag in their config
+            # This fork ships and supports one generation backend. Normalize
+            # older configuration files without rewriting them during reads.
+            config["backend"] = "sdkit3"
+            config["use_v3_engine"] = True
 
             set_config_on_startup(config)
 
@@ -190,6 +186,9 @@ getConfig.__use_backend_on_startup = None
 
 def setConfig(config):
     global MODELS_DIR
+
+    config["backend"] = "sdkit3"
+    config["use_v3_engine"] = True
 
     try:  # config.yaml
         config_yaml_path = os.path.join(CONFIG_DIR, "..", "config.yaml")

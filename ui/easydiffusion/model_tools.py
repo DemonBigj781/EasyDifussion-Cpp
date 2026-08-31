@@ -21,6 +21,12 @@ router = APIRouter()
 _JOBS: Dict[str, Dict[str, Any]] = {}
 _JOBS_LOCK = threading.Lock()
 _ALLOWED_OUTTYPES = {"auto", "f32", "f16", "bf16", "q8_0", "tq1_0", "tq2_0"}
+_CONVERTER_SCRIPTS = {
+    "huggingface": "convert_hf_to_gguf.py",
+    "tokenizer-update": "convert_hf_to_gguf_update.py",
+    "legacy-ggml": "convert_llama_ggml_to_gguf.py",
+    "lora": "convert_lora_to_gguf.py",
+}
 _OUTPUT_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -63,8 +69,8 @@ def _converter_python() -> Optional[Path]:
         candidates.append(Path(configured).expanduser())
     candidates.extend(
         [
-            Path(app.ROOT_DIR) / ".venv" / "llama-cpp" / "bin" / "python",
             Path(sys.executable),
+            Path(app.ROOT_DIR) / ".venv" / "bin" / "python",
         ]
     )
     system_python = shutil.which("python3")
@@ -73,7 +79,7 @@ def _converter_python() -> Optional[Path]:
     for candidate in candidates:
         if candidate.is_file() and os.access(candidate, os.X_OK):
             version = _python_version(candidate)
-            if version and (3, 10) <= version < (3, 15):
+            if version == (3, 13):
                 # Do not resolve a virtual environment's Python symlink to the
                 # base interpreter; its original path is how Python discovers
                 # pyvenv.cfg and the environment's installed packages.
@@ -85,25 +91,28 @@ def converter_readiness() -> Dict[str, Any]:
     llama_root = _llama_root()
     script = llama_root / "convert_hf_to_gguf.py"
     python = _converter_python()
+    converters = {name: str(llama_root / filename) for name, filename in _CONVERTER_SCRIPTS.items()}
     result: Dict[str, Any] = {
         "ready": False,
         "source": str(llama_root),
         "script": str(script),
+        "converters": converters,
         "python": str(python) if python else None,
         "installCommand": "./install.sh --gguf-tools",
     }
-    if not script.is_file():
-        result["detail"] = "The vendored llama.cpp converter script is missing."
+    missing = [name for name, path in converters.items() if not Path(path).is_file()]
+    if missing:
+        result["detail"] = f"Vendored llama.cpp converters are missing: {', '.join(missing)}."
         return result
     if python is None:
-        result["detail"] = "A Python 3.10-3.14 GGUF-tools environment is not installed."
+        result["detail"] = "The Python 3.13 Easy Diffusion environment is unavailable."
         return result
     try:
         probe = subprocess.run(
             [
                 str(python),
                 "-c",
-                "import gguf, numpy, sentencepiece, torch, transformers, google.protobuf",
+                "import gguf, numpy, requests, sentencepiece, torch, transformers, google.protobuf",
             ],
             cwd=str(llama_root),
             capture_output=True,

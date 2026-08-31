@@ -6,7 +6,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LLAMA_SOURCE="$PROJECT_ROOT/source/llama.cpp"
 LLAMA_BUILD_DIR="$LLAMA_SOURCE/build"
 SDKIT_SOURCE="$PROJECT_ROOT/source/sdkit3-port-source"
-GGUF_ENV="$PROJECT_ROOT/.venv/llama-cpp"
+GGUF_ENV="$PROJECT_ROOT/.venv"
 
 show_help() {
     cat <<'EOF'
@@ -15,10 +15,10 @@ Usage: ./install.sh [options]
 Build and install the optional native tools bundled with this fork.
 
 Options:
-  --all           Build the native bundle, llama.cpp tools, and GGUF environment.
+  --all           Build the native bundle, llama.cpp tools, and GGUF tooling.
   --native-build  Build sdkit/stable-diffusion.cpp with bundled llama-server.
   --llama-build   Build llama-cli, llama-server, and llama-quantize.
-  --gguf-tools    Install the Python dependencies for Model Tools -> Convert to GGUF.
+  --gguf-tools    Install GGUF conversion tools into Easy Diffusion's main venv.
   --cuda          Require CUDA for the selected native builds.
   --sycl          Build for Intel GPUs with oneAPI/SYCL (source setvars.sh first).
   --cpu           Build llama.cpp without CUDA.
@@ -177,23 +177,20 @@ if [ "$BUILD_NATIVE" = true ]; then
 fi
 
 if [ "$INSTALL_GGUF" = true ]; then
-    command -v python3 >/dev/null || fail "Python 3.10-3.14 is required for llama.cpp conversion tools"
-    BASE_PYTHON="$(command -v python3)"
-    PYTHON_VERSION="$($BASE_PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    case "$PYTHON_VERSION" in
-        3.10|3.11|3.12|3.13|3.14) ;;
-        *) fail "Python 3.10-3.14 is required; found $PYTHON_VERSION at $BASE_PYTHON" ;;
-    esac
+    [ -x "$GGUF_ENV/bin/python" ] || fail "The main Easy Diffusion venv is missing. Run ./start.sh once first."
+    PYTHON_VERSION="$($GGUF_ENV/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+    [ "$PYTHON_VERSION" = "3.13" ] || fail "Easy Diffusion's main venv must use Python 3.13; found $PYTHON_VERSION."
 
-    if [ ! -x "$GGUF_ENV/bin/python" ]; then
-        "$BASE_PYTHON" -m venv "$GGUF_ENV"
-    fi
     "$GGUF_ENV/bin/python" -m pip install --upgrade pip wheel
     "$GGUF_ENV/bin/python" -m pip install --editable "$LLAMA_SOURCE/gguf-py"
     "$GGUF_ENV/bin/python" -m pip install \
-        --requirement "$LLAMA_SOURCE/requirements/requirements-convert_hf_to_gguf.txt"
+        "numpy>=2.1,<2.3" \
+        "sentencepiece>=0.1.98,<0.3" \
+        "transformers==4.57.6" \
+        "protobuf>=4.21,<5"
+    "$GGUF_ENV/bin/python" -c 'import torch; assert tuple(map(int, torch.__version__.split("+")[0].split(".")[:2])) >= (2, 6)'
     "$GGUF_ENV/bin/python" -c 'import google.protobuf, numpy, sentencepiece, torch, transformers, gguf'
-    echo "GGUF conversion environment ready: $GGUF_ENV"
+    echo "GGUF conversion tools are ready in: $GGUF_ENV"
 fi
 
 echo "Optional llama.cpp tools are ready."

@@ -61,11 +61,16 @@ stable-diffusion.cpp pin different ggml revisions, so the two runtimes remain
 in separate processes rather than exposing colliding ggml C symbols in one
 address space. TIPO discovers the bundled executable automatically.
 
-Prepare the standalone llama tools with `./install.sh --llama-build`; prepare
-the isolated Python conversion toolchain under `.venv/llama-cpp` with
-`./install.sh --gguf-tools`.
+Prepare the standalone llama tools with `./install.sh --llama-build`; install
+the Python conversion dependencies into Easy Diffusion's main Python 3.13
+environment with `./install.sh --gguf-tools`.
 Running `./install.sh` does both. Build sdkit/stable-diffusion.cpp and its
 integrated llama runtime together with:
+
+The native bundle also carries llama.cpp's Hugging Face, tokenizer-update,
+legacy GGML, and LoRA GGUF converter scripts. They execute out of process with
+the main Python environment because their PyTorch/Transformers code cannot be
+linked into the C++ diffusion process.
 
 ```bash
 ./install.sh --native-build --cuda

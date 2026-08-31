@@ -80,7 +80,7 @@ class SetAppConfigRequest(BaseModel, extra=Extra.allow):
     listen_to_network: bool = None
     listen_port: int = None
     use_v3_engine: bool = True
-    backend: str = "ed_diffusers"
+    backend: str = "sdkit3"
     backend_platform: str = "auto"
     models_dir: str = None
     vram_usage_level: str = "balanced"
@@ -408,6 +408,8 @@ def init():
 # API implementations
 def set_app_config_internal(req: SetAppConfigRequest):
     config = app.getConfig()
+    if req.backend != "sdkit3":
+        raise HTTPException(status_code=400, detail="This build only supports the native sdkit3 backend.")
     backend_commandline_args = None
     if req.backend_commandline_args is not None:
         try:
@@ -446,8 +448,8 @@ def set_app_config_internal(req: SetAppConfigRequest):
             config["net"] = {}
         config["net"]["listen_port"] = int(req.listen_port)
 
-    config["use_v3_engine"] = req.backend == "ed_diffusers"
-    config["backend"] = req.backend
+    config["use_v3_engine"] = True
+    config["backend"] = "sdkit3"
     config["models_dir"] = req.models_dir
     config["vram_usage_level"] = req.vram_usage_level
 
