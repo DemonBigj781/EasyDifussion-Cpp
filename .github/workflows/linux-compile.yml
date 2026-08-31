@@ -1,7 +1,21 @@
-name: Linux oneAPI Compile
+name: Linux Compile
 
 on:
   workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend API to compile
+        required: true
+        default: oneapi
+        type: choice
+        options:
+          - oneapi
+          - oneapi-cpu
+          - cuda
+          - rocm
+          - vulkan
+          - opencl
+          - cpu
 
 permissions:
   contents: read
@@ -16,53 +30,103 @@ jobs:
       - name: Install base build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
 
-      - name: Install oneAPI toolchain only
-        shell: bash
-        run: |
-          set -euo pipefail
-          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
-          echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
-          sudo apt-get update
-          plan="$(apt-get -s install --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel)"
-          if printf '%s\n' "$plan" | grep -E 'Inst (cuda-|nvidia-cuda|rocm-|hip-)' >/dev/null; then
-            echo 'ERROR: oneAPI dependency plan attempts to install CUDA or ROCm.' >&2
-            printf '%s\n' "$plan" >&2
-            exit 1
-          fi
-          sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
-          if command -v nvcc >/dev/null 2>&1 || command -v hipcc >/dev/null 2>&1 || command -v rocminfo >/dev/null 2>&1; then
-            echo 'ERROR: CUDA or ROCm tooling is present after oneAPI-only provisioning.' >&2
-            exit 1
-          fi
-          if dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -E '^(cuda-|nvidia-cuda|rocm-|hip-)' >/dev/null; then
-            echo 'ERROR: CUDA or ROCm package detected in oneAPI-only workflow.' >&2
-            exit 1
-          fi
+      - name: Install CUDA toolkit for selected CUDA backend
+        if: github.event.inputs.backend == 'cuda'
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: '12.8.1'
+          method: local
+          linux-local-args: '["--toolkit"]'
 
-      - name: Compile only the oneAPI backend without running binaries
+      - name: Install ROCm toolchain for selected ROCm backend
+        if: github.event.inputs.backend == 'rocm'
         shell: bash
         run: |
           set -euo pipefail
-          set +u
-          source /opt/intel/oneapi/setvars.sh
-          set -u
-          cmake -S source/sdkit3-port-source -B build/linux-oneapi -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=icx \
-            -DCMAKE_CXX_COMPILER=icpx \
-            -DGGML_CCACHE=OFF \
-            -DSD_CUDA=OFF \
-            -DSD_HIPBLAS=OFF \
-            -DSD_METAL=OFF \
-            -DSD_VULKAN=OFF \
-            -DSD_OPENCL=OFF \
-            -DSD_MUSA=OFF \
-            -DSD_SYCL=ON \
-            -DGGML_SYCL_TARGET=INTEL \
-            -DGGML_SYCL_F16=ON \
-            -DGGML_SYCL_DNN=ON \
-            -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
-            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-            -DSDKIT_BUILD_NATIVE_VISION=OFF
-          cmake --build build/linux-oneapi --target sdkit --parallel 2
-          test -f build/linux-oneapi/bin/sdkit
+          sudo mkdir -p /etc/apt/keyrings
+          wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg >/dev/null
+          echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2.2 noble main' | sudo tee /etc/apt/sources.list.d/rocm.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rocm-dev hipblas-dev rocblas-dev
+
+      - name: Compile selected backend only without running binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          setup_oneapi() {
+            wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+            echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends "$@"
+            set +u
+            source /opt/intel/oneapi/setvars.sh
+            set -u
+          }
+
+          common_off='-DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF'
+
+          case "${{ github.event.inputs.backend }}" in
+            oneapi)
+              setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
+              cmake -S source/sdkit3-port-source -B build/linux-oneapi -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx \
+                -DGGML_CCACHE=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_MUSA=OFF \
+                -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-oneapi --target sdkit --parallel 2
+              test -f build/linux-oneapi/bin/sdkit
+              ;;
+            oneapi-cpu)
+              setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
+              cmake -S source/sdkit3-port-source -B build/linux-oneapi-cpu -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx \
+                -DGGML_CCACHE=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=Intel10_64lp_seq -DGGML_NATIVE=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-oneapi-cpu --target sdkit --parallel 2
+              test -f build/linux-oneapi-cpu/bin/sdkit
+              ;;
+            cuda)
+              command -v nvcc >/dev/null
+              cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 \
+                -DSD_CUDA=ON -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-cuda --target sdkit --parallel 2
+              test -f build/linux-cuda/bin/sdkit
+              ;;
+            rocm)
+              export PATH=/opt/rocm/bin:$PATH
+              cmake -S source/sdkit3-port-source -B build/linux-rocm -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ \
+                -DSD_CUDA=OFF -DSD_HIPBLAS=ON -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DGPU_TARGETS=gfx1030 -DAMDGPU_TARGETS=gfx1030 -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-rocm --target sdkit --parallel 2
+              test -f build/linux-rocm/bin/sdkit
+              ;;
+            vulkan)
+              sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers
+              cmake -S source/sdkit3-port-source -B build/linux-vulkan -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=ON -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-vulkan --target sdkit --parallel 2
+              test -f build/linux-vulkan/bin/sdkit
+              ;;
+            opencl)
+              sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev opencl-headers
+              cmake -S source/sdkit3-port-source -B build/linux-opencl -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=ON -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-opencl --target sdkit --parallel 2
+              test -f build/linux-opencl/bin/sdkit
+              ;;
+            cpu)
+              cmake -S source/sdkit3-port-source -B build/linux-cpu -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-cpu --target sdkit --parallel 2
+              test -f build/linux-cpu/bin/sdkit
+              ;;
+          esac
