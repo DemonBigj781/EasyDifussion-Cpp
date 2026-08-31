@@ -21,7 +21,12 @@ Options:
   --gguf-tools    Install GGUF conversion tools into Easy Diffusion's main venv.
   --cuda          Require CUDA for the selected native builds.
   --sycl          Build for Intel GPUs with oneAPI/SYCL (source setvars.sh first).
-  --cpu           Build llama.cpp without CUDA.
+  --sycl-device ARCH
+                  Optional Intel SYCL AOT device architecture (spir64_gen).
+  --sycl-no-dnn   Disable oneDNN acceleration in the GGML SYCL backend.
+  --sycl-no-level-zero
+                  Disable direct Level Zero support in the GGML SYCL backend.
+  --cpu           Build llama.cpp without CUDA/SYCL.
   --jobs N        Set the parallel build job count.
   -h, --help      Show this help.
 
@@ -29,6 +34,10 @@ With no component option, llama.cpp and the GGUF tools are prepared. CUDA is
 selected automatically when both nvcc and nvidia-smi are available. Easy
 Diffusion itself is started with ./start.sh; this installer prepares the
 vendored native runtimes and tools.
+
+For oneAPI builds, source Intel's setvars.sh first. By default the SYCL build
+uses Intel targets, FP16, oneDNN when available, Level Zero when available,
+and JIT device code. --sycl-device may be used later for a validated AOT target.
 EOF
 }
 
@@ -41,6 +50,9 @@ BUILD_NATIVE=false
 BUILD_LLAMA=false
 INSTALL_GGUF=false
 CUDA_MODE=auto
+SYCL_DEVICE_ARCH="${EASY_DIFFUSION_SYCL_DEVICE_ARCH:-}"
+SYCL_DNN=ON
+SYCL_LEVEL_ZERO=ON
 JOB_COUNT="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
 
 while [ "$#" -gt 0 ]; do
@@ -64,6 +76,17 @@ while [ "$#" -gt 0 ]; do
             ;;
         --sycl)
             CUDA_MODE=sycl
+            ;;
+        --sycl-device)
+            shift
+            [ "$#" -gt 0 ] || fail "--sycl-device requires an Intel device architecture"
+            SYCL_DEVICE_ARCH="$1"
+            ;;
+        --sycl-no-dnn)
+            SYCL_DNN=OFF
+            ;;
+        --sycl-no-level-zero)
+            SYCL_LEVEL_ZERO=OFF
             ;;
         --cpu)
             CUDA_MODE=cpu
@@ -106,6 +129,7 @@ CUDA_ENABLED=OFF
 SYCL_ENABLED=OFF
 BUILD_PLATFORM=cpu
 COMPILER_ARGS=()
+SYCL_CMAKE_ARGS=()
 if [ "$CUDA_MODE" = cuda ]; then
     command -v nvcc >/dev/null || fail "--cuda was requested but nvcc is unavailable"
     command -v nvidia-smi >/dev/null || fail "--cuda was requested but nvidia-smi is unavailable"
@@ -115,11 +139,25 @@ elif [ "$CUDA_MODE" = sycl ]; then
     command -v icx >/dev/null || fail "--sycl requires the oneAPI icx compiler (source setvars.sh first)"
     command -v icpx >/dev/null || fail "--sycl requires the oneAPI icpx compiler (source setvars.sh first)"
     command -v sycl-ls >/dev/null || fail "--sycl requires the oneAPI SYCL runtime"
-    sycl-ls 2>/dev/null | grep -q '\[level_zero:gpu\]\|\[opencl:gpu\]' ||
-        fail "oneAPI does not currently expose an Intel GPU; install/verify the card driver first"
+    SYCL_GPU_LINES="$(sycl-ls 2>/dev/null | grep -E '\[(level_zero|opencl):gpu\]' || true)"
+    [ -n "$SYCL_GPU_LINES" ] || fail "oneAPI does not currently expose an Intel GPU; install/verify the card driver first"
+    echo "Detected oneAPI GPU devices:"
+    printf '%s\n' "$SYCL_GPU_LINES"
     SYCL_ENABLED=ON
     BUILD_PLATFORM=sycl
     COMPILER_ARGS=(-DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx)
+    SYCL_CMAKE_ARGS=(
+        -DGGML_SYCL_TARGET=INTEL
+        -DGGML_SYCL_F16=ON
+        -DGGML_SYCL_DNN="$SYCL_DNN"
+        -DGGML_SYCL_SUPPORT_LEVEL_ZERO="$SYCL_LEVEL_ZERO"
+    )
+    if [ -n "$SYCL_DEVICE_ARCH" ]; then
+        SYCL_CMAKE_ARGS+=("-DGGML_SYCL_DEVICE_ARCH=$SYCL_DEVICE_ARCH")
+        echo "SYCL AOT device architecture: $SYCL_DEVICE_ARCH"
+    else
+        echo "SYCL device code mode: JIT (portable Intel target)"
+    fi
 elif [ "$CUDA_MODE" = auto ] && command -v nvcc >/dev/null && command -v nvidia-smi >/dev/null; then
     CUDA_ENABLED=ON
     BUILD_PLATFORM=cuda
@@ -138,6 +176,7 @@ if [ "$BUILD_LLAMA" = true ]; then
     echo "Configuring llama.cpp (platform=$BUILD_PLATFORM)..."
     cmake -S "$LLAMA_SOURCE" -B "$LLAMA_BUILD_DIR" "${GENERATOR_ARGS[@]}" \
         "${COMPILER_ARGS[@]}" \
+        "${SYCL_CMAKE_ARGS[@]}" \
         -DGGML_CUDA="$CUDA_ENABLED" \
         -DGGML_SYCL="$SYCL_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
@@ -158,11 +197,18 @@ if [ "$BUILD_NATIVE" = true ]; then
         COMPUTE_CAPABILITY="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d ' .')"
         [ -n "$COMPUTE_CAPABILITY" ] || fail "Could not determine the NVIDIA compute capability"
         SDKIT_VARIANT="sm$COMPUTE_CAPABILITY"
+    elif [ "$BUILD_PLATFORM" = sycl ]; then
+        if [ -n "$SYCL_DEVICE_ARCH" ]; then
+            SDKIT_VARIANT="intel-$SYCL_DEVICE_ARCH"
+        else
+            SDKIT_VARIANT="intel-jit"
+        fi
     fi
     SDKIT_TARGET_DIR="$PROJECT_ROOT/backends/sdkit3/linux-x64-$BUILD_PLATFORM-$SDKIT_VARIANT"
     echo "Configuring sdkit/stable-diffusion.cpp ($BUILD_PLATFORM) with the integrated llama.cpp runtime..."
     cmake -S "$SDKIT_SOURCE" -B "$SDKIT_BUILD_DIR" "${GENERATOR_ARGS[@]}" \
         "${COMPILER_ARGS[@]}" \
+        "${SYCL_CMAKE_ARGS[@]}" \
         -DSD_CUDA="$CUDA_ENABLED" \
         -DSD_SYCL="$SYCL_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
