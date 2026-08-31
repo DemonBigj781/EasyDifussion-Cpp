@@ -30,3 +30,35 @@ void ggml_sage_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
 }
 
 #endif
+
+// Native xFormers-style kernels are not wired into this ggml tree yet. Keep a
+// stable backend-neutral ABI now so CUDA, HIP/ROCm, Volta/Xavier, and future
+// implementations can provide their own kernels without changing callers.
+bool ggml_xformers_attn_supported(int device, const ggml_tensor * dst) {
+    GGML_UNUSED(device);
+    GGML_UNUSED(dst);
+    return false;
+}
+
+void ggml_xformers_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    GGML_UNUSED(ctx);
+    GGML_UNUSED(dst);
+    GGML_ABORT("xFormers attention implementation is not available for this backend");
+}
+
+bool ggml_attention_impl_supported(ggml_attention_impl impl, int device, const ggml_tensor * dst) {
+    switch (impl) {
+        case GGML_ATTN_IMPL_SAGE:
+            return ggml_sage_attn_supported(device, dst);
+        case GGML_ATTN_IMPL_XFORMERS:
+            return ggml_xformers_attn_supported(device, dst);
+        case GGML_ATTN_IMPL_FLASH:
+            // FlashAttention is currently selected by the existing fattn
+            // capability logic. It can be moved fully behind this API once its
+            // backend-specific entry point is separated from fattn.cu.
+            return false;
+        case GGML_ATTN_IMPL_NONE:
+        default:
+            return false;
+    }
+}
