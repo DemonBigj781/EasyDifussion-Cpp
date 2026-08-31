@@ -1,4 +1,5 @@
 #include "sage-attention.cuh"
+#include "../fattn.cuh"
 
 #if defined(GGML_USE_HIP)
 
@@ -47,28 +48,36 @@ void ggml_xformers_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
 }
 
 // FlashAttention retention is an API-compatibility contract, not an automatic
-// optimization choice. ROCm is the first non-CUDA backend intended to satisfy
-// this contract. Volta/Xavier can use its legacy implementation when wired into
-// this tree; Pascal will get a distinct compatibility implementation later.
+// optimization choice. The actual CUDA/HIP kernels remain in fattn.cu; this
+// common API owns backend/architecture policy and delegates execution to them.
 bool ggml_flash_compat_supported(int device, const ggml_tensor * dst) {
-    GGML_UNUSED(device);
-    GGML_UNUSED(dst);
+    if (dst == nullptr) {
+        return false;
+    }
+
+    const int cc = ggml_cuda_info().devices[device].cc;
+
 #if defined(GGML_USE_HIP)
-    // The existing HIP FlashAttention path remains the compatibility provider.
-    // Shape/device validation stays in fattn.cu until that path is fully lifted
-    // behind this interface.
-    return true;
+    // ROCm/HIP uses the shared fattn implementation. Keep architecture-specific
+    // kernel selection inside fattn.cu (MFMA/WMMA/tile/vector) and expose only
+    // the compatibility contract here.
+    if (!GGML_CUDA_CC_IS_AMD(cc)) {
+        return false;
+    }
+    return ggml_cuda_flash_attn_ext_supported(device, dst);
 #else
-    // CUDA compatibility remains available through the existing fattn path.
-    // Pascal-specific validation/implementation will be added separately.
-    return true;
+    // Pascal gets a dedicated opcode/native implementation later. Do not allow
+    // the generic compatibility API to silently treat Pascal as Volta+.
+    if (!GGML_CUDA_CC_IS_NVIDIA(cc) || cc < GGML_CUDA_CC_VOLTA) {
+        return false;
+    }
+    return ggml_cuda_flash_attn_ext_supported(device, dst);
 #endif
 }
 
 void ggml_flash_compat(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
-    GGML_UNUSED(ctx);
-    GGML_UNUSED(dst);
-    GGML_ABORT("FlashAttention compatibility dispatch has not yet been fully lifted from fattn.cu");
+    GGML_ASSERT(ggml_flash_compat_supported(ctx.device, dst));
+    ggml_cuda_flash_attn_ext(ctx, dst);
 }
 
 bool ggml_attention_impl_supported(ggml_attention_impl impl, int device, const ggml_tensor * dst) {
