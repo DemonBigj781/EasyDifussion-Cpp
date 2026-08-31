@@ -1,0 +1,226 @@
+name: Unified Build / Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Target platform
+        required: true
+        default: linux
+        type: choice
+        options: [linux, windows]
+      mode:
+        description: Operation
+        required: true
+        default: compile
+        type: choice
+        options: [compile, regression, compile-and-regression]
+      cuda_version:
+        description: Preferred CUDA version; automatically downgraded to the newest version supported by all selected NVIDIA GPUs
+        required: true
+        default: auto
+        type: choice
+        options: [auto, '13.2.2', '12.9.2', '12.8.1']
+      gpu_1:
+        description: GPU 1
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_2:
+        description: GPU 2
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_3:
+        description: GPU 3
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_4:
+        description: GPU 4
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_5:
+        description: GPU 5
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_6:
+        description: GPU 6
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_7:
+        description: GPU 7
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_8:
+        description: GPU 8
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    if: inputs.platform == 'linux'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install base build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
+      - name: Validate scripts for regression modes
+        if: inputs.mode == 'regression' || inputs.mode == 'compile-and-regression'
+        run: |
+          set -euo pipefail
+          bash -n install.sh
+          bash -n start.sh
+          bash -n scripts/bootstrap.sh
+      - name: Resolve hardware, backends, and CUDA version
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t GPUS < <(printf '%s\n' '${{ inputs.gpu_1 }}' '${{ inputs.gpu_2 }}' '${{ inputs.gpu_3 }}' '${{ inputs.gpu_4 }}' '${{ inputs.gpu_5 }}' '${{ inputs.gpu_6 }}' '${{ inputs.gpu_7 }}' '${{ inputs.gpu_8 }}' | grep -v '^none$' | sort -u)
+          declare -A CUDA=() ONEAPI=() ROCM=()
+          cuda_ceiling=13
+          for gpu in "${GPUS[@]}"; do
+            case "$gpu" in
+              p102-100) CUDA[61-real]=1; cuda_ceiling=12 ;;
+              tesla-p100) CUDA[60-real]=1; cuda_ceiling=12 ;;
+              tesla-v100) CUDA[70-real]=1; cuda_ceiling=12 ;;
+              quadro-rtx-4000|rtx-2080-ti) CUDA[75-real]=1 ;;
+              a100) CUDA[80-real]=1 ;;
+              rtx-3060|nvidia-a2) CUDA[86-real]=1 ;;
+              rtx-4090) CUDA[89-real]=1 ;;
+              h100) CUDA[90-real]=1 ;;
+              b200) CUDA[100-real]=1 ;;
+              rtx-5090) CUDA[120-real]=1 ;;
+              xg310) ONEAPI[jit]=1 ;;
+              arc-a770|arc-a750|arc-a580) ONEAPI[acm-g10]=1 ;;
+              arc-a380|arc-a310) ONEAPI[acm-g11]=1 ;;
+              flex-170) ONEAPI[ats-m150]=1 ;;
+              flex-140) ONEAPI[ats-m75]=1 ;;
+              max-1550|max-1100) ONEAPI[pvc]=1 ;;
+              rx-6800|rx-6900-xt) ROCM[gfx1030]=1 ;;
+              mi50) ROCM[gfx906]=1 ;;
+              mi100) ROCM[gfx908]=1 ;;
+              mi200) ROCM[gfx90a]=1 ;;
+              *) echo "Unknown GPU: $gpu" >&2; exit 2 ;;
+            esac
+          done
+          join_keys() { local -n ref=$1; if [ "${#ref[@]}" -eq 0 ]; then echo ''; else printf '%s\n' "${!ref[@]}" | sort | paste -sd';' -; fi; }
+          cuda="$(join_keys CUDA)"; oneapi="$(join_keys ONEAPI)"; rocm="$(join_keys ROCM)"
+          requested='${{ inputs.cuda_version }}'
+          if [ -n "$cuda" ]; then
+            if [ "$requested" = auto ]; then requested_major=99; else requested_major="${requested%%.*}"; fi
+            if [ "$cuda_ceiling" -le 12 ] || [ "$requested_major" -le 12 ]; then
+              if [ "$requested" = 12.8.1 ]; then cuda_version=12.8.1; else cuda_version=12.9.2; fi
+            else
+              cuda_version=13.2.2
+            fi
+          else cuda_version=''; fi
+          echo "cuda=$cuda" >> "$GITHUB_OUTPUT"
+          echo "oneapi=$oneapi" >> "$GITHUB_OUTPUT"
+          echo "rocm=$rocm" >> "$GITHUB_OUTPUT"
+          echo "cuda_version=$cuda_version" >> "$GITHUB_OUTPUT"
+          echo "Selected GPUs: ${GPUS[*]:-none}"
+          echo "CUDA targets: ${cuda:-none}; requested=${requested}; resolved=${cuda_version:-not-needed}"
+          echo "oneAPI targets: ${oneapi:-none}"
+          echo "ROCm targets: ${rocm:-none}"
+      - name: Install CUDA toolkit
+        if: steps.resolve.outputs.cuda != ''
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: ${{ steps.resolve.outputs.cuda_version }}
+          method: local
+          linux-local-args: '["--toolkit"]'
+      - name: CUDA configure / compile
+        if: steps.resolve.outputs.cuda != ''
+        shell: bash
+        run: |
+          cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES='${{ steps.resolve.outputs.cuda }}' -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=ON -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          if [ '${{ inputs.mode }}' != regression ]; then cmake --build build/linux-cuda --target sdkit --parallel 2; fi
+      - name: oneAPI configure / compile
+        if: steps.resolve.outputs.oneapi != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
+          set +u; source /opt/intel/oneapi/setvars.sh; set -u
+          IFS=';' read -ra ARCHES <<< '${{ steps.resolve.outputs.oneapi }}'
+          for arch in "${ARCHES[@]}"; do
+            builddir="build/linux-oneapi-$arch"; extra=(); [ "$arch" = jit ] || extra+=("-DGGML_SYCL_DEVICE_ARCH=$arch")
+            cmake -S source/sdkit3-port-source -B "$builddir" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DGGML_OPENMP=OFF -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_MUSA=OFF -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=ON "${extra[@]}" -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+            if [ '${{ inputs.mode }}' != regression ]; then cmake --build "$builddir" --target sdkit --parallel 2; fi
+          done
+      - name: Install ROCm
+        if: steps.resolve.outputs.rocm != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /etc/apt/keyrings
+          wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg >/dev/null
+          echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2.2 noble main' | sudo tee /etc/apt/sources.list.d/rocm.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rocm-dev hipblas-dev rocblas-dev
+      - name: ROCm configure / compile
+        if: steps.resolve.outputs.rocm != ''
+        shell: bash
+        run: |
+          export PATH=/opt/rocm/bin:$PATH
+          cmake -S source/sdkit3-port-source -B build/linux-rocm -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=ON -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF -DGPU_TARGETS='${{ steps.resolve.outputs.rocm }}' -DAMDGPU_TARGETS='${{ steps.resolve.outputs.rocm }}' -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          if [ '${{ inputs.mode }}' != regression ]; then cmake --build build/linux-rocm --target sdkit --parallel 2; fi
+      - name: Portable Vulkan / OpenGL / OpenCL configure and compile
+        if: inputs.gpu_1 != 'none' || inputs.gpu_2 != 'none' || inputs.gpu_3 != 'none' || inputs.gpu_4 != 'none' || inputs.gpu_5 != 'none' || inputs.gpu_6 != 'none' || inputs.gpu_7 != 'none' || inputs.gpu_8 != 'none'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers libgl1-mesa-dev ocl-icd-opencl-dev opencl-headers
+          cmake -S source/sdkit3-port-source -B build/linux-vulkan -G Ninja -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=ON -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          cmake -S source/sdkit3-port-source -B build/linux-opengl -G Ninja -DSDKIT_OPENGL_BACKEND=ON -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          cmake -S source/sdkit3-port-source -B build/linux-opencl -G Ninja -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=ON -DSD_SYCL=OFF -DSD_MUSA=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          if [ '${{ inputs.mode }}' != regression ]; then
+            cmake --build build/linux-vulkan --target sdkit --parallel 2
+            cmake --build build/linux-opengl --target sdkit --parallel 2
+            cmake --build build/linux-opencl --target sdkit --parallel 2
+          fi
+
+  windows:
+    if: inputs.platform == 'windows'
+    runs-on: windows-2025
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - name: Unified Windows validation
+        shell: pwsh
+        run: |
+          $selected = @('${{ inputs.gpu_1 }}','${{ inputs.gpu_2 }}','${{ inputs.gpu_3 }}','${{ inputs.gpu_4 }}','${{ inputs.gpu_5 }}','${{ inputs.gpu_6 }}','${{ inputs.gpu_7 }}','${{ inputs.gpu_8 }}') | Where-Object { $_ -ne 'none' } | Sort-Object -Unique
+          Write-Host "Selected GPUs: $($selected -join ', ')"
+          Write-Host "Mode: ${{ inputs.mode }}"
+          Write-Host "CUDA preference: ${{ inputs.cuda_version }}"
+          if ($selected.Count -gt 0) {
+            throw 'Unified Windows GPU backend provisioning is not wired yet; selected hardware was resolved but CUDA/oneAPI/ROCm/Vulkan/OpenGL/OpenCL/DirectML Windows setup must be implemented before this lane can compile it.'
+          }
+          cmake -S source/sdkit3-port-source -B build/windows-cpu -A x64 -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ('${{ inputs.mode }}' -ne 'regression') {
+            cmake --build build/windows-cpu --target sdkit --config Release --parallel 2
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
