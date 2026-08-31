@@ -39,10 +39,10 @@ endif()
 # missing override, absolute-value misuse and unused project parameters visible.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-literal-operator>
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-value>
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-#pragma-messages>
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-literal-operator>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-value>"
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-#pragma-messages>"
     )
 endif()
 
