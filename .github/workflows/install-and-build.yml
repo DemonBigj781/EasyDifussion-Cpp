@@ -1,0 +1,134 @@
+name: Installation and Native Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installation-bootstrap:
+    name: Test installation bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Verify shell entry points
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n start.sh
+          bash -n install.sh
+          bash -n scripts/bootstrap.sh
+          ./install.sh --help
+
+      - name: Bootstrap contained Easy Diffusion environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          export EASY_DIFFUSION_PYTHON="$(command -v python)"
+          ./scripts/bootstrap.sh
+
+      - name: Verify installed environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x .venv/bin/python
+          .venv/bin/python - <<'PY'
+          import sys
+          assert sys.version_info[:2] == (3, 13), sys.version
+          print(sys.version)
+          PY
+          .venv/bin/python -m pip --version
+
+      - name: Verify bootstrap is idempotent
+        shell: bash
+        run: |
+          set -euo pipefail
+          export EASY_DIFFUSION_PYTHON="$(command -v python)"
+          ./scripts/bootstrap.sh
+
+  compile-cpu:
+    name: Compile CPU native runtimes
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config
+
+      - name: Validate installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n install.sh
+          ./install.sh --help
+
+      - name: Build llama.cpp CPU tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./install.sh --llama-build --cpu --jobs 2
+
+      - name: Verify llama.cpp outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x source/llama.cpp/build/bin/llama-cli
+          test -x source/llama.cpp/build/bin/llama-server
+          test -x source/llama.cpp/build/bin/llama-quantize
+          source/llama.cpp/build/bin/llama-cli --version || true
+
+      - name: Build sdkit/stable-diffusion.cpp CPU bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./install.sh --native-build --cpu --jobs 2
+
+      - name: Verify native bundle outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="backends/sdkit3/linux-x64-cpu-any"
+          test -d "$bundle"
+          test -x "$bundle/sdkit"
+          test -x "$bundle/llama-server"
+          "$bundle/sdkit" --help >/tmp/sdkit-help.txt
+          grep -q -- '--convert-model' /tmp/sdkit-help.txt
+
+      - name: Upload CPU native bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64-cpu-native-bundle
+          path: backends/sdkit3/linux-x64-cpu-any/
+          if-no-files-found: warn
+          retention-days: 7
