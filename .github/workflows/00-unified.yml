@@ -43,14 +43,13 @@ jobs:
         run: |
           wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
           echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel intel-ocloc libze1 libze-dev
+          command -v ocloc
       - name: Install ROCm
         if: steps.r.outputs.has_rocm == 'true'
         shell: bash
-        run: |
-          sudo mkdir -p /etc/apt/keyrings; wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg >/dev/null
-          echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2.2 noble main' | sudo tee /etc/apt/sources.list.d/rocm.list >/dev/null
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends rocm-dev hipblas-dev rocblas-dev
+        run: bash ci/scripts/setup_rocm.sh
       - name: Install portable API headers
         if: steps.r.outputs.has_portable == 'true'
         run: sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers libgl1-mesa-dev ocl-icd-opencl-dev opencl-headers
