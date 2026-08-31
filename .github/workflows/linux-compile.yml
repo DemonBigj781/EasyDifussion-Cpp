@@ -25,8 +25,18 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+
       - name: Install base build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
+
+      - name: Install CUDA toolkit for CUDA compile lane
+        if: github.event.inputs.backend == 'cuda'
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: '12.8.1'
+          method: local
+          linux-local-args: '["--toolkit"]'
+
       - name: Compile selected backend without running binaries
         shell: bash
         run: |
@@ -43,8 +53,16 @@ jobs:
               test -f build/linux-oneapi/bin/sdkit
               ;;
             cuda)
-              echo "CUDA compile lane requires CUDA toolkit provisioning; configure this lane before use." >&2
-              exit 2
+              command -v nvcc >/dev/null
+              nvcc --version
+              cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_CUDA_ARCHITECTURES=75 \
+                -DSD_CUDA=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+                -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-cuda --target sdkit --parallel 2
+              test -f build/linux-cuda/bin/sdkit
               ;;
             rocm)
               echo "ROCm compile lane requires ROCm toolkit provisioning; configure this lane before use." >&2
