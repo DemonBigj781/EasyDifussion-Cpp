@@ -51,9 +51,7 @@ file(GLOB_RECURSE ED_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(sdkit ${ED_SRC})
 
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp)
 
 # Suppress Unicode character warnings from Crow library headers on Windows
@@ -61,10 +59,8 @@ if(MSVC)
     target_compile_options(sdkit PRIVATE /wd4566)
 endif()
 
-# Find Threads package for multithreading support
 find_package(Threads REQUIRED)
 
-# Set RPATH for Linux/Unix to find shared libraries in the same directory as the executable
 if(UNIX AND NOT APPLE)
     set_target_properties(sdkit PROPERTIES
         BUILD_RPATH "$ORIGIN"
@@ -73,7 +69,6 @@ if(UNIX AND NOT APPLE)
     )
 endif()
 
-# For macOS, use @executable_path
 if(APPLE)
     set_target_properties(sdkit PROPERTIES
         BUILD_RPATH "@executable_path"
@@ -102,8 +97,22 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
         -DGGML_METAL=${SD_METAL}
         -DGGML_VULKAN=${SD_VULKAN}
         -DGGML_SYCL=${SD_SYCL}
-        -DGGML_SYCL_F16=${SD_SYCL}
+        -DGGML_SYCL_F16=${GGML_SYCL_F16}
     )
+    # Keep the isolated llama-server on the same Intel SYCL policy as the
+    # diffusion runtime. These cache variables are understood by both vendored
+    # GGML trees and make oneAPI behavior predictable across the bundle.
+    if(SD_SYCL)
+        list(APPEND SDKIT_LLAMA_BACKEND_ARGS
+            -DGGML_SYCL_TARGET=${GGML_SYCL_TARGET}
+            -DGGML_SYCL_DNN=${GGML_SYCL_DNN}
+            -DGGML_SYCL_SUPPORT_LEVEL_ZERO=${GGML_SYCL_SUPPORT_LEVEL_ZERO}
+        )
+        if(GGML_SYCL_DEVICE_ARCH)
+            list(APPEND SDKIT_LLAMA_BACKEND_ARGS
+                -DGGML_SYCL_DEVICE_ARCH=${GGML_SYCL_DEVICE_ARCH})
+        endif()
+    endif()
     ExternalProject_Add(sdkit-llama-runtime
         SOURCE_DIR "${SDKIT_LLAMA_SOURCE_DIR}"
         BINARY_DIR "${SDKIT_LLAMA_BUILD_DIR}"
@@ -134,10 +143,6 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
             "$<TARGET_FILE_DIR:sdkit>"
         COMMENT "Bundling the isolated llama.cpp runtime with sdkit")
 
-    # The upstream converters are Python programs and cannot be linked into
-    # stable-diffusion.cpp's C++ process. Ship them in the same native bundle,
-    # together with their local conversion modules, so the sdkit3 tool layer
-    # can launch them through Easy Diffusion's main Python 3.13 environment.
     set(SDKIT_LLAMA_CONVERTER_DIR "$<TARGET_FILE_DIR:sdkit>/llama-converters")
     add_custom_command(TARGET sdkit POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${SDKIT_LLAMA_CONVERTER_DIR}"
@@ -156,15 +161,11 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
         COMMENT "Bundling llama.cpp GGUF conversion tools with sdkit")
 endif()
 
-# Platform-specific libraries
 if(WIN32)
     target_link_libraries(sdkit PRIVATE ws2_32)
-    # Target Windows 7 and later (0x0601). This sets the _WIN32_WINNT macro
-    # for all targets processed by this CMakeLists.
     add_compile_definitions(_WIN32_WINNT=0x0601)
 endif()
 
-# Copy the necessary DLLs to the runtime output directory
 add_custom_command(TARGET sdkit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:stable-diffusion>
@@ -172,20 +173,12 @@ add_custom_command(TARGET sdkit POST_BUILD
         $<TARGET_FILE_DIR:sdkit>
 )
 
-# Build tools if enabled
 if(SDKIT_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
-# Ultralytics-compatible inference is a separate process so loading LibTorch
-# and detector weights never consumes the diffusion server's RAM. Models are
-# exported once to TorchScript; this executable contains only clean C++ image
-# preparation, YOLO decoding, and NMS code.
 if(SDKIT_BUILD_NATIVE_VISION)
     find_package(Torch REQUIRED)
-    # Python LibTorch wheels are built against the CUDA runtime bundled with
-    # the wheel.  Some systems also have an older /usr/lib CUDA runtime, which
-    # CMake may otherwise select and fail at link time on versioned symbols.
     if(SDKIT_TORCH_CUDART)
         if(NOT EXISTS "${SDKIT_TORCH_CUDART}")
             message(FATAL_ERROR "SDKIT_TORCH_CUDART does not exist: ${SDKIT_TORCH_CUDART}")
@@ -212,9 +205,6 @@ if(SDKIT_BUILD_NATIVE_VISION)
     endif()
 endif()
 
-# Lightweight helpers intentionally have no LibTorch/OpenCV dependency.  The
-# text-mask process exits after each request and therefore cannot add to the
-# diffusion server's steady-state RAM use.
 if(SDKIT_BUILD_IMAGE_TOOLS)
     add_executable(sdkit-image-tools tools/native_image_tools.cpp)
     target_include_directories(sdkit-image-tools PRIVATE
