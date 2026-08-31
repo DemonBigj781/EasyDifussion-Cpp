@@ -1,5 +1,10 @@
 # Easy Diffusion Custom
 
+> [!WARNING]
+> **Theory branch policy:** This branch is for theory-stage development only. Code on `Theory` may be incomplete, unvalidated, intentionally experimental, or structurally unfinished. It is **not intended to be run, installed, benchmarked, or treated as production-ready**. Work should remain on this branch while concepts are being designed and implemented in theory. Only when an objective is mature enough for real development, integration, and validation should the relevant work be deliberately carried forward toward `main`.
+>
+> In practical terms: `Theory` is a coding/design workspace, not a runnable release branch. Do not assume that a successful compile, installer path, backend option, or documented feature on this branch means the feature is ready for use.
+
 This local Easy Diffusion customization project adds native sdkit3 image-generation features
 and local model tooling:
 
