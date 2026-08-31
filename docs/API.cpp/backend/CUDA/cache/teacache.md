@@ -1,15 +1,22 @@
-# TeaCache — CUDA
+# CUDA — TeaCache
 
 ## Status
+Native cache policy, backend-neutral host implementation.
 
-**Inventory pending**.
+## Implementation
+`src/runtime/teacache.hpp` implements the TeaCache policy in C++. It measures relative L1 change between diffusion inputs, applies model-specific polynomial rescaling, accumulates that change, and reuses a previously stored full-model residual while the accumulated value remains below the configured threshold.
 
-This page is reserved for CUDA-specific TeaCache behavior behind the API.cpp backend abstraction. The implementation status must be derived from the current code before this page is marked Native, Compatibility, Fallback, Stub, Unsupported, or Not implemented.
+## Cache placement
+The current TeaCache state is explicitly host-resident. Previous diffusion inputs and cached residuals are stored in `std::vector<float>` containers. The implementation intentionally keeps the residual in host memory and performs its probe at the condition boundary so streamed weights do not require a second partial graph.
 
-## Required audit
+## CUDA relationship
+CUDA executes the underlying model. TeaCache determines whether a step can reuse the host-stored residual. This is not currently a CUDA-resident cache implementation and does not claim a dedicated CUDA TeaCache kernel.
 
-Document the CUDA integration point, supported model families, cache state placement, VRAM behavior, precision restrictions, compile/runtime requirements, invalidation rules, fallback behavior, and CI/runtime validation.
+## Configuration
+Current configuration includes `enabled`, `reuse_threshold`, `start_percent`, `end_percent`, `total_steps`, model-specific polynomial `coefficients`, and `model_variant`.
 
-## Rule
+## Fallback
+The normal model evaluation proceeds when TeaCache is disabled, outside the active step range, on the first or last step, when tensor sizes change, when no residual exists, or when accumulated change exceeds the reuse threshold.
 
-Do not move generic TeaCache policy or model logic into the backend layer. Only CUDA-specific execution, memory, kernels, synchronization, and capability handling belong here.
+## Validation
+Native policy implementation is present. CUDA-specific performance, host/device transfer cost, and model-quality validation remain required.
