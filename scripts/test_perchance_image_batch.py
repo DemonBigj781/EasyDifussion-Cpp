@@ -17,6 +17,29 @@ from ui.plugins.server.perchance import perchance
 
 
 class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
+    async def test_gallery_timeout_allows_nested_frame_startup(self):
+        self.assertGreaterEqual(perchance.GALLERY_TIMEOUT_SECONDS, 10 * 60)
+
+    async def test_launcher_prefers_extracted_binary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            project_root = root / "project"
+            home = root / "home"
+            extracted = home / "bin" / "perchance"
+            appimage = home / "AppImages" / "perchance.AppImage"
+            extracted.parent.mkdir(parents=True)
+            appimage.parent.mkdir(parents=True)
+            extracted.write_bytes(b"launcher")
+            appimage.write_bytes(b"appimage")
+            extracted.chmod(0o755)
+            appimage.chmod(0o755)
+            with (
+                patch.object(perchance, "ED_ROOT", project_root),
+                patch.object(perchance.Path, "home", return_value=home),
+                patch.object(perchance.easy_app, "getConfig", return_value={}),
+            ):
+                self.assertEqual(perchance._launcher_path(), extracted)
+
     async def test_amount_is_bounded(self):
         with self.assertRaises(HTTPException) as raised:
             await perchance.generate_image({"prompt": "test", "amount": 21})
