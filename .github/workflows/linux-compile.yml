@@ -16,7 +16,7 @@ jobs:
       - name: Install base build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
 
-      - name: Install oneAPI toolchain
+      - name: Install oneAPI toolchain only
         shell: bash
         run: |
           set -euo pipefail
@@ -24,6 +24,16 @@ jobs:
           echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
+
+          if command -v nvcc >/dev/null 2>&1; then
+            echo 'ERROR: CUDA nvcc is present after oneAPI-only provisioning.' >&2
+            exit 1
+          fi
+
+          if dpkg-query -W -f='${Package}\n' 2>/dev/null | grep -E '^(nvidia-cuda-toolkit|cuda-toolkit|cuda-toolkit-[0-9-]+|cuda-compiler|cuda-compiler-[0-9-]+)$' >/dev/null; then
+            echo 'ERROR: A CUDA toolkit/compiler package was installed by the oneAPI workflow.' >&2
+            exit 1
+          fi
 
       - name: Compile only the oneAPI backend without running binaries
         shell: bash
