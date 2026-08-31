@@ -25,8 +25,18 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
       - name: Install base validation dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
+
+      - name: Install CUDA toolkit for CUDA regression lane
+        if: github.event.inputs.backend == 'cuda'
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: '12.8.1'
+          method: local
+          linux-local-args: '["--toolkit"]'
+
       - name: Validate source and backend configuration without executing built binaries
         shell: bash
         run: |
@@ -44,6 +54,16 @@ jobs:
               source /opt/intel/oneapi/setvars.sh
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi -G Ninja -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
+            cuda)
+              command -v nvcc >/dev/null
+              nvcc --version
+              cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_CUDA_ARCHITECTURES=75 \
+                -DSD_CUDA=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+                -DSDKIT_BUILD_NATIVE_VISION=OFF
+              ;;
             vulkan)
               sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers
               cmake -S source/sdkit3-port-source -B build/regress-linux-vulkan -G Ninja -DSD_VULKAN=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
@@ -54,10 +74,6 @@ jobs:
               ;;
             cpu)
               cmake -S source/sdkit3-port-source -B build/regress-linux-cpu -G Ninja -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            cuda)
-              echo 'CUDA regression lane requires CUDA toolkit provisioning before configure validation.' >&2
-              exit 2
               ;;
             rocm)
               echo 'ROCm regression lane requires ROCm toolkit provisioning before configure validation.' >&2
