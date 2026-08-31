@@ -1,155 +1,279 @@
-name: Installation and Cross-Platform Native Build
+name: Theory Backend Compile Validation
 
-# This workflow is intentionally manual-only. It must not run on pushes,
-# pull requests, schedules, or other automatic repository events.
+# Theory CI is intentionally manual-only and compile-only.
+# It must never run generated binaries or infer runtime support from CI.
 on:
   workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend API to compile
+        required: true
+        default: oneapi
+        type: choice
+        options:
+          - oneapi
+          - cuda
+          - rocm
+          - vulkan
+          - opencl
+          - metal
+          - cpu-linux
+          - cpu-windows
+          - all
 
 permissions:
   contents: read
 
 concurrency:
-  group: install-build-${{ github.workflow }}-${{ github.ref }}
+  group: theory-compile-${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.backend }}
   cancel-in-progress: true
 
+env:
+  SDKIT_SOURCE: source/sdkit3-port-source
+
 jobs:
-  installation-bootstrap:
-    name: Test Linux installation bootstrap
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: pip
-
-      - name: Verify shell entry points
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash -n start.sh
-          bash -n install.sh
-          bash -n scripts/bootstrap.sh
-          ./install.sh --help
-
-      - name: Bootstrap contained Easy Diffusion environment
-        shell: bash
-        run: |
-          set -euo pipefail
-          export EASY_DIFFUSION_PYTHON="$(command -v python)"
-          ./scripts/bootstrap.sh
-
-      - name: Verify installed environment
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -x .venv/bin/python
-          .venv/bin/python - <<'PY'
-          import sys
-          assert sys.version_info[:2] == (3, 13), sys.version
-          print(sys.version)
-          PY
-          .venv/bin/python -m pip --version
-
-      - name: Verify bootstrap is idempotent
-        shell: bash
-        run: |
-          set -euo pipefail
-          export EASY_DIFFUSION_PYTHON="$(command -v python)"
-          ./scripts/bootstrap.sh
-
-  compile-platforms:
-    name: Compile ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Linux x64 CPU
-            os: ubuntu-latest
-            platform: linux-x64
-            artifact: linux-x64-cpu-native-build
-          - name: Windows x64 CPU
-            os: windows-latest
-            platform: windows-x64
-            artifact: windows-x64-cpu-native-build
-
-    runs-on: ${{ matrix.os }}
+  oneapi:
+    name: Compile oneAPI / SYCL
+    if: github.event.inputs.backend == 'oneapi' || github.event.inputs.backend == 'all'
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Linux build dependencies
-        if: runner.os == 'Linux'
+      - name: Install base build dependencies
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            ninja-build \
-            pkg-config
+            build-essential cmake ninja-build pkg-config gnupg wget
 
-      - name: Verify Windows build tools
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cmake --version
-          ninja --version
-          cmd /c install.bat --help
-
-      - name: Build Linux native runtimes through install.sh
-        if: runner.os == 'Linux'
+      - name: Add Intel oneAPI repository
         shell: bash
         run: |
           set -euo pipefail
-          ./install.sh --llama-build --native-build --cpu --jobs 2
+          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' \
+            | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+          sudo apt-get update
 
-      - name: Build Windows native runtimes through install.bat
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cmd /c install.bat --llama-build --native-build --cpu --jobs 2
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Stage Linux build artifact
-        if: runner.os == 'Linux'
+      - name: Install oneAPI compile toolchain
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/${{ matrix.platform }}/llama artifacts/${{ matrix.platform }}/sdkit
-          cp source/llama.cpp/build/bin/llama-cli artifacts/${{ matrix.platform }}/llama/
-          cp source/llama.cpp/build/bin/llama-server artifacts/${{ matrix.platform }}/llama/
-          cp source/llama.cpp/build/bin/llama-quantize artifacts/${{ matrix.platform }}/llama/
-          cp -a backends/sdkit3/linux-x64-cpu-any/. artifacts/${{ matrix.platform }}/sdkit/
-          artifacts/${{ matrix.platform }}/sdkit/sdkit --help > sdkit-help.txt
-          grep -q -- '--convert-model' sdkit-help.txt
+          sudo apt-get install -y --no-install-recommends \
+            intel-oneapi-compiler-dpcpp-cpp \
+            intel-oneapi-mkl-devel \
+            intel-oneapi-dnnl-devel
 
-      - name: Stage Windows build artifact
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Configure oneAPI / SYCL
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.platform }}/llama" | Out-Null
-          New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.platform }}/sdkit" | Out-Null
-          Copy-Item "source/llama.cpp/build-windows-x64/bin/llama-cli.exe" "artifacts/${{ matrix.platform }}/llama/"
-          Copy-Item "source/llama.cpp/build-windows-x64/bin/llama-server.exe" "artifacts/${{ matrix.platform }}/llama/"
-          Copy-Item "source/llama.cpp/build-windows-x64/bin/llama-quantize.exe" "artifacts/${{ matrix.platform }}/llama/"
-          Copy-Item "backends/sdkit3/windows-x64-cpu-any/*" "artifacts/${{ matrix.platform }}/sdkit/" -Recurse
-          & "artifacts/${{ matrix.platform }}/sdkit/sdkit.exe" --help | Out-File -Encoding utf8 sdkit-help.txt
-          Select-String -Path sdkit-help.txt -Pattern '--convert-model' | Out-Null
+          set -euo pipefail
+          source /opt/intel/oneapi/setvars.sh
+          cmake -S "$SDKIT_SOURCE" -B build/theory-oneapi -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=icx \
+            -DCMAKE_CXX_COMPILER=icpx \
+            -DSD_SYCL=ON \
+            -DGGML_SYCL_TARGET=INTEL \
+            -DGGML_SYCL_F16=ON \
+            -DGGML_SYCL_DNN=ON \
+            -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
 
-      - name: Upload platform native build
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Compile oneAPI / SYCL
+        shell: bash
+        run: |
+          set -euo pipefail
+          source /opt/intel/oneapi/setvars.sh
+          cmake --build build/theory-oneapi --target sdkit --parallel 2
+
+      - name: Verify compile outputs exist without executing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f build/theory-oneapi/bin/sdkit
+
+  cuda:
+    name: Compile CUDA
+    if: github.event.inputs.backend == 'cuda' || github.event.inputs.backend == 'all'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Jimver/cuda-toolkit@v0.2.36
         with:
-          name: ${{ matrix.artifact }}
-          path: artifacts/${{ matrix.platform }}/
-          if-no-files-found: warn
-          retention-days: 7
+          cuda: '13.2.0'
+          method: local
+          linux-local-args: '["--toolkit"]'
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
+      - name: Configure CUDA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S "$SDKIT_SOURCE" -B build/theory-cuda -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSD_CUDA=ON \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
+      - name: Compile CUDA
+        run: cmake --build build/theory-cuda --target sdkit --parallel 2
+      - name: Verify compile outputs exist without executing them
+        run: test -f build/theory-cuda/bin/sdkit
+
+  rocm:
+    name: Compile ROCm / HIP
+    if: github.event.inputs.backend == 'rocm' || github.event.inputs.backend == 'all'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ROCm repository and compile toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /etc/apt/keyrings
+          wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key \
+            | gpg --dearmor \
+            | sudo tee /etc/apt/keyrings/rocm.gpg >/dev/null
+          echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2.2 noble main' \
+            | sudo tee /etc/apt/sources.list.d/rocm.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config \
+            rocm-dev hipblas-dev rocblas-dev
+      - name: Configure ROCm / HIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH=/opt/rocm/bin:$PATH
+          cmake -S "$SDKIT_SOURCE" -B build/theory-rocm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang \
+            -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ \
+            -DSD_HIPBLAS=ON \
+            -DGPU_TARGETS=gfx1030 \
+            -DAMDGPU_TARGETS=gfx1030 \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
+      - name: Compile ROCm / HIP
+        run: cmake --build build/theory-rocm --target sdkit --parallel 2
+      - name: Verify compile outputs exist without executing them
+        run: test -f build/theory-rocm/bin/sdkit
+
+  vulkan:
+    name: Compile Vulkan
+    if: github.event.inputs.backend == 'vulkan' || github.event.inputs.backend == 'all'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vulkan build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config \
+            libvulkan-dev glslc spirv-headers
+      - name: Configure Vulkan
+        run: |
+          cmake -S "$SDKIT_SOURCE" -B build/theory-vulkan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSD_VULKAN=ON \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
+      - name: Compile Vulkan
+        run: cmake --build build/theory-vulkan --target sdkit --parallel 2
+      - name: Verify compile outputs exist without executing them
+        run: test -f build/theory-vulkan/bin/sdkit
+
+  opencl:
+    name: Compile OpenCL
+    if: github.event.inputs.backend == 'opencl' || github.event.inputs.backend == 'all'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OpenCL build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config \
+            ocl-icd-opencl-dev opencl-headers
+      - name: Configure OpenCL
+        run: |
+          cmake -S "$SDKIT_SOURCE" -B build/theory-opencl -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSD_OPENCL=ON \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
+      - name: Compile OpenCL
+        run: cmake --build build/theory-opencl --target sdkit --parallel 2
+      - name: Verify compile outputs exist without executing them
+        run: test -f build/theory-opencl/bin/sdkit
+
+  metal:
+    name: Compile Metal
+    if: github.event.inputs.backend == 'metal' || github.event.inputs.backend == 'all'
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Metal
+        run: |
+          cmake -S "$SDKIT_SOURCE" -B build/theory-metal \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSD_METAL=ON \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
+      - name: Compile Metal
+        run: cmake --build build/theory-metal --target sdkit --parallel 2
+      - name: Verify compile outputs exist without executing them
+        run: test -f build/theory-metal/bin/sdkit
+
+  cpu-linux:
+    name: Compile CPU Linux
+    if: github.event.inputs.backend == 'cpu-linux' || github.event.inputs.backend == 'all'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
+      - name: Configure CPU Linux
+        run: |
+          cmake -S "$SDKIT_SOURCE" -B build/theory-cpu-linux -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
+      - name: Compile CPU Linux
+        run: cmake --build build/theory-cpu-linux --target sdkit --parallel 2
+      - name: Verify compile outputs exist without executing them
+        run: test -f build/theory-cpu-linux/bin/sdkit
+
+  cpu-windows:
+    name: Compile CPU Windows
+    if: github.event.inputs.backend == 'cpu-windows' || github.event.inputs.backend == 'all'
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure CPU Windows
+        shell: pwsh
+        run: |
+          cmake -S "$env:SDKIT_SOURCE" -B build/theory-cpu-windows -A x64 `
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF `
+            -DSDKIT_BUILD_NATIVE_VISION=OFF
+      - name: Compile CPU Windows
+        shell: pwsh
+        run: cmake --build build/theory-cpu-windows --target sdkit --config Release --parallel 2
+      - name: Verify compile outputs exist without executing them
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "build/theory-cpu-windows/bin/Release/sdkit.exe") -and -not (Test-Path "build/theory-cpu-windows/bin/sdkit.exe")) {
+            throw "sdkit.exe was not produced"
+          }
