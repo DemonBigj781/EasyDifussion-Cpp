@@ -205,13 +205,10 @@ if(SDKIT_BUILD_NATIVE_VISION)
     endif()
     if(UNIX AND NOT APPLE)
         set_target_properties(sdkit-vision PROPERTIES
-            BUILD_RPATH_USE_ORIGIN FALSE
-            INSTALL_RPATH_USE_LINK_PATH TRUE)
-        if(SDKIT_TORCH_CUDART)
-            get_filename_component(SDKIT_TORCH_CUDART_DIR "${SDKIT_TORCH_CUDART}" DIRECTORY)
-            set_property(TARGET sdkit-vision APPEND PROPERTY
-                BUILD_RPATH "${SDKIT_TORCH_CUDART_DIR}")
-        endif()
+            BUILD_RPATH_USE_ORIGIN TRUE
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+            INSTALL_RPATH_USE_LINK_PATH FALSE)
     endif()
 endif()
 

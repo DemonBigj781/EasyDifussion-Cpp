@@ -5,6 +5,8 @@ import binascii
 import json
 import os
 import subprocess
+import sys
+import sysconfig
 import tempfile
 import threading
 from pathlib import Path
@@ -94,6 +96,42 @@ def _detector_model(kind: str) -> Path:
     raise FileNotFoundError(f"TorchScript detector is not installed: {filename}")
 
 
+def _torch_library_directory() -> Path:
+    library_names = ("libtorch.so", "libtorch.dylib", "torch.dll")
+    python_paths = sysconfig.get_paths()
+    candidates = []
+    for path_name in ("platlib", "purelib"):
+        package_root = python_paths.get(path_name)
+        if package_root:
+            candidate = Path(package_root) / "torch" / "lib"
+            if candidate not in candidates:
+                candidates.append(candidate)
+    for candidate in candidates:
+        if any((candidate / library_name).is_file() for library_name in library_names):
+            return candidate
+    searched = ", ".join(str(candidate) for candidate in candidates) or "the active Python environment"
+    raise RuntimeError(f"LibTorch runtime libraries are missing from {searched}")
+
+
+def _runtime_environment(command) -> Dict[str, str]:
+    environment = os.environ.copy()
+    if not command or Path(str(command[0])).name != "sdkit-vision":
+        return environment
+
+    torch_library_directory = str(_torch_library_directory())
+    if os.name == "nt":
+        library_path_name = "PATH"
+    elif sys.platform == "darwin":
+        library_path_name = "DYLD_LIBRARY_PATH"
+    else:
+        library_path_name = "LD_LIBRARY_PATH"
+    current = environment.get(library_path_name, "")
+    environment[library_path_name] = os.pathsep.join(
+        value for value in (torch_library_directory, current) if value
+    )
+    return environment
+
+
 def _run(command, timeout: int) -> Dict[str, Any]:
     # Serializing helpers prevents two transient LibTorch processes from
     # doubling RAM use on machines already close to their OOM limit.
@@ -104,6 +142,7 @@ def _run(command, timeout: int) -> Dict[str, Any]:
             text=True,
             timeout=timeout,
             check=False,
+            env=_runtime_environment(command),
         )
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip() or "native helper failed"
