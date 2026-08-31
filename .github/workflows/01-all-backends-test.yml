@@ -1,0 +1,23 @@
+name: '01 - All Backends Test'
+on: {workflow_dispatch: {}}
+permissions: {contents: read}
+jobs:
+  test:
+    strategy: {fail-fast: false, matrix: {backend: [cpu, cuda, oneapi, rocm, vulkan, opengl, opencl, directml]}}
+    runs-on: ${{ matrix.backend == 'directml' && 'windows-2025' || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Compile-only backend test
+        shell: bash
+        run: |
+          echo "Testing ${{ matrix.backend }}; this workflow never executes produced binaries."
+          case '${{ matrix.backend }}' in
+            cpu) target='{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}' ;;
+            cuda) target='{"devices":["rtx-3060"],"cuda":["86-real"],"cuda_version":"13.2.2","oneapi":[],"rocm":[],"portable":[]}' ;;
+            oneapi) target='{"devices":["arc-a770"],"cuda":[],"cuda_version":"","oneapi":["acm-g10"],"rocm":[],"portable":[]}' ;;
+            rocm) target='{"devices":["rx-6800"],"cuda":[],"cuda_version":"","oneapi":[],"rocm":["gfx1030"],"portable":[]}' ;;
+            *) target='{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}' ;;
+          esac
+          python ci/scripts/build_backend.py --backend '${{ matrix.backend }}' --mode compile --target-json "$target"

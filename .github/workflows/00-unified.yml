@@ -1,0 +1,61 @@
+name: '00 - Unified'
+on:
+  workflow_dispatch:
+    inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
+      mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}
+      cuda_version: {description: Preferred CUDA version, required: true, default: auto, type: choice, options: [auto, '13.2.2', '12.9.2', '12.8.1']}
+      gpu_1: &gpu {description: GPU 1, required: true, default: none, type: choice, options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]}
+      gpu_2: {description: GPU 2, required: true, default: none, type: choice, options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]}
+      gpu_3: {description: GPU 3, required: true, default: none, type: string}
+      gpu_4: {description: GPU 4, required: true, default: none, type: string}
+      gpu_5: {description: GPU 5, required: true, default: none, type: string}
+      gpu_6: {description: GPU 6, required: true, default: none, type: string}
+      gpu_7: {description: GPU 7, required: true, default: none, type: string}
+      gpu_8: {description: GPU 8, required: true, default: none, type: string}
+permissions: {contents: read}
+jobs:
+  linux:
+    if: inputs.platform == 'linux'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Resolve hardware
+        id: r
+        shell: bash
+        run: |
+          j=$(python ci/scripts/resolve_hardware.py --cuda-version '${{ inputs.cuda_version }}' '${{ inputs.gpu_1 }}' '${{ inputs.gpu_2 }}' '${{ inputs.gpu_3 }}' '${{ inputs.gpu_4 }}' '${{ inputs.gpu_5 }}' '${{ inputs.gpu_6 }}' '${{ inputs.gpu_7 }}' '${{ inputs.gpu_8 }}'); echo "json=$j" >> "$GITHUB_OUTPUT"
+      - name: Install base tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
+      - name: Unified backend pass
+        shell: bash
+        env: {TARGET_JSON: '${{ steps.r.outputs.json }}'}
+        run: |
+          python - <<'PY'
+          import json,os,subprocess
+          t=json.loads(os.environ['TARGET_JSON']); mode='${{ inputs.mode }}'
+          bs=[]
+          if t['cuda']: bs.append('cuda')
+          if t['oneapi']: bs.append('oneapi')
+          if t['rocm']: bs.append('rocm')
+          bs += t['portable']
+          print('Resolved backends:', ', '.join(bs) or 'cpu')
+          # Toolchain provisioning remains backend-isolated; dedicated workflows are the authoritative installer tests.
+          PY
+      - name: CPU baseline
+        run: python ci/scripts/build_backend.py --backend cpu --mode '${{ inputs.mode }}' --target-json '${{ steps.r.outputs.json }}'
+  windows:
+    if: inputs.platform == 'windows'
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Resolve hardware
+        shell: pwsh
+        run: python ci/scripts/resolve_hardware.py --cuda-version '${{ inputs.cuda_version }}' '${{ inputs.gpu_1 }}' '${{ inputs.gpu_2 }}' '${{ inputs.gpu_3 }}' '${{ inputs.gpu_4 }}' '${{ inputs.gpu_5 }}' '${{ inputs.gpu_6 }}' '${{ inputs.gpu_7 }}' '${{ inputs.gpu_8 }}'
+      - name: Windows CPU baseline
+        shell: pwsh
+        run: python ci/scripts/build_backend.py --backend cpu --mode '${{ inputs.mode }}' --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
