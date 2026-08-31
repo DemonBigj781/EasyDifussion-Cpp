@@ -105,96 +105,21 @@ jobs:
         run: |
           cmake --version
           ninja --version
-          cl 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "MSVC is provided through the GitHub-hosted Windows runner environment."
-          }
+          cmd /c install.bat --help
 
-      - name: Configure llama.cpp on Linux
+      - name: Build Linux native runtimes through install.sh
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          cmake -S source/llama.cpp -B build/llama-linux -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DGGML_CUDA=OFF \
-            -DGGML_SYCL=OFF \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_BUILD_TESTS=OFF \
-            -DLLAMA_BUILD_EXAMPLES=ON \
-            -DLLAMA_BUILD_SERVER=ON
+          ./install.sh --llama-build --native-build --cpu --jobs 2
 
-      - name: Configure llama.cpp on Windows
+      - name: Build Windows native runtimes through install.bat
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake -S source/llama.cpp -B build/llama-windows -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DGGML_CUDA=OFF `
-            -DGGML_SYCL=OFF `
-            -DLLAMA_CURL=OFF `
-            -DLLAMA_BUILD_TESTS=OFF `
-            -DLLAMA_BUILD_EXAMPLES=ON `
-            -DLLAMA_BUILD_SERVER=ON
-
-      - name: Build llama.cpp on Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cmake --build build/llama-linux \
-            --target llama-cli llama-server llama-quantize \
-            --parallel 2
-
-      - name: Build llama.cpp on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cmake --build build/llama-windows `
-            --target llama-cli llama-server llama-quantize `
-            --parallel 2
-
-      - name: Configure sdkit on Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cmake -S source/sdkit3-port-source -B build/sdkit-linux -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DSD_CUDA=OFF \
-            -DSD_SYCL=OFF \
-            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-            -DSDKIT_BUILD_NATIVE_VISION=OFF \
-            -DSDKIT_BUILD_IMAGE_TOOLS=ON
-
-      - name: Configure sdkit on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cmake -S source/sdkit3-port-source -B build/sdkit-windows -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DSD_CUDA=OFF `
-            -DSD_SYCL=OFF `
-            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF `
-            -DSDKIT_BUILD_NATIVE_VISION=OFF `
-            -DSDKIT_BUILD_IMAGE_TOOLS=ON
-
-      - name: Build sdkit on Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cmake --build build/sdkit-linux \
-            --target sdkit sdkit-image-tools \
-            --parallel 2
-
-      - name: Build sdkit on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cmake --build build/sdkit-windows `
-            --target sdkit sdkit-image-tools `
-            --parallel 2
+          cmd /c install.bat --llama-build --native-build --cpu --jobs 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Stage Linux build artifact
         if: runner.os == 'Linux'
@@ -202,10 +127,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/${{ matrix.platform }}/llama artifacts/${{ matrix.platform }}/sdkit
-          cp build/llama-linux/bin/llama-cli artifacts/${{ matrix.platform }}/llama/
-          cp build/llama-linux/bin/llama-server artifacts/${{ matrix.platform }}/llama/
-          cp build/llama-linux/bin/llama-quantize artifacts/${{ matrix.platform }}/llama/
-          cp -a build/sdkit-linux/bin/. artifacts/${{ matrix.platform }}/sdkit/
+          cp source/llama.cpp/build/bin/llama-cli artifacts/${{ matrix.platform }}/llama/
+          cp source/llama.cpp/build/bin/llama-server artifacts/${{ matrix.platform }}/llama/
+          cp source/llama.cpp/build/bin/llama-quantize artifacts/${{ matrix.platform }}/llama/
+          cp -a backends/sdkit3/linux-x64-cpu-any/. artifacts/${{ matrix.platform }}/sdkit/
           artifacts/${{ matrix.platform }}/sdkit/sdkit --help > sdkit-help.txt
           grep -q -- '--convert-model' sdkit-help.txt
 
@@ -215,10 +140,10 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.platform }}/llama" | Out-Null
           New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.platform }}/sdkit" | Out-Null
-          Copy-Item "build/llama-windows/bin/llama-cli.exe" "artifacts/${{ matrix.platform }}/llama/"
-          Copy-Item "build/llama-windows/bin/llama-server.exe" "artifacts/${{ matrix.platform }}/llama/"
-          Copy-Item "build/llama-windows/bin/llama-quantize.exe" "artifacts/${{ matrix.platform }}/llama/"
-          Copy-Item "build/sdkit-windows/bin/*" "artifacts/${{ matrix.platform }}/sdkit/" -Recurse
+          Copy-Item "source/llama.cpp/build-windows-x64/bin/llama-cli.exe" "artifacts/${{ matrix.platform }}/llama/"
+          Copy-Item "source/llama.cpp/build-windows-x64/bin/llama-server.exe" "artifacts/${{ matrix.platform }}/llama/"
+          Copy-Item "source/llama.cpp/build-windows-x64/bin/llama-quantize.exe" "artifacts/${{ matrix.platform }}/llama/"
+          Copy-Item "backends/sdkit3/windows-x64-cpu-any/*" "artifacts/${{ matrix.platform }}/sdkit/" -Recurse
           & "artifacts/${{ matrix.platform }}/sdkit/sdkit.exe" --help | Out-File -Encoding utf8 sdkit-help.txt
           Select-String -Path sdkit-help.txt -Pattern '--convert-model' | Out-Null
 
