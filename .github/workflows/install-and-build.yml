@@ -1,10 +1,8 @@
 name: Installation and Cross-Platform Native Build
 
+# This workflow is intentionally manual-only. It must not run on pushes,
+# pull requests, schedules, or other automatic repository events.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
