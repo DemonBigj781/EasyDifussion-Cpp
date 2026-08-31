@@ -1,0 +1,30 @@
+name: CUDA Linux Compile
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install base build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: '12.8.1'
+          method: local
+          linux-local-args: '["--toolkit"]'
+      - name: Compile CUDA without running binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v nvcc >/dev/null
+          cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DSD_CUDA=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          cmake --build build/linux-cuda --target sdkit --parallel 2
+          test -f build/linux-cuda/bin/sdkit
