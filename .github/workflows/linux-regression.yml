@@ -3,40 +3,54 @@ name: Linux Regression
 on:
   workflow_dispatch:
     inputs:
-      backend:
-        description: Backend API regression lane
+      gpu_1:
+        description: GPU 1
         required: true
-        default: oneapi
+        default: none
         type: choice
-        options:
-          - oneapi
-          - oneapi-cpu
-          - cuda
-          - rocm
-          - vulkan
-          - opengl
-          - opencl
-          - cpu
-      nvidia_device:
-        description: NVIDIA device to configure for (used only when backend is cuda)
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_2:
+        description: GPU 2
         required: true
-        default: rtx-3060
+        default: none
         type: choice
-        options:
-          - p102-100
-          - tesla-p100
-          - tesla-v100
-          - jetson-xavier
-          - quadro-rtx-4000
-          - rtx-2080-ti
-          - a100
-          - rtx-3060
-          - nvidia-a2
-          - jetson-orin
-          - rtx-4090
-          - h100
-          - b200
-          - rtx-5090
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_3:
+        description: GPU 3
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_4:
+        description: GPU 4
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_5:
+        description: GPU 5
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_6:
+        description: GPU 6
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_7:
+        description: GPU 7
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
+      gpu_8:
+        description: GPU 8
+        required: true
+        default: none
+        type: choice
+        options: [none, p102-100, tesla-p100, tesla-v100, quadro-rtx-4000, rtx-2080-ti, a100, rtx-3060, nvidia-a2, rtx-4090, h100, b200, rtx-5090, xg310, arc-a770, arc-a750, arc-a580, arc-a380, arc-a310, flex-170, flex-140, max-1550, max-1100, rx-6800, rx-6900-xt, mi50, mi100, mi200]
 
 permissions:
   contents: read
@@ -44,23 +58,101 @@ permissions:
 jobs:
   regression:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
 
       - name: Install base validation dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
 
-      - name: Install CUDA toolkit for CUDA regression lane
-        if: github.event.inputs.backend == 'cuda'
+      - name: Validate scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n install.sh
+          bash -n start.sh
+          bash -n scripts/bootstrap.sh
+
+      - name: Resolve selected hardware and backend targets
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t GPUS < <(printf '%s\n' '${{ inputs.gpu_1 }}' '${{ inputs.gpu_2 }}' '${{ inputs.gpu_3 }}' '${{ inputs.gpu_4 }}' '${{ inputs.gpu_5 }}' '${{ inputs.gpu_6 }}' '${{ inputs.gpu_7 }}' '${{ inputs.gpu_8 }}' | grep -v '^none$' | sort -u)
+          if [ "${#GPUS[@]}" -eq 0 ]; then echo 'Select at least one GPU.' >&2; exit 2; fi
+          declare -A CUDA=() ONEAPI=() ROCM=()
+          for gpu in "${GPUS[@]}"; do
+            case "$gpu" in
+              p102-100) CUDA[61-real]=1 ;;
+              tesla-p100) CUDA[60-real]=1 ;;
+              tesla-v100) CUDA[70-real]=1 ;;
+              quadro-rtx-4000|rtx-2080-ti) CUDA[75-real]=1 ;;
+              a100) CUDA[80-real]=1 ;;
+              rtx-3060|nvidia-a2) CUDA[86-real]=1 ;;
+              rtx-4090) CUDA[89-real]=1 ;;
+              h100) CUDA[90-real]=1 ;;
+              b200) CUDA[100-real]=1 ;;
+              rtx-5090) CUDA[120-real]=1 ;;
+              xg310) ONEAPI[jit]=1 ;;
+              arc-a770|arc-a750|arc-a580) ONEAPI[acm-g10]=1 ;;
+              arc-a380|arc-a310) ONEAPI[acm-g11]=1 ;;
+              flex-170) ONEAPI[ats-m150]=1 ;;
+              flex-140) ONEAPI[ats-m75]=1 ;;
+              max-1550|max-1100) ONEAPI[pvc]=1 ;;
+              rx-6800|rx-6900-xt) ROCM[gfx1030]=1 ;;
+              mi50) ROCM[gfx906]=1 ;;
+              mi100) ROCM[gfx908]=1 ;;
+              mi200) ROCM[gfx90a]=1 ;;
+              *) echo "Unknown GPU: $gpu" >&2; exit 2 ;;
+            esac
+          done
+          join_keys() { local -n ref=$1; if [ "${#ref[@]}" -eq 0 ]; then echo ''; else printf '%s\n' "${!ref[@]}" | sort | paste -sd';' -; fi; }
+          echo "cuda=$(join_keys CUDA)" >> "$GITHUB_OUTPUT"
+          echo "oneapi=$(join_keys ONEAPI)" >> "$GITHUB_OUTPUT"
+          echo "rocm=$(join_keys ROCM)" >> "$GITHUB_OUTPUT"
+
+      - name: Install CUDA toolkit when NVIDIA CUDA hardware is selected
+        if: steps.resolve.outputs.cuda != ''
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
           cuda: '12.8.1'
           method: local
           linux-local-args: '["--toolkit"]'
 
-      - name: Install ROCm toolchain for ROCm regression lane
-        if: github.event.inputs.backend == 'rocm'
+      - name: Configure CUDA for selected NVIDIA architectures
+        if: steps.resolve.outputs.cuda != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES='${{ steps.resolve.outputs.cuda }}' -DSDKIT_OPENGL_BACKEND=OFF \
+            -DSD_CUDA=ON -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+
+      - name: Configure oneAPI for selected Intel architectures
+        if: steps.resolve.outputs.oneapi != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
+          set +u; source /opt/intel/oneapi/setvars.sh; set -u
+          IFS=';' read -ra ARCHES <<< '${{ steps.resolve.outputs.oneapi }}'
+          for arch in "${ARCHES[@]}"; do
+            builddir="build/regress-linux-oneapi-$arch"
+            extra=()
+            [ "$arch" = jit ] || extra+=("-DGGML_SYCL_DEVICE_ARCH=$arch")
+            cmake -S source/sdkit3-port-source -B "$builddir" -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DGGML_OPENMP=OFF \
+              -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_MUSA=OFF \
+              -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=ON \
+              "${extra[@]}" -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          done
+
+      - name: Install ROCm when AMD hardware is selected
+        if: steps.resolve.outputs.rocm != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -70,97 +162,35 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends rocm-dev hipblas-dev rocblas-dev
 
-      - name: Validate source and selected backend configuration without executing built binaries
+      - name: Configure ROCm for selected AMD architectures
+        if: steps.resolve.outputs.rocm != ''
         shell: bash
         run: |
           set -euo pipefail
-          bash -n install.sh
-          bash -n start.sh
-          bash -n scripts/bootstrap.sh
+          export PATH=/opt/rocm/bin:$PATH
+          cmake -S source/sdkit3-port-source -B build/regress-linux-rocm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ -DSDKIT_OPENGL_BACKEND=OFF \
+            -DSD_CUDA=OFF -DSD_HIPBLAS=ON -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+            -DGPU_TARGETS='${{ steps.resolve.outputs.rocm }}' -DAMDGPU_TARGETS='${{ steps.resolve.outputs.rocm }}' -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
 
-          setup_oneapi() {
-            wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
-            echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends "$@"
-            set +u
-            source /opt/intel/oneapi/setvars.sh
-            set -u
-          }
+      - name: Configure portable Vulkan backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers
+          cmake -S source/sdkit3-port-source -B build/regress-linux-vulkan -G Ninja -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=ON -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
 
-          cuda_arch_for_device() {
-            case "$1" in
-              p102-100) echo 61 ;;
-              tesla-p100) echo 60 ;;
-              tesla-v100) echo 70 ;;
-              jetson-xavier) echo 72 ;;
-              quadro-rtx-4000|rtx-2080-ti) echo 75 ;;
-              a100) echo 80 ;;
-              rtx-3060|nvidia-a2) echo 86 ;;
-              jetson-orin) echo 87 ;;
-              rtx-4090) echo 89 ;;
-              h100) echo 90 ;;
-              b200) echo 100 ;;
-              rtx-5090) echo 120 ;;
-              *) return 1 ;;
-            esac
-          }
+      - name: Configure portable OpenGL backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev
+          cmake -S source/sdkit3-port-source -B build/regress-linux-opengl -G Ninja -DSDKIT_OPENGL_BACKEND=ON -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
 
-          case "${{ github.event.inputs.backend }}" in
-            oneapi)
-              setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
-              cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi -G Ninja \
-                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DGGML_OPENMP=OFF -DSDKIT_OPENGL_BACKEND=OFF \
-                -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_MUSA=OFF \
-                -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            oneapi-cpu)
-              setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
-              cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi-cpu -G Ninja \
-                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DGGML_OPENMP=OFF -DSDKIT_OPENGL_BACKEND=OFF \
-                -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
-                -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=Intel10_64lp_seq -DGGML_NATIVE=ON \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            cuda)
-              command -v nvcc >/dev/null
-              CUDA_ARCH="$(cuda_arch_for_device '${{ github.event.inputs.nvidia_device }}')" || { echo 'Unknown NVIDIA device selection' >&2; exit 2; }
-              echo "Configuring for ${{ github.event.inputs.nvidia_device }} (SM ${CUDA_ARCH})"
-              cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH} -DSDKIT_OPENGL_BACKEND=OFF \
-                -DSD_CUDA=ON -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            rocm)
-              export PATH=/opt/rocm/bin:$PATH
-              cmake -S source/sdkit3-port-source -B build/regress-linux-rocm -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ -DSDKIT_OPENGL_BACKEND=OFF \
-                -DSD_CUDA=OFF -DSD_HIPBLAS=ON -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
-                -DGPU_TARGETS=gfx1030 -DAMDGPU_TARGETS=gfx1030 -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            vulkan)
-              sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers
-              cmake -S source/sdkit3-port-source -B build/regress-linux-vulkan -G Ninja \
-                -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=ON -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            opengl)
-              sudo apt-get install -y --no-install-recommends libgl1-mesa-dev
-              cmake -S source/sdkit3-port-source -B build/regress-linux-opengl -G Ninja \
-                -DSDKIT_OPENGL_BACKEND=ON -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            opencl)
-              sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev opencl-headers
-              cmake -S source/sdkit3-port-source -B build/regress-linux-opencl -G Ninja \
-                -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=ON -DSD_SYCL=OFF -DSD_MUSA=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-            cpu)
-              cmake -S source/sdkit3-port-source -B build/regress-linux-cpu -G Ninja \
-                -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
-              ;;
-          esac
+      - name: Configure portable OpenCL backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev opencl-headers
+          cmake -S source/sdkit3-port-source -B build/regress-linux-opencl -G Ninja -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=ON -DSD_SYCL=OFF -DSD_MUSA=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
