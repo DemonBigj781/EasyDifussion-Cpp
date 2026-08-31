@@ -17,7 +17,6 @@ Every objective has a standalone implementation document under `docs/todo/`. The
 - [ ] [12 — JetPack v5 support](docs/todo/12-jetpack-v5-support.md)
 - [ ] [13 — JetPack v6 support](docs/todo/13-jetpack-v6-support.md)
 - [ ] [14 — Windows support](docs/todo/14-windows-support.md)
-- [ ] [15 — Wine/Proton exclusive RAM offloading](docs/todo/15-wine-proton-offloading.md)
 - [ ] [16 — Multi-GPU K-sampling](docs/todo/16-multi-gpu-k-sampling.md)
 
 ## UI / services / ecosystem
