@@ -20,6 +20,9 @@ Options:
   --llama-build   Build llama-cli, llama-server, and llama-quantize.
   --gguf-tools    Install GGUF conversion tools into Easy Diffusion's main venv.
   --cuda          Require CUDA for the selected native builds.
+  --rocm          Build for AMD GPUs with ROCm/HIP.
+  --rocm-target ARCH
+                  AMD GPU architecture to compile for (default: gfx1030).
   --sycl          Build for Intel GPUs with oneAPI/SYCL (source setvars.sh first).
   --oneapi-cpu    Build for Intel Xeon/CPU with Intel LLVM + oneMKL BLAS.
   --sycl-device ARCH
@@ -27,9 +30,14 @@ Options:
   --sycl-no-dnn   Disable oneDNN acceleration in the GGML SYCL backend.
   --sycl-no-level-zero
                   Disable direct Level Zero support in the GGML SYCL backend.
-  --cpu           Build llama.cpp without CUDA/SYCL/oneAPI CPU tuning.
+  --cpu           Build llama.cpp without CUDA/SYCL/ROCm/oneAPI CPU tuning.
   --jobs N        Set the parallel build job count.
   -h, --help      Show this help.
+
+ROCm mode expects a working ROCm development toolchain with hipcc, clang,
+hipBLAS, and rocBLAS available. The selected --rocm-target is propagated to
+both the diffusion GGML backend and the isolated llama.cpp runtime so the
+native bundle is compiled consistently for the same AMD architecture.
 
 For oneAPI GPU builds, source Intel's setvars.sh first. For oneAPI CPU builds,
 setvars.sh must also expose icx, icpx, and MKLROOT. The oneAPI CPU mode uses
@@ -47,6 +55,7 @@ BUILD_NATIVE=false
 BUILD_LLAMA=false
 INSTALL_GGUF=false
 CUDA_MODE=auto
+ROCM_TARGET="${EASY_DIFFUSION_ROCM_TARGET:-gfx1030}"
 SYCL_DEVICE_ARCH="${EASY_DIFFUSION_SYCL_DEVICE_ARCH:-}"
 SYCL_DNN=ON
 SYCL_LEVEL_ZERO=ON
@@ -70,6 +79,14 @@ while [ "$#" -gt 0 ]; do
             ;;
         --cuda)
             CUDA_MODE=cuda
+            ;;
+        --rocm)
+            CUDA_MODE=rocm
+            ;;
+        --rocm-target)
+            shift
+            [ "$#" -gt 0 ] || fail "--rocm-target requires an AMD GPU architecture such as gfx1030"
+            ROCM_TARGET="$1"
             ;;
         --sycl)
             CUDA_MODE=sycl
@@ -126,17 +143,38 @@ echo "License terms: $PROJECT_ROOT/LICENSE"
 echo "Third-party notices: $PROJECT_ROOT/THIRD_PARTY_NOTICES.md"
 
 CUDA_ENABLED=OFF
+HIP_ENABLED=OFF
 SYCL_ENABLED=OFF
 BUILD_PLATFORM=cpu
 COMPILER_ARGS=()
 SYCL_CMAKE_ARGS=()
 CPU_CMAKE_ARGS=()
+HIP_CMAKE_ARGS=()
 
 if [ "$CUDA_MODE" = cuda ]; then
     command -v nvcc >/dev/null || fail "--cuda was requested but nvcc is unavailable"
     command -v nvidia-smi >/dev/null || fail "--cuda was requested but nvidia-smi is unavailable"
     CUDA_ENABLED=ON
     BUILD_PLATFORM=cuda
+elif [ "$CUDA_MODE" = rocm ]; then
+    ROCM_PATH="${ROCM_PATH:-/opt/rocm}"
+    export PATH="$ROCM_PATH/bin:$PATH"
+    command -v hipcc >/dev/null || fail "--rocm requires hipcc from a ROCm development installation"
+    [ -x "$ROCM_PATH/llvm/bin/clang" ] || fail "--rocm requires ROCm clang at $ROCM_PATH/llvm/bin/clang"
+    [ -x "$ROCM_PATH/llvm/bin/clang++" ] || fail "--rocm requires ROCm clang++ at $ROCM_PATH/llvm/bin/clang++"
+    HIP_ENABLED=ON
+    BUILD_PLATFORM=rocm
+    COMPILER_ARGS=(
+        "-DCMAKE_C_COMPILER=$ROCM_PATH/llvm/bin/clang"
+        "-DCMAKE_CXX_COMPILER=$ROCM_PATH/llvm/bin/clang++"
+    )
+    HIP_CMAKE_ARGS=(
+        "-DGPU_TARGETS=$ROCM_TARGET"
+        "-DAMDGPU_TARGETS=$ROCM_TARGET"
+        "-DCMAKE_HIP_ARCHITECTURES=$ROCM_TARGET"
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    )
+    echo "ROCm/HIP mode: target=$ROCM_TARGET rocm_path=$ROCM_PATH"
 elif [ "$CUDA_MODE" = sycl ]; then
     command -v icx >/dev/null || fail "--sycl requires the oneAPI icx compiler (source setvars.sh first)"
     command -v icpx >/dev/null || fail "--sycl requires the oneAPI icpx compiler (source setvars.sh first)"
@@ -192,7 +230,9 @@ if [ "$BUILD_LLAMA" = true ]; then
         "${COMPILER_ARGS[@]}" \
         "${SYCL_CMAKE_ARGS[@]}" \
         "${CPU_CMAKE_ARGS[@]}" \
+        "${HIP_CMAKE_ARGS[@]}" \
         -DGGML_CUDA="$CUDA_ENABLED" \
+        -DGGML_HIP="$HIP_ENABLED" \
         -DGGML_SYCL="$SYCL_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
         -DLLAMA_CURL=OFF \
@@ -212,6 +252,8 @@ if [ "$BUILD_NATIVE" = true ]; then
         COMPUTE_CAPABILITY="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d ' .')"
         [ -n "$COMPUTE_CAPABILITY" ] || fail "Could not determine the NVIDIA compute capability"
         SDKIT_VARIANT="sm$COMPUTE_CAPABILITY"
+    elif [ "$BUILD_PLATFORM" = rocm ]; then
+        SDKIT_VARIANT="$ROCM_TARGET"
     elif [ "$BUILD_PLATFORM" = sycl ]; then
         if [ -n "$SYCL_DEVICE_ARCH" ]; then
             SDKIT_VARIANT="intel-$SYCL_DEVICE_ARCH"
@@ -227,7 +269,9 @@ if [ "$BUILD_NATIVE" = true ]; then
         "${COMPILER_ARGS[@]}" \
         "${SYCL_CMAKE_ARGS[@]}" \
         "${CPU_CMAKE_ARGS[@]}" \
+        "${HIP_CMAKE_ARGS[@]}" \
         -DSD_CUDA="$CUDA_ENABLED" \
+        -DSD_HIPBLAS="$HIP_ENABLED" \
         -DSD_SYCL="$SYCL_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
         -DSDKIT_BUILD_LLAMA_RUNTIME=ON \
