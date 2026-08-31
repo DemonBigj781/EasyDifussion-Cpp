@@ -884,3 +884,319 @@ After the first native path is validated:
 6. Compare GGUF metadata and tensor names between native and Python outputs.
 7. Run logits/perplexity validation for language models where practical.
 8. Remove Python conversion dependencies only after native coverage is considered sufficient.
+
+## Optional oneAPI / SYCL acceleration path
+
+The native converter should be able to use Intel oneAPI as an optional acceleration backend without making oneAPI a hard requirement for conversion. The CPU implementation remains the reference path; oneAPI accelerates tensor-heavy stages when a supported Intel GPU is present.
+
+This is particularly relevant to the H3C XG310 accelerator. H3C documents the XG310 as an Intel SG1 / Gen12 design containing four independent GPU devices. Each GPU has 96 execution units and 8 GB of LPDDR4x, for 32 GB total board memory. The implementation must therefore treat the card as four 8 GB devices rather than assuming one unified 32 GB allocation.
+
+Current Intel oneAPI releases list Intel Server GPU support. Runtime compatibility should still be detected instead of assumed. Startup should enumerate SYCL devices and enable acceleration only when the installed Level Zero/OpenCL stack exposes suitable devices.
+
+### Design rule
+
+oneAPI should sit below the converter as a compute backend:
+
+```text
+HF / LoRA parser
+      |
+      v
+Tensor transform plan
+      |
+      +------------------+
+      |                  |
+      v                  v
+CPU backend        oneAPI/SYCL backend
+      |                  |
+      +--------+---------+
+               |
+               v
+           GGUF writer
+```
+
+Parsing JSON, reading tokenizer metadata, resolving tensor names, and writing GGUF metadata do not belong on the GPU. oneAPI should be used only for operations where parallel execution is useful, such as dtype conversion, transpose/repack operations, quantization preparation, statistics, and optional LoRA tensor math.
+
+### Suggested source layout
+
+```text
+source/sdkit3-port-source/src/conversion/
+    compute_backend.h
+    cpu_compute_backend.cpp
+    oneapi_compute_backend.cpp
+    oneapi_device_manager.cpp
+```
+
+The converter should depend on an abstract interface rather than directly including SYCL code everywhere.
+
+```cpp
+class ConversionComputeBackend {
+public:
+    virtual ~ConversionComputeBackend() = default;
+
+    virtual std::string name() const = 0;
+
+    virtual bool convert_dtype(
+        const TensorView& src,
+        MutableTensorView& dst,
+        TensorDType target) = 0;
+
+    virtual bool transpose_2d(
+        const TensorView& src,
+        MutableTensorView& dst) = 0;
+
+    virtual bool quantize_prepare(
+        const TensorView& src,
+        MutableTensorView& dst,
+        OutputType type) = 0;
+};
+```
+
+The CPU implementation is always available. A factory can select oneAPI only when requested and usable:
+
+```cpp
+std::unique_ptr<ConversionComputeBackend>
+create_compute_backend(bool prefer_oneapi) {
+#ifdef ED_ENABLE_ONEAPI
+    if (prefer_oneapi) {
+        auto backend = create_oneapi_backend();
+        if (backend && backend->available())
+            return backend;
+    }
+#endif
+
+    return create_cpu_backend();
+}
+```
+
+### Device discovery
+
+Use SYCL enumeration rather than device-name assumptions.
+
+```cpp
+#include <sycl/sycl.hpp>
+
+std::vector<sycl::device> find_intel_gpus() {
+    std::vector<sycl::device> result;
+
+    for (const auto& platform : sycl::platform::get_platforms()) {
+        for (const auto& device : platform.get_devices()) {
+            if (!device.is_gpu())
+                continue;
+
+            const auto vendor =
+                device.get_info<sycl::info::device::vendor>();
+
+            if (vendor.find("Intel") != std::string::npos)
+                result.push_back(device);
+        }
+    }
+
+    return result;
+}
+```
+
+For diagnostics, log at least:
+
+```text
+device name
+vendor
+backend
+number of compute units
+global memory
+maximum allocation size
+USM capabilities
+```
+
+The XG310 should normally appear as multiple GPU devices. The implementation must not concatenate their memory into a fake 32 GB pointer space.
+
+### Unified Shared Memory
+
+SYCL Unified Shared Memory gives the converter ordinary C/C++ pointer semantics while still allowing device work. Prefer explicit device allocations for larger tensor transforms and shared allocations for smaller control structures when supported.
+
+A simple staging object can look like:
+
+```cpp
+struct OneApiBuffer {
+    void* ptr = nullptr;
+    size_t bytes = 0;
+    sycl::queue* queue = nullptr;
+
+    ~OneApiBuffer() {
+        if (ptr && queue)
+            sycl::free(ptr, *queue);
+    }
+};
+```
+
+Large model conversion should remain streaming. Do not upload an entire model to an 8 GB XG310 device. Process one tensor or one chunk at a time:
+
+```text
+mmap SafeTensors shard
+        |
+        v
+host tensor view
+        |
+        v
+copy chunk -> selected GPU
+        |
+        v
+transform / cast / quantize
+        |
+        v
+copy output chunk -> host
+        |
+        v
+GGUF writer
+```
+
+This also makes the same code usable on Intel GPUs with much smaller VRAM.
+
+### Example SYCL dtype conversion
+
+A basic F32-to-F16 conversion kernel can be implemented without Torch or Transformers:
+
+```cpp
+void f32_to_f16(
+    sycl::queue& q,
+    const float* input,
+    sycl::half* output,
+    size_t count) {
+
+    q.parallel_for(
+        sycl::range<1>(count),
+        [=](sycl::id<1> i) {
+            output[i] =
+                static_cast<sycl::half>(input[i]);
+        });
+}
+```
+
+The production backend should submit copies and kernels asynchronously and use SYCL events to avoid unnecessary global queue waits.
+
+### Four-device XG310 scheduling
+
+The XG310 is best used as four conversion workers, each constrained to its own 8 GB memory pool.
+
+```text
+Tensor queue
+   |
+   +--> SG1 GPU 0 -- tensor/chunk A
+   +--> SG1 GPU 1 -- tensor/chunk B
+   +--> SG1 GPU 2 -- tensor/chunk C
+   +--> SG1 GPU 3 -- tensor/chunk D
+```
+
+A simple scheduler can maintain one `sycl::queue` per device and assign independent tensors by estimated byte size.
+
+```cpp
+struct OneApiWorker {
+    sycl::device device;
+    sycl::context context;
+    sycl::queue queue;
+    size_t budget_bytes = 0;
+};
+```
+
+Do not assume peer-to-peer access between the four SG1 GPUs. The safe baseline is host-mediated staging. If Level Zero later exposes useful peer-copy capability, that can be added as an optional optimization.
+
+For GGUF conversion this topology is still useful because most tensor transforms are independent. Four tensors can be cast/repacked simultaneously and committed to the output in deterministic GGUF order after their associated events complete.
+
+### Deterministic output ordering
+
+Parallel GPU conversion must not make the GGUF file nondeterministic. Separate transformation from file emission:
+
+```text
+worker 0 -> transformed tensor 4 --+
+worker 1 -> transformed tensor 2 --+
+worker 2 -> transformed tensor 3 --+--> ordered completion queue --> GGUF writer
+worker 3 -> transformed tensor 1 --+
+```
+
+The GGUF writer remains a single ordered writer. GPU workers may finish out of order, but the output tensor ordering and metadata must remain stable.
+
+### LoRA-specific use
+
+LoRA conversion usually does not require expensive inference math, so GPU use is optional. oneAPI becomes more useful when the converter must transpose, cast, normalize, repack, or merge adapters.
+
+If adapter merging is later supported, oneMKL can optionally provide matrix multiplication for operations equivalent to applying the low-rank update, while ordinary GGUF LoRA export can continue to simply map and convert A/B tensors.
+
+Do not require oneDNN or oneMKL for the initial implementation. Raw SYCL kernels are enough for dtype conversion and basic transforms, keeping the dependency surface smaller.
+
+### Build integration
+
+Make oneAPI opt-in at build time:
+
+```cmake
+option(ED_ENABLE_ONEAPI
+       "Enable oneAPI/SYCL conversion acceleration"
+       OFF)
+
+if(ED_ENABLE_ONEAPI)
+    target_compile_definitions(sdkit PRIVATE ED_ENABLE_ONEAPI=1)
+    target_sources(sdkit PRIVATE
+        src/conversion/oneapi_compute_backend.cpp
+        src/conversion/oneapi_device_manager.cpp)
+endif()
+```
+
+The exact compiler/link setup can then be isolated to this option instead of forcing every EasyDifussion-Cpp build to use the DPC++ compiler.
+
+An initial Intel build could use Intel's DPC++/C++ compiler for the translation units containing SYCL code while keeping the backend boundary narrow enough to avoid contaminating unrelated source files.
+
+### Runtime controls
+
+Later command-line options could be added without changing the existing default behavior:
+
+```text
+--convert-device cpu
+--convert-device oneapi
+--convert-device auto
+--convert-device oneapi:0
+--convert-oneapi-workers 4
+```
+
+Recommended default:
+
+```text
+--convert-device auto
+```
+
+`auto` should prefer the native CPU path until oneAPI device discovery succeeds. If oneAPI initialization or a GPU transform fails, the current tensor can be retried on CPU unless strict GPU mode was explicitly requested.
+
+### Runtime verification
+
+Before depending on the XG310 backend, verify that the installed stack exposes the devices through SYCL/Level Zero. A useful first-run diagnostic should print all detected devices and their memory limits rather than relying on marketing capacity or PCI enumeration alone.
+
+The converter should therefore distinguish:
+
+```text
+PCI device present
+        !=
+Level Zero device usable
+        !=
+SYCL device usable
+        !=
+conversion backend validated
+```
+
+Only the final state should enable oneAPI acceleration automatically.
+
+### Why this fits the native converter
+
+The native Hugging Face/LoRA converter and oneAPI solve different parts of the same dependency problem:
+
+```text
+Python / Transformers / Torch
+           |
+           X remove
+           |
+Native C++ parser + GGUF writer
+           |
+           +--> CPU tensor backend
+           |
+           +--> oneAPI/SYCL tensor backend
+```
+
+This avoids replacing a Python dependency with a vendor runtime dependency at the architecture level. oneAPI is an accelerator backend, not the definition of the converter.
+
+The result should still build and convert models on machines with no Intel GPU at all, while a system containing the XG310 can use its four SG1 devices to parallelize conversion work where that actually provides a benefit.
