@@ -1,0 +1,78 @@
+name: '99 - API'
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform
+        required: true
+        default: linux
+        type: choice
+        options: [linux, windows]
+      mode:
+        description: Mode
+        required: true
+        default: compile
+        type: choice
+        options: [compile, regression, compile-and-regression]
+permissions: {contents: read}
+
+jobs:
+  linux:
+    if: "inputs.platform == 'linux'"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build
+      - name: Build API baseline
+        run: python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
+      - name: Validate public API headers
+        shell: bash
+        run: |
+          cat > /tmp/sdkit-api-smoke.cpp <<'EOF'
+          #include "image_filters.h"
+          #include "image_generator.h"
+          #include "image_utils.h"
+          #include "logging.h"
+          #include "model_detection.h"
+          #include "model_manager.h"
+          #include "options_manager.h"
+          #include "server.h"
+          #include "string_utils.h"
+          #include "task_state.h"
+          int main() { return 0; }
+          EOF
+          c++ -std=c++17 -fsyntax-only /tmp/sdkit-api-smoke.cpp \
+            -Isource/sdkit3-port-source/include \
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/include \
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include
+
+  windows:
+    if: "inputs.platform == 'windows'"
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Build API baseline
+        shell: pwsh
+        run: python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
+      - name: Validate public API headers
+        shell: pwsh
+        run: |
+          @'
+          #include "image_filters.h"
+          #include "image_generator.h"
+          #include "image_utils.h"
+          #include "logging.h"
+          #include "model_detection.h"
+          #include "model_manager.h"
+          #include "options_manager.h"
+          #include "server.h"
+          #include "string_utils.h"
+          #include "task_state.h"
+          int main() { return 0; }
+          '@ | Set-Content "$env:RUNNER_TEMP\sdkit-api-smoke.cpp"
+          cl /nologo /std:c++17 /Zs /EHsc "/Isource\sdkit3-port-source\include" "/Isource\sdkit3-port-source\stable-diffusion.cpp\include" "/Isource\sdkit3-port-source\stable-diffusion.cpp\ggml\include" "$env:RUNNER_TEMP\sdkit-api-smoke.cpp"
