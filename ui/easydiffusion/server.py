@@ -64,8 +64,9 @@ class NoCacheStaticFiles(StaticFiles):
             super().__init__(directory=directory)
 
     def is_not_modified(self, response_headers, request_headers) -> bool:
-        if "content-type" in response_headers and (
-            "javascript" in response_headers["content-type"] or "css" in response_headers["content-type"]
+        if "content-type" in response_headers and any(
+            asset_type in response_headers["content-type"]
+            for asset_type in ("javascript", "css", "text/html")
         ):
             response_headers.update(NOCACHE_HEADERS)
             return False
@@ -265,6 +266,10 @@ def init():
     @server_api.post("/perchance-plugin/image", include_in_schema=False)
     async def perchance_image(payload: dict):
         return JSONResponse(await perchance.generate_image(payload), headers=NOCACHE_HEADERS)
+
+    @server_api.get("/perchance/images/recent")
+    def perchance_recent_images(limit: int = 8):
+        return JSONResponse(perchance.recent_images(limit), headers=NOCACHE_HEADERS)
 
     @server_api.post("/perchance/text")
     @server_api.post("/perchance-plugin/text", include_in_schema=False)

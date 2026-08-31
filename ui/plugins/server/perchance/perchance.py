@@ -69,6 +69,10 @@ GALLERY_TIMEOUT_SECONDS = 2 * 60
 MAX_PROMPT_LENGTH = 20_000
 MAX_CAPTURE_LENGTH = 1_000_000
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+PERCHANCE_IMAGE_NAME_PATTERN = re.compile(
+    r"^[0-9a-f]{64}(?:-[0-9]+)?\.(?:png|jpe?g|webp|gif)$",
+    re.IGNORECASE,
+)
 DEFAULT_GALLERY_CHANNEL = "ai-text-to-image-generator"
 CHANNEL_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 FUSE_ERROR_MARKERS = (
@@ -369,6 +373,44 @@ def _parse_image_results(stdout: str, output_directory: Path) -> list[dict]:
             }
         )
     return images
+
+
+def recent_images(limit=8) -> dict:
+    """Return recent local Perchance outputs so the UI can recover a lost response."""
+    limit = _integer(limit, "limit", 8)
+    if limit < 1 or limit > MAX_IMAGE_AMOUNT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"limit must be between 1 and {MAX_IMAGE_AMOUNT}.",
+        )
+
+    output_directory = _output_directory()
+    candidates = [
+        path
+        for path in output_directory.iterdir()
+        if path.is_file() and PERCHANCE_IMAGE_NAME_PATTERN.fullmatch(path.name)
+    ]
+    selected = sorted(
+        candidates,
+        key=lambda path: path.stat().st_mtime_ns,
+        reverse=True,
+    )[:limit]
+    selected.reverse()
+    images = []
+    for path in selected:
+        relative_path = path.relative_to(output_directory).as_posix()
+        images.append(
+            {
+                "path": str(path),
+                "relative_path": relative_path,
+                "url": f"/perchance/file/{quote(relative_path, safe='/')}",
+            }
+        )
+    return {
+        "images": images,
+        "generated_amount": len(images),
+        "output_directory": str(output_directory),
+    }
 
 
 def _run_locked(arguments: list[str], timeout_seconds: int):

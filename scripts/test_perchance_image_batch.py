@@ -1,5 +1,6 @@
 import pathlib
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -53,6 +54,31 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
             self.assertEqual([image["path"] for image in result["images"]], [str(first), str(second)])
             self.assertEqual([image["seed"] for image in result["images"]], [100, 101])
             self.assertFalse(perchance.PERCHANCE_LOCK.locked())
+
+    async def test_recent_images_recovers_latest_perchance_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output_directory = pathlib.Path(directory)
+            ignored = output_directory / "native-image.jpeg"
+            first = output_directory / f"{'1' * 64}.jpeg"
+            second = output_directory / f"{'2' * 64}.jpeg"
+            third = output_directory / f"{'3' * 64}.jpeg"
+            for path in (ignored, first, second, third):
+                path.write_bytes(path.name.encode())
+            first.touch()
+            second.touch()
+            third.touch()
+            timestamps = {first: 1_000_000_000, second: 2_000_000_000, third: 3_000_000_000}
+            for path, timestamp in timestamps.items():
+                os.utime(path, ns=(timestamp, timestamp))
+
+            with patch.object(perchance, "_output_directory", return_value=output_directory):
+                result = perchance.recent_images(2)
+
+            self.assertEqual(
+                [pathlib.Path(image["path"]).name for image in result["images"]],
+                [second.name, third.name],
+            )
+            self.assertEqual(result["generated_amount"], 2)
 
 
 if __name__ == "__main__":
