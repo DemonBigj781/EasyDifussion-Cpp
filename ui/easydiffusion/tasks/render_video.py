@@ -5,6 +5,7 @@ from easydiffusion import model_manager, runtime
 from easydiffusion.types import ModelsData, OutputFormatData, TaskData, VideoGenerationRequest
 from easydiffusion.utils import log
 from easydiffusion.utils.model_identifier import identify_model_type
+from easydiffusion.video_companions import discover_mochi_companions
 
 from .task import Task
 
@@ -55,13 +56,20 @@ class VideoTask(Task):
         checkpoint_path = self.models_data.model_paths.get("stable-diffusion")
         model_class = identify_model_type(checkpoint_path) if checkpoint_path else None
         if model_class == "mochi_v1_preview":
+            discovered = discover_mochi_companions(checkpoint_path)
+            for model_type, model_path in discovered.items():
+                if not self.models_data.model_paths.get(model_type):
+                    self.models_data.model_paths[model_type] = model_path
+                    log.info(f"Auto-selected Mochi {model_type}: {model_path}")
             missing = [
                 label
                 for label, model_type in (("Video VAE", "vae"), ("Video Text Encoder", "text-encoder"))
                 if not self.models_data.model_paths.get(model_type)
             ]
             if missing:
-                raise RuntimeError(f"Mochi requires a separate {' and '.join(missing)} selection")
+                raise RuntimeError(
+                    f"Mochi could not auto-detect {' and '.join(missing)} beside {checkpoint_path}"
+                )
             if self.request.init_image or self.request.end_image:
                 raise RuntimeError("Native Mochi currently supports text-to-video only")
             # The Genmo linear/quadratic sigma schedule is part of Mochi's

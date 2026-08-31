@@ -98,7 +98,7 @@
             ? "TeaCache defaults: 0.05 for LTX, 0.20 for Wan."
             : (cache.value === "easycache" ? "EasyCache default threshold: 0.20." : "Caching is disabled; every denoising step is exact.")
         const companionHint = selectedModel().toLowerCase().includes("mochi")
-            ? " Mochi needs one Mochi VAE variant and T5 XXL; it is text-to-video only."
+            ? " Mochi auto-detects its sibling VAE and T5 XXL when these fields are blank; it is text-to-video only."
             : " Select the video checkpoint under Options; each checkpoint keeps its own VAE and text encoder selections."
         byId("native-video-status").textContent = `${defaults}${companionHint} Frames are returned as a numbered strip while MP4 encoding is still being added.`
         saveState()
@@ -125,8 +125,8 @@
     textEncoderInput.dataset.path = typeof savedCompanions.textEncoder === "string"
         ? savedCompanions.textEncoder
         : ""
-    const videoVae = new ModelDropdown(vaeInput, "vae", "None / embedded")
-    const videoTextEncoder = new ModelDropdown(textEncoderInput, "text-encoder", "None / embedded")
+    const videoVae = new ModelDropdown(vaeInput, "vae", "Auto-detect / embedded")
+    const videoTextEncoder = new ModelDropdown(textEncoderInput, "text-encoder", "Auto-detect / embedded")
     enabled.checked = Boolean(state.enabled)
     byId("native-video-frames").value = state.frames ?? "25"
     byId("native-video-fps").value = state.fps ?? "8"

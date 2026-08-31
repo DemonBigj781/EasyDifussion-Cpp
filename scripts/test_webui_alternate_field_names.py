@@ -8,13 +8,13 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.repo_root = pathlib.Path(__file__).resolve().parent.parent
 
     def test_ui_label_keeps_guidance_scale_primary_with_cfg_abbr(self):
-        image_settings = (self.repo_root / "ui" / "plugins" / "ui" / "image-settings.plugin.html").read_text(encoding="utf-8")
+        image_settings = (self.repo_root / "ui" / "plugins" / "ui" / "image_plugin" / "image-settings.plugin.html").read_text(encoding="utf-8")
         self.assertIn("Guidance Scale", image_settings)
         self.assertIn("CFG Scale", image_settings)
         self.assertIn("Classifier-Free Guidance", image_settings)
 
     def test_ui_label_keeps_prompt_strength_primary_with_denoising_hint(self):
-        image_settings = (self.repo_root / "ui" / "plugins" / "ui" / "image-settings.plugin.html").read_text(encoding="utf-8")
+        image_settings = (self.repo_root / "ui" / "plugins" / "ui" / "image_plugin" / "image-settings.plugin.html").read_text(encoding="utf-8")
         self.assertIn("Prompt Strength", image_settings)
         self.assertIn("Denoising Strength", image_settings)
 
@@ -41,12 +41,12 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertRegex(css, re.compile(r"abbr\[title\][^{]*\{[^}]*text-decoration\s*:\s*underline\s+dotted", re.S))
 
     def test_lora_controls_are_owned_by_required_standalone_panel(self):
-        image_settings = (self.repo_root / "ui" / "plugins" / "ui" / "image-settings.plugin.html").read_text(encoding="utf-8")
-        lora_settings = (self.repo_root / "ui" / "plugins" / "ui" / "lora-settings.plugin.html").read_text(encoding="utf-8")
+        image_settings = (self.repo_root / "ui" / "plugins" / "ui" / "image_plugin" / "image-settings.plugin.html").read_text(encoding="utf-8")
+        lora_settings = (self.repo_root / "ui" / "plugins" / "ui" / "lora_plugin" / "lora-settings.plugin.html").read_text(encoding="utf-8")
         index = (self.repo_root / "ui" / "index.html").read_text(encoding="utf-8")
         self.assertNotIn('id="lora_model"', image_settings)
         self.assertIn('id="lora_model"', lora_settings)
-        self.assertLess(index.index("/plugins/core/lora-settings.plugin.js"), index.index("media/js/main.js"))
+        self.assertLess(index.index("/plugins/core/lora_plugin/lora-settings.plugin.js"), index.index("media/js/main.js"))
 
     def test_image_checkpoint_can_be_left_unselected(self):
         main_js = (self.repo_root / "ui" / "media" / "js" / "main.js").read_text(encoding="utf-8")
@@ -60,9 +60,9 @@ class TestTerminologyConsistency(unittest.TestCase):
         )
 
     def test_video_options_uses_shared_checkpoint_and_independent_companions(self):
-        video_html = (self.repo_root / "ui" / "plugins" / "ui" / "native-video.plugin.html").read_text(encoding="utf-8")
-        video_js = (self.repo_root / "ui" / "plugins" / "ui" / "native-video.plugin.js").read_text(encoding="utf-8")
-        image_html = (self.repo_root / "ui" / "plugins" / "ui" / "image-settings.plugin.html").read_text(encoding="utf-8")
+        video_html = (self.repo_root / "ui" / "plugins" / "ui" / "video_plugin" / "native-video.plugin.html").read_text(encoding="utf-8")
+        video_js = (self.repo_root / "ui" / "plugins" / "ui" / "video_plugin" / "native-video.plugin.js").read_text(encoding="utf-8")
+        image_html = (self.repo_root / "ui" / "plugins" / "ui" / "image_plugin" / "image-settings.plugin.html").read_text(encoding="utf-8")
         self.assertIn('class="collapsible">Video Options', video_html)
         self.assertNotIn('id="native-video-model"', video_html)
         self.assertIn("Options", image_html)
@@ -71,8 +71,8 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn('id="native-video-text-encoder"', video_html)
         self.assertIn('const modelInput = byId("stable_diffusion_model")', video_js)
         self.assertNotIn('new ModelDropdown(modelInput, "video"', video_js)
-        self.assertIn('new ModelDropdown(vaeInput, "vae", "None / embedded")', video_js)
-        self.assertIn('new ModelDropdown(textEncoderInput, "text-encoder", "None / embedded")', video_js)
+        self.assertIn('new ModelDropdown(vaeInput, "vae", "Auto-detect / embedded")', video_js)
+        self.assertIn('new ModelDropdown(textEncoderInput, "text-encoder", "Auto-detect / embedded")', video_js)
         self.assertIn('PLUGINS.TASK_BUILD.push', video_js)
         self.assertNotIn('event.reqBody.use_stable_diffusion_model =', video_js)
         self.assertIn('event.reqBody.use_vae_model = videoVae.value || null', video_js)
@@ -133,11 +133,12 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn("entry.is_dir(follow_symlinks=True)", list_models_py)
         self.assertIn("if real_dir in ancestor_targets", list_models_py)
 
-    def test_mochi_video_requires_its_own_companion_models(self):
+    def test_mochi_video_auto_detects_its_own_companion_models(self):
         render_video_py = (
             self.repo_root / "ui" / "easydiffusion" / "tasks" / "render_video.py"
         ).read_text(encoding="utf-8")
         self.assertIn('model_class == "mochi_v1_preview"', render_video_py)
+        self.assertIn("discover_mochi_companions(checkpoint_path)", render_video_py)
         self.assertIn('(("Video VAE", "vae"), ("Video Text Encoder", "text-encoder"))', render_video_py)
         self.assertIn('self.request.scheduler_name = "mochi"', render_video_py)
         self.assertIn('self.request.sampler_name = "euler"', render_video_py)
