@@ -106,6 +106,7 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
             self.repo_root / "ui" / "plugins" / "server" / "perchance" / "perchance.py"
         ).read_text(encoding="utf-8")
         self.assertIn('PERCHANCE_RELEASE_TAG = "v1.0.0-rc.1"', backend)
+        self.assertIn('Path.home() / "AppImages" / "perchance.AppImage"', backend)
         self.assertIn('Path.home() / "Downloads" / PERCHANCE_APPIMAGE_NAME', backend)
         self.assertIn("PERCHANCE_APPIMAGE_SHA256", backend)
 
