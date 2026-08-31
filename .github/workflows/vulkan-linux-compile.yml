@@ -1,0 +1,23 @@
+name: Vulkan Linux Compile
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vulkan build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config libvulkan-dev glslc spirv-headers
+      - name: Compile Vulkan without running binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S source/sdkit3-port-source -B build/linux-vulkan -G Ninja -DCMAKE_BUILD_TYPE=Release -DSD_VULKAN=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+          cmake --build build/linux-vulkan --target sdkit --parallel 2
+          test -f build/linux-vulkan/bin/sdkit
