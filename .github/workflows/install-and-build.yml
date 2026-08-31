@@ -1,4 +1,4 @@
-name: Installation and Native Build
+name: Installation and Cross-Platform Native Build
 
 on:
   push:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   installation-bootstrap:
-    name: Test installation bootstrap
+    name: Test Linux installation bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -65,16 +65,30 @@ jobs:
           export EASY_DIFFUSION_PYTHON="$(command -v python)"
           ./scripts/bootstrap.sh
 
-  compile-cpu:
-    name: Compile CPU native runtimes
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+  compile-platforms:
+    name: Compile ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64 CPU
+            os: ubuntu-latest
+            platform: linux-x64
+            artifact: linux-x64-cpu-native-build
+          - name: Windows x64 CPU
+            os: windows-latest
+            platform: windows-x64
+            artifact: windows-x64-cpu-native-build
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
@@ -85,50 +99,134 @@ jobs:
             ninja-build \
             pkg-config
 
-      - name: Validate installer
+      - name: Verify Windows build tools
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --version
+          ninja --version
+          cl 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "MSVC is provided through the GitHub-hosted Windows runner environment."
+          }
+
+      - name: Configure llama.cpp on Linux
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          bash -n install.sh
-          ./install.sh --help
+          cmake -S source/llama.cpp -B build/llama-linux -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGGML_CUDA=OFF \
+            -DGGML_SYCL=OFF \
+            -DLLAMA_CURL=OFF \
+            -DLLAMA_BUILD_TESTS=OFF \
+            -DLLAMA_BUILD_EXAMPLES=ON \
+            -DLLAMA_BUILD_SERVER=ON
 
-      - name: Build llama.cpp CPU tools
+      - name: Configure llama.cpp on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S source/llama.cpp -B build/llama-windows -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DGGML_CUDA=OFF `
+            -DGGML_SYCL=OFF `
+            -DLLAMA_CURL=OFF `
+            -DLLAMA_BUILD_TESTS=OFF `
+            -DLLAMA_BUILD_EXAMPLES=ON `
+            -DLLAMA_BUILD_SERVER=ON
+
+      - name: Build llama.cpp on Linux
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          ./install.sh --llama-build --cpu --jobs 2
+          cmake --build build/llama-linux \
+            --target llama-cli llama-server llama-quantize \
+            --parallel 2
 
-      - name: Verify llama.cpp outputs
+      - name: Build llama.cpp on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --build build/llama-windows `
+            --target llama-cli llama-server llama-quantize `
+            --parallel 2
+
+      - name: Configure sdkit on Linux
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          test -x source/llama.cpp/build/bin/llama-cli
-          test -x source/llama.cpp/build/bin/llama-server
-          test -x source/llama.cpp/build/bin/llama-quantize
-          source/llama.cpp/build/bin/llama-cli --version || true
+          cmake -S source/sdkit3-port-source -B build/sdkit-linux -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSD_CUDA=OFF \
+            -DSD_SYCL=OFF \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF \
+            -DSDKIT_BUILD_IMAGE_TOOLS=ON
 
-      - name: Build sdkit/stable-diffusion.cpp CPU bundle
+      - name: Configure sdkit on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S source/sdkit3-port-source -B build/sdkit-windows -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DSD_CUDA=OFF `
+            -DSD_SYCL=OFF `
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF `
+            -DSDKIT_BUILD_NATIVE_VISION=OFF `
+            -DSDKIT_BUILD_IMAGE_TOOLS=ON
+
+      - name: Build sdkit on Linux
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          ./install.sh --native-build --cpu --jobs 2
+          cmake --build build/sdkit-linux \
+            --target sdkit sdkit-image-tools \
+            --parallel 2
 
-      - name: Verify native bundle outputs
+      - name: Build sdkit on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --build build/sdkit-windows `
+            --target sdkit sdkit-image-tools `
+            --parallel 2
+
+      - name: Stage Linux build artifact
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          bundle="backends/sdkit3/linux-x64-cpu-any"
-          test -d "$bundle"
-          test -x "$bundle/sdkit"
-          test -x "$bundle/llama-server"
-          "$bundle/sdkit" --help >/tmp/sdkit-help.txt
-          grep -q -- '--convert-model' /tmp/sdkit-help.txt
+          mkdir -p artifacts/${{ matrix.platform }}/llama artifacts/${{ matrix.platform }}/sdkit
+          cp build/llama-linux/bin/llama-cli artifacts/${{ matrix.platform }}/llama/
+          cp build/llama-linux/bin/llama-server artifacts/${{ matrix.platform }}/llama/
+          cp build/llama-linux/bin/llama-quantize artifacts/${{ matrix.platform }}/llama/
+          cp -a build/sdkit-linux/bin/. artifacts/${{ matrix.platform }}/sdkit/
+          artifacts/${{ matrix.platform }}/sdkit/sdkit --help > sdkit-help.txt
+          grep -q -- '--convert-model' sdkit-help.txt
 
-      - name: Upload CPU native bundle
+      - name: Stage Windows build artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.platform }}/llama" | Out-Null
+          New-Item -ItemType Directory -Force -Path "artifacts/${{ matrix.platform }}/sdkit" | Out-Null
+          Copy-Item "build/llama-windows/bin/llama-cli.exe" "artifacts/${{ matrix.platform }}/llama/"
+          Copy-Item "build/llama-windows/bin/llama-server.exe" "artifacts/${{ matrix.platform }}/llama/"
+          Copy-Item "build/llama-windows/bin/llama-quantize.exe" "artifacts/${{ matrix.platform }}/llama/"
+          Copy-Item "build/sdkit-windows/bin/*" "artifacts/${{ matrix.platform }}/sdkit/" -Recurse
+          & "artifacts/${{ matrix.platform }}/sdkit/sdkit.exe" --help | Out-File -Encoding utf8 sdkit-help.txt
+          Select-String -Path sdkit-help.txt -Pattern '--convert-model' | Out-Null
+
+      - name: Upload platform native build
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x64-cpu-native-bundle
-          path: backends/sdkit3/linux-x64-cpu-any/
+          name: ${{ matrix.artifact }}
+          path: artifacts/${{ matrix.platform }}/
           if-no-files-found: warn
           retention-days: 7
