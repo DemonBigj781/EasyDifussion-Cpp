@@ -1,8 +1,3 @@
 #pragma once
-
-#include "common.cuh"
-
-// Native inference-only memory-efficient attention forward path.  The API is
-// intentionally ggml-native: no PyTorch/ATen dependency and no backward pass.
-bool ggml_cuda_xformers_attn_supported(int device, const ggml_tensor * dst);
-void ggml_cuda_xformers_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
+// Compatibility shim: implementation interface moved to source/API.cpp/cuda/attention/xformers.
+#include "../../../../../API.cpp/cuda/attention/xformers/xformers-attention.cuh"
