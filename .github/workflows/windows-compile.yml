@@ -14,6 +14,7 @@ on:
           - rocm
           - vulkan
           - opencl
+          - directml-d3d12
           - cpu
 
 permissions:
@@ -42,4 +43,5 @@ jobs:
             'rocm' { throw 'Windows ROCm/HIP toolchain provisioning is not wired yet.' }
             'vulkan' { throw 'Windows Vulkan SDK provisioning is not wired yet.' }
             'opencl' { throw 'Windows OpenCL SDK provisioning is not wired yet.' }
+            'directml-d3d12' { throw 'DirectML / D3D12 backend implementation is not wired yet.' }
           }
