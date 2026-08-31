@@ -17,25 +17,26 @@ on:
           - opengl
           - opencl
           - cpu
-      cuda_sm:
-        description: CUDA SM architecture (used only when backend is cuda)
+      nvidia_device:
+        description: NVIDIA device to compile for (used only when backend is cuda)
         required: true
-        default: '75'
+        default: rtx-3060
         type: choice
         options:
-          - '52'
-          - '60'
-          - '61'
-          - '70'
-          - '72'
-          - '75'
-          - '80'
-          - '86'
-          - '87'
-          - '89'
-          - '90'
-          - '100'
-          - '120'
+          - p102-100
+          - tesla-p100
+          - tesla-v100
+          - jetson-xavier
+          - quadro-rtx-4000
+          - rtx-2080-ti
+          - a100
+          - rtx-3060
+          - nvidia-a2
+          - jetson-orin
+          - rtx-4090
+          - h100
+          - b200
+          - rtx-5090
 
 permissions:
   contents: read
@@ -84,6 +85,24 @@ jobs:
             set -u
           }
 
+          cuda_arch_for_device() {
+            case "$1" in
+              p102-100) echo 61 ;;
+              tesla-p100) echo 60 ;;
+              tesla-v100) echo 70 ;;
+              jetson-xavier) echo 72 ;;
+              quadro-rtx-4000|rtx-2080-ti) echo 75 ;;
+              a100) echo 80 ;;
+              rtx-3060|nvidia-a2) echo 86 ;;
+              jetson-orin) echo 87 ;;
+              rtx-4090) echo 89 ;;
+              h100) echo 90 ;;
+              b200) echo 100 ;;
+              rtx-5090) echo 120 ;;
+              *) return 1 ;;
+            esac
+          }
+
           case "${{ github.event.inputs.backend }}" in
             oneapi)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
@@ -109,8 +128,10 @@ jobs:
               ;;
             cuda)
               command -v nvcc >/dev/null
+              CUDA_ARCH="$(cuda_arch_for_device '${{ github.event.inputs.nvidia_device }}')" || { echo 'Unknown NVIDIA device selection' >&2; exit 2; }
+              echo "Compiling for ${{ github.event.inputs.nvidia_device }} (SM ${CUDA_ARCH})"
               cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${{ github.event.inputs.cuda_sm }} -DSDKIT_OPENGL_BACKEND=OFF \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH} -DSDKIT_OPENGL_BACKEND=OFF \
                 -DSD_CUDA=ON -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
                 -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               cmake --build build/linux-cuda --target sdkit --parallel 2
