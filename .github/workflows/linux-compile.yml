@@ -37,6 +37,20 @@ jobs:
           method: local
           linux-local-args: '["--toolkit"]'
 
+      - name: Install ROCm toolchain for ROCm compile lane
+        if: github.event.inputs.backend == 'rocm'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /etc/apt/keyrings
+          wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key \
+            | gpg --dearmor \
+            | sudo tee /etc/apt/keyrings/rocm.gpg >/dev/null
+          echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2.2 noble main' \
+            | sudo tee /etc/apt/sources.list.d/rocm.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rocm-dev hipblas-dev rocblas-dev
+
       - name: Compile selected backend without running binaries
         shell: bash
         run: |
@@ -65,8 +79,20 @@ jobs:
               test -f build/linux-cuda/bin/sdkit
               ;;
             rocm)
-              echo "ROCm compile lane requires ROCm toolkit provisioning; configure this lane before use." >&2
-              exit 2
+              export PATH=/opt/rocm/bin:$PATH
+              command -v hipcc >/dev/null
+              cmake -S source/sdkit3-port-source -B build/linux-rocm -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang \
+                -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ \
+                -DSD_HIPBLAS=ON \
+                -DGPU_TARGETS=gfx1030 \
+                -DAMDGPU_TARGETS=gfx1030 \
+                -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+                -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake --build build/linux-rocm --target sdkit --parallel 2
+              test -f build/linux-rocm/bin/sdkit
               ;;
             vulkan)
               sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers
