@@ -87,6 +87,19 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
         -DGGML_SYCL_F16=${GGML_SYCL_F16}
     )
 
+    if(SD_HIPBLAS)
+        if(GPU_TARGETS)
+            list(APPEND SDKIT_LLAMA_BACKEND_ARGS -DGPU_TARGETS=${GPU_TARGETS})
+        endif()
+        if(AMDGPU_TARGETS)
+            list(APPEND SDKIT_LLAMA_BACKEND_ARGS -DAMDGPU_TARGETS=${AMDGPU_TARGETS})
+        endif()
+        if(CMAKE_HIP_ARCHITECTURES)
+            list(APPEND SDKIT_LLAMA_BACKEND_ARGS
+                -DCMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES})
+        endif()
+    endif()
+
     if(SD_SYCL)
         list(APPEND SDKIT_LLAMA_BACKEND_ARGS
             -DGGML_SYCL_TARGET=${GGML_SYCL_TARGET}
