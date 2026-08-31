@@ -9,5 +9,15 @@
 
 #include "../common.cuh"
 
+#if defined(GGML_USE_HIP)
+#include "sage-attention.cuh"
+
+// fattn.cu is shared by CUDA and HIP. Keep the legacy symbol spelling as a
+// compatibility alias at this boundary, but route HIP through the neutral
+// SageAttention API. New code should call ggml_sage_attn_* directly.
+#define ggml_cuda_sage_attn_sm80_supported ggml_sage_attn_supported
+#define ggml_cuda_sage_attn_sm80           ggml_sage_attn
+#else
 bool ggml_cuda_sage_attn_sm80_supported(int device, const ggml_tensor * dst);
 void ggml_cuda_sage_attn_sm80(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
+#endif
