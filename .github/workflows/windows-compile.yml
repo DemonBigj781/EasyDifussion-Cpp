@@ -1,0 +1,45 @@
+name: Windows Compile
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend API to compile
+        required: true
+        default: cpu
+        type: choice
+        options:
+          - oneapi
+          - cuda
+          - rocm
+          - vulkan
+          - opencl
+          - cpu
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile selected backend without running binaries
+        shell: pwsh
+        run: |
+          $backend = '${{ github.event.inputs.backend }}'
+          switch ($backend) {
+            'cpu' {
+              cmake -S source/sdkit3-port-source -B build/windows-cpu -A x64 -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              cmake --build build/windows-cpu --target sdkit --config Release --parallel 2
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              if (-not (Test-Path 'build/windows-cpu/bin/Release/sdkit.exe') -and -not (Test-Path 'build/windows-cpu/bin/sdkit.exe')) { throw 'sdkit.exe was not produced' }
+            }
+            'oneapi' { throw 'Windows oneAPI toolchain provisioning is not wired yet.' }
+            'cuda' { throw 'Windows CUDA toolchain provisioning is not wired yet.' }
+            'rocm' { throw 'Windows ROCm/HIP toolchain provisioning is not wired yet.' }
+            'vulkan' { throw 'Windows Vulkan SDK provisioning is not wired yet.' }
+            'opencl' { throw 'Windows OpenCL SDK provisioning is not wired yet.' }
+          }
