@@ -40,6 +40,7 @@ Every objective has a standalone implementation document under `docs/todo/`. The
 - [ ] [31 — Validate oneAPI/SYCL on H3C XG310](docs/todo/31-xg310-oneapi-validation.md)
 - [ ] [32 — Merge llama.cpp into stable-diffusion.cpp safely](docs/todo/32-merge-llama-stable-diffusion.md)
 - [ ] [33 — Memory oversubscription handler](docs/todo/33-memory-oversubscription-handler.md)
+- [ ] [34 — Legacy GPU VRAM swap / memory tier](docs/todo/34-legacy-gpu-vram-swap-tier.md)
 
 ## Related architecture notes
 - [Native Hugging Face + LoRA to GGUF plan](docs/native-hf-lora-gguf-plan.md)
