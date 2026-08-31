@@ -52,6 +52,7 @@ def _launcher_path() -> Path:
 PERCHANCE_LOCK = threading.Lock()
 SETTINGS_LOCK = threading.Lock()
 IMAGE_TIMEOUT_SECONDS = 15 * 60
+MAX_IMAGE_AMOUNT = 20
 TEXT_TIMEOUT_SECONDS = 10 * 60
 # The Perchance gallery performs an in-page fetch which currently has no abort
 # signal of its own. Bound the wrapper so an intermittent upstream stall does
@@ -332,6 +333,36 @@ def _parse_json_object(stdout: str, description: str) -> dict:
     )
 
 
+def _parse_image_results(stdout: str, output_directory: Path) -> list[dict]:
+    parsed = None
+    for line in reversed([line.strip() for line in stdout.splitlines() if line.strip()]):
+        try:
+            candidate = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, (dict, list)):
+            parsed = candidate
+            break
+    if parsed is None:
+        raise HTTPException(status_code=502, detail="Perchance image output did not contain JSON.")
+
+    records = parsed if isinstance(parsed, list) else [parsed]
+    images = []
+    for record in records:
+        if not isinstance(record, dict) or not isinstance(record.get("path"), str):
+            raise HTTPException(status_code=502, detail="Perchance returned invalid image metadata.")
+        saved_path, relative_path = _saved_image_from(record["path"], output_directory)
+        images.append(
+            {
+                **record,
+                "path": str(saved_path),
+                "relative_path": relative_path,
+                "url": f"/perchance/file/{quote(relative_path, safe='/')}",
+            }
+        )
+    return images
+
+
 def _run_locked(arguments: list[str], timeout_seconds: int):
     async def run():
         _acquire_perchance()
@@ -378,28 +409,45 @@ async def generate_image(payload) -> dict:
         )
     seed = _integer(payload.get("seed"), "seed", -1)
     guidance_scale = _finite_number(payload.get("guidance_scale"), "guidance_scale", 7)
+    amount = _integer(payload.get("amount"), "amount", 1)
+    if amount < 1 or amount > MAX_IMAGE_AMOUNT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"amount must be between 1 and {MAX_IMAGE_AMOUNT}.",
+        )
     negative_prompt = str(payload.get("negative_prompt", "")).strip()
     output_directory = _output_directory()
     arguments = [
         "image",
         "-o",
         str(output_directory),
+        "--count",
+        str(amount),
         "--shape",
         shape,
         "--seed",
         str(seed),
         "--guidance-scale",
         str(guidance_scale),
+        "--json",
     ]
     if negative_prompt:
         arguments.extend(["--negative-prompt", negative_prompt])
     arguments.append(prompt)
     result = await _run_locked(arguments, IMAGE_TIMEOUT_SECONDS)
-    saved_path, relative_path = _saved_image_from(result["stdout"], output_directory)
+    images = _parse_image_results(result["stdout"], output_directory)
+    if len(images) != amount:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Perchance returned {len(images)} images after {amount} were requested.",
+        )
+
+    first_image = images[0]
     return {
-        "path": str(saved_path),
-        "relative_path": relative_path,
-        "url": f"/perchance/file/{quote(relative_path, safe='/')}",
+        **first_image,
+        "images": images,
+        "requested_amount": amount,
+        "generated_amount": len(images),
         "output_directory": str(output_directory),
     }
 

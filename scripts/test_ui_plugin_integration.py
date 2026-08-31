@@ -109,6 +109,23 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn('Path.home() / "Downloads" / PERCHANCE_APPIMAGE_NAME', backend)
         self.assertIn("PERCHANCE_APPIMAGE_SHA256", backend)
 
+    def test_perchance_image_amount_uses_native_batching(self):
+        root = self.plugin_root / "perchance_plugin"
+        html = (root / "perchance-image.plugin.html").read_text(encoding="utf-8")
+        plugin = (root / "perchance-image.plugin.js").read_text(encoding="utf-8")
+        backend = (
+            self.repo_root / "ui" / "plugins" / "server" / "perchance" / "perchance.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('id="perchance-generator-amount"', html)
+        self.assertIn('min="1" max="20"', html)
+        self.assertIn("amount: requestedAmount", plugin)
+        self.assertIn("data.images", plugin)
+        self.assertIn("MAX_IMAGE_AMOUNT = 20", backend)
+        self.assertIn('"--count"', backend)
+        self.assertIn('"--json"', backend)
+        self.assertIn("_parse_image_results", backend)
+        self.assertIn('"generated_amount": len(images)', backend)
+
     def test_rabbit_hole_has_versioned_entry_points(self):
         rabbit_root = self.plugin_root / "rabithole_plugin"
         dispatcher = (rabbit_root / "rabbithole.plugin.js").read_text(encoding="utf-8")
