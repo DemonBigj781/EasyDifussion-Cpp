@@ -82,80 +82,110 @@ function loadScript(url) {
 // order explicit so every panel and hook exists before app configuration is
 // applied, instead of relying on optional directory discovery.
 const REQUIRED_UI_PLUGINS = [
-    "/plugins/core/controlnet-architectures.plugin.js",
-    "/plugins/core/controlnet-lllite.plugin.js",
-    "/plugins/core/ip-adapter.plugin.js",
-    "/plugins/core/native-video.plugin.js",
-    "/plugins/core/native-image-tools.plugin.js",
-    "/plugins/core/latent-interposer-encode.plugin.js",
-    "/plugins/core/latent-interposer-decode.plugin.js",
-    "/plugins/core/wd14-tagger.plugin.js",
-    "/plugins/core/post-generation-tools.plugin.js",
-    "/plugins/core/OutpaintIt.plugin.js",
-    "/plugins/core/stig-localstorage.plugin.js",
-    "/plugins/core/stig-relocateModifiers.plugin.js",
-    "/plugins/core/inpainting.plugin.js",
-    "/plugins/core/prompt-assist.plugin.js",
-    "/plugins/core/negative-history.plugin.js",
-    "/plugins/core/online-model-browser.plugin.js",
-    "/plugins/core/editor-page.plugin.js",
-    "/plugins/core/Autoscroll.plugin.js",
-    "/plugins/core/custom-modifiers.plugin.js",
-    "/plugins/core/lora-prompt-parser.plugin.js",
-    "/plugins/core/Modifiers-dnd.plugin.js",
-    "/plugins/core/Modifiers-wheel.plugin.js",
-    "/plugins/core/modifiers-toggle.plugin.js",
-    "/plugins/core/model-tools.plugin.js",
-    "/plugins/core/fileparser.plugin.js",
-    "/plugins/core/tipo.plugin.js",
-    "/plugins/core/perchance.plugin.js",
-    "/plugins/core/gallery.tab.plugin.js",
+    "/plugins/core/main_plugin/main.tab.plugin.js",
+    "/plugins/core/ui_plugin/settings.tab.plugin.js",
+    "/plugins/core/loader_plugin/plugins.tab.plugin.js",
+    "/plugins/core/controlnet_plugin/controlnet-architectures.plugin.js",
+    "/plugins/core/controlnet_plugin/controlnet-lllite.plugin.js",
+    "/plugins/core/controlnet_plugin/ip-adapter.plugin.js",
+    "/plugins/core/video_plugin/native-video.plugin.js",
+    "/plugins/core/image_plugin/native-image-tools.plugin.js",
+    "/plugins/core/interpose_pugin/latent-interposer-encode.plugin.js",
+    "/plugins/core/interpose_pugin/latent-interposer-decode.plugin.js",
+    "/plugins/core/wdtagger_plugin/wd14-tagger.plugin.js",
+    "/plugins/core/image_plugin/post-generation-tools.plugin.js",
+    "/plugins/core/outpaint_plugin/OutpaintIt.plugin.js",
+    "/plugins/core/outpaint_plugin/outpaint-editor.plugin.js",
+    "/plugins/core/localstorage_plugin/stig-localstorage.plugin.js",
+    "/plugins/core/modifiers_plugin/stig-relocateModifiers.plugin.js",
+    "/plugins/core/inpaint_plugin/inpainting.plugin.js",
+    "/plugins/core/prompt_plugin/prompt-assist.plugin.js",
+    "/plugins/core/prompt_plugin/negative-history.plugin.js",
+    "/plugins/core/files_plugin/online-model-browser.plugin.js",
+    "/plugins/core/draw_plugin/editor-page.plugin.js",
+    "/plugins/core/ui_plugin/Autoscroll.plugin.js",
+    "/plugins/core/modifiers_plugin/custom-modifiers.plugin.js",
+    "/plugins/core/lora_plugin/lora-prompt-parser.plugin.js",
+    "/plugins/core/modifiers_plugin/Modifiers-dnd.plugin.js",
+    "/plugins/core/modifiers_plugin/Modifiers-wheel.plugin.js",
+    "/plugins/core/modifiers_plugin/modifiers-toggle.plugin.js",
+    "/plugins/core/files_plugin/model-tools.plugin.js",
+    "/plugins/core/files_plugin/fileparser.plugin.js",
+    "/plugins/core/tipo_plugin/tipo.plugin.js",
+    "/plugins/core/gallery_plugin/gallery.tab.plugin.js",
+    "/plugins/core/perchance_plugin/perchance.plugin.js",
 ]
 
 // Local legacy plugins are installed with the application but remain opt-in.
 // Most of them predate a plugin lifecycle API, so enabling is live while
 // disabling takes effect on the next page load.
 const OPTIONAL_UI_PLUGIN_STORAGE_KEY = "easy-diffusion-enabled-local-plugins-v1"
+const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY = "easy-diffusion-local-plugin-defaults-version"
+const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION = 2
 const OPTIONAL_UI_PLUGINS = Object.freeze([
-    { id: "cpp-gifs", name: "GIF output and GIF-to-GIF", path: "/plugins/core/mads-gifs-cpp.plugin.js", defaultEnabled: true, port: "native" },
-    { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/core/accessibility-improvements.plugin.js" },
+    { id: "cpp-gifs", name: "GIF output and GIF-to-GIF", path: "/plugins/core/video_plugin/mads-gifs-cpp.plugin.js", defaultEnabled: true, port: "native" },
+    { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
+    { id: "perchance-text", name: "Perchance text", path: "/plugins/core/perchance_plugin/perchance-text.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
+    { id: "perchance-gallery", name: "Perchance gallery", path: "/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
+    { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/core/ui_plugin/accessibility-improvements.plugin.js" },
     // The two imported Animate copies are consolidated into this one opt-in implementation.
-    { id: "animate", name: "Animate (legacy)", path: "/plugins/core/animate.plugin.js", port: "compatibility" },
-    { id: "daily-folders", name: "Daily output folders", path: "/plugins/core/daily-folders.plugin.js" },
-    { id: "disable-source-image-zoom", name: "Disable source-image zoom", path: "/plugins/core/disable-source-image-zoom.plugin.js" },
-    { id: "gpu-mode-quick-toggle", name: "GPU mode quick toggle", path: "/plugins/core/gpu-mode-quick-toggle.plugin.js" },
-    { id: "make-image-always-visible", name: "Always-visible Make Image button", path: "/plugins/core/make-image-button-always-visible.plugin.js" },
-    { id: "processing-order-quick-toggle", name: "Processing-order quick toggle", path: "/plugins/core/processing-order-quick-toggle.plugin.js" },
-    { id: "prompt-diff", name: "Prompt diff", path: "/plugins/core/prompt-diff.plugin.js" },
-    { id: "prompt-translator", name: "Prompt translator (uses Google Translate)", path: "/plugins/core/prompt-translator.plugin.js" },
-    { id: "queue-counter", name: "Queue counter", path: "/plugins/core/queue-counter.plugin.js" },
-    { id: "rabbit-hole", name: "Rabbit Hole UI (3.5 / 4 / 4.5)", path: "/plugins/core/rabbithole.plugin.js", port: "compatibility" },
-    { id: "random-seed-quick-toggle", name: "Random-seed quick toggle", path: "/plugins/core/random-seed-quick-toggle.plugin.js" },
-    { id: "seed-randomizer", name: "Batch seed randomizer", path: "/plugins/core/seed-randomizer.plugin.js" },
-    { id: "spell-tokenizer", name: "Spell tokenizer and merged tag search", path: "/plugins/core/spell-tokenizer.plugin.js" },
-    { id: "stig-image-to-img2img", name: "Stig image-to-img2img tools", path: "/plugins/core/stig-image-to-img2img.plugin.js" },
-    { id: "stig-image-utilities", name: "Stig image utilities", path: "/plugins/core/stigs-image_utilities.plugin.js" },
-    { id: "stig-lora-shuttle", name: "Stig LoRA shuttle controls", path: "/plugins/core/stigs-lora-shuttle-controls.plugin.js" },
-    { id: "stig-text-to-prompt", name: "Stig text-to-prompt", path: "/plugins/core/stig-text2prompt.plugin.js" },
-    { id: "storyteller", name: "Storyteller tab", path: "/plugins/core/storyteller.plugin.js" },
-    { id: "template-manager", name: "Template manager", path: "/plugins/core/template-manager.plugin.js" },
-    { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/core/toggle-spellcheck.plugin.js" },
+    { id: "animate", name: "Animate (legacy)", path: "/plugins/core/animate_plugin/animate.plugin.js", port: "compatibility" },
+    { id: "daily-folders", name: "Daily output folders", path: "/plugins/core/ui_plugin/daily-folders.plugin.js" },
+    { id: "disable-source-image-zoom", name: "Disable source-image zoom", path: "/plugins/core/ui_plugin/disable-source-image-zoom.plugin.js" },
+    { id: "gpu-mode-quick-toggle", name: "GPU mode quick toggle", path: "/plugins/core/ui_plugin/gpu-mode-quick-toggle.plugin.js" },
+    { id: "make-image-always-visible", name: "Always-visible Make Image button", path: "/plugins/core/ui_plugin/make-image-button-always-visible.plugin.js" },
+    { id: "processing-order-quick-toggle", name: "Processing-order quick toggle", path: "/plugins/core/ui_plugin/processing-order-quick-toggle.plugin.js" },
+    { id: "prompt-diff", name: "Prompt diff", path: "/plugins/core/prompt_plugin/prompt-diff.plugin.js" },
+    { id: "prompt-translator", name: "Prompt translator (uses Google Translate)", path: "/plugins/core/prompt_plugin/prompt-translator.plugin.js" },
+    { id: "queue-counter", name: "Queue counter", path: "/plugins/core/ui_plugin/queue-counter.plugin.js" },
+    { id: "rabbit-hole", name: "Rabbit Hole UI (3.5 / 4 / 4.5)", path: "/plugins/core/rabithole_plugin/rabbithole.plugin.js", port: "compatibility" },
+    { id: "random-seed-quick-toggle", name: "Random-seed quick toggle", path: "/plugins/core/ui_plugin/random-seed-quick-toggle.plugin.js" },
+    { id: "seed-randomizer", name: "Batch seed randomizer", path: "/plugins/core/ui_plugin/seed-randomizer.plugin.js" },
+    { id: "spell-tokenizer", name: "Spell tokenizer and merged tag search", path: "/plugins/core/prompt_plugin/spell-tokenizer.plugin.js" },
+    { id: "stig-image-to-img2img", name: "Stig image-to-img2img tools", path: "/plugins/core/image_plugin/stig-image-to-img2img.plugin.js" },
+    { id: "stig-image-utilities", name: "Stig image utilities", path: "/plugins/core/image_plugin/stigs-image_utilities.plugin.js" },
+    { id: "stig-lora-shuttle", name: "Stig LoRA shuttle controls", path: "/plugins/core/lora_plugin/stigs-lora-shuttle-controls.plugin.js" },
+    { id: "stig-text-to-prompt", name: "Stig text-to-prompt", path: "/plugins/core/prompt_plugin/stig-text2prompt.plugin.js" },
+    { id: "storyteller", name: "Storyteller tab", path: "/plugins/core/prompt_plugin/storyteller.plugin.js" },
+    { id: "template-manager", name: "Template manager", path: "/plugins/core/prompt_plugin/template-manager.plugin.js" },
+    { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/core/prompt_plugin/toggle-spellcheck.plugin.js" },
 ])
 
 function getEnabledOptionalUIPluginIds() {
     try {
         const saved = JSON.parse(localStorage.getItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY))
         if (Array.isArray(saved)) {
-            return new Set(saved.filter((id) => OPTIONAL_UI_PLUGINS.some((plugin) => plugin.id === id)))
+            const enabled = new Set(saved.filter((id) => OPTIONAL_UI_PLUGINS.some((plugin) => plugin.id === id)))
+            const defaultsVersion = Number.parseInt(
+                localStorage.getItem(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY) || "0",
+                10
+            )
+            if (defaultsVersion < OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION) {
+                OPTIONAL_UI_PLUGINS.forEach((plugin) => {
+                    if (plugin.defaultEnabled && Number(plugin.addedInDefaultsVersion || 0) > defaultsVersion) {
+                        enabled.add(plugin.id)
+                    }
+                })
+                localStorage.setItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY, JSON.stringify(Array.from(enabled)))
+                localStorage.setItem(
+                    OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY,
+                    String(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION)
+                )
+            }
+            return enabled
         }
     } catch (error) {
         console.warn("Ignoring invalid optional-plugin settings", error)
     }
-    return new Set(OPTIONAL_UI_PLUGINS.filter((plugin) => plugin.defaultEnabled).map((plugin) => plugin.id))
+    const defaults = new Set(OPTIONAL_UI_PLUGINS.filter((plugin) => plugin.defaultEnabled).map((plugin) => plugin.id))
+    localStorage.setItem(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY, String(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION))
+    return defaults
 }
 
 let enabledOptionalUIPluginIds = getEnabledOptionalUIPluginIds()
 const loadedOptionalUIPluginIds = new Set()
+const optionalUIPluginLoadPromises = new Map()
+let optionalUIPluginControlInstance = 0
 
 function saveEnabledOptionalUIPlugins() {
     localStorage.setItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY, JSON.stringify(Array.from(enabledOptionalUIPluginIds)))
@@ -166,17 +196,26 @@ async function loadOptionalUIPlugin(plugin) {
         updateOptionalUIPluginStatus(plugin.id, "loaded")
         return
     }
-
-    updateOptionalUIPluginStatus(plugin.id, "loading…")
-    try {
-        await loadScript(plugin.path)
-        loadedOptionalUIPluginIds.add(plugin.id)
-        updateOptionalUIPluginStatus(plugin.id, "loaded")
-    } catch (error) {
-        updateOptionalUIPluginStatus(plugin.id, "failed")
-        console.error(`Optional plugin ${plugin.name} failed to load`, error)
-        if (typeof showToast === "function") showToast(`${plugin.name} failed to load: ${error.message}`, 7000, true)
+    if (optionalUIPluginLoadPromises.has(plugin.id)) {
+        return optionalUIPluginLoadPromises.get(plugin.id)
     }
+
+    const loadPromise = (async () => {
+        updateOptionalUIPluginStatus(plugin.id, "loading…")
+        try {
+            await loadScript(plugin.path)
+            loadedOptionalUIPluginIds.add(plugin.id)
+            updateOptionalUIPluginStatus(plugin.id, "loaded")
+        } catch (error) {
+            updateOptionalUIPluginStatus(plugin.id, "failed")
+            console.error(`Optional plugin ${plugin.name} failed to load`, error)
+            if (typeof showToast === "function") showToast(`${plugin.name} failed to load: ${error.message}`, 7000, true)
+        } finally {
+            optionalUIPluginLoadPromises.delete(plugin.id)
+        }
+    })()
+    optionalUIPluginLoadPromises.set(plugin.id, loadPromise)
+    return loadPromise
 }
 
 async function loadEnabledOptionalUIPlugins() {
@@ -200,6 +239,25 @@ function syncOptionalUIPluginControls(pluginId) {
     })
 }
 
+async function setOptionalUIPluginEnabled(plugin, enabled) {
+    if (enabled) {
+        enabledOptionalUIPluginIds.add(plugin.id)
+        saveEnabledOptionalUIPlugins()
+        syncOptionalUIPluginControls(plugin.id)
+        await loadOptionalUIPlugin(plugin)
+        return
+    }
+
+    enabledOptionalUIPluginIds.delete(plugin.id)
+    saveEnabledOptionalUIPlugins()
+    syncOptionalUIPluginControls(plugin.id)
+    const needsReload = loadedOptionalUIPluginIds.has(plugin.id)
+    updateOptionalUIPluginStatus(plugin.id, needsReload ? "disabled after reload" : "disabled")
+    if (needsReload && typeof showToast === "function") {
+        showToast(`${plugin.name} will be disabled after reloading the page.`)
+    }
+}
+
 function renderOptionalUIPluginSettings(options = {}) {
     const container = document.createElement("div")
     container.className = "optional-ui-plugin-settings"
@@ -207,42 +265,35 @@ function renderOptionalUIPluginSettings(options = {}) {
         ? "max-width:900px"
         : "min-width:min(620px,70vw);max-height:45vh;overflow:auto"
 
+    const controlInstance = optionalUIPluginControlInstance++
     for (const plugin of OPTIONAL_UI_PLUGINS) {
-        const row = document.createElement("label")
+        const row = document.createElement("div")
         row.className = "optional-ui-plugin-row"
         row.dataset.pluginSearch = `${plugin.name} ${plugin.id}`.toLowerCase()
         row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:center;padding:.3rem 0"
+        const toggle = document.createElement("div")
+        toggle.className = "input-toggle"
         const checkbox = document.createElement("input")
+        checkbox.id = `optional-plugin-${controlInstance}-${plugin.id}`
         checkbox.type = "checkbox"
         checkbox.checked = enabledOptionalUIPluginIds.has(plugin.id)
         checkbox.dataset.optionalPluginId = plugin.id
-        const name = document.createElement("span")
+        const switchLabel = document.createElement("label")
+        switchLabel.htmlFor = checkbox.id
+        switchLabel.title = `Enable or disable ${plugin.name}`
+        toggle.append(checkbox, switchLabel)
+        const name = document.createElement("label")
+        name.htmlFor = checkbox.id
         name.textContent = plugin.name
         const status = document.createElement("small")
         status.dataset.optionalPluginStatus = plugin.id
         status.textContent = loadedOptionalUIPluginIds.has(plugin.id)
             ? "loaded"
             : checkbox.checked ? "enabled" : "disabled"
-        row.append(checkbox, name, status)
+        row.append(toggle, name, status)
         container.appendChild(row)
 
-        checkbox.addEventListener("change", async () => {
-            if (checkbox.checked) {
-                enabledOptionalUIPluginIds.add(plugin.id)
-                saveEnabledOptionalUIPlugins()
-                syncOptionalUIPluginControls(plugin.id)
-                await loadOptionalUIPlugin(plugin)
-            } else {
-                enabledOptionalUIPluginIds.delete(plugin.id)
-                saveEnabledOptionalUIPlugins()
-                syncOptionalUIPluginControls(plugin.id)
-                const needsReload = loadedOptionalUIPluginIds.has(plugin.id)
-                updateOptionalUIPluginStatus(plugin.id, needsReload ? "disabled after reload" : "disabled")
-                if (needsReload && typeof showToast === "function") {
-                    showToast(`${plugin.name} will be disabled after reloading the page.`)
-                }
-            }
-        })
+        checkbox.addEventListener("change", () => setOptionalUIPluginEnabled(plugin, checkbox.checked))
     }
     return container
 }
@@ -266,11 +317,7 @@ function createLocalPluginManagerTab() {
     const inner = document.createElement("div")
     inner.id = "plugin-manager"
     inner.className = "tab-content-inner"
-    inner.innerHTML = `
-        <h1>Local Plugin Manager</h1>
-        <p>Enable a plugin to load it now. Disabling a loaded legacy plugin takes effect after a page reload.</p>
-        <input type="search" class="optional-ui-plugin-filter" placeholder="Search plugins" autocomplete="off">
-    `
+    inner.innerHTML = window.loadRequiredPluginHTML("/plugins/core/loader_plugin/plugins.tab.plugin.html")
     const list = renderOptionalUIPluginSettings({ forTab: true })
     inner.appendChild(list)
     content.appendChild(inner)
@@ -288,19 +335,6 @@ function createLocalPluginManagerTab() {
         if (event.detail?.name === "plugin") filter.focus()
     })
 }
-
-if (typeof PARAMETERS !== "undefined") {
-    PARAMETERS.push({
-        id: "optional_ui_plugins",
-        type: ParameterType.custom,
-        label: "Optional bundled plugins",
-        note: "Enable plugins immediately. Disable takes effect after a page reload because legacy plugins do not expose an unload hook.",
-        icon: "fa-puzzle-piece",
-        render: renderOptionalUIPluginSettings,
-    })
-}
-
-createLocalPluginManagerTab()
 
 async function loadRequiredUIPlugins() {
     for (const plugin of REQUIRED_UI_PLUGINS) {

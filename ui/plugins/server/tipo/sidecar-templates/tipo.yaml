@@ -1,0 +1,25 @@
+# Easy Diffusion TIPO model settings. Keep this file beside its GGUF model.
+schema: easy-diffusion.tipo-sidecar.v1
+protocol: tipo
+context_length: 1024
+generation:
+  temperature: 0.5
+  top_p: 0.95
+  min_p: 0.05
+  top_k: 80
+  repeat_penalty: 1.17
+  max_new_tokens: 512
+  max_retry: 10
+  max_same_output: 5
+  tag_length: long
+  nl_length: long
+output:
+  format: |-
+    <|special|>, <|characters|>, <|copyrights|>,
+    <|artist|>,
+
+    <|general|>,
+
+    <|extended|>.
+
+    <|quality|>, <|meta|>, <|rating|>

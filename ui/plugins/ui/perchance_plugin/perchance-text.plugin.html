@@ -1,0 +1,54 @@
+<h4 class="collapsible">Perchance Text</h4>
+<div class="collapsible-content" style="display:block;margin-top:15px;">
+    <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <span data-perchance-status style="font-size:12px;opacity:.8;">Checking launcher…</span>
+        <span data-perchance-output-dir style="font-size:11px;opacity:.65;overflow-wrap:anywhere;"></span>
+        <a data-perchance-release hidden target="_blank" rel="noopener" style="font-size:11px;"></a>
+    </div>
+    <label for="perchance-generator-text-prompt" style="font-size:12px;">Text prompt</label>
+    <textarea id="perchance-generator-text-prompt" rows="4" style="display:block;width:100%;" placeholder="Describe the text to generate"></textarea>
+    <div style="margin-top:8px;text-align:left;">
+        <label for="perchance-generator-text-preset" style="font-size:12px;">Prompt starter preset</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="perchance-generator-text-preset" style="display:block;flex:1 1 220px;min-width:0;width:100%;">
+                <option value="">Choose a preset…</option>
+                <option value="general-image-expander">General image prompt expander</option>
+                <option value="danbooru-sdxl">Danbooru tags for SDXL</option>
+                <option value="natural-language-sdxl">Natural language for SDXL</option>
+                <option value="cinematic-scene">Cinematic scene enhancer</option>
+                <option value="character-design">Character design builder</option>
+                <option value="negative-prompt">SDXL negative prompt builder</option>
+            </select>
+            <button id="perchance-generator-apply-text-preset" class="secondaryButton">Insert into Start With</button>
+        </div>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;margin-top:8px;">
+        <button id="perchance-generator-import-text-prompt" class="secondaryButton" style="justify-self:start;">Import Prompt</button>
+        <button id="perchance-generator-text-button" class="primaryButton" data-perchance-action style="justify-self:center;">Generate Text</button>
+        <button id="perchance-generator-export-text-prompt" class="secondaryButton" style="justify-self:end;">Export Prompt</button>
+    </div>
+    <details style="margin-top:12px;">
+        <summary style="cursor:pointer;font-size:12px;">Text options</summary>
+        <label style="display:block;font-size:12px;margin-top:8px;">Start with
+            <textarea id="perchance-generator-start-with" rows="2" style="display:block;width:100%;"></textarea>
+        </label>
+        <label style="display:block;font-size:12px;margin-top:8px;">Stop sequences (one per line)
+            <textarea id="perchance-generator-stops" rows="2" style="display:block;width:100%;"></textarea>
+        </label>
+        <label style="display:block;font-size:12px;margin-top:8px;">Filter out strings (one per line)
+            <textarea id="perchance-generator-filters" rows="2" style="display:block;width:100%;"></textarea>
+        </label>
+        <label style="display:block;font-size:12px;margin-top:8px;">Per-chunk timeout (milliseconds)
+            <input id="perchance-generator-timeout" type="number" min="1" step="1000" placeholder="Perchance default" style="display:block;width:100%;">
+        </label>
+    </details>
+    <div id="perchance-generator-text-result" style="display:none;margin-top:12px;">
+        <div id="perchance-generator-text-error" role="alert" style="display:none;padding:8px;border:1px solid currentColor;border-radius:4px;color:#d9534f;white-space:pre-wrap;"></div>
+        <textarea id="perchance-generator-text-output" rows="7" style="display:block;width:100%;" readonly></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+            <button id="perchance-generator-apply-text" class="secondaryButton">Use as Easy Diffusion Prompt</button>
+            <button id="perchance-generator-apply-negative-text" class="secondaryButton">Use as Negative Prompt</button>
+            <button id="perchance-generator-copy-text" class="secondaryButton">Copy Text</button>
+        </div>
+    </div>
+</div>

@@ -11,9 +11,10 @@ import subprocess
 import traceback
 from typing import List, Union
 
-from easydiffusion import app, gallery, model_manager, package_manager, perchance, task_manager
+from easydiffusion import app, task_manager
 from easydiffusion.backend_args import parse_backend_commandline_args
-from easydiffusion.tasks import RenderTask, FilterTask, VideoTask
+from ui.plugins.server import gallery, model_manager, package_manager, perchance
+from ui.plugins.server.tasks import RenderTask, FilterTask, VideoTask
 from easydiffusion.types import (
     GenerateImageRequest,
     VideoGenerationRequest,
@@ -27,9 +28,9 @@ from easydiffusion.types import (
     convert_legacy_render_req_to_new,
     convert_legacy_controlnet_filter_name,
 )
-from easydiffusion.utils import log
-from easydiffusion.wd14_tagger import WD14TagRequest, tag_image
-from easydiffusion.native_image_tools import (
+from ui.plugins.server.utils import log
+from ui.plugins.server.wd14_tagger import WD14TagRequest, tag_image
+from ui.plugins.server.native_image_tools import (
     NativeDetectionRequest,
     TextMaskRequest,
     detect as native_detect,
@@ -73,7 +74,6 @@ class NoCacheStaticFiles(StaticFiles):
 
 
 class SetAppConfigRequest(BaseModel, extra=Extra.allow):
-    update_branch: str = None
     render_devices: Union[List[str], List[int], str, int] = None
     model_vae: str = None
     ui_open_browser_on_start: bool = None
@@ -93,7 +93,7 @@ def init():
     mimetypes.add_type("text/css", ".css")
     gallery.migrate_legacy_settings()
 
-    from easydiffusion.online_model_browser import (
+    from ui.plugins.server.online_model_browser import (
         huggingface_router,
         router as online_model_browser_router,
     )
@@ -102,7 +102,7 @@ def init():
     server_api.include_router(online_model_browser_router, prefix="/civitai-api")
     server_api.include_router(huggingface_router, prefix="/huggingface-api")
 
-    from easydiffusion.model_tools import router as model_tools_router
+    from ui.plugins.server.model_tools import router as model_tools_router
 
     server_api.include_router(model_tools_router, prefix="/model-tools")
 
@@ -183,26 +183,26 @@ def init():
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Text-mask detection failed: {exc}") from exc
 
-    from easydiffusion.tipo import GenerateRequest as TipoGenerateRequest
+    from ui.plugins.server.tipo import GenerateRequest as TipoGenerateRequest
 
     @server_api.get("/tipo/health")
     @server_api.get("/tipo-api/health", include_in_schema=False)
     def tipo_health():
-        from easydiffusion.tipo import health
+        from ui.plugins.server.tipo import health
 
         return health()
 
     @server_api.get("/tipo/models")
     @server_api.get("/tipo-api/models", include_in_schema=False)
     def tipo_models():
-        from easydiffusion.tipo import list_models
+        from ui.plugins.server.tipo import list_models
 
         return list_models()
 
     @server_api.post("/tipo/generate")
     @server_api.post("/tipo-api/generate", include_in_schema=False)
     def tipo_generate(req: TipoGenerateRequest):
-        from easydiffusion.tipo import generate
+        from ui.plugins.server.tipo import generate
 
         return generate(req)
 
@@ -292,27 +292,27 @@ def init():
 
     @server_api.get("/files/health")
     def fileparser_health():
-        from easydiffusion.file_parser import lora_dir
+        from ui.plugins.server.file_parser import lora_dir
 
         return {"status": "ok", "lora_dir": str(lora_dir())}
 
     @server_api.post("/files/list_lora")
     def fileparser_list_lora():
-        from easydiffusion.file_parser import list_lora_files, scan_lora_metadata
+        from ui.plugins.server.file_parser import list_lora_files, scan_lora_metadata
 
         files = list_lora_files()
         return {"files": files, "meta": scan_lora_metadata(), "count": len(files)}
 
     @server_api.post("/files/list_model")
     def fileparser_list_model():
-        from easydiffusion.file_parser import list_checkpoint_files, scan_checkpoint_metadata
+        from ui.plugins.server.file_parser import list_checkpoint_files, scan_checkpoint_metadata
 
         files = list_checkpoint_files()
         return {"files": files, "meta": scan_checkpoint_metadata(), "count": len(files)}
 
     @server_api.post("/files/list_vae")
     def fileparser_list_vae():
-        from easydiffusion.file_parser import list_vae_files, scan_vae_metadata
+        from ui.plugins.server.file_parser import list_vae_files, scan_vae_metadata
 
         files = list_vae_files()
         return {"files": files, "meta": scan_vae_metadata(), "count": len(files)}
@@ -326,14 +326,14 @@ def init():
 
     @server_api.post("/files/list_checkpoints")
     def fileparser_list_checkpoints():
-        from easydiffusion.file_parser import list_checkpoint_files, scan_checkpoint_metadata
+        from ui.plugins.server.file_parser import list_checkpoint_files, scan_checkpoint_metadata
 
         files = list_checkpoint_files()
         return {"files": files, "meta": scan_checkpoint_metadata(), "count": len(files)}
 
     @server_api.post("/meta/get_triggers")
     def fileparser_get_triggers(payload: dict):
-        from easydiffusion.file_parser import extract_lora_metadata
+        from ui.plugins.server.file_parser import extract_lora_metadata
 
         try:
             return {"meta": extract_lora_metadata(payload.get("filepath"), bool(payload.get("include_metadata")))}
@@ -342,14 +342,14 @@ def init():
 
     @server_api.post("/meta/scan_loras")
     def fileparser_scan_loras():
-        from easydiffusion.file_parser import scan_lora_metadata
+        from ui.plugins.server.file_parser import scan_lora_metadata
 
         items = scan_lora_metadata()
         return {"meta": items, "count": len(items)}
 
     @server_api.post("/meta/scan_checkpoints")
     def fileparser_scan_checkpoints():
-        from easydiffusion.file_parser import scan_checkpoint_metadata
+        from ui.plugins.server.file_parser import scan_checkpoint_metadata
 
         items = scan_checkpoint_metadata()
         return {"meta": items, "count": len(items)}
@@ -431,8 +431,6 @@ def set_app_config_internal(req: SetAppConfigRequest):
                 status_code=409,
                 detail="The backend can only reload while generation is idle and the queue is empty.",
             )
-    if req.update_branch is not None:
-        config["update_branch"] = req.update_branch
     if req.render_devices is not None:
         update_render_devices_in_config(config, req.render_devices)
     if req.ui_open_browser_on_start is not None:
@@ -556,7 +554,7 @@ def read_web_data_internal(key: str = None, **kwargs):
             headers=NOCACHE_HEADERS,
         )
     elif key in ("model/metadata", "lora/metadata", "vae/metadata", "tipo/metadata"):
-        from easydiffusion.file_parser import (
+        from ui.plugins.server.file_parser import (
             scan_checkpoint_metadata,
             scan_lora_metadata,
             scan_vae_metadata,

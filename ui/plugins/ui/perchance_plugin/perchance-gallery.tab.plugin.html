@@ -1,0 +1,48 @@
+<div class="panel-box" style="position:sticky;top:8px;z-index:5;">
+    <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <span data-perchance-status style="font-size:12px;opacity:.8;">Checking launcher…</span>
+        <span data-perchance-output-dir style="font-size:11px;opacity:.65;overflow-wrap:anywhere;"></span>
+        <a data-perchance-release hidden target="_blank" rel="noopener" style="font-size:11px;"></a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;align-items:end;">
+        <label style="font-size:12px;">Gallery image ID or URL
+            <input id="perchance-generator-gallery-id" type="text" spellcheck="false" style="display:block;width:100%;" placeholder="Image ID or supported URL">
+        </label>
+        <label style="font-size:12px;">Generator channel / URL ID
+            <input id="perchance-generator-gallery-channel" type="text" spellcheck="false" style="display:block;width:100%;" value="ai-text-to-image-generator">
+        </label>
+        <label style="font-size:12px;">Rating
+            <select id="perchance-generator-gallery-content-filter" style="display:block;width:100%;">
+                <option value="g">G</option>
+                <option value="pg13">PG-13</option>
+                <option value="none">None / unfiltered</option>
+            </select>
+        </label>
+        <label style="font-size:12px;">Limit
+            <input id="perchance-generator-gallery-limit" type="number" min="1" max="100" step="1" value="20" style="display:block;width:100%;">
+        </label>
+        <label style="font-size:12px;">Sort
+            <select id="perchance-generator-gallery-sort" style="display:block;width:100%;">
+                <option value="recent">recent</option>
+                <option value="top">top</option>
+                <option value="trending">trending</option>
+            </select>
+        </label>
+        <label style="font-size:12px;">Time range
+            <input id="perchance-generator-gallery-time-range" type="text" placeholder="CLI default" style="display:block;width:100%;">
+        </label>
+        <label style="font-size:12px;">Continuation cursor
+            <input id="perchance-generator-gallery-cursor" type="text" spellcheck="false" style="display:block;width:100%;">
+        </label>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:12px;">
+        <label><input id="perchance-generator-gallery-download" type="checkbox"> Save images into Easy Diffusion outputs</label>
+        <label><input id="perchance-generator-gallery-visible" type="checkbox"> Show browser</label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+        <button id="perchance-generator-gallery-save-button" class="secondaryButton" data-perchance-action>Save ID + Channel</button>
+        <button id="perchance-generator-gallery-list-button" class="primaryButton" data-perchance-action>List Gallery</button>
+        <button id="perchance-generator-gallery-get-button" class="primaryButton" data-perchance-action>Get Image</button>
+    </div>
+</div>
+<div id="perchance-generator-gallery-results" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:12px;"></div>

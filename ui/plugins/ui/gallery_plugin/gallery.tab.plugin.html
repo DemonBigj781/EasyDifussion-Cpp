@@ -1,0 +1,74 @@
+<template id="gallery-tab-template">
+    <span id="tab-gallery" class="tab">
+        <span><i class="fa fa-images icon"></i> Gallery</span>
+    </span>
+</template>
+
+<template id="gallery-content-template">
+    <div id="tab-content-gallery" class="tab-content">
+        <div id="gallery">
+            <div id="gallery-controls">
+                <span style="color: rgb(96, 96, 96);">Total <span id="gallery-count">0</span> images</span>
+                <button id="gallery-select-all" class="tertiaryButton" style="white-space: nowrap;">Select All</button>
+                <button id="gallery-deselect-all" class="tertiaryButton" style="white-space: nowrap;">Deselect All</button>
+                <button id="gallery-refresh" class="tertiaryButton" style="white-space: nowrap;">Refresh Directory</button>
+                <button id="gallery-prev-page" class="tertiaryButton" disabled style="white-space: nowrap;">← Previous</button>
+                <span id="gallery-page-status" style="white-space: nowrap;">Page 1 of 1</span>
+                <button id="gallery-next-page" class="tertiaryButton" disabled style="white-space: nowrap;">Next →</button>
+                <button id="gallery-collage-horizontal" class="primaryButton" disabled style="white-space: nowrap;">Horizontal Collage</button>
+                <button id="gallery-collage-vertical" class="primaryButton" disabled style="white-space: nowrap;">Vertical Collage</button>
+                <button id="gallery-collage-grid" class="primaryButton" disabled style="white-space: nowrap;">Grid Collage</button>
+                <button id="gallery-delete-selected" class="tertiaryButton" disabled style="white-space: nowrap;">Delete Selected</button>
+                <span id="gallery-selection-count" style="display: none;">Selected: <span id="gallery-selected-count">0</span></span>
+                <div id="gallery-zoom-control">
+                    <input type="range" id="gallery-zoom-slider" min="25" max="200" value="100" step="1">
+                </div>
+                <span id="gallery-source" style="width: 100%; color: rgb(153, 153, 153); overflow-wrap: anywhere;">Loading configured gallery directory...</span>
+            </div>
+            <div id="gallery-container"></div>
+            <div id="gallery-empty">No supported images were found in the configured gallery directory.</div>
+        </div>
+    </div>
+</template>
+
+<template id="gallery-setting-template">
+    <div id="gallery-directory-setting">
+        <div><i class="fa fa-images"></i></div>
+        <div>
+            <label for="gallery-directory-input">Gallery Image Directory</label>
+            <small>Gallery scans this server directory and its subdirectories for images.</small>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+            <input id="gallery-directory-input" type="text" style="flex: 1 1 260px; min-width: 0;" placeholder="/path/to/image/directory">
+            <button id="gallery-directory-save" type="button" class="primaryButton">Apply</button>
+            <small id="gallery-directory-status" style="width: 100%; overflow-wrap: anywhere;"></small>
+        </div>
+    </div>
+</template>
+
+<template id="gallery-lightbox-template">
+    <div id="gallery-lightbox">
+        <div id="gallery-lightbox-content">
+            <img id="gallery-lightbox-image" src="" alt="Full size image">
+            <div id="gallery-lightbox-counter"></div>
+            <div id="gallery-lightbox-controls">
+                <button class="gallery-lightbox-btn" id="gallery-lightbox-prev" title="Previous (Left Arrow)">⇠</button>
+                <button class="gallery-lightbox-btn" id="gallery-lightbox-close" title="Close (Escape)">×</button>
+                <button class="gallery-lightbox-btn" id="gallery-lightbox-next" title="Next (Right Arrow)">⇢</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="gallery-delete-confirm-template">
+    <div id="gallery-delete-confirm" role="dialog" aria-modal="true" aria-labelledby="gallery-delete-confirm-title">
+        <div id="gallery-delete-confirm-dialog">
+            <h3 id="gallery-delete-confirm-title">Confirm file deletion</h3>
+            <div id="gallery-delete-confirm-message"></div>
+            <div id="gallery-delete-confirm-actions">
+                <button id="gallery-delete-confirm-cancel" type="button" class="tertiaryButton">Cancel</button>
+                <button id="gallery-delete-confirm-continue" type="button" class="primaryButton">Continue deletion</button>
+            </div>
+        </div>
+    </div>
+</template>

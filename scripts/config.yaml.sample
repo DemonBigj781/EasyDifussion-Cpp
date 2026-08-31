@@ -10,14 +10,15 @@ render_devices: auto
 ui:
   open_browser_on_start: false
 
-# set update_branch to main to use the stable version, or to beta to use the experimental
-# beta version.
-update_branch: main
-
 # sdkit3 is the native backend. This fork does not install or update Forge.
 backend: sdkit3
 backend_config:
   auto_update: false
+# Optional explicit Perchance v1 AppImage/launcher path. If omitted, Easy
+# Diffusion checks tools/perchance, perchance, the repository root, and the
+# current user's bin directories.
+# perchance:
+#   launcher: /path/to/Perchance-1.0.0-x86_64.AppImage
 # Advanced backend overrides are applied by scripts/check_modules.py.
 #   # Extra backend flags (example: cross-attention optimizations)
 #   COMMANDLINE_ARGS: "--opt-split-attention"

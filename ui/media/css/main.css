@@ -1221,6 +1221,69 @@ input::file-selector-button {
     right: calc(var(--input-border-size) + var(--input-switch-padding));
     opacity: 1;
 }
+
+.native-backend-arguments-editor {
+    display: grid;
+    gap: 8px;
+    width: min(760px, 65vw);
+    min-width: min(520px, 65vw);
+}
+
+.native-backend-arguments-editor details {
+    border: 1px solid var(--background-color3);
+    border-radius: var(--input-border-radius);
+    padding: 6px 8px;
+}
+
+.native-backend-arguments-editor summary {
+    cursor: pointer;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.native-backend-argument-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+    gap: 7px 12px;
+}
+
+.native-backend-argument-toggle,
+.native-backend-argument-value {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.native-backend-argument-toggle small,
+.native-backend-argument-value small {
+    display: block;
+    opacity: 0.7;
+}
+
+.native-backend-argument-value input,
+.native-backend-argument-value select {
+    width: 145px;
+}
+
+.native-backend-additional-arguments,
+.native-backend-additional-arguments textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.native-backend-arguments-preview {
+    overflow-wrap: anywhere;
+    opacity: 0.75;
+}
+
+@media (max-width: 760px) {
+    .native-backend-arguments-editor {
+        min-width: 0;
+        width: 100%;
+    }
+}
 .model-filter {
     width: 90%;
     padding-right: 20px;

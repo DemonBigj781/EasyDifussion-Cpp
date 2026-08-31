@@ -19,6 +19,7 @@
 #include "logging.h"
 #include "model_manager.h"
 #include "server.h"
+#include "stable-diffusion.h"
 
 std::unique_ptr<Server> g_server;
 std::atomic<bool> g_should_exit(false);
@@ -114,6 +115,9 @@ struct CommandLineArgs {
     std::string video_max_vram;
     bool video_stream_layers = false;
     bool chroma_disable_dit_mask = false;
+    std::string convert_model;
+    std::string convert_output;
+    std::string convert_type = "f16";
 };
 
 void print_usage(const char* program_name) {
@@ -166,6 +170,11 @@ void print_usage(const char* program_name) {
     std::cerr << "  --video-stream-layers              Stream native-video diffusion layers within its VRAM budget"
               << std::endl;
     std::cerr << "  --chroma-disable-dit-mask          Disable DiT mask for Chroma models (default: false)"
+              << std::endl;
+    std::cerr << "  --convert-model <path>             Convert a checkpoint, safetensors, or Diffusers model and exit"
+              << std::endl;
+    std::cerr << "  --convert-output <path>            GGUF output path used with --convert-model" << std::endl;
+    std::cerr << "  --convert-type <type>              Conversion type (default: f16; e.g. f32, bf16, q8_0, q5_0, q4_0)"
               << std::endl;
 }
 
@@ -275,6 +284,12 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.video_stream_layers = true;
         } else if (arg == "--chroma-disable-dit-mask") {
             args.chroma_disable_dit_mask = true;
+        } else if (arg == "--convert-model" && i + 1 < argc) {
+            args.convert_model = argv[++i];
+        } else if (arg == "--convert-output" && i + 1 < argc) {
+            args.convert_output = argv[++i];
+        } else if (arg == "--convert-type" && i + 1 < argc) {
+            args.convert_type = argv[++i];
         } else if (arg == "--help" || arg == "-h") {
             print_usage(argv[0]);
             exit(0);
@@ -291,6 +306,10 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
     }
     if (args.vae_tiled_overlap < 0 || args.vae_tiled_overlap * 2 > args.vae_tiles) {
         std::cerr << "--vae-tiled-overlap must be between 0 and half of --vae-tiles" << std::endl;
+        exit(1);
+    }
+    if (!args.convert_model.empty() && args.convert_output.empty()) {
+        std::cerr << "--convert-output is required with --convert-model" << std::endl;
         exit(1);
     }
 
@@ -315,6 +334,30 @@ int main(int argc, char* argv[]) {
 
     // Set log level from command line argument
     set_log_level(args.log_level);
+
+    if (!args.convert_model.empty()) {
+        const sd_type_t output_type = str_to_sd_type(args.convert_type.c_str());
+        if (output_type == SD_TYPE_COUNT) {
+            LOG_ERROR("Unsupported conversion type: %s", args.convert_type.c_str());
+            return 1;
+        }
+        LOG_INFO("Converting model '%s' to '%s' as %s",
+                 args.convert_model.c_str(),
+                 args.convert_output.c_str(),
+                 args.convert_type.c_str());
+        const bool success = convert(args.convert_model.c_str(),
+                                     "",
+                                     args.convert_output.c_str(),
+                                     output_type,
+                                     "",
+                                     false);
+        if (!success) {
+            LOG_ERROR("Native model conversion failed");
+            return 1;
+        }
+        LOG_INFO("Native model conversion completed");
+        return 0;
+    }
     if (args.cuda_malloc) {
         LOG_INFO("CUDA legacy malloc pool enabled (VMM scratch pool disabled)");
     }

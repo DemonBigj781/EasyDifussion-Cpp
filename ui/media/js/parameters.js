@@ -31,6 +31,92 @@ let installExtrasTable = document.querySelector("#system-settings-install-extras
  * @property {boolean?} saveInAppConfig
  */
 
+const NATIVE_BACKEND_BOOLEAN_OPTIONS = [
+    { flag: "--diffusion-fa", label: "Diffusion flash attention", group: "performance" },
+    { flag: "--flash-attention", label: "Flash attention for all modules", group: "performance" },
+    { flag: "--sage-attention", label: "SageAttention SM80", group: "performance" },
+    { flag: "--xformers", label: "xFormers-compatible fused attention", group: "performance" },
+    { flag: "--cuda-malloc", label: "Legacy cudaMalloc pool", group: "performance" },
+    { flag: "--keep-model-loaded", label: "Keep model weights loaded", group: "performance" },
+    { flag: "--offload-to-cpu", label: "Image/model parameter CPU offload", group: "image" },
+    { flag: "--image-clip-on-cpu", label: "Image text encoder on CPU", group: "image" },
+    { flag: "--image-vae-on-cpu", label: "Image VAE on CPU", group: "image" },
+    { flag: "--control-net-cpu", label: "ControlNet on CPU", group: "image" },
+    { flag: "--vae-tiling", label: "VAE tiling", group: "image" },
+    { flag: "--stream-layers", label: "Stream image/model layers", group: "image" },
+    { flag: "--video-clip-on-cpu", label: "Video text encoder on CPU", group: "video" },
+    { flag: "--video-vae-on-cpu", label: "Video VAE on CPU", group: "video" },
+    { flag: "--video-offload-to-cpu", label: "Video diffusion CPU offload", group: "video" },
+    { flag: "--video-stream-layers", label: "Stream video diffusion layers", group: "video" },
+]
+
+const NATIVE_BACKEND_VALUE_OPTIONS = [
+    { flag: "--vae-tiles", label: "VAE latent tile size", group: "image", type: "number", min: 4, step: 1, placeholder: 32 },
+    { flag: "--vae-tiled-overlap", label: "VAE tile overlap", group: "image", type: "number", min: 0, step: 1, placeholder: 16 },
+    { flag: "--vae-tile-size", label: "VAE pixel tile size", group: "image", type: "text", placeholder: "256x256" },
+    { flag: "--max-vram", label: "Image/model VRAM budget", group: "image", type: "text", placeholder: "6 or cuda=6,cpu=0" },
+    { flag: "--video-max-vram", label: "Video VRAM budget (GiB)", group: "video", type: "number", min: 0, step: 0.25, placeholder: 8 },
+]
+
+function nativeBackendArgumentId(flag) {
+    return `native-backend-arg-${flag.slice(2).replaceAll("-", "_")}`
+}
+
+function nativeBackendToggleMarkup(option) {
+    const id = nativeBackendArgumentId(option.flag)
+    return `<div class="native-backend-argument-toggle">
+        <div><label for="${id}">${option.label}</label><small>${option.flag}</small></div>
+        <div class="input-toggle"><input id="${id}" type="checkbox"><label for="${id}"></label></div>
+    </div>`
+}
+
+function nativeBackendValueMarkup(option) {
+    const id = nativeBackendArgumentId(option.flag)
+    const min = option.min === undefined ? "" : ` min="${option.min}"`
+    const step = option.step === undefined ? "" : ` step="${option.step}"`
+    return `<label class="native-backend-argument-value" for="${id}">
+        <span>${option.label}<small>${option.flag}</small></span>
+        <input id="${id}" type="${option.type}"${min}${step} placeholder="${option.placeholder || ""}">
+    </label>`
+}
+
+function renderNativeBackendArgumentsEditor(parameter) {
+    const optionsFor = (group) => [
+        ...NATIVE_BACKEND_BOOLEAN_OPTIONS.filter((option) => option.group === group).map(nativeBackendToggleMarkup),
+        ...NATIVE_BACKEND_VALUE_OPTIONS.filter((option) => option.group === group).map(nativeBackendValueMarkup),
+    ].join("")
+    return `<div id="native-backend-arguments-editor" class="native-backend-arguments-editor">
+        <input id="${parameter.id}" name="${parameter.id}" type="hidden">
+        <label class="native-backend-argument-value" for="native-backend-arg-log_level">
+            <span>Log level<small>--log-level</small></span>
+            <select id="native-backend-arg-log_level">
+                <option value="">Default (info)</option>
+                <option value="verbose">Verbose</option>
+                <option value="debug">Debug</option>
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="error">Error</option>
+            </select>
+        </label>
+        <label class="native-backend-argument-value" for="native-backend-arg-mmap_mode">
+            <span>Weight memory mapping<small>--mmap / --no-mmap</small></span>
+            <select id="native-backend-arg-mmap_mode">
+                <option value="">Automatic</option>
+                <option value="--mmap">Enabled</option>
+                <option value="--no-mmap">Disabled</option>
+            </select>
+        </label>
+        <details open><summary>Performance</summary><div class="native-backend-argument-grid">${optionsFor("performance")}</div></details>
+        <details open><summary>Image and shared memory</summary><div class="native-backend-argument-grid">${optionsFor("image")}</div></details>
+        <details open><summary>Native video memory</summary><div class="native-backend-argument-grid">${optionsFor("video")}</div></details>
+        <label class="native-backend-additional-arguments" for="native-backend-additional-arguments">
+            Additional arguments
+            <textarea id="native-backend-additional-arguments" rows="2" cols="48" spellcheck="false" placeholder="Uncommon or newly added flags"></textarea>
+        </label>
+        <small id="native-backend-arguments-preview" class="native-backend-arguments-preview"></small>
+    </div>`
+}
+
 /** @type {Array.<Parameter>} */
 var PARAMETERS = [
     {
@@ -241,15 +327,6 @@ var PARAMETERS = [
         table: networkParametersTable,
     },
     {
-        id: "use_beta_channel",
-        type: ParameterType.checkbox,
-        label: "Beta channel",
-        note:
-            "Get the latest features immediately (but could be less stable). Please restart the program after changing this.",
-        icon: "fa-fire",
-        default: false,
-    },
-    {
         id: "backend_platform",
         type: ParameterType.select,
         label: "Backend platform",
@@ -268,11 +345,10 @@ var PARAMETERS = [
         type: ParameterType.custom,
         label: "Native backend arguments",
         note:
-            "Advanced sdkit3 arguments, parsed without a shell. Easy Diffusion continues to manage the server port and model-directory arguments.",
+            "Structured sdkit3 startup options. Saving with Reload enabled applies them immediately while the queue is idle.",
         icon: "fa-terminal",
         saveInAppConfig: true,
-        render: (parameter) =>
-            `<textarea id="${parameter.id}" name="${parameter.id}" rows="4" cols="48" spellcheck="false"></textarea>`,
+        render: renderNativeBackendArgumentsEditor,
     },
     {
         id: "reload_backend",
@@ -431,6 +507,140 @@ function initParameters(parameters) {
 
 initParameters(PARAMETERS)
 
+function splitNativeBackendArguments(value) {
+    const argumentsList = []
+    let token = ""
+    let quote = ""
+    let escaped = false
+    let tokenStarted = false
+    for (const character of String(value || "")) {
+        if (escaped) {
+            token += character
+            escaped = false
+            tokenStarted = true
+        } else if (character === "\\" && quote !== "'") {
+            escaped = true
+            tokenStarted = true
+        } else if (quote) {
+            if (character === quote) quote = ""
+            else token += character
+        } else if (character === "'" || character === '"') {
+            quote = character
+            tokenStarted = true
+        } else if (/\s/.test(character)) {
+            if (tokenStarted) {
+                argumentsList.push(token)
+                token = ""
+                tokenStarted = false
+            }
+        } else {
+            token += character
+            tokenStarted = true
+        }
+    }
+    if (escaped) token += "\\"
+    if (tokenStarted) argumentsList.push(token)
+    return argumentsList
+}
+
+function quoteNativeBackendArgument(value) {
+    const text = String(value)
+    if (/^[a-zA-Z0-9_@%+=:,./-]+$/.test(text)) return text
+    return `'${text.replaceAll("'", `'"'"'`)}'`
+}
+
+function validateNativeBackendArgumentEditor() {
+    const tiles = document.getElementById(nativeBackendArgumentId("--vae-tiles"))
+    const overlap = document.getElementById(nativeBackendArgumentId("--vae-tiled-overlap"))
+    if (!tiles || !overlap) return true
+    const tileValue = tiles.value === "" ? null : Number(tiles.value)
+    const overlapValue = overlap.value === "" ? null : Number(overlap.value)
+    const invalidOverlap = tileValue !== null && overlapValue !== null && overlapValue > tileValue / 2
+    overlap.setCustomValidity(invalidOverlap ? "VAE tile overlap cannot exceed half the latent tile size." : "")
+    return !invalidOverlap && tiles.checkValidity() && overlap.checkValidity()
+}
+
+function initNativeBackendArgumentEditor() {
+    const editor = document.getElementById("native-backend-arguments-editor")
+    const hidden = document.getElementById("backend_commandline_args")
+    if (!editor || !hidden) return
+
+    const additional = document.getElementById("native-backend-additional-arguments")
+    const preview = document.getElementById("native-backend-arguments-preview")
+    const logLevel = document.getElementById("native-backend-arg-log_level")
+    const mmapMode = document.getElementById("native-backend-arg-mmap_mode")
+    const booleanOptions = new Map(NATIVE_BACKEND_BOOLEAN_OPTIONS.map((option) => [option.flag, option]))
+    const valueOptions = new Map(NATIVE_BACKEND_VALUE_OPTIONS.map((option) => [option.flag, option]))
+    let applyingSavedArguments = false
+
+    function updatePreview() {
+        preview.textContent = hidden.value || "No custom native backend arguments."
+    }
+
+    function serializeEditor() {
+        if (applyingSavedArguments) return
+        validateNativeBackendArgumentEditor()
+        const tokens = []
+        if (logLevel.value) tokens.push("--log-level", logLevel.value)
+        for (const option of NATIVE_BACKEND_BOOLEAN_OPTIONS) {
+            if (document.getElementById(nativeBackendArgumentId(option.flag)).checked) tokens.push(option.flag)
+        }
+        if (mmapMode.value) tokens.push(mmapMode.value)
+        for (const option of NATIVE_BACKEND_VALUE_OPTIONS) {
+            const value = document.getElementById(nativeBackendArgumentId(option.flag)).value.trim()
+            if (value) tokens.push(option.flag, value)
+        }
+        tokens.push(...splitNativeBackendArguments(additional.value))
+        hidden.value = tokens.map(quoteNativeBackendArgument).join(" ")
+        updatePreview()
+    }
+
+    function applySavedArguments() {
+        applyingSavedArguments = true
+        for (const option of NATIVE_BACKEND_BOOLEAN_OPTIONS) {
+            document.getElementById(nativeBackendArgumentId(option.flag)).checked = false
+        }
+        for (const option of NATIVE_BACKEND_VALUE_OPTIONS) {
+            document.getElementById(nativeBackendArgumentId(option.flag)).value = ""
+        }
+        logLevel.value = ""
+        mmapMode.value = ""
+
+        const extras = []
+        const tokens = splitNativeBackendArguments(hidden.value)
+        for (let index = 0; index < tokens.length; index += 1) {
+            const token = tokens[index]
+            const equalIndex = token.indexOf("=")
+            const flag = equalIndex > 0 ? token.slice(0, equalIndex) : token
+            const inlineValue = equalIndex > 0 ? token.slice(equalIndex + 1) : null
+            if (booleanOptions.has(flag) && inlineValue === null) {
+                document.getElementById(nativeBackendArgumentId(flag)).checked = true
+            } else if ((flag === "--mmap" || flag === "--no-mmap") && inlineValue === null) {
+                mmapMode.value = flag
+            } else if (flag === "--log-level" && (inlineValue !== null || index + 1 < tokens.length)) {
+                logLevel.value = inlineValue !== null ? inlineValue : tokens[++index]
+            } else if (valueOptions.has(flag) && (inlineValue !== null || index + 1 < tokens.length)) {
+                document.getElementById(nativeBackendArgumentId(flag)).value = inlineValue !== null ? inlineValue : tokens[++index]
+            } else {
+                extras.push(token)
+            }
+        }
+        additional.value = extras.map(quoteNativeBackendArgument).join(" ")
+        applyingSavedArguments = false
+        validateNativeBackendArgumentEditor()
+        updatePreview()
+    }
+
+    editor.querySelectorAll("input:not([type=hidden]), select, textarea").forEach((control) => {
+        control.addEventListener("change", serializeEditor)
+        control.addEventListener("input", serializeEditor)
+    })
+    hidden.addEventListener("change", applySavedArguments)
+    applySavedArguments()
+}
+
+initNativeBackendArgumentEditor()
+
 // listen to parameters from plugins
 PARAMETERS.addEventListener("push", (...items) => {
     initParameters(items)
@@ -453,7 +663,6 @@ let diskPathField = document.querySelector("#diskPath")
 let metadataOutputFormatField = document.querySelector("#metadata_output_format")
 let listenToNetworkField = document.querySelector("#listen_to_network")
 let listenPortField = document.querySelector("#listen_port")
-let useBetaChannelField = document.querySelector("#use_beta_channel")
 let uiOpenBrowserOnStartField = document.querySelector("#ui_open_browser_on_start")
 let confirmDangerousActionsField = document.querySelector("#confirm_dangerous_actions")
 let testDiffusers = document.querySelector("#use_v3_engine")
@@ -512,10 +721,6 @@ async function getAppConfig() {
         applySettingsFromConfig(config)
 
         // custom overrides
-        if (config.update_branch === "beta") {
-            useBetaChannelField.checked = true
-            document.querySelector("#updateBranchLabel").innerText = "(beta)"
-        }
         if (config.ui && config.ui.open_browser_on_start === false) {
             uiOpenBrowserOnStartField.checked = false
         }
@@ -797,6 +1002,12 @@ async function getSystemInfo() {
 }
 
 saveSettingsBtn.addEventListener("click", function () {
+    validateNativeBackendArgumentEditor()
+    const invalidBackendArgument = document.querySelector("#native-backend-arguments-editor :invalid")
+    if (invalidBackendArgument) {
+        invalidBackendArgument.reportValidity()
+        return
+    }
     if (listenPortField.value == "") {
         alert("The network port field must not be empty.")
         return
@@ -805,11 +1016,8 @@ saveSettingsBtn.addEventListener("click", function () {
         alert("The network port must be a number from 1 to 65535")
         return
     }
-    const updateBranch = useBetaChannelField.checked ? "beta" : "main"
-
     const updateAppConfigRequest = {
         render_devices: getCurrentRenderDeviceSelection(),
-        update_branch: updateBranch,
     }
 
     document.querySelectorAll("#system-settings [data-setting-id]").forEach((parameterRow) => {

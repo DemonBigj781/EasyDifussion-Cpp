@@ -45,17 +45,19 @@ CORE_PLUGINS_DIR = os.path.abspath(os.path.join(SD_UI_DIR, "plugins"))
 USER_UI_PLUGINS_DIR = os.path.join(USER_PLUGINS_DIR, "ui")
 CORE_UI_PLUGINS_DIR = os.path.join(CORE_PLUGINS_DIR, "ui")
 USER_SERVER_PLUGINS_DIR = os.path.join(USER_PLUGINS_DIR, "server")
+CORE_SERVER_PLUGINS_DIR = os.path.join(CORE_PLUGINS_DIR, "server")
 UI_PLUGINS_SOURCES = ((CORE_UI_PLUGINS_DIR, "core"), (USER_UI_PLUGINS_DIR, "user"))
+SERVER_PLUGINS_SOURCES = ((USER_SERVER_PLUGINS_DIR, "user"), (CORE_SERVER_PLUGINS_DIR, "core"))
 
 sys.path.append(os.path.dirname(SD_UI_DIR))
 sys.path.append(USER_SERVER_PLUGINS_DIR)
+sys.path.append(CORE_SERVER_PLUGINS_DIR)
 
 OUTPUT_DIRNAME = "Stable Diffusion UI"  # in the user's home folder
 PRESERVE_CONFIG_VARS = ["FORCE_FULL_PRECISION"]
 TASK_TTL = 15 * 60  # Discard last session's task timeout
 APP_CONFIG_DEFAULTS = {
     "render_devices": "auto",
-    "update_branch": "main",
     "ui": {
         "open_browser_on_start": True,
     },
@@ -272,9 +274,6 @@ def getUIPlugins():
 
 
 def load_server_plugins():
-    if not os.path.exists(USER_SERVER_PLUGINS_DIR):
-        return
-
     import importlib
 
     def load_plugin(file):
@@ -288,22 +287,31 @@ def load_server_plugins():
             sdkit.generate.image_generator.get_cond_and_uncond = plugin.get_cond_and_uncond
             log.info(f"Overridden get_cond_and_uncond with the one in the server plugin: {file}")
 
-    for file in os.listdir(USER_SERVER_PLUGINS_DIR):
-        file_path = os.path.join(USER_SERVER_PLUGINS_DIR, file)
-        if (not os.path.isdir(file_path) and not file_path.endswith("_plugin.py")) or (
-            os.path.isdir(file_path) and not file_path.endswith("_plugin")
-        ):
+    loaded_names = set()
+    for plugins_dir, source_name in SERVER_PLUGINS_SOURCES:
+        if not os.path.isdir(plugins_dir):
             continue
+        for file in sorted(os.listdir(plugins_dir)):
+            file_path = os.path.join(plugins_dir, file)
+            is_plugin = (
+                os.path.isfile(file_path) and file.endswith("_plugin.py")
+            ) or (
+                os.path.isdir(file_path) and file.endswith("_plugin")
+            )
+            module_name = file.removesuffix(".py")
+            if not is_plugin or module_name in loaded_names:
+                continue
 
-        try:
-            log.info(f"Loading server plugin: {file}")
-            mod = load_plugin(file)
+            try:
+                log.info(f"Loading {source_name} server plugin: {file}")
+                mod = load_plugin(file)
+                loaded_names.add(module_name)
 
-            log.info(f"Applying server plugin: {file}")
-            apply_plugin(file, mod)
-        except:
-            log.warn(f"Error while loading a server plugin")
-            log.warn(traceback.format_exc())
+                log.info(f"Applying {source_name} server plugin: {file}")
+                apply_plugin(file, mod)
+            except Exception:
+                log.warning(f"Error while loading {source_name} server plugin: {file}")
+                log.warning(traceback.format_exc())
 
 
 def getIPConfig():
