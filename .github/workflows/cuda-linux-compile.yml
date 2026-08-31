@@ -20,18 +20,13 @@ jobs:
           cuda: '12.8.1'
           method: local
           linux-local-args: '["--toolkit"]'
-      - name: Verify oneAPI was not installed by this workflow
+      - name: Verify ROCm and oneAPI are absent
         shell: bash
         run: |
           set -euo pipefail
-          if command -v icx >/dev/null 2>&1 || command -v icpx >/dev/null 2>&1 || command -v dpcpp >/dev/null 2>&1; then
-            echo 'Intel oneAPI compiler detected in CUDA-only workflow.' >&2
-            exit 1
-          fi
-          if dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -E '^intel-oneapi-' >/dev/null; then
-            echo 'Intel oneAPI package detected in CUDA-only workflow.' >&2
-            exit 1
-          fi
+          if command -v hipcc >/dev/null 2>&1 || command -v rocminfo >/dev/null 2>&1; then echo 'ROCm detected in CUDA-only workflow.' >&2; exit 1; fi
+          if command -v icx >/dev/null 2>&1 || command -v icpx >/dev/null 2>&1 || command -v dpcpp >/dev/null 2>&1; then echo 'oneAPI compiler detected in CUDA-only workflow.' >&2; exit 1; fi
+          if dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -E '^(rocm-|hip-|intel-oneapi-)' >/dev/null; then echo 'ROCm or oneAPI package detected in CUDA-only workflow.' >&2; exit 1; fi
       - name: Compile only CUDA without running binaries
         shell: bash
         run: |
