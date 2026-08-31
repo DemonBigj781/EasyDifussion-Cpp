@@ -53,23 +53,38 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          setup_oneapi() {
+            wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+            echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends "$@"
+            # Intel's setvars.sh references optional variables that may be unset.
+            # Disable nounset only while sourcing it, then restore strict mode.
+            set +u
+            source /opt/intel/oneapi/setvars.sh
+            set -u
+          }
+
           case "${{ github.event.inputs.backend }}" in
             oneapi)
-              wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
-              echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
-              sudo apt-get update
-              sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
-              source /opt/intel/oneapi/setvars.sh
-              cmake -S source/sdkit3-port-source -B build/linux-oneapi -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
+              cmake -S source/sdkit3-port-source -B build/linux-oneapi -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=icx \
+                -DCMAKE_CXX_COMPILER=icpx \
+                -DSD_SYCL=ON \
+                -DGGML_SYCL_TARGET=INTEL \
+                -DGGML_SYCL_F16=ON \
+                -DGGML_SYCL_DNN=ON \
+                -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+                -DSDKIT_BUILD_NATIVE_VISION=OFF
               cmake --build build/linux-oneapi --target sdkit --parallel 2
               test -f build/linux-oneapi/bin/sdkit
               ;;
             oneapi-cpu)
-              wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
-              echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
-              sudo apt-get update
-              sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
-              source /opt/intel/oneapi/setvars.sh
+              setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
               cmake -S source/sdkit3-port-source -B build/linux-oneapi-cpu -G Ninja \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_C_COMPILER=icx \
