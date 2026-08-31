@@ -33,6 +33,19 @@ if(MSVC)
     add_compile_options($<$<CONFIG:Debug>:/bigobj>)
 endif()
 
+# IntelLLVM is much noisier than GCC/Clang around several bundled third-party
+# headers (stb, nlohmann/json and miniz). Suppress only those diagnostics that
+# originate in bundled compatibility code; keep semantic warnings such as
+# missing override, absolute-value misuse and unused project parameters visible.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-literal-operator>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-value>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-#pragma-messages>
+    )
+endif()
+
 add_subdirectory(stable-diffusion.cpp)
 
 file(GLOB_RECURSE ED_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
