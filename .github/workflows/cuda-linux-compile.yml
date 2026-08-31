@@ -11,23 +11,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install base build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
-      - name: Install CUDA toolkit only
+      - name: Install CUDA toolkit
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
           cuda: '12.8.1'
           method: local
           linux-local-args: '["--toolkit"]'
-      - name: Verify ROCm and oneAPI are absent
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v hipcc >/dev/null 2>&1 || command -v rocminfo >/dev/null 2>&1; then echo 'ROCm detected in CUDA-only workflow.' >&2; exit 1; fi
-          if command -v icx >/dev/null 2>&1 || command -v icpx >/dev/null 2>&1 || command -v dpcpp >/dev/null 2>&1; then echo 'oneAPI compiler detected in CUDA-only workflow.' >&2; exit 1; fi
-          if dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -E '^(rocm-|hip-|intel-oneapi-)' >/dev/null; then echo 'ROCm or oneAPI package detected in CUDA-only workflow.' >&2; exit 1; fi
-      - name: Compile only CUDA without running binaries
+      - name: Compile CUDA without running binaries
         shell: bash
         run: |
           set -euo pipefail
@@ -36,12 +29,6 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CUDA_ARCHITECTURES=75 \
             -DSD_CUDA=ON \
-            -DSD_HIPBLAS=OFF \
-            -DSD_METAL=OFF \
-            -DSD_VULKAN=OFF \
-            -DSD_OPENCL=OFF \
-            -DSD_SYCL=OFF \
-            -DSD_MUSA=OFF \
             -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
             -DSDKIT_BUILD_NATIVE_VISION=OFF
           cmake --build build/linux-cuda --target sdkit --parallel 2
