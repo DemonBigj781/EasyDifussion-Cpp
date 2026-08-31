@@ -1,28 +1,8 @@
 # FlexAttention
 
 ## Status
+**Implemented as backend-neutral host C++; not a CUDA kernel.**
 
-**To be evaluated for this CUDA toolkit version.**
+This repository's FlexAttention is the high-resolution visual-token-selection policy. It sums host float attention across heads, normalizes, thresholds, adaptive-max-pools, then expands a host mask. CUDA 12.6 has no separate device implementation.
 
-## API.cpp requirements
-
-Document whether FlexAttention remains host-side for this toolkit version or gains a CUDA-native path, including transfer/synchronization behavior and fallback semantics.
-
-## Compatibility
-
-- CUDA toolkit: this directory's version
-- GPU architectures: TBD
-- Datatypes: TBD
-- Device-resident implementation: TBD
-- Compiler requirements: TBD
-
-## Validation
-
-- Compile: TBD
-- Runtime correctness: TBD
-- Performance: TBD
-- Fallback verified: TBD
-
-## Missing work
-
-TBD from code audit and version-specific build testing.
+It can accompany CUDA inference when attention data is available on host; a device-native port would need reductions, normalization, thresholding, pooling, mask expansion, and transfer/synchronization handling.

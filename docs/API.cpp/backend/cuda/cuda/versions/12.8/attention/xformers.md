@@ -1,28 +1,9 @@
 # xFormers
 
 ## Status
+**Stub / not implemented.**
 
-**To be evaluated for this CUDA toolkit version.**
+The common xFormers API surface is present, but the current implementation does not expose a usable CUDA xFormers kernel and reports unsupported. CUDA 12.8 does not change this.
 
-## API.cpp requirements
-
-Document whether the common xFormers ABI has a real CUDA implementation for this toolkit version, what capability checks gate it, and what fallback executes if unavailable.
-
-## Compatibility
-
-- CUDA toolkit: this directory's version
-- GPU architectures: TBD
-- Datatypes: TBD
-- Kernel/algorithm requirements: TBD
-- Compiler requirements: TBD
-
-## Validation
-
-- Compile: TBD
-- Runtime correctness: TBD
-- Performance: TBD
-- Fallback verified: TBD
-
-## Missing work
-
-TBD from code audit and version-specific build testing.
+## Required work
+Implement CUDA execution, capability probing, dtype/shape rules, dispatch/fallback behavior, and correctness/performance validation. The symbol surface should remain compile-complete while runtime capability is false.

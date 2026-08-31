@@ -1,28 +1,8 @@
 # TeaCache
 
 ## Status
+**Implemented — backend-neutral C++; host-resident state.**
 
-**To be evaluated for this CUDA toolkit version.**
+TeaCache is enabled for supported DiT model types, tracks prior diffusion/residual state on host, and applies model-specific reuse/rescaling policy. The runtime includes model-specific coefficients for LTX-Video and Wan variants. There is no CUDA-specific TeaCache kernel in CUDA 12.8.
 
-## API.cpp requirements
-
-Document whether TeaCache remains a host-resident policy or uses any CUDA-specific residual/state placement, transfer, synchronization, or acceleration for this toolkit version.
-
-## Compatibility
-
-- CUDA toolkit: this directory's version
-- GPU architectures: TBD
-- Cache residency: TBD
-- Transfer behavior: TBD
-- Compiler requirements: TBD
-
-## Validation
-
-- Compile: TBD
-- Runtime correctness: TBD
-- Performance impact: TBD
-- Fallback verified: TBD
-
-## Missing work
-
-TBD from code audit and version-specific build testing.
+CUDA-specific work is transfer/synchronization or future device-resident acceleration, not moving generic TeaCache policy into the backend.

@@ -1,28 +1,8 @@
 # EasyCache
 
 ## Status
+**Implemented — backend-neutral C++; host-resident state.**
 
-**To be evaluated for this CUDA toolkit version.**
+EasyCache is enabled only for supported DiT model types and defaults to a 0.2 reuse threshold when unspecified. Its policy/state is not a CUDA kernel or device-resident cache. CUDA 12.8 therefore does not change the algorithm.
 
-## API.cpp requirements
-
-Document whether EasyCache remains a host-resident policy or uses any CUDA-specific state placement, transfer, synchronization, or acceleration for this toolkit version.
-
-## Compatibility
-
-- CUDA toolkit: this directory's version
-- GPU architectures: TBD
-- Cache residency: TBD
-- Transfer behavior: TBD
-- Compiler requirements: TBD
-
-## Validation
-
-- Compile: TBD
-- Runtime correctness: TBD
-- Performance impact: TBD
-- Fallback verified: TBD
-
-## Missing work
-
-TBD from code audit and version-specific build testing.
+CUDA-specific API work should be limited to transfers, synchronization, or a future device-resident acceleration path; generic EasyCache policy remains outside backend code.

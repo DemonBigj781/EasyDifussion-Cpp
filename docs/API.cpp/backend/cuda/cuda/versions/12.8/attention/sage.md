@@ -1,28 +1,8 @@
 # SageAttention
 
 ## Status
+**Native CUDA implementation, hardware-gated.**
 
-**To be evaluated for this CUDA toolkit version.**
+`ggml-cuda/sage/sage-attention-sm80.cu` accepts compute capability >= Ampere and < Hopper. Required tensors are Q=F32, K/V=F16, output=F32; head dimension must be 64 or 128; mask and sinks must be absent; max bias and logit softcap must both be zero; layout/contiguity checks must pass.
 
-## API.cpp requirements
-
-Document whether the CUDA Sage path compiles for this toolkit version, which GPU architectures are supported, and how unsupported devices fall back through the common API.
-
-## Compatibility
-
-- CUDA toolkit: this directory's version
-- GPU architectures: TBD
-- Datatypes: TBD
-- Kernel requirements: TBD
-- Compiler requirements: TBD
-
-## Validation
-
-- Compile: TBD
-- Runtime correctness: TBD
-- Performance: TBD
-- Fallback verified: TBD
-
-## Missing work
-
-TBD from code audit and version-specific build testing.
+CUDA 12.8 does not override these source predicates. Unsupported devices/shapes must fall back to another attention implementation.

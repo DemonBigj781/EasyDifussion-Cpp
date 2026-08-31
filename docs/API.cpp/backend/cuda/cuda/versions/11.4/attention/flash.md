@@ -1,28 +1,12 @@
 # FlashAttention
 
 ## Status
+**Implemented — CUDA optimized compatibility path.**
 
-**To be evaluated for this CUDA toolkit version.**
+API.cpp uses ggml CUDA `fattn` for the explicit FlashAttention compatibility surface. No Flash-specific CUDA-toolkit version gate was found in the repository; eligibility is determined by the CUDA fattn dispatcher, tensor shape/type, and device support.
 
-## API.cpp requirements
+## Fallback
+If fattn is ineligible, dispatch must use a correct non-Flash attention path rather than treating generic attention as FlashAttention.
 
-Document whether the CUDA backend provides native FlashAttention or an adapter to the existing CUDA `fattn` path, whether the common compatibility API compiles, and what fallback is used when unsupported.
-
-## Compatibility
-
-- CUDA toolkit: this directory's version
-- GPU architectures: TBD
-- Datatypes: TBD
-- Head sizes/shapes: TBD
-- Compiler requirements: TBD
-
-## Validation
-
-- Compile: TBD
-- Runtime correctness: TBD
-- Performance: TBD
-- Fallback verified: TBD
-
-## Missing work
-
-TBD from code audit and version-specific build testing.
+## Version note
+This source-level status is unchanged for CUDA 11.4; compile/runtime validation is still required for the selected GPU architecture.
