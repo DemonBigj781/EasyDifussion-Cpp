@@ -16,6 +16,25 @@ on:
           - vulkan
           - opencl
           - cpu
+      cuda_sm:
+        description: CUDA SM architecture (used only when backend is cuda)
+        required: true
+        default: '75'
+        type: choice
+        options:
+          - '52'
+          - '60'
+          - '61'
+          - '70'
+          - '72'
+          - '75'
+          - '80'
+          - '86'
+          - '87'
+          - '89'
+          - '90'
+          - '100'
+          - '120'
 
 permissions:
   contents: read
@@ -59,8 +78,6 @@ jobs:
             echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends "$@"
-            # Intel's setvars.sh references optional variables that may be unset.
-            # Disable nounset only while sourcing it, then restore strict mode.
             set +u
             source /opt/intel/oneapi/setvars.sh
             set -u
@@ -70,38 +87,26 @@ jobs:
             oneapi)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
               cmake -S source/sdkit3-port-source -B build/linux-oneapi -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_C_COMPILER=icx \
-                -DCMAKE_CXX_COMPILER=icpx \
-                -DGGML_CCACHE=OFF \
-                -DSD_SYCL=ON \
-                -DGGML_SYCL_TARGET=INTEL \
-                -DGGML_SYCL_F16=ON \
-                -DGGML_SYCL_DNN=ON \
-                -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-                -DSDKIT_BUILD_NATIVE_VISION=OFF
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF \
+                -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               cmake --build build/linux-oneapi --target sdkit --parallel 2
               test -f build/linux-oneapi/bin/sdkit
               ;;
             oneapi-cpu)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
               cmake -S source/sdkit3-port-source -B build/linux-oneapi-cpu -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_C_COMPILER=icx \
-                -DCMAKE_CXX_COMPILER=icpx \
-                -DGGML_CCACHE=OFF \
-                -DGGML_BLAS=ON \
-                -DGGML_BLAS_VENDOR=Intel10_64lp_seq \
-                -DGGML_NATIVE=ON \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-                -DSDKIT_BUILD_NATIVE_VISION=OFF
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF \
+                -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=Intel10_64lp_seq -DGGML_NATIVE=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               cmake --build build/linux-oneapi-cpu --target sdkit --parallel 2
               test -f build/linux-oneapi-cpu/bin/sdkit
               ;;
             cuda)
               command -v nvcc >/dev/null
-              cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DSD_CUDA=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${{ github.event.inputs.cuda_sm }} \
+                -DSD_CUDA=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               cmake --build build/linux-cuda --target sdkit --parallel 2
               test -f build/linux-cuda/bin/sdkit
               ;;
