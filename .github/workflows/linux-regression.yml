@@ -14,6 +14,7 @@ on:
           - cuda
           - rocm
           - vulkan
+          - opengl
           - opencl
           - cpu
 
@@ -49,7 +50,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends rocm-dev hipblas-dev rocblas-dev
 
-      - name: Validate source and backend configuration without executing built binaries
+      - name: Validate source and selected backend configuration without executing built binaries
         shell: bash
         run: |
           set -euo pipefail
@@ -71,46 +72,55 @@ jobs:
             oneapi)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi -G Ninja \
-                -DCMAKE_C_COMPILER=icx \
-                -DCMAKE_CXX_COMPILER=icpx \
-                -DGGML_CCACHE=OFF \
-                -DSD_SYCL=ON \
-                -DGGML_SYCL_TARGET=INTEL \
-                -DGGML_SYCL_F16=ON \
-                -DGGML_SYCL_DNN=ON \
-                -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-                -DSDKIT_BUILD_NATIVE_VISION=OFF
+                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DSDKIT_OPENGL_BACKEND=OFF \
+                -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_MUSA=OFF \
+                -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             oneapi-cpu)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi-cpu -G Ninja \
-                -DCMAKE_C_COMPILER=icx \
-                -DCMAKE_CXX_COMPILER=icpx \
-                -DGGML_CCACHE=OFF \
-                -DGGML_BLAS=ON \
-                -DGGML_BLAS_VENDOR=Intel10_64lp_seq \
-                -DGGML_NATIVE=ON \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-                -DSDKIT_BUILD_NATIVE_VISION=OFF
+                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DSDKIT_OPENGL_BACKEND=OFF \
+                -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=Intel10_64lp_seq -DGGML_NATIVE=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             cuda)
               command -v nvcc >/dev/null
-              cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DSD_CUDA=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DSDKIT_OPENGL_BACKEND=OFF \
+                -DSD_CUDA=ON -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             rocm)
               export PATH=/opt/rocm/bin:$PATH
-              cmake -S source/sdkit3-port-source -B build/regress-linux-rocm -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ -DSD_HIPBLAS=ON -DGPU_TARGETS=gfx1030 -DAMDGPU_TARGETS=gfx1030 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake -S source/sdkit3-port-source -B build/regress-linux-rocm -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ -DSDKIT_OPENGL_BACKEND=OFF \
+                -DSD_CUDA=OFF -DSD_HIPBLAS=ON -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DGPU_TARGETS=gfx1030 -DAMDGPU_TARGETS=gfx1030 -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             vulkan)
               sudo apt-get install -y --no-install-recommends libvulkan-dev glslc spirv-headers
-              cmake -S source/sdkit3-port-source -B build/regress-linux-vulkan -G Ninja -DSD_VULKAN=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake -S source/sdkit3-port-source -B build/regress-linux-vulkan -G Ninja \
+                -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=ON -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              ;;
+            opengl)
+              sudo apt-get install -y --no-install-recommends libgl1-mesa-dev
+              cmake -S source/sdkit3-port-source -B build/regress-linux-opengl -G Ninja \
+                -DSDKIT_OPENGL_BACKEND=ON -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             opencl)
               sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev opencl-headers
-              cmake -S source/sdkit3-port-source -B build/regress-linux-opencl -G Ninja -DSD_OPENCL=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake -S source/sdkit3-port-source -B build/regress-linux-opencl -G Ninja \
+                -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=ON -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             cpu)
-              cmake -S source/sdkit3-port-source -B build/regress-linux-cpu -G Ninja -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake -S source/sdkit3-port-source -B build/regress-linux-cpu -G Ninja \
+                -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
           esac
