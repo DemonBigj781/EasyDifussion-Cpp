@@ -21,23 +21,20 @@ Options:
   --gguf-tools    Install GGUF conversion tools into Easy Diffusion's main venv.
   --cuda          Require CUDA for the selected native builds.
   --sycl          Build for Intel GPUs with oneAPI/SYCL (source setvars.sh first).
+  --oneapi-cpu    Build for Intel Xeon/CPU with Intel LLVM + oneMKL BLAS.
   --sycl-device ARCH
                   Optional Intel SYCL AOT device architecture (spir64_gen).
   --sycl-no-dnn   Disable oneDNN acceleration in the GGML SYCL backend.
   --sycl-no-level-zero
                   Disable direct Level Zero support in the GGML SYCL backend.
-  --cpu           Build llama.cpp without CUDA/SYCL.
+  --cpu           Build llama.cpp without CUDA/SYCL/oneAPI CPU tuning.
   --jobs N        Set the parallel build job count.
   -h, --help      Show this help.
 
-With no component option, llama.cpp and the GGUF tools are prepared. CUDA is
-selected automatically when both nvcc and nvidia-smi are available. Easy
-Diffusion itself is started with ./start.sh; this installer prepares the
-vendored native runtimes and tools.
-
-For oneAPI builds, source Intel's setvars.sh first. By default the SYCL build
-uses Intel targets, FP16, oneDNN when available, Level Zero when available,
-and JIT device code. --sycl-device may be used later for a validated AOT target.
+For oneAPI GPU builds, source Intel's setvars.sh first. For oneAPI CPU builds,
+setvars.sh must also expose icx, icpx, and MKLROOT. The oneAPI CPU mode uses
+Intel LLVM for compilation, oneMKL through GGML's BLAS backend, and GGML native
+CPU tuning so Xeon ISA features can be selected by the compiler/runtime.
 EOF
 }
 
@@ -76,6 +73,9 @@ while [ "$#" -gt 0 ]; do
             ;;
         --sycl)
             CUDA_MODE=sycl
+            ;;
+        --oneapi-cpu)
+            CUDA_MODE=oneapi-cpu
             ;;
         --sycl-device)
             shift
@@ -130,6 +130,8 @@ SYCL_ENABLED=OFF
 BUILD_PLATFORM=cpu
 COMPILER_ARGS=()
 SYCL_CMAKE_ARGS=()
+CPU_CMAKE_ARGS=()
+
 if [ "$CUDA_MODE" = cuda ]; then
     command -v nvcc >/dev/null || fail "--cuda was requested but nvcc is unavailable"
     command -v nvidia-smi >/dev/null || fail "--cuda was requested but nvidia-smi is unavailable"
@@ -158,6 +160,18 @@ elif [ "$CUDA_MODE" = sycl ]; then
     else
         echo "SYCL device code mode: JIT (portable Intel target)"
     fi
+elif [ "$CUDA_MODE" = oneapi-cpu ]; then
+    command -v icx >/dev/null || fail "--oneapi-cpu requires Intel oneAPI icx (source setvars.sh first)"
+    command -v icpx >/dev/null || fail "--oneapi-cpu requires Intel oneAPI icpx (source setvars.sh first)"
+    [ -n "${MKLROOT:-}" ] || fail "--oneapi-cpu requires MKLROOT from oneAPI setvars.sh"
+    BUILD_PLATFORM=oneapi-cpu
+    COMPILER_ARGS=(-DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx)
+    CPU_CMAKE_ARGS=(
+        -DGGML_BLAS=ON
+        -DGGML_BLAS_VENDOR=Intel10_64lp_seq
+        -DGGML_NATIVE=ON
+    )
+    echo "oneAPI CPU mode: Intel LLVM + oneMKL + native Xeon ISA tuning"
 elif [ "$CUDA_MODE" = auto ] && command -v nvcc >/dev/null && command -v nvidia-smi >/dev/null; then
     CUDA_ENABLED=ON
     BUILD_PLATFORM=cuda
@@ -177,6 +191,7 @@ if [ "$BUILD_LLAMA" = true ]; then
     cmake -S "$LLAMA_SOURCE" -B "$LLAMA_BUILD_DIR" "${GENERATOR_ARGS[@]}" \
         "${COMPILER_ARGS[@]}" \
         "${SYCL_CMAKE_ARGS[@]}" \
+        "${CPU_CMAKE_ARGS[@]}" \
         -DGGML_CUDA="$CUDA_ENABLED" \
         -DGGML_SYCL="$SYCL_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
@@ -203,12 +218,15 @@ if [ "$BUILD_NATIVE" = true ]; then
         else
             SDKIT_VARIANT="intel-jit"
         fi
+    elif [ "$BUILD_PLATFORM" = oneapi-cpu ]; then
+        SDKIT_VARIANT="xeon-mkl-native"
     fi
     SDKIT_TARGET_DIR="$PROJECT_ROOT/backends/sdkit3/linux-x64-$BUILD_PLATFORM-$SDKIT_VARIANT"
     echo "Configuring sdkit/stable-diffusion.cpp ($BUILD_PLATFORM) with the integrated llama.cpp runtime..."
     cmake -S "$SDKIT_SOURCE" -B "$SDKIT_BUILD_DIR" "${GENERATOR_ARGS[@]}" \
         "${COMPILER_ARGS[@]}" \
         "${SYCL_CMAKE_ARGS[@]}" \
+        "${CPU_CMAKE_ARGS[@]}" \
         -DSD_CUDA="$CUDA_ENABLED" \
         -DSD_SYCL="$SYCL_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
