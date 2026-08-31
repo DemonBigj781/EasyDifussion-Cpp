@@ -73,6 +73,7 @@ jobs:
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi -G Ninja \
                 -DCMAKE_C_COMPILER=icx \
                 -DCMAKE_CXX_COMPILER=icpx \
+                -DGGML_CCACHE=OFF \
                 -DSD_SYCL=ON \
                 -DGGML_SYCL_TARGET=INTEL \
                 -DGGML_SYCL_F16=ON \
@@ -86,6 +87,7 @@ jobs:
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi-cpu -G Ninja \
                 -DCMAKE_C_COMPILER=icx \
                 -DCMAKE_CXX_COMPILER=icpx \
+                -DGGML_CCACHE=OFF \
                 -DGGML_BLAS=ON \
                 -DGGML_BLAS_VENDOR=Intel10_64lp_seq \
                 -DGGML_NATIVE=ON \
