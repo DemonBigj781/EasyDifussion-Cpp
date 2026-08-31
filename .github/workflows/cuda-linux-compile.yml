@@ -2,6 +2,27 @@ name: CUDA Linux Compile
 
 on:
   workflow_dispatch:
+    inputs:
+      nvidia_device:
+        description: NVIDIA device to compile for
+        required: true
+        default: rtx-3060
+        type: choice
+        options:
+          - p102-100
+          - tesla-p100
+          - tesla-v100
+          - jetson-xavier
+          - quadro-rtx-4000
+          - rtx-2080-ti
+          - a100
+          - rtx-3060
+          - nvidia-a2
+          - jetson-orin
+          - rtx-4090
+          - h100
+          - b200
+          - rtx-5090
 
 permissions:
   contents: read
@@ -14,20 +35,36 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install base build dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
-      - name: Install CUDA toolkit
+      - name: Install CUDA toolkit only
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
           cuda: '12.8.1'
           method: local
           linux-local-args: '["--toolkit"]'
-      - name: Compile CUDA without running binaries
+      - name: Compile only CUDA without running binaries
         shell: bash
         run: |
           set -euo pipefail
           command -v nvcc >/dev/null
+          case "${{ github.event.inputs.nvidia_device }}" in
+            p102-100) CUDA_ARCH=61 ;;
+            tesla-p100) CUDA_ARCH=60 ;;
+            tesla-v100) CUDA_ARCH=70 ;;
+            jetson-xavier) CUDA_ARCH=72 ;;
+            quadro-rtx-4000|rtx-2080-ti) CUDA_ARCH=75 ;;
+            a100) CUDA_ARCH=80 ;;
+            rtx-3060|nvidia-a2) CUDA_ARCH=86 ;;
+            jetson-orin) CUDA_ARCH=87 ;;
+            rtx-4090) CUDA_ARCH=89 ;;
+            h100) CUDA_ARCH=90 ;;
+            b200) CUDA_ARCH=100 ;;
+            rtx-5090) CUDA_ARCH=120 ;;
+            *) echo 'Unknown NVIDIA device selection' >&2; exit 2 ;;
+          esac
+          echo "Compiling for ${{ github.event.inputs.nvidia_device }} (SM ${CUDA_ARCH})"
           cmake -S source/sdkit3-port-source -B build/linux-cuda -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CUDA_ARCHITECTURES=75 \
+            -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH} \
             -DSD_CUDA=ON \
             -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
             -DSDKIT_BUILD_NATIVE_VISION=OFF
