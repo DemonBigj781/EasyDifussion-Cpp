@@ -17,6 +17,25 @@ on:
           - opengl
           - opencl
           - cpu
+      cuda_sm:
+        description: CUDA SM architecture (used only when backend is cuda)
+        required: true
+        default: '75'
+        type: choice
+        options:
+          - '52'
+          - '60'
+          - '61'
+          - '70'
+          - '72'
+          - '75'
+          - '80'
+          - '86'
+          - '87'
+          - '89'
+          - '90'
+          - '100'
+          - '120'
 
 permissions:
   contents: read
@@ -88,7 +107,7 @@ jobs:
             cuda)
               command -v nvcc >/dev/null
               cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DSDKIT_OPENGL_BACKEND=OFF \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${{ github.event.inputs.cuda_sm }} -DSDKIT_OPENGL_BACKEND=OFF \
                 -DSD_CUDA=ON -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
                 -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
