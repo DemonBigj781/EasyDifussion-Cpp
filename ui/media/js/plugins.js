@@ -117,28 +117,29 @@ const REQUIRED_UI_PLUGINS = [
 // disabling takes effect on the next page load.
 const OPTIONAL_UI_PLUGIN_STORAGE_KEY = "easy-diffusion-enabled-local-plugins-v1"
 const OPTIONAL_UI_PLUGINS = Object.freeze([
-    { id: "cpp-gifs", name: "GIF output and GIF-to-GIF", path: "/plugins/core/mads-gifs-cpp.plugin.js", defaultEnabled: true },
-    { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/user/accessibility-improvements.plugin.js" },
-    { id: "animate", name: "Animate (legacy)", path: "/plugins/user/animate.plugin%20(1).js" },
-    { id: "daily-folders", name: "Daily output folders", path: "/plugins/user/daily-folders.plugin.js" },
-    { id: "disable-source-image-zoom", name: "Disable source-image zoom", path: "/plugins/user/disable-source-image-zoom.plugin.js" },
-    { id: "gpu-mode-quick-toggle", name: "GPU mode quick toggle", path: "/plugins/user/gpu-mode-quick-toggle.plugin.js" },
-    { id: "make-image-always-visible", name: "Always-visible Make Image button", path: "/plugins/user/make-image-button-always-visible.plugin.js" },
-    { id: "processing-order-quick-toggle", name: "Processing-order quick toggle", path: "/plugins/user/processing-order-quick-toggle.plugin.js" },
-    { id: "prompt-diff", name: "Prompt diff", path: "/plugins/user/prompt-diff.plugin.js" },
-    { id: "prompt-translator", name: "Prompt translator (uses Google Translate)", path: "/plugins/user/prompt-translator.plugin.js" },
-    { id: "queue-counter", name: "Queue counter", path: "/plugins/user/queue-counter.plugin.js" },
-    { id: "rabbit-hole", name: "Rabbit Hole UI", path: "/plugins/user/rabbithole.plugins.js" },
-    { id: "random-seed-quick-toggle", name: "Random-seed quick toggle", path: "/plugins/user/random-seed-quick-toggle.plugin.js" },
-    { id: "seed-randomizer", name: "Batch seed randomizer", path: "/plugins/user/seed-randomizer.plugin.js" },
-    { id: "spell-tokenizer", name: "Spell tokenizer and merged tag search", path: "/plugins/user/spell-tokenizer.plugin.js" },
-    { id: "stig-image-to-img2img", name: "Stig image-to-img2img tools", path: "/plugins/user/stig-image-to-img2img.plugin.js" },
-    { id: "stig-image-utilities", name: "Stig image utilities", path: "/plugins/user/stigs-image_utilities.plugin.js" },
-    { id: "stig-lora-shuttle", name: "Stig LoRA shuttle controls", path: "/plugins/user/stigs-lora-shuttle-controls.plugin.js" },
-    { id: "stig-text-to-prompt", name: "Stig text-to-prompt", path: "/plugins/user/stig-text2prompt.plugin.js" },
-    { id: "storyteller", name: "Storyteller tab", path: "/plugins/user/storyteller.plugin.js" },
-    { id: "template-manager", name: "Template manager", path: "/plugins/user/template-manager.plugin.js" },
-    { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/user/toggle-spellcheck.plugin.js" },
+    { id: "cpp-gifs", name: "GIF output and GIF-to-GIF", path: "/plugins/core/mads-gifs-cpp.plugin.js", defaultEnabled: true, port: "native" },
+    { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/core/accessibility-improvements.plugin.js" },
+    // The two imported Animate copies are consolidated into this one opt-in implementation.
+    { id: "animate", name: "Animate (legacy)", path: "/plugins/core/animate.plugin.js", port: "compatibility" },
+    { id: "daily-folders", name: "Daily output folders", path: "/plugins/core/daily-folders.plugin.js" },
+    { id: "disable-source-image-zoom", name: "Disable source-image zoom", path: "/plugins/core/disable-source-image-zoom.plugin.js" },
+    { id: "gpu-mode-quick-toggle", name: "GPU mode quick toggle", path: "/plugins/core/gpu-mode-quick-toggle.plugin.js" },
+    { id: "make-image-always-visible", name: "Always-visible Make Image button", path: "/plugins/core/make-image-button-always-visible.plugin.js" },
+    { id: "processing-order-quick-toggle", name: "Processing-order quick toggle", path: "/plugins/core/processing-order-quick-toggle.plugin.js" },
+    { id: "prompt-diff", name: "Prompt diff", path: "/plugins/core/prompt-diff.plugin.js" },
+    { id: "prompt-translator", name: "Prompt translator (uses Google Translate)", path: "/plugins/core/prompt-translator.plugin.js" },
+    { id: "queue-counter", name: "Queue counter", path: "/plugins/core/queue-counter.plugin.js" },
+    { id: "rabbit-hole", name: "Rabbit Hole UI (3.5 / 4 / 4.5)", path: "/plugins/core/rabbithole.plugin.js", port: "compatibility" },
+    { id: "random-seed-quick-toggle", name: "Random-seed quick toggle", path: "/plugins/core/random-seed-quick-toggle.plugin.js" },
+    { id: "seed-randomizer", name: "Batch seed randomizer", path: "/plugins/core/seed-randomizer.plugin.js" },
+    { id: "spell-tokenizer", name: "Spell tokenizer and merged tag search", path: "/plugins/core/spell-tokenizer.plugin.js" },
+    { id: "stig-image-to-img2img", name: "Stig image-to-img2img tools", path: "/plugins/core/stig-image-to-img2img.plugin.js" },
+    { id: "stig-image-utilities", name: "Stig image utilities", path: "/plugins/core/stigs-image_utilities.plugin.js" },
+    { id: "stig-lora-shuttle", name: "Stig LoRA shuttle controls", path: "/plugins/core/stigs-lora-shuttle-controls.plugin.js" },
+    { id: "stig-text-to-prompt", name: "Stig text-to-prompt", path: "/plugins/core/stig-text2prompt.plugin.js" },
+    { id: "storyteller", name: "Storyteller tab", path: "/plugins/core/storyteller.plugin.js" },
+    { id: "template-manager", name: "Template manager", path: "/plugins/core/template-manager.plugin.js" },
+    { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/core/toggle-spellcheck.plugin.js" },
 ])
 
 function getEnabledOptionalUIPluginIds() {
@@ -154,19 +155,25 @@ function getEnabledOptionalUIPluginIds() {
 }
 
 let enabledOptionalUIPluginIds = getEnabledOptionalUIPluginIds()
+const loadedOptionalUIPluginIds = new Set()
 
 function saveEnabledOptionalUIPlugins() {
     localStorage.setItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY, JSON.stringify(Array.from(enabledOptionalUIPluginIds)))
 }
 
 async function loadOptionalUIPlugin(plugin) {
-    const status = document.getElementById(`optional-plugin-status-${plugin.id}`)
-    if (status) status.textContent = "loading…"
+    if (loadedOptionalUIPluginIds.has(plugin.id)) {
+        updateOptionalUIPluginStatus(plugin.id, "loaded")
+        return
+    }
+
+    updateOptionalUIPluginStatus(plugin.id, "loading…")
     try {
         await loadScript(plugin.path)
-        if (status) status.textContent = "loaded"
+        loadedOptionalUIPluginIds.add(plugin.id)
+        updateOptionalUIPluginStatus(plugin.id, "loaded")
     } catch (error) {
-        if (status) status.textContent = "failed"
+        updateOptionalUIPluginStatus(plugin.id, "failed")
         console.error(`Optional plugin ${plugin.name} failed to load`, error)
         if (typeof showToast === "function") showToast(`${plugin.name} failed to load: ${error.message}`, 7000, true)
     }
@@ -180,23 +187,42 @@ async function loadEnabledOptionalUIPlugins() {
     }
 }
 
-function renderOptionalUIPluginSettings() {
+function updateOptionalUIPluginStatus(pluginId, statusText) {
+    document.querySelectorAll(`[data-optional-plugin-status="${pluginId}"]`).forEach((status) => {
+        status.textContent = statusText
+    })
+}
+
+function syncOptionalUIPluginControls(pluginId) {
+    const checked = enabledOptionalUIPluginIds.has(pluginId)
+    document.querySelectorAll(`[data-optional-plugin-id="${pluginId}"]`).forEach((checkbox) => {
+        checkbox.checked = checked
+    })
+}
+
+function renderOptionalUIPluginSettings(options = {}) {
     const container = document.createElement("div")
-    container.id = "optional-ui-plugin-settings"
-    container.style.cssText = "min-width: min(620px, 70vw); max-height: 45vh; overflow: auto"
+    container.className = "optional-ui-plugin-settings"
+    container.style.cssText = options.forTab
+        ? "max-width:900px"
+        : "min-width:min(620px,70vw);max-height:45vh;overflow:auto"
 
     for (const plugin of OPTIONAL_UI_PLUGINS) {
         const row = document.createElement("label")
+        row.className = "optional-ui-plugin-row"
+        row.dataset.pluginSearch = `${plugin.name} ${plugin.id}`.toLowerCase()
         row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:center;padding:.3rem 0"
         const checkbox = document.createElement("input")
         checkbox.type = "checkbox"
         checkbox.checked = enabledOptionalUIPluginIds.has(plugin.id)
-        checkbox.dataset.pluginId = plugin.id
+        checkbox.dataset.optionalPluginId = plugin.id
         const name = document.createElement("span")
         name.textContent = plugin.name
         const status = document.createElement("small")
-        status.id = `optional-plugin-status-${plugin.id}`
-        status.textContent = checkbox.checked ? "enabled" : "disabled"
+        status.dataset.optionalPluginStatus = plugin.id
+        status.textContent = loadedOptionalUIPluginIds.has(plugin.id)
+            ? "loaded"
+            : checkbox.checked ? "enabled" : "disabled"
         row.append(checkbox, name, status)
         container.appendChild(row)
 
@@ -204,28 +230,77 @@ function renderOptionalUIPluginSettings() {
             if (checkbox.checked) {
                 enabledOptionalUIPluginIds.add(plugin.id)
                 saveEnabledOptionalUIPlugins()
+                syncOptionalUIPluginControls(plugin.id)
                 await loadOptionalUIPlugin(plugin)
             } else {
                 enabledOptionalUIPluginIds.delete(plugin.id)
                 saveEnabledOptionalUIPlugins()
-                status.textContent = "disabled after reload"
-                if (typeof showToast === "function") showToast(`${plugin.name} will be disabled after reloading the page.`)
+                syncOptionalUIPluginControls(plugin.id)
+                const needsReload = loadedOptionalUIPluginIds.has(plugin.id)
+                updateOptionalUIPluginStatus(plugin.id, needsReload ? "disabled after reload" : "disabled")
+                if (needsReload && typeof showToast === "function") {
+                    showToast(`${plugin.name} will be disabled after reloading the page.`)
+                }
             }
         })
     }
     return container
 }
 
+function createLocalPluginManagerTab() {
+    if (document.getElementById("tab-plugin")) return
+
+    const tabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+    const contentWrapper = document.getElementById("tab-content-wrapper")
+    if (!tabContainer || !contentWrapper || typeof linkTabContents !== "function") return
+
+    const tab = document.createElement("span")
+    tab.id = "tab-plugin"
+    tab.className = "tab"
+    tab.innerHTML = '<span><i class="fa fa-puzzle-piece icon"></i> Plugins</span>'
+    tabContainer.appendChild(tab)
+
+    const content = document.createElement("div")
+    content.id = "tab-content-plugin"
+    content.className = "tab-content"
+    const inner = document.createElement("div")
+    inner.id = "plugin-manager"
+    inner.className = "tab-content-inner"
+    inner.innerHTML = `
+        <h1>Local Plugin Manager</h1>
+        <p>Enable a plugin to load it now. Disabling a loaded legacy plugin takes effect after a page reload.</p>
+        <input type="search" class="optional-ui-plugin-filter" placeholder="Search plugins" autocomplete="off">
+    `
+    const list = renderOptionalUIPluginSettings({ forTab: true })
+    inner.appendChild(list)
+    content.appendChild(inner)
+    contentWrapper.appendChild(content)
+    linkTabContents(tab)
+
+    const filter = inner.querySelector(".optional-ui-plugin-filter")
+    filter.addEventListener("input", () => {
+        const query = filter.value.trim().toLowerCase()
+        list.querySelectorAll(".optional-ui-plugin-row").forEach((row) => {
+            row.style.display = !query || row.dataset.pluginSearch.includes(query) ? "grid" : "none"
+        })
+    })
+    document.addEventListener("tabClick", (event) => {
+        if (event.detail?.name === "plugin") filter.focus()
+    })
+}
+
 if (typeof PARAMETERS !== "undefined") {
     PARAMETERS.push({
         id: "optional_ui_plugins",
         type: ParameterType.custom,
-        label: "Optional local plugins",
+        label: "Optional bundled plugins",
         note: "Enable plugins immediately. Disable takes effect after a page reload because legacy plugins do not expose an unload hook.",
         icon: "fa-puzzle-piece",
         render: renderOptionalUIPluginSettings,
     })
 }
+
+createLocalPluginManagerTab()
 
 async function loadRequiredUIPlugins() {
     for (const plugin of REQUIRED_UI_PLUGINS) {

@@ -1,7 +1,10 @@
-/* Background index for the merged Danbooru/e621 spell-tokenizer CSV. */
+/*
+ * Background index for the merged Danbooru/e621 spell-tokenizer CSV.
+ * The source is headerless: tag, category, post count, quoted aliases.
+ */
 "use strict"
 
-const CSV_URL = "/plugins/user/danbooru_e621_merged_2024-12-22_pt2-ia-dd-ed.csv"
+const CSV_URL = "/plugins/core/merged_2024-12-22_pt2-ia-dd-ed.csv"
 const buckets = new Map()
 let ready = false
 

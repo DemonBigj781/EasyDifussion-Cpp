@@ -1,6 +1,34 @@
 (function () {
 if (window.__easyDiffusionRabbitHoleLoaded) return;
+
+function detectEasyDiffusionVersion() {
+	const root = document.getElementById('version');
+	const gatedVersions = Array.from(root?.querySelectorAll('[data-feature-keys]') || []);
+	const visibleVersion = gatedVersions.find((element) => {
+		const style = window.getComputedStyle?.(element);
+		return element.style.display !== 'none' && style?.display !== 'none';
+	});
+	const versionText = visibleVersion?.textContent || (gatedVersions.length ? '' : root?.textContent) || '';
+	const match = versionText.match(/v?(\d+)(?:\.(\d+))?/i);
+	if (!match) return '3.5';
+	const major = Number(match[1]);
+	const minor = Number(match[2] || 0);
+	if (major > 4 || (major === 4 && minor >= 5)) return '4.5';
+	return major >= 4 ? '4' : '3.5';
+}
+
+const rabbitHolePort = window.__easyDiffusionRabbitHoleRequestedVersion || detectEasyDiffusionVersion();
+const requiredElements = ['container', 'editor', 'preview', 'preview-tools', 'makeImage'];
+const missingElements = requiredElements.filter((id) => !document.getElementById(id));
+if (missingElements.length) {
+	console.error(`Rabbit Hole ${rabbitHolePort} port could not start; missing UI elements: ${missingElements.join(', ')}`);
+	window.__easyDiffusionRabbitHoleLoading = false;
+	return;
+}
 window.__easyDiffusionRabbitHoleLoaded = true;
+window.__easyDiffusionRabbitHoleActivePort = rabbitHolePort;
+window.__easyDiffusionRabbitHoleLoading = false;
+console.log(`Rabbit Hole compatibility port ${rabbitHolePort} active.`);
 
 const style = document.createElement('style');
 
@@ -591,6 +619,7 @@ function resetRH(event){
 }
 
 function rh_makeButtons(){
+	const autoScrollTools = document.querySelector('.auto-scroll') || document.getElementById('preview-tools');
 	if(settings.rh_classicDefault){
 		UIButton.innerHTML = "Show Gallery View";
 		document.getElementById('container').classList.toggle('minimalUI');
@@ -607,7 +636,7 @@ function rh_makeButtons(){
 			UIButton.innerHTML = "Show Classic View";
 		}
 	});
-	document.getElementsByClassName('auto-scroll')[0].prepend(UIButton);
+	autoScrollTools.prepend(UIButton);
 
 	ActionButtonGallery.classList.add('ActionButtonGallery');
 	ActionButtonGallery.addEventListener("click", function () {
@@ -628,7 +657,7 @@ function rh_makeButtons(){
 		}
 		save();
 	});
-	document.getElementsByClassName('auto-scroll')[0].prepend(ActionButtonGallery);
+	autoScrollTools.prepend(ActionButtonGallery);
 	ActionButton.classList.add('ActionButton');
 	ActionButton.addEventListener("click", function () {
 		if(ActionButton.innerHTML == "Actions: Hidden"){
@@ -649,7 +678,7 @@ function rh_makeButtons(){
 		}
 		save();
 	});
-	document.getElementsByClassName('auto-scroll')[0].prepend(ActionButton);
+	autoScrollTools.prepend(ActionButton);
 	menuButton.innerHTML = "<i class='fa fa-bars'></i>";
 	menuButton.classList.add('menuButton');
 	menuButton.addEventListener("click", function () {
@@ -747,20 +776,20 @@ function rh_makeButtons(){
 	SelectButton.innerHTML = "Select";
 	SelectButton.addEventListener("click", startSelection);
 	SelectButton.classList.add('selectButton');
-	document.getElementsByClassName('auto-scroll')[0].prepend(SelectButton);
+	autoScrollTools.prepend(SelectButton);
 	SelectAllButton.innerHTML = "Select All";
 	SelectAllButton.addEventListener("click", allSelection);
 	SelectAllButton.classList.add('selectAllButton');
-	document.getElementsByClassName('auto-scroll')[0].prepend(SelectAllButton);
+	autoScrollTools.prepend(SelectAllButton);
 	EndSelectButton.innerHTML = "End Select";
 	EndSelectButton.addEventListener("click", endSelection);
 	EndSelectButton.classList.add('endSelectButton');
-	document.getElementsByClassName('auto-scroll')[0].prepend(EndSelectButton);
+	autoScrollTools.prepend(EndSelectButton);
 }
 
 
 for(let i = 0; i < imageTaskContainer.length; i++){
-	if(imageTaskContainer[i].querySelector('.img-batch').length>1){
+	if(imageTaskContainer[i].querySelectorAll('.img-batch').length>1){
 		imageTaskContainer[i].classList.add('condensed');
 	}
 }
@@ -1041,9 +1070,14 @@ preview.addEventListener("keydown", (event) => {
 
 
 	}
+	// Rabbit Hole 3.5 used inline onchange handlers. Keep the historical
+	// global name for those controls while the 4.x ports use the same guarded
+	// implementation and event model.
+	window.setSettings = setSettings;
 
 	function rhLoadSamplers() {
-		if(test_diffusers.checked == true){
+		const diffusersToggle = document.getElementById('test_diffusers') || document.getElementById('use_v3_engine');
+		if(diffusersToggle?.checked == true){
 			var samplerList = document.querySelectorAll('#sampler_name option:not(.k_diffusion-only)');
 		}else{
 			var samplerList = document.querySelectorAll('#sampler_name option');
@@ -1557,6 +1591,14 @@ function addRabbitHoleSettings(){
 	var rabbitHoleSettings = document.createElement('div');
 	rabbitHoleSettings.id = 'rabbit-settings';
 	rabbitHoleSettings.classList.add('panel-box');
+	let compatibilityHtml = `<p class="rabbit-hole-compatibility-note">Compatibility port: <strong data-rabbit-hole-active-port>${rabbitHolePort}</strong></p>`;
+	if (typeof window.loadRequiredPluginHTML === 'function') {
+		try {
+			compatibilityHtml = window.loadRequiredPluginHTML('/plugins/core/rabbithole.plugin.html');
+		} catch (error) {
+			console.warn('Rabbit Hole HTML companion could not be loaded; using the built-in fallback.', error);
+		}
+	}
 	let tempHTML =
 			`<h4 class="collapsible `+openCheck+`">Rabbit Hole Settings
 				<i id="reset-rh-settings" class="fa-solid fa-arrow-rotate-left section-button">
@@ -1566,6 +1608,7 @@ function addRabbitHoleSettings(){
 				</i>
 			</h4>
 			<div id="rabbit-settings-entries" class="collapsible-content" style="display: block;margin-top:15px;">
+				${compatibilityHtml}
 				<table><tbody>
 					<tr><td><b class="settings-subheader">Image Settings</b></td></tr>
 					<tr class="pl-5"><td><label for="maxImagesToGenerate_input">Max Image to Generate:</label></td><td> <input id="maxImagesToGenerate_input" name="maxImagesToGenerate_input" size="10" value="`+settings.maxImagesToGenerate+`" onkeypress="preventNonNumericalInput(event)" onchange="setSettings()"><button id="calcMaxButton"><i class="fa fa-calculator"></i></button></td></tr>
@@ -1604,6 +1647,9 @@ function addRabbitHoleSettings(){
 				<button id="newRabbitHoleBtn" class="primaryButton">Start New Rabbit Hole</button></div>
 			</div>`;
 	rabbitHoleSettings.innerHTML = tempHTML;
+	rabbitHoleSettings.querySelectorAll('[data-rabbit-hole-active-port]').forEach((element) => {
+		element.textContent = rabbitHolePort;
+	});
 	var editorSettings = document.getElementById('editor-settings');
 	if (editorSettings?.parentNode) {
 		editorSettings.parentNode.insertBefore(rabbitHoleSettings, editorSettings.nextSibling);
@@ -1632,7 +1678,7 @@ function addRabbitHoleSettings(){
 	if(!settings.rabbitHoleOpen){
 		document.querySelector('#rabbit-settings h4')?.classList.remove('active')
 	}
-	document.querySelector('#rabbit-settings h4').addEventListener("click", function () {
+	document.querySelector('#rabbit-settings h4')?.addEventListener("click", function () {
 		if(settings.rabbitHoleOpen == true){
 			settings.rabbitHoleOpen = false
 		}else{

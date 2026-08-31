@@ -130,6 +130,20 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
     }
 
+    function setGalleryRating(value) {
+        const select = element("gallery-content-filter");
+        const rating = String(value || "g").trim() || "g";
+        select.querySelectorAll("option[data-custom-rating]").forEach((option) => option.remove());
+        if (!Array.from(select.options).some((option) => option.value === rating)) {
+            const option = document.createElement("option");
+            option.value = rating;
+            option.textContent = `${rating} (custom)`;
+            option.dataset.customRating = "true";
+            select.appendChild(option);
+        }
+        select.value = rating;
+    }
+
     function setStatus(message) {
         document.querySelectorAll("[data-perchance-status]").forEach((target) => {
             target.textContent = message;
@@ -468,8 +482,12 @@
                     <input id="${ID_PREFIX}-gallery-channel" type="text" spellcheck="false" style="display:block;width:100%;" value="ai-text-to-image-generator">
                 </label>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:8px;">
-                    <label style="font-size:12px;">Content filter
-                        <input id="${ID_PREFIX}-gallery-content-filter" type="text" value="g" style="display:block;width:100%;">
+                    <label style="font-size:12px;">Rating
+                        <select id="${ID_PREFIX}-gallery-content-filter" style="display:block;width:100%;">
+                            <option value="g">G</option>
+                            <option value="pg13">PG-13</option>
+                            <option value="none">None / unfiltered</option>
+                        </select>
                     </label>
                     <label style="font-size:12px;">Limit
                         <input id="${ID_PREFIX}-gallery-limit" type="number" min="1" max="100" step="1" value="20" style="display:block;width:100%;">
@@ -514,7 +532,7 @@
         textPanel.querySelector(`#${ID_PREFIX}-timeout`).value = settings.timeout || "";
         galleryPanel.querySelector(`#${ID_PREFIX}-gallery-id`).value = settings.galleryId || "";
         galleryPanel.querySelector(`#${ID_PREFIX}-gallery-channel`).value = settings.galleryChannel || "ai-text-to-image-generator";
-        galleryPanel.querySelector(`#${ID_PREFIX}-gallery-content-filter`).value = settings.galleryContentFilter || "g";
+        setGalleryRating(settings.galleryContentFilter || "g");
         galleryPanel.querySelector(`#${ID_PREFIX}-gallery-limit`).value = settings.galleryLimit || "20";
         galleryPanel.querySelector(`#${ID_PREFIX}-gallery-cursor`).value = settings.galleryCursor || "";
         galleryPanel.querySelector(`#${ID_PREFIX}-gallery-sort`).value = settings.gallerySort || "recent";

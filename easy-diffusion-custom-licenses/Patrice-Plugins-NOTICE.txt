@@ -15,7 +15,7 @@ Supplied Easy Diffusion plugins by Patrice
 - Template Manager
 - Toggle Spellcheck
 
-The additional legacy files are installed under `plugins/ui/` and are opt-in.
+The additional legacy files are installed under `ui/plugins/ui/` and are opt-in.
 
 The supplied files identify Patrice as the author but do not state a standard
 license. Their original headers are retained. This attribution notice does not

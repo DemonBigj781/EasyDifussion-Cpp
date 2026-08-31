@@ -1,5 +1,7 @@
 (() => {
   "use strict"
+  if (window.__easyDiffusionSpellTokenizerLoaded) return;
+  window.__easyDiffusionSpellTokenizerLoaded = true;
   const GITHUB_PAGE = "https://gitlab.com/SoliDissipation/sd-ui-plugins"
   const VERSION = "1.7.3";
   const ID_PREFIX = "spell-tokenizer-plugin";
@@ -144,7 +146,7 @@
   let mergedTagWorkerReady = false;
   let latestSuggestionRequest = 0;
   const mergedTagWorker = typeof Worker === 'function'
-    ? new Worker('/plugins/user/spell-tokenizer.worker.js')
+    ? new Worker('/plugins/core/spell-tokenizer.worker.js')
     : null;
 
   function getWord() {
@@ -556,7 +558,9 @@
   textarea.addEventListener('input', tokenizerAction);
   textarea.addEventListener('change', tokenizerAction);
   document.getElementById('prompt').dispatchEvent(new Event('input', { bubbles: true }));
-  const settingsTable = document.getElementsByClassName('parameters-table')[0];
+  const settingsTable = document.getElementById('system-settings-table')
+    || document.querySelector('#system-settings .parameters-table')
+    || document.getElementsByClassName('parameters-table')[0];
 
   let duplicateTokenHighlightCheckbox = `<input type="checkbox" id="${ID_PREFIX}_duplicate_token_highlight" name="${ID_PREFIX}_duplicate_token_highlight" value="true" ${localStorage.getItem(`${ID_PREFIX}_duplicate_token_highlight`) === 'true' ? 'checked' : ''}>`;
   let toggleWrapper = `<div class="input-toggle">${duplicateTokenHighlightCheckbox}<label for="${ID_PREFIX}_duplicate_token_highlight"></label></div>`;

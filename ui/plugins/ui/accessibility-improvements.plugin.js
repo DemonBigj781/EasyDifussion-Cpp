@@ -8,6 +8,9 @@
 (function() {
     "use strict"
 
+    if (window.__easyDiffusionAccessibilityImprovementsLoaded) return
+    window.__easyDiffusionAccessibilityImprovementsLoaded = true
+
     /* inject new settings in the existing system settings popup table */
     let settings = [
         {
@@ -58,22 +61,8 @@
         }
     ];
 
-    function injectParameters(parameters) {
-        parameters.forEach(parameter => {
-            var element = getParameterElement(parameter)
-            var note = parameter.note ? `<small>${parameter.note}</small>` : "";
-            var icon = parameter.icon ? `<i class="fa ${parameter.icon}"></i>` : "";
-            var newRow = document.createElement('div')
-            newRow.innerHTML = `
-                <div>${icon}</div>
-                <div><label for="${parameter.id}">${parameter.label}</label>${note}</div>
-                <div>${element}</div>`
-            //parametersTable.appendChild(newRow)
-            parametersTable.insertBefore(newRow, parametersTable.children[13])
-            parameter.settingsEntry = newRow
-        })
-    }
-    injectParameters(settings)
+    PARAMETERS.push(...settings)
+    prettifyInputs(document)
     let contextualMenuInvocation = document.querySelector("#contextual_menu_invocation")
     let disableRightClick = document.querySelector("#disable_right_click")
 
@@ -88,7 +77,7 @@
     disableRightClick.addEventListener('change', (e) => {
         localStorage.setItem('disable_right_click', disableRightClick.checked)
     })
-    disableRightClick.checked = localStorage.getItem('disable_right_click') == null ? false : localStorage.getItem('disable_right_click')
+    disableRightClick.checked = localStorage.getItem('disable_right_click') === 'true'
 
     const invokeContextMenu = {
         hover: { key: null, modifier: null},
