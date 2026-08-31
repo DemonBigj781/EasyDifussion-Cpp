@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../../../sdkit3-port-source/stable-diffusion.cpp/ggml/src/ggml-cuda/common.cuh"
+#include "../common.cuh"
 
 // Native inference-only memory-efficient attention forward path. The API is
 // intentionally ggml-native: no PyTorch/ATen dependency and no backward pass.
