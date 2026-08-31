@@ -362,6 +362,11 @@ int main(int argc, char* argv[]) {
         LOG_INFO("CUDA legacy malloc pool enabled (VMM scratch pool disabled)");
     }
     if (args.xformers_compat) {
+#ifdef _WIN32
+        _putenv_s("SD_CUDA_XFORMERS", "1");
+#else
+        setenv("SD_CUDA_XFORMERS", "1", 1);
+#endif
         LOG_INFO("--xformers enabled native fused C++/CUDA memory-efficient attention");
     }
     if (args.sage_attention) {

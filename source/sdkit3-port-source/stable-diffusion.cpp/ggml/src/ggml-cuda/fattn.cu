@@ -5,6 +5,7 @@
 #include "fattn-vec.cuh"
 #include "fattn-wmma-f16.cuh"
 #include "sage/sage-attention-sm80.cuh"
+#include "xformers-attention.cuh"
 #include "fattn.cuh"
 
 template <int DKQ, int DV, int ncols2>
@@ -335,8 +336,9 @@ enum best_fattn_kernel {
     BEST_FATTN_KERNEL_TILE     = 200,
     BEST_FATTN_KERNEL_VEC      = 100,
     BEST_FATTN_KERNEL_WMMA_F16 = 300,
-    BEST_FATTN_KERNEL_MMA_F16  = 400,
-    BEST_FATTN_KERNEL_SAGE_SM80 = 500,
+    BEST_FATTN_KERNEL_MMA_F16   = 400,
+    BEST_FATTN_KERNEL_SAGE_SM80  = 500,
+    BEST_FATTN_KERNEL_XFORMERS    = 600,
 };
 
 static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const ggml_tensor * dst) {
@@ -350,6 +352,15 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
     const ggml_tensor * K     = dst->src[1];
     const ggml_tensor * V     = dst->src[2];
     const ggml_tensor * mask  = dst->src[3];
+
+    // --xformers is process-global in the server, matching the existing CLI setting.
+    // Try the native memory-efficient forward kernel first and fall through cleanly
+    // to Sage/ggml FlashAttention when the tensor contract is not supported.
+    const char * xformers_env = std::getenv("SD_CUDA_XFORMERS");
+    if (xformers_env != nullptr && xformers_env[0] == '1' &&
+        ggml_cuda_xformers_attn_supported(device, dst)) {
+        return BEST_FATTN_KERNEL_XFORMERS;
+    }
 
     if (ggml_flash_attn_ext_get_sage_attn(dst) && ggml_cuda_sage_attn_sm80_supported(device, dst)) {
         return BEST_FATTN_KERNEL_SAGE_SM80;
@@ -565,6 +576,7 @@ size_t ggml_cuda_flash_attn_ext_get_alloc_size(int device, const ggml_tensor * d
             need_f16_V = true;
             break;
         case BEST_FATTN_KERNEL_SAGE_SM80:
+        case BEST_FATTN_KERNEL_XFORMERS:
             break;
         case BEST_FATTN_KERNEL_VEC:
             need_f16_K = K->type == GGML_TYPE_F32;
@@ -599,6 +611,9 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
             break;
         case BEST_FATTN_KERNEL_SAGE_SM80:
             ggml_cuda_sage_attn_sm80(ctx, dst);
+            break;
+        case BEST_FATTN_KERNEL_XFORMERS:
+            ggml_cuda_xformers_attn(ctx, dst);
             break;
     }
 }
