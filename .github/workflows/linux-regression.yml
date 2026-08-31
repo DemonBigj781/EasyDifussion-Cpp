@@ -16,6 +16,25 @@ on:
           - vulkan
           - opencl
           - cpu
+      cuda_sm:
+        description: CUDA SM architecture (used only when backend is cuda)
+        required: true
+        default: '75'
+        type: choice
+        options:
+          - '52'
+          - '60'
+          - '61'
+          - '70'
+          - '72'
+          - '75'
+          - '80'
+          - '86'
+          - '87'
+          - '89'
+          - '90'
+          - '100'
+          - '120'
 
 permissions:
   contents: read
@@ -71,32 +90,22 @@ jobs:
             oneapi)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi -G Ninja \
-                -DCMAKE_C_COMPILER=icx \
-                -DCMAKE_CXX_COMPILER=icpx \
-                -DGGML_CCACHE=OFF \
-                -DSD_SYCL=ON \
-                -DGGML_SYCL_TARGET=INTEL \
-                -DGGML_SYCL_F16=ON \
-                -DGGML_SYCL_DNN=ON \
-                -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-                -DSDKIT_BUILD_NATIVE_VISION=OFF
+                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF \
+                -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             oneapi-cpu)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi-cpu -G Ninja \
-                -DCMAKE_C_COMPILER=icx \
-                -DCMAKE_CXX_COMPILER=icpx \
-                -DGGML_CCACHE=OFF \
-                -DGGML_BLAS=ON \
-                -DGGML_BLAS_VENDOR=Intel10_64lp_seq \
-                -DGGML_NATIVE=ON \
-                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
-                -DSDKIT_BUILD_NATIVE_VISION=OFF
+                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF \
+                -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=Intel10_64lp_seq -DGGML_NATIVE=ON \
+                -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             cuda)
               command -v nvcc >/dev/null
-              cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75 -DSD_CUDA=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
+              cmake -S source/sdkit3-port-source -B build/regress-linux-cuda -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=${{ github.event.inputs.cuda_sm }} \
+                -DSD_CUDA=ON -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
               ;;
             rocm)
               export PATH=/opt/rocm/bin:$PATH
