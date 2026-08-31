@@ -91,7 +91,7 @@ jobs:
             oneapi)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi -G Ninja \
-                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DSDKIT_OPENGL_BACKEND=OFF \
+                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DGGML_OPENMP=OFF -DSDKIT_OPENGL_BACKEND=OFF \
                 -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_MUSA=OFF \
                 -DSD_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON -DGGML_SYCL_DNN=ON -DGGML_SYCL_SUPPORT_LEVEL_ZERO=OFF \
                 -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
@@ -99,7 +99,7 @@ jobs:
             oneapi-cpu)
               setup_oneapi intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
               cmake -S source/sdkit3-port-source -B build/regress-linux-oneapi-cpu -G Ninja \
-                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DSDKIT_OPENGL_BACKEND=OFF \
+                -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_CCACHE=OFF -DGGML_OPENMP=OFF -DSDKIT_OPENGL_BACKEND=OFF \
                 -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF \
                 -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=Intel10_64lp_seq -DGGML_NATIVE=ON \
                 -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF
