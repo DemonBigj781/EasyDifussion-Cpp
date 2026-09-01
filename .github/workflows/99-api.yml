@@ -14,53 +14,51 @@ on:
         default: compile
         type: choice
         options: [compile, regression, compile-and-regression]
-permissions: {contents: read}
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   linux:
     if: "inputs.platform == 'linux'"
     runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:theory
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with: {python-version: '3.13'}
-      - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
-      - name: Install CUDA
-        uses: Jimver/cuda-toolkit@v0.2.36
-        with:
-          cuda: '12.8.1'
-          method: local
-          linux-local-args: '["--toolkit"]'
-      - name: Install oneAPI
+      - name: Verify prebuilt API toolchains
         shell: bash
         run: |
           set -euo pipefail
-          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
-          echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel intel-ocloc libze1 libze-dev
-          command -v ocloc
-      - name: Install ROCm
-        shell: bash
-        run: bash ci/scripts/setup_rocm.sh
+          nvcc --version
+          hipcc --version
+          set +u
+          source /opt/intel/oneapi/setvars.sh >/dev/null
+          set -u
+          icpx --version
+          cmake --version
+          ninja --version
+          python --version
       - name: Build API baseline
         shell: bash
         run: |
           set -euo pipefail
           set +u
-          source /opt/intel/oneapi/setvars.sh
+          source /opt/intel/oneapi/setvars.sh >/dev/null
           set -u
-          export PATH=/opt/rocm/bin:$PATH
+          export PATH=/opt/rocm/bin:/usr/local/cuda/bin:$PATH
           python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"12.8.1","oneapi":[],"rocm":[],"portable":[]}'
       - name: Compile complete API.cpp source tree
         shell: bash
         run: |
           set -euo pipefail
           set +u
-          source /opt/intel/oneapi/setvars.sh
+          source /opt/intel/oneapi/setvars.sh >/dev/null
           set -u
-          export PATH=/opt/rocm/bin:$PATH
+          export PATH=/opt/rocm/bin:/usr/local/cuda/bin:$PATH
           mapfile -d '' sources < <(find source/API.cpp -type f -name '*.cpp' -print0 | sort -z)
           if [ "${#sources[@]}" -eq 0 ]; then
             echo "No C++ translation units found under source/API.cpp" >&2
