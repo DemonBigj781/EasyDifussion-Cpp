@@ -1,4 +1,4 @@
-name: '991 - API'
+name: '991 - Universal API'
 on:
   workflow_dispatch:
     inputs:
