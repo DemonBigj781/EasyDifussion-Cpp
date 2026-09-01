@@ -37,7 +37,8 @@ enum class CapabilityState {
 
 struct Tensor4D {
     // Logical layout: [batch, heads, tokens, head_dim].
-    const float * data = nullptr;
+    // The pointed-to scalar representation is selected by AttentionRequest::dtype.
+    const void * data = nullptr;
     std::int64_t batch = 0;
     std::int64_t heads = 0;
     std::int64_t tokens = 0;
@@ -45,7 +46,7 @@ struct Tensor4D {
 };
 
 struct MutableTensor4D {
-    float * data = nullptr;
+    void * data = nullptr;
     std::int64_t batch = 0;
     std::int64_t heads = 0;
     std::int64_t tokens = 0;
@@ -53,8 +54,8 @@ struct MutableTensor4D {
 };
 
 struct MaskView {
-    // Optional additive mask. Logical layout may be broadcast from
-    // [batch|1, heads|1, query_tokens|1, key_tokens|1].
+    // Masks remain float32 in the neutral prototype even when Q/K/V/output are
+    // F16. Backend definitions may later translate native mask dtypes.
     const float * data = nullptr;
     std::int64_t batch = 1;
     std::int64_t heads = 1;
@@ -64,15 +65,12 @@ struct MaskView {
 
 struct AlibiConfig {
     bool enabled = false;
-    // One slope per query head when non-empty.
     const float * slopes = nullptr;
     std::int64_t slope_count = 0;
 };
 
 struct AttentionSinkConfig {
     bool enabled = false;
-    // Optional sink bias per query head. This prototype models sinks as an
-    // additive logit term; backend definitions may translate native semantics.
     const float * values = nullptr;
     std::int64_t value_count = 0;
 };
@@ -111,7 +109,7 @@ struct Capabilities {
     bool gqa = true;
     bool mqa = true;
     bool f32 = true;
-    bool f16 = false;
+    bool f16 = true;
     bool bf16 = false;
 };
 
@@ -121,12 +119,21 @@ struct ValidationResult {
 };
 
 struct ScoreBuffer {
+    // Neutral reference path intentionally accumulates QK^T and softmax in F32
+    // even when the external tensor dtype is F16.
     std::vector<float> values;
     std::int64_t batch = 0;
     std::int64_t heads = 0;
     std::int64_t query_tokens = 0;
     std::int64_t key_tokens = 0;
 };
+
+// Scalar conversion helpers used only by the prototype reference path.
+// F16 uses IEEE-754 binary16 storage represented as uint16_t.
+float load_scalar(const void * data, std::size_t index, DType dtype);
+void store_scalar(void * data, std::size_t index, DType dtype, float value);
+std::uint16_t float_to_f16(float value);
+float f16_to_float(std::uint16_t value);
 
 BackendIdentity backend_identity();
 Capabilities capabilities();
