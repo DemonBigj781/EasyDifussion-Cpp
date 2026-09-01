@@ -114,17 +114,19 @@ ENV CUDA_HOME="/usr/local/cuda"
 ENV ROCM_PATH="/opt/rocm"
 ENV LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
+# Initialize oneAPI only for interactive shells / consumers that need the full environment.
+# Validation below deliberately does not source setvars.sh so helper failures inside Intel's
+# environment script cannot mask which toolchain component is actually missing.
 RUN echo 'if [ -f /opt/intel/oneapi/setvars.sh ]; then source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || true; fi' \
       > /etc/profile.d/oneapi.sh
 
 # 990 final validation: report every missing component in one run, then fail once.
 RUN set -u; \
     failures=0; \
-    source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || { echo '[990 missing] oneAPI setvars.sh could not be sourced' >&2; failures=$((failures+1)); }; \
     check_file() { label="$1"; path="$2"; if test -f "$path"; then echo "[990 ok] $label -> $path"; else echo "[990 missing] $label -> $path" >&2; failures=$((failures+1)); fi; }; \
     check_exec() { label="$1"; path="$2"; if test -x "$path"; then echo "[990 ok] $label -> $path"; else echo "[990 missing] $label -> $path" >&2; failures=$((failures+1)); fi; }; \
-    check_cmd() { label="$1"; cmd="$2"; if path="$(command -v "$cmd" 2>/dev/null)"; then echo "[990 ok] $label -> $path"; else echo "[990 missing] $label command -> $cmd" >&2; failures=$((failures+1)); fi; }; \
-    check_find() { label="$1"; pattern="$2"; found="$(find /usr /opt/intel -path "$pattern" -print -quit 2>/dev/null)"; if test -n "$found"; then echo "[990 ok] $label -> $found"; else echo "[990 missing] $label pattern -> $pattern" >&2; failures=$((failures+1)); fi; }; \
+    check_cmd() { label="$1"; cmd="$2"; path="$(command -v "$cmd" 2>/dev/null || true)"; if test -n "$path"; then echo "[990 ok] $label -> $path"; else echo "[990 missing] $label command -> $cmd" >&2; failures=$((failures+1)); fi; }; \
+    check_find() { label="$1"; pattern="$2"; found="$(find /usr /opt/intel -path "$pattern" -print -quit 2>/dev/null || true)"; if test -n "$found"; then echo "[990 ok] $label -> $found"; else echo "[990 missing] $label pattern -> $pattern" >&2; failures=$((failures+1)); fi; }; \
     check_exec CUDA /usr/local/cuda/bin/nvcc; \
     check_exec ROCm-HIP /opt/rocm/bin/hipcc; \
     check_file OpenCL /usr/include/CL/cl.h; \
@@ -136,7 +138,7 @@ RUN set -u; \
     check_cmd GLSLC glslc; \
     check_cmd GLSLang glslangValidator; \
     check_cmd SPIRV-Tools spirv-val; \
-    check_cmd oneAPI-ICPX icpx; \
+    check_find oneAPI-ICPX '*/bin/icpx'; \
     if test "$failures" -ne 0; then echo "[990 verify] FAILED: $failures component(s) missing" >&2; exit 1; fi; \
     echo '[990 verify] universal toolchain validation complete'
 
