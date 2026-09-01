@@ -5,14 +5,20 @@ FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}
 ARG DEBIAN_FRONTEND=noninteractive
 ARG CUDA_VERSION
 ARG UBUNTU_VERSION
+ARG PYTHON_VERSION=none
+ARG PYTORCH_VERSION=none
+ARG PYTORCH_INDEX_URL=none
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 LABEL org.opencontainers.image.title="EasyDifussion-Cpp 010 CUDA Toolchain" \
       io.easydifussion.cuda.version="${CUDA_VERSION}" \
-      io.easydifussion.ubuntu.version="${UBUNTU_VERSION}"
+      io.easydifussion.ubuntu.version="${UBUNTU_VERSION}" \
+      io.easydifussion.python.version="${PYTHON_VERSION}" \
+      io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
 
-# 010 - CUDA-only native C/C++ build foundation.
+# 010 - CUDA-only native C/C++ build foundation. Python is intentionally not
+# installed here; it is an optional phase controlled by PYTHON_VERSION.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     clang \
@@ -23,10 +29,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     wget \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python-is-python3 \
     libomp-dev \
     libtbb-dev \
     libnuma-dev \
@@ -34,10 +36,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV CUDA_HOME="/usr/local/cuda"
-ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV PATH="/opt/python/bin:/root/.local/bin:/usr/local/cuda/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
-# Validate the CUDA development surface required by native API.cpp backends.
+# Optional Python phase.
+RUN set -eux; \
+    if [ "$PYTHON_VERSION" = "none" ]; then \
+      echo '[010 python] disabled'; \
+    else \
+      case "$PYTHON_VERSION" in 3.8|3.9|3.10|3.11|3.12|3.13|3.14) ;; *) echo "Unsupported Python version: $PYTHON_VERSION" >&2; exit 1 ;; esac; \
+      curl -LsSf https://astral.sh/uv/install.sh | sh; \
+      /root/.local/bin/uv python install "$PYTHON_VERSION"; \
+      /root/.local/bin/uv venv --python "$PYTHON_VERSION" /opt/python; \
+      /opt/python/bin/python --version; \
+    fi
+
+# Optional PyTorch phase.
+RUN set -eux; \
+    if [ "$PYTORCH_VERSION" = "none" ]; then \
+      echo '[010 pytorch] disabled'; \
+    else \
+      if [ "$PYTHON_VERSION" = "none" ]; then echo 'PyTorch requires Python to be enabled' >&2; exit 1; fi; \
+      if [ "$PYTORCH_INDEX_URL" = "none" ] || [ -z "$PYTORCH_INDEX_URL" ]; then \
+        /root/.local/bin/uv pip install --python /opt/python/bin/python "torch==$PYTORCH_VERSION"; \
+      else \
+        /root/.local/bin/uv pip install --python /opt/python/bin/python --index-url "$PYTORCH_INDEX_URL" "torch==$PYTORCH_VERSION"; \
+      fi; \
+      /opt/python/bin/python -c 'import torch; print("[010 pytorch]", torch.__version__)'; \
+    fi
+
 RUN set -eux; \
     check_exec() { label="$1"; path="$2"; echo "[010 verify] $label -> $path"; test -x "$path" || { echo "[010 missing] $label: $path" >&2; exit 1; }; }; \
     check_header() { label="$1"; header="$2"; echo "[010 verify] $label -> $header"; test -f "/usr/local/cuda/include/$header" || { echo "[010 missing] $label: /usr/local/cuda/include/$header" >&2; exit 1; }; }; \
@@ -48,6 +75,8 @@ RUN set -eux; \
     check_header cuRAND curand.h; \
     check_header cuSPARSE cusparse.h; \
     /usr/local/cuda/bin/nvcc --version; \
-    echo "[010 verify] CUDA ${CUDA_VERSION} / Ubuntu ${UBUNTU_VERSION} toolchain validation complete"
+    if [ "$PYTHON_VERSION" != "none" ]; then /opt/python/bin/python --version; fi; \
+    if [ "$PYTORCH_VERSION" != "none" ]; then /opt/python/bin/python -c 'import torch; print(torch.__version__)'; fi; \
+    echo "[010 verify] CUDA ${CUDA_VERSION} / Ubuntu ${UBUNTU_VERSION} / Python ${PYTHON_VERSION} / PyTorch ${PYTORCH_VERSION} validation complete"
 
 CMD ["/bin/bash"]
