@@ -3,7 +3,7 @@ import argparse, json, platform, subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]; SRC=ROOT/'source/sdkit3-port-source'
 def run(*cmd): print('+',' '.join(map(str,cmd)),flush=True); subprocess.run(list(map(str,cmd)),check=True)
-def configure(backend,target,mode,suffix=''):
+def configure(backend,target,action,suffix=''):
     system=platform.system().lower(); b=ROOT/'build'/f'ci-{system}-{backend}{suffix}'
     if system=='windows':
         if backend!='cpu': raise SystemExit(f'{backend} Windows provisioning is not wired yet')
@@ -20,11 +20,14 @@ def configure(backend,target,mode,suffix=''):
             if arch!='jit': args += [f'-DGGML_SYCL_DEVICE_ARCH={arch}']
         elif backend=='directml': raise SystemExit('DirectML/D3D12 implementation is not wired yet')
     run(*args)
-    if mode in ('compile','compile-and-regression'): run('cmake','--build',b,'--target','sdkit','--config','Release','--parallel','2')
+    print(f'[check] {backend} configuration completed successfully', flush=True)
+    if action=='complete': run('cmake','--build',b,'--target','sdkit','--config','Release','--parallel','2')
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('--backend',required=True); p.add_argument('--mode',default='compile'); p.add_argument('--target-json',required=True); a=p.parse_args(); t=json.loads(a.target_json)
+    p=argparse.ArgumentParser(); p.add_argument('--backend',required=True); p.add_argument('--action',choices=('complete','check'),default='complete'); p.add_argument('--mode',choices=('compile','check'),help=argparse.SUPPRESS); p.add_argument('--target-json',required=True); a=p.parse_args(); t=json.loads(a.target_json)
+    action=a.action
+    if a.mode is not None: action='check' if a.mode=='check' else 'complete'
     if a.backend=='oneapi':
         for arch in t['oneapi']:
-            x=dict(t); x['_oneapi_arch']=arch; configure('oneapi',x,a.mode,'-'+arch)
-    else: configure(a.backend,t,a.mode)
+            x=dict(t); x['_oneapi_arch']=arch; configure('oneapi',x,action,'-'+arch)
+    else: configure(a.backend,t,action)
 if __name__=='__main__': main()
