@@ -1,6 +1,22 @@
 name: '010 - CUDA Toolchain Image'
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      cuda_version:
+        description: 'Exact CUDA version (11.4.x through 13.x)'
+        required: true
+        default: '13.3.1'
+        type: string
+      ubuntu_version:
+        description: 'Ubuntu base version'
+        required: true
+        default: '24.04'
+        type: choice
+        options:
+          - '20.04'
+          - '22.04'
+          - '24.04'
+          - '26.04'
   push:
     branches: [main]
     paths:
@@ -12,9 +28,34 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-24.04
+    env:
+      CUDA_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.cuda_version || '13.3.1' }}
+      UBUNTU_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.ubuntu_version || '24.04' }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
+      - name: Validate CUDA version range
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          value = os.environ['CUDA_VERSION']
+          m = re.fullmatch(r'(\d+)\.(\d+)(?:\.(\d+))?', value)
+          if not m:
+              raise SystemExit(f'Invalid CUDA version format: {value}')
+          major, minor = int(m.group(1)), int(m.group(2))
+          if not ((major == 11 and minor >= 4) or major == 12 or major == 13):
+              raise SystemExit(f'CUDA {value} is outside supported 010 range 11.4.x through 13.x')
+          print(f'[010] CUDA version accepted: {value}')
+          PY
+      - name: Verify NVIDIA CUDA Ubuntu image exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}"
+          echo "[010] checking $image"
+          docker buildx imagetools inspect "$image" >/dev/null
+          echo "[010] compatible NVIDIA base found"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -26,8 +67,12 @@ jobs:
           context: .
           file: .devcontainer/Dockerfile.cuda
           push: true
+          build-args: |
+            CUDA_VERSION=${{ env.CUDA_VERSION }}
+            UBUNTU_VERSION=${{ env.UBUNTU_VERSION }}
           tags: |
             ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:main
+            ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:cuda-${{ env.CUDA_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}
             ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
