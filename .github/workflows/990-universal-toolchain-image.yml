@@ -2,12 +2,6 @@ name: '990 - Universal Toolchain Image'
 
 on:
   workflow_dispatch:
-  push:
-    branches: [Theory]
-    paths:
-      - '.devcontainer/Dockerfile'
-      - '.devcontainer/devcontainer.json'
-      - '.github/workflows/990-universal-toolchain-image.yml'
 
 permissions:
   contents: read
@@ -31,5 +25,5 @@ jobs:
           file: .devcontainer/Dockerfile
           push: true
           tags: |
-            ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:theory
+            ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:main
             ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:${{ github.sha }}
