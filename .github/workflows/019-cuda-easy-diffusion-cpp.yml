@@ -1,31 +1,13 @@
-name: '019 - CUDA Easy Diffusion C++'
+name: '019 - CUDA Complete Compile [RESERVED]'
 on:
   workflow_dispatch:
     inputs:
-      mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}
-      cuda_version: {description: Preferred CUDA version, required: true, default: auto, type: choice, options: [auto, '13.2.2', '12.9.2', '12.8.1']}
-      gpu_1: {description: CUDA GPU 1, required: true, default: rtx-3060, type: string}
-      gpu_2: {description: CUDA GPU 2, required: true, default: none, type: string}
-      gpu_3: {description: CUDA GPU 3, required: true, default: none, type: string}
-      gpu_4: {description: CUDA GPU 4, required: true, default: none, type: string}
-      gpu_5: {description: CUDA GPU 5, required: true, default: none, type: string}
-      gpu_6: {description: CUDA GPU 6, required: true, default: none, type: string}
-      gpu_7: {description: CUDA GPU 7, required: true, default: none, type: string}
-      gpu_8: {description: CUDA GPU 8, required: true, default: none, type: string}
+      mode: {description: Mode, required: true, default: check, type: choice, options: [check, compile]}
 permissions: {contents: read}
 jobs:
-  cuda:
+  reserved:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with: {python-version: '3.13'}
-      - id: r
-        shell: bash
-        run: |
-          j=$(python ci/scripts/resolve_hardware.py --backend cuda --cuda-version '${{ inputs.cuda_version }}' '${{ inputs.gpu_1 }}' '${{ inputs.gpu_2 }}' '${{ inputs.gpu_3 }}' '${{ inputs.gpu_4 }}' '${{ inputs.gpu_5 }}' '${{ inputs.gpu_6 }}' '${{ inputs.gpu_7 }}' '${{ inputs.gpu_8 }}'); echo "json=$j" >> "$GITHUB_OUTPUT"; echo "$j"
-      - name: Install CUDA
-        uses: Jimver/cuda-toolkit@v0.2.36
-        with: {cuda: '${{ fromJSON(steps.r.outputs.json).cuda_version }}', method: local, linux-local-args: '["--toolkit"]'}
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
-      - run: python ci/scripts/build_backend.py --backend cuda --mode '${{ inputs.mode }}' --target-json '${{ steps.r.outputs.json }}'
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - run: echo '019 is reserved for the CUDA complete compile after CUDA API.cpp, llama.cpp, and Easy Diffusion C++ are wired.'
