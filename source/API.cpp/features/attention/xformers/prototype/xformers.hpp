@@ -55,7 +55,7 @@ struct MutableTensor4D {
 
 struct MaskView {
     // Masks remain float32 in the neutral prototype even when Q/K/V/output are
-    // F16. Backend definitions may later translate native mask dtypes.
+    // F16 or BF16. Backend definitions may later translate native mask dtypes.
     const float * data = nullptr;
     std::int64_t batch = 1;
     std::int64_t heads = 1;
@@ -110,7 +110,7 @@ struct Capabilities {
     bool mqa = true;
     bool f32 = true;
     bool f16 = true;
-    bool bf16 = false;
+    bool bf16 = true;
 };
 
 struct ValidationResult {
@@ -120,7 +120,7 @@ struct ValidationResult {
 
 struct ScoreBuffer {
     // Neutral reference path intentionally accumulates QK^T and softmax in F32
-    // even when the external tensor dtype is F16.
+    // even when the external tensor dtype is F16 or BF16.
     std::vector<float> values;
     std::int64_t batch = 0;
     std::int64_t heads = 0;
@@ -130,10 +130,13 @@ struct ScoreBuffer {
 
 // Scalar conversion helpers used only by the prototype reference path.
 // F16 uses IEEE-754 binary16 storage represented as uint16_t.
+// BF16 uses the upper 16 bits of IEEE-754 binary32, also represented as uint16_t.
 float load_scalar(const void * data, std::size_t index, DType dtype);
 void store_scalar(void * data, std::size_t index, DType dtype, float value);
 std::uint16_t float_to_f16(float value);
 float f16_to_float(std::uint16_t value);
+std::uint16_t float_to_bf16(float value);
+float bf16_to_float(std::uint16_t value);
 
 BackendIdentity backend_identity();
 Capabilities capabilities();
