@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
+    python-is-python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # oneAPI: compiler plus the libraries used by the backend workflows.
