@@ -1,0 +1,9 @@
+name: '058 - OpenVINO Easy Diffusion C++ [RESERVED]'
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  reserved:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Reserved index 058 for OpenVINO Easy Diffusion C++ compilation.'
