@@ -1,4 +1,22 @@
 name: '048 - OpenCL Easy Diffusion C++'
-on: {workflow_dispatch: {inputs: {mode: {description: Mode, required: true, default: compile, type: choice, options: [check, compile, regression, compile-and-regression]}, target: {description: Catalog GPU ID, required: true, default: rtx-3060, type: string}}}}
+on:
+  workflow_dispatch:
+    inputs:
+      action: {description: 'set current workflow action', required: true, default: 'complete', type: choice, options: ['complete', 'check']}
+      target: {description: Catalog GPU ID, required: true, default: rtx-3060, type: string}
 permissions: {contents: read}
-jobs: {build: {runs-on: ubuntu-24.04, steps: [{uses: actions/checkout@v7}, {run: 'git config --global --add safe.directory "$GITHUB_WORKSPACE"'}, {uses: actions/setup-python@v6, with: {python-version: '3.13'}}, {run: 'sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config ocl-icd-opencl-dev opencl-headers'}, {shell: bash, run: 'j=$(python ci/scripts/resolve_hardware.py --backend opencl "${{ inputs.target }}"); python ci/scripts/build_backend.py --backend opencl --mode "${{ inputs.mode }}" --target-json "$j"'}]}}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Load OpenCL toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config ocl-icd-opencl-dev opencl-headers
+      - name: Check or complete OpenCL Easy Diffusion build
+        shell: bash
+        run: |
+          j=$(python ci/scripts/resolve_hardware.py --backend opencl "${{ inputs.target }}")
+          python ci/scripts/build_backend.py --backend opencl --action '${{ inputs.action }}' --target-json "$j"
