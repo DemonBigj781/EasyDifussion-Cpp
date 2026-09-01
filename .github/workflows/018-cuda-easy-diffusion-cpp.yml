@@ -2,7 +2,7 @@ name: '018 - CUDA Easy Diffusion C++'
 on:
   workflow_dispatch:
     inputs:
-      mode: {description: Mode, required: true, default: compile, type: choice, options: [check, compile, regression, compile-and-regression]}
+      action: {description: 'set current workflow action', required: true, default: 'complete', type: choice, options: ['complete', 'check']}
       cuda_version: {description: Preferred CUDA version, required: true, default: auto, type: choice, options: [auto, '13.2.2', '12.9.2', '12.8.1']}
       gpu_1: {description: CUDA GPU 1, required: true, default: rtx-3060, type: string}
       gpu_2: {description: CUDA GPU 2, required: true, default: none, type: string}
@@ -25,8 +25,9 @@ jobs:
         shell: bash
         run: |
           j=$(python ci/scripts/resolve_hardware.py --backend cuda --cuda-version '${{ inputs.cuda_version }}' '${{ inputs.gpu_1 }}' '${{ inputs.gpu_2 }}' '${{ inputs.gpu_3 }}' '${{ inputs.gpu_4 }}' '${{ inputs.gpu_5 }}' '${{ inputs.gpu_6 }}' '${{ inputs.gpu_7 }}' '${{ inputs.gpu_8 }}'); echo "json=$j" >> "$GITHUB_OUTPUT"; echo "$j"
-      - name: Install CUDA
+      - name: Load CUDA toolchain
         uses: Jimver/cuda-toolkit@v0.2.36
         with: {cuda: '${{ fromJSON(steps.r.outputs.json).cuda_version }}', method: local, linux-local-args: '["--toolkit"]'}
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config
-      - run: python ci/scripts/build_backend.py --backend cuda --mode '${{ inputs.mode }}' --target-json '${{ steps.r.outputs.json }}'
+      - name: Check or complete CUDA Easy Diffusion build
+        run: python ci/scripts/build_backend.py --backend cuda --action '${{ inputs.action }}' --target-json '${{ steps.r.outputs.json }}'
