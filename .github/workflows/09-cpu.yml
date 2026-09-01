@@ -1,6 +1,0 @@
-name: '09 - CPU Easy Diffusion C++'
-on: {workflow_dispatch: {inputs: {platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}, mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}}}}
-permissions: {contents: read}
-jobs:
-  linux: {if: "inputs.platform == 'linux'", runs-on: ubuntu-24.04, steps: [{uses: actions/checkout@v7}, {uses: actions/setup-python@v6, with: {python-version: '3.13'}}, {run: 'sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build'}, {run: 'python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json ''{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'''}]}
-  windows: {if: "inputs.platform == 'windows'", runs-on: windows-2025, steps: [{uses: actions/checkout@v7}, {uses: actions/setup-python@v6, with: {python-version: '3.13'}}, {shell: pwsh, run: 'python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json ''{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'''}]}
