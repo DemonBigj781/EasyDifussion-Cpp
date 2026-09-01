@@ -1,7 +1,37 @@
 name: '000 - CPU Toolchain Image'
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      ubuntu_version:
+        description: 'Ubuntu base version'
+        required: true
+        default: '24.04'
+        type: choice
+        options:
+          - '20.04'
+          - '22.04'
+          - '24.04'
+          - '26.04'
+      python_version:
+        description: 'Python via pyenv (or none)'
+        required: true
+        default: 'none'
+        type: choice
+        options:
+          - 'none'
+          - '3.8'
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.14'
+      pytorch_version:
+        description: 'Exact CPU PyTorch version, or none'
+        required: true
+        default: 'none'
+        type: string
   push:
     branches: [Theory]
     paths:
@@ -15,9 +45,22 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-24.04
+    env:
+      UBUNTU_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.ubuntu_version || '24.04' }}
+      PYTHON_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.python_version || 'none' }}
+      PYTORCH_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.pytorch_version || 'none' }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
+      - name: Validate optional Python/PyTorch selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$PYTORCH_VERSION" != none ] && [ "$PYTHON_VERSION" = none ]; then
+            echo 'PyTorch requires a selected Python version.' >&2
+            exit 1
+          fi
+          echo "[000] Ubuntu=$UBUNTU_VERSION Python=$PYTHON_VERSION PyTorch=$PYTORCH_VERSION"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -29,8 +72,13 @@ jobs:
           context: .
           file: .devcontainer/Dockerfile.cpu
           push: true
+          build-args: |
+            UBUNTU_VERSION=${{ env.UBUNTU_VERSION }}
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+            PYTORCH_VERSION=${{ env.PYTORCH_VERSION }}
           tags: |
             ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:theory
+            ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:ubuntu-${{ env.UBUNTU_VERSION }}-python-${{ env.PYTHON_VERSION }}-torch-${{ env.PYTORCH_VERSION }}
             ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:${{ github.sha }}
           cache-from: type=gha,scope=cpu-toolchain
           cache-to: type=gha,mode=max,scope=cpu-toolchain
