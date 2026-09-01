@@ -16,7 +16,6 @@ LABEL org.opencontainers.image.title="EasyDifussion-Cpp 030 oneAPI Toolchain" \
       io.easydifussion.python.version="${PYTHON_VERSION}" \
       io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
 
-# Native build foundation plus pyenv build dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ clang cmake ninja-build pkg-config git ca-certificates curl wget gnupg \
     libomp-dev libtbb-dev libnuma-dev libhwloc-dev \
@@ -24,7 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Intel oneAPI repository and selected toolkit release.
 RUN set -eux; \
     wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
       | gpg --dearmor > /usr/share/keyrings/oneapi-archive-keyring.gpg; \
@@ -76,12 +74,20 @@ RUN printf '%s\n' \
     'if [ -f /opt/intel/oneapi/setvars.sh ]; then source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || true; fi' \
     > /etc/profile.d/oneapi-pyenv.sh
 
+# Validate installed development surface without requiring Intel accelerator hardware.
 RUN set -eux; \
-    icpx_path="$(find /opt/intel/oneapi -type f -name icpx -perm -111 -print -quit 2>/dev/null)"; \
-    test -n "$icpx_path"; \
-    test -n "$(find /opt/intel/oneapi -path '*/mkl/include/mkl.h' -print -quit 2>/dev/null)"; \
-    test -n "$(find /opt/intel/oneapi -path '*/dnnl*/include/dnnl.h' -o -path '*/include/oneapi/dnnl/dnnl.h' -print -quit 2>/dev/null)" || test -f /usr/include/dnnl.h; \
-    test -n "$(find /usr /opt/intel -path '*/level_zero/ze_api.h' -print -quit 2>/dev/null)"; \
+    icpx_path="$(find /opt/intel/oneapi -type f -name icpx -perm -111 -print -quit 2>/dev/null || true)"; \
+    if [ -z "$icpx_path" ]; then echo '[030 missing] icpx' >&2; exit 1; fi; \
+    echo "[030 ok] icpx -> $icpx_path"; \
+    mkl_header="$(find /opt/intel/oneapi /usr -type f -name mkl.h -print -quit 2>/dev/null || true)"; \
+    if [ -z "$mkl_header" ]; then echo '[030 missing] MKL header mkl.h' >&2; exit 1; fi; \
+    echo "[030 ok] MKL -> $mkl_header"; \
+    dnnl_header="$(find /opt/intel/oneapi /usr -type f \( -name dnnl.h -o -path '*/oneapi/dnnl/dnnl.h' \) -print -quit 2>/dev/null || true)"; \
+    if [ -z "$dnnl_header" ]; then echo '[030 missing] oneDNN header dnnl.h' >&2; exit 1; fi; \
+    echo "[030 ok] oneDNN -> $dnnl_header"; \
+    ze_header="$(find /opt/intel/oneapi /opt/intel /usr -type f -name ze_api.h -print -quit 2>/dev/null || true)"; \
+    if [ -z "$ze_header" ]; then echo '[030 missing] Level Zero header ze_api.h' >&2; exit 1; fi; \
+    echo "[030 ok] Level Zero -> $ze_header"; \
     "$icpx_path" --version; \
     if [ "$PYTHON_VERSION" != none ]; then python --version; fi; \
     if [ "$PYTORCH_VERSION" != none ]; then python -c 'import torch; print(torch.__version__)'; fi; \
