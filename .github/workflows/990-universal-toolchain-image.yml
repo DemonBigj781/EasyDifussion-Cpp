@@ -33,5 +33,5 @@ jobs:
           tags: |
             ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:theory
             ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=universal-toolchain
+          cache-to: type=gha,mode=min,scope=universal-toolchain
