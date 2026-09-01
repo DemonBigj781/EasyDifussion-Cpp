@@ -2,7 +2,7 @@ name: '038 - oneAPI Easy Diffusion C++'
 on:
   workflow_dispatch:
     inputs:
-      mode: {description: Mode, required: true, default: compile, type: choice, options: [check, compile, regression, compile-and-regression]}
+      action: {description: 'set current workflow action', required: true, default: 'complete', type: choice, options: ['complete', 'check']}
       targets: {description: 'Comma-separated catalog GPU IDs', required: true, default: arc-a770, type: string}
 permissions: {contents: read}
 jobs:
@@ -14,15 +14,17 @@ jobs:
       - uses: actions/setup-python@v6
         with: {python-version: '3.13'}
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
-      - name: Install minimum oneAPI
+      - name: Load oneAPI toolchain
         run: |
           wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
           echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel intel-ocloc libze1 libze-dev
           command -v ocloc
-      - name: Resolve and build
+      - name: Check or complete oneAPI Easy Diffusion build
         shell: bash
         run: |
           set +u; source /opt/intel/oneapi/setvars.sh; set -u
-          IFS=',' read -ra G <<< '${{ inputs.targets }}'; j=$(python ci/scripts/resolve_hardware.py --backend oneapi "${G[@]}"); python ci/scripts/build_backend.py --backend oneapi --mode '${{ inputs.mode }}' --target-json "$j"
+          IFS=',' read -ra G <<< '${{ inputs.targets }}'
+          j=$(python ci/scripts/resolve_hardware.py --backend oneapi "${G[@]}")
+          python ci/scripts/build_backend.py --backend oneapi --action '${{ inputs.action }}' --target-json "$j"
