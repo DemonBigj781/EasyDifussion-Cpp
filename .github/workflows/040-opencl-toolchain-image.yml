@@ -1,9 +1,95 @@
-name: '040 - OpenCL Toolchain Image [RESERVED]'
+name: '040 - OpenCL Toolchain Image'
 on:
   workflow_dispatch:
-permissions: {contents: read}
+    inputs:
+      opencl_version:
+        description: 'OpenCL API target'
+        required: true
+        default: '3.0'
+        type: choice
+        options: ['1.2', '2.0', '2.1', '2.2', '3.0']
+      ubuntu_version:
+        description: 'Ubuntu base version'
+        required: true
+        default: '24.04'
+        type: choice
+        options: ['20.04', '22.04', '24.04', '26.04']
+      opencl_runtime_profile:
+        description: 'OpenCL runtime profile'
+        required: true
+        default: 'full'
+        type: choice
+        options: ['headers-only', 'pocl', 'mesa', 'full']
+      python_version:
+        description: 'Python via pyenv (or none)'
+        required: true
+        default: 'none'
+        type: choice
+        options: ['none', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+      pytorch_version:
+        description: 'Exact PyTorch version, or none'
+        required: true
+        default: 'none'
+        type: string
+      pytorch_index_url:
+        description: 'Optional PyTorch wheel index URL, or none'
+        required: true
+        default: 'none'
+        type: string
+permissions:
+  contents: read
+  packages: write
 jobs:
-  reserved:
+  publish:
     runs-on: ubuntu-24.04
+    env:
+      OPENCL_VERSION: ${{ inputs.opencl_version }}
+      UBUNTU_VERSION: ${{ inputs.ubuntu_version }}
+      OPENCL_RUNTIME_PROFILE: ${{ inputs.opencl_runtime_profile }}
+      PYTHON_VERSION: ${{ inputs.python_version }}
+      PYTORCH_VERSION: ${{ inputs.pytorch_version }}
+      PYTORCH_INDEX_URL: ${{ inputs.pytorch_index_url }}
     steps:
-      - run: echo 'Reserved index 040 for OpenCL toolchain/image construction.'
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve and validate selections
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$OPENCL_VERSION" in
+            1.2) target=120 ;;
+            2.0) target=200 ;;
+            2.1) target=210 ;;
+            2.2) target=220 ;;
+            3.0) target=300 ;;
+            *) echo "Unsupported OpenCL target: $OPENCL_VERSION" >&2; exit 1 ;;
+          esac
+          echo "OPENCL_TARGET_VERSION=$target" >> "$GITHUB_ENV"
+          if [ "$PYTORCH_VERSION" != none ] && [ "$PYTHON_VERSION" = none ]; then
+            echo 'PyTorch cannot be enabled when Python is disabled.' >&2
+            exit 1
+          fi
+          echo "[040] OpenCL=$OPENCL_VERSION target=$target Ubuntu=$UBUNTU_VERSION Runtime=$OPENCL_RUNTIME_PROFILE Python=$PYTHON_VERSION PyTorch=$PYTORCH_VERSION"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish OpenCL toolchain image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile.opencl
+          push: true
+          build-args: |
+            OPENCL_VERSION=${{ env.OPENCL_VERSION }}
+            OPENCL_TARGET_VERSION=${{ env.OPENCL_TARGET_VERSION }}
+            UBUNTU_VERSION=${{ env.UBUNTU_VERSION }}
+            OPENCL_RUNTIME_PROFILE=${{ env.OPENCL_RUNTIME_PROFILE }}
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+            PYTORCH_VERSION=${{ env.PYTORCH_VERSION }}
+            PYTORCH_INDEX_URL=${{ env.PYTORCH_INDEX_URL }}
+          tags: |
+            ghcr.io/demonbigj781/easydifussion-cpp-opencl-toolchain:main
+            ghcr.io/demonbigj781/easydifussion-cpp-opencl-toolchain:opencl-${{ env.OPENCL_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}-${{ env.OPENCL_RUNTIME_PROFILE }}
+            ghcr.io/demonbigj781/easydifussion-cpp-opencl-toolchain:${{ github.sha }}
