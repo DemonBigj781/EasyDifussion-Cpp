@@ -1,0 +1,4 @@
+name: '981 - JetPack 5'
+on: {workflow_dispatch: {inputs: {mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}, backend: {description: Backend, required: true, default: cuda, type: choice, options: [cuda, opengl, vulkan]}}}}
+permissions: {contents: read}
+jobs: {jetpack5: {runs-on: ubuntu-22.04, steps: [{uses: actions/checkout@v7}, {run: 'echo "JetPack 5 / ${{ inputs.backend }} / ${{ inputs.mode }}"'}, {run: 'echo "JetPack 5 remains isolated from desktop/server workflow provisioning."'}]}}
