@@ -1,0 +1,10 @@
+{
+  "name": "EasyDiffusion C++ API Toolchain",
+  "image": "ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:theory",
+  "remoteUser": "root",
+  "containerEnv": {
+    "CUDA_HOME": "/usr/local/cuda",
+    "ROCM_PATH": "/opt/rocm"
+  },
+  "postCreateCommand": "bash -lc 'set +u; [ -f /opt/intel/oneapi/setvars.sh ] && source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || true; c++ --version; nvcc --version; hipcc --version || true; icpx --version || true'"
+}
