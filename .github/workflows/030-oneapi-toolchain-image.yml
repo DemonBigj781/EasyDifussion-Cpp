@@ -82,5 +82,3 @@ jobs:
             ghcr.io/demonbigj781/easydifussion-cpp-oneapi-toolchain:theory
             ghcr.io/demonbigj781/easydifussion-cpp-oneapi-toolchain:oneapi-${{ env.ONEAPI_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}
             ghcr.io/demonbigj781/easydifussion-cpp-oneapi-toolchain:${{ github.sha }}
-          cache-from: type=gha,scope=oneapi-toolchain
-          cache-to: type=gha,mode=min,scope=oneapi-toolchain
