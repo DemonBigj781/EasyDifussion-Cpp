@@ -57,8 +57,8 @@ bool qkt(const AttentionRequest & request, ScoreBuffer & scores) {
                 for (std::int64_t ki = 0; ki < k.tokens; ++ki) {
                     float dot = 0.0f;
                     for (std::int64_t d = 0; d < q.head_dim; ++d) {
-                        dot += q.data[tensor_index(q, b, h, qi, d)] *
-                               k.data[tensor_index(k, b, kv_head, ki, d)];
+                        dot += load_scalar(q.data, tensor_index(q, b, h, qi, d), request.dtype) *
+                               load_scalar(k.data, tensor_index(k, b, kv_head, ki, d), request.dtype);
                     }
                     scores.values[score_index(scores, b, h, qi, ki)] = dot * scale;
                 }
