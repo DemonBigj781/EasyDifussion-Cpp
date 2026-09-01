@@ -1,8 +1,16 @@
-FROM nvidia/cuda:12.8.1-devel-ubuntu24.04
+ARG CUDA_VERSION=13.3.1
+ARG UBUNTU_VERSION=24.04
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG CUDA_VERSION
+ARG UBUNTU_VERSION
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+LABEL org.opencontainers.image.title="EasyDifussion-Cpp 010 CUDA Toolchain" \
+      io.easydifussion.cuda.version="${CUDA_VERSION}" \
+      io.easydifussion.ubuntu.version="${UBUNTU_VERSION}"
 
 # 010 - CUDA-only native C/C++ build foundation.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -40,6 +48,6 @@ RUN set -eux; \
     check_header cuRAND curand.h; \
     check_header cuSPARSE cusparse.h; \
     /usr/local/cuda/bin/nvcc --version; \
-    echo '[010 verify] CUDA toolchain validation complete'
+    echo "[010 verify] CUDA ${CUDA_VERSION} / Ubuntu ${UBUNTU_VERSION} toolchain validation complete"
 
 CMD ["/bin/bash"]
