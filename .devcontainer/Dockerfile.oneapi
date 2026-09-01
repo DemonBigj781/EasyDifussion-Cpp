@@ -1,0 +1,90 @@
+ARG UBUNTU_VERSION=24.04
+FROM ubuntu:${UBUNTU_VERSION}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_VERSION=24.04
+ARG ONEAPI_VERSION=latest
+ARG PYTHON_VERSION=none
+ARG PYTORCH_VERSION=none
+ARG PYTORCH_INDEX_URL=none
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+LABEL org.opencontainers.image.title="EasyDifussion-Cpp 030 oneAPI Toolchain" \
+      io.easydifussion.oneapi.version="${ONEAPI_VERSION}" \
+      io.easydifussion.ubuntu.version="${UBUNTU_VERSION}" \
+      io.easydifussion.python.version="${PYTHON_VERSION}" \
+      io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
+
+# Native build foundation plus pyenv build dependencies.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc g++ clang cmake ninja-build pkg-config git ca-certificates curl wget gnupg \
+    libomp-dev libtbb-dev libnuma-dev libhwloc-dev \
+    make libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev llvm \
+    libncurses-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Intel oneAPI repository and selected toolkit release.
+RUN set -eux; \
+    wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+      | gpg --dearmor > /usr/share/keyrings/oneapi-archive-keyring.gpg; \
+    echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' \
+      > /etc/apt/sources.list.d/oneAPI.list; \
+    apt-get update; \
+    select_pkg() { \
+      for p in intel-oneapi-toolkit intel-oneapi-base-toolkit; do \
+        if apt-cache show "$p" >/dev/null 2>&1; then \
+          if [ "$ONEAPI_VERSION" = latest ]; then echo "$p"; return 0; fi; \
+          v="$(apt-cache madison "$p" | awk '{print $3}' | grep -E "^${ONEAPI_VERSION}([.-]|$)" | head -n1 || true)"; \
+          if [ -n "$v" ]; then echo "$p=$v"; return 0; fi; \
+        fi; \
+      done; \
+      return 1; \
+    }; \
+    selected="$(select_pkg)" || { echo "No oneAPI toolkit package matches ${ONEAPI_VERSION}" >&2; exit 1; }; \
+    echo "[030] installing $selected"; \
+    apt-get install -y --no-install-recommends "$selected"; \
+    for p in intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel intel-oneapi-tbb-devel intel-ocloc libze1 libze-dev; do \
+      if apt-cache show "$p" >/dev/null 2>&1; then apt-get install -y --no-install-recommends "$p"; fi; \
+    done; \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PYENV_ROOT="/root/.pyenv"
+ENV PATH="/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
+
+RUN git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
+    && if [ "$PYTHON_VERSION" != none ]; then \
+         pyenv install "$PYTHON_VERSION" \
+         && pyenv global "$PYTHON_VERSION" \
+         && python -m ensurepip --upgrade \
+         && python -m pip install --upgrade pip setuptools wheel; \
+       fi
+
+RUN if [ "$PYTORCH_VERSION" != none ]; then \
+      if [ "$PYTHON_VERSION" = none ]; then echo 'PyTorch requires Python' >&2; exit 1; fi; \
+      if [ "$PYTORCH_INDEX_URL" = none ]; then \
+        python -m pip install "torch==${PYTORCH_VERSION}"; \
+      else \
+        python -m pip install "torch==${PYTORCH_VERSION}" --index-url "$PYTORCH_INDEX_URL"; \
+      fi; \
+    fi
+
+RUN printf '%s\n' \
+    'export PYENV_ROOT="$HOME/.pyenv"' \
+    'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' \
+    'if command -v pyenv >/dev/null 2>&1; then eval "$(pyenv init -)"; fi' \
+    'if [ -f /opt/intel/oneapi/setvars.sh ]; then source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || true; fi' \
+    > /etc/profile.d/oneapi-pyenv.sh
+
+RUN set -eux; \
+    icpx_path="$(find /opt/intel/oneapi -type f -name icpx -perm -111 -print -quit 2>/dev/null)"; \
+    test -n "$icpx_path"; \
+    test -n "$(find /opt/intel/oneapi -path '*/mkl/include/mkl.h' -print -quit 2>/dev/null)"; \
+    test -n "$(find /opt/intel/oneapi -path '*/dnnl*/include/dnnl.h' -o -path '*/include/oneapi/dnnl/dnnl.h' -print -quit 2>/dev/null)" || test -f /usr/include/dnnl.h; \
+    test -n "$(find /usr /opt/intel -path '*/level_zero/ze_api.h' -print -quit 2>/dev/null)"; \
+    "$icpx_path" --version; \
+    if [ "$PYTHON_VERSION" != none ]; then python --version; fi; \
+    if [ "$PYTORCH_VERSION" != none ]; then python -c 'import torch; print(torch.__version__)'; fi; \
+    echo "[030 verify] oneAPI ${ONEAPI_VERSION} / Ubuntu ${UBUNTU_VERSION} validation complete"
+
+CMD ["/bin/bash"]
