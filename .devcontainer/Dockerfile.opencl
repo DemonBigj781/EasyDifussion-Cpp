@@ -25,7 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Required OpenCL SDK surface. Keep these separate from optional runtimes so APT failures are obvious.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends opencl-headers; \
@@ -37,7 +36,6 @@ RUN set -eux; \
     fi; \
     rm -rf /var/lib/apt/lists/*
 
-# Optional OpenCL runtime implementations. Missing distro packages do not invalidate the SDK image.
 RUN set -eux; \
     apt-get update; \
     install_optional() { \
@@ -88,23 +86,28 @@ RUN printf '%s\n' \
     'if command -v pyenv >/dev/null 2>&1; then eval "$(pyenv init -)"; fi' \
     > /etc/profile.d/pyenv.sh
 
+# Validate the SDK itself. Runtime platform discovery is diagnostic only because CI may expose no OpenCL device.
 RUN set -eux; \
     test -f /usr/include/CL/cl.h; \
     test -f /usr/include/CL/cl_platform.h; \
     printf '%s\n' \
       "#define CL_TARGET_OPENCL_VERSION ${OPENCL_TARGET_VERSION}" \
+      '#include <stdio.h>' \
       '#include <CL/cl.h>' \
       'int main(void) {' \
       '    cl_uint n = 0;' \
       '    cl_int rc = clGetPlatformIDs(0, 0, &n);' \
-      '    return (rc == CL_SUCCESS || rc == CL_PLATFORM_NOT_FOUND_KHR) ? 0 : 1;' \
+      '    printf("[040 runtime] clGetPlatformIDs rc=%d platforms=%u\\n", (int)rc, (unsigned)n);' \
+      '    return 0;' \
       '}' \
       > /tmp/opencl-check.c; \
     gcc /tmp/opencl-check.c -lOpenCL -o /tmp/opencl-check; \
+    ldd /tmp/opencl-check | grep -q 'libOpenCL'; \
     /tmp/opencl-check; \
     rm -f /tmp/opencl-check /tmp/opencl-check.c; \
+    if command -v clinfo >/dev/null 2>&1; then clinfo >/tmp/clinfo.txt 2>&1 || true; head -n 20 /tmp/clinfo.txt || true; fi; \
     if [ "$PYTHON_VERSION" != "none" ]; then python --version; fi; \
     if [ "$PYTORCH_VERSION" != "none" ]; then python -c 'import torch; print(torch.__version__)'; fi; \
-    echo "[040 verify] OpenCL ${OPENCL_VERSION} / ${OPENCL_RUNTIME_PROFILE} / Ubuntu ${UBUNTU_VERSION} validation complete"
+    echo "[040 verify] OpenCL ${OPENCL_VERSION} / ${OPENCL_RUNTIME_PROFILE} / Ubuntu ${UBUNTU_VERSION} SDK validation complete"
 
 CMD ["/bin/bash"]
