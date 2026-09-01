@@ -7,7 +7,7 @@ on:
     paths:
       - '.devcontainer/Dockerfile'
       - '.devcontainer/devcontainer.json'
-      - '.github/workflows/090-shared-toolchain-image.yml'
+      - '.github/workflows/990-universal-toolchain-image.yml'
 
 permissions:
   contents: read
