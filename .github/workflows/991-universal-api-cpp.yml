@@ -1,4 +1,4 @@
-name: '991 - Universal API.cop'
+name: '991 - Universal API.cpp'
 on:
   workflow_dispatch:
     inputs:
