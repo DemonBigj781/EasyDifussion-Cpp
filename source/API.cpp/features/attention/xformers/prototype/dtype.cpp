@@ -1,7 +1,6 @@
 #include "xformers.hpp"
 
 #include <cstring>
-#include <limits>
 
 namespace xformers::prototype {
 
@@ -90,6 +89,32 @@ float f16_to_float(std::uint16_t value) {
     return out;
 }
 
+std::uint16_t float_to_bf16(float value) {
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+
+    // Round-to-nearest-even before truncating the lower 16 bits.
+    // Preserve NaN as NaN and ensure a non-zero payload survives truncation.
+    const std::uint32_t exponent = bits & 0x7f800000u;
+    const std::uint32_t mantissa = bits & 0x007fffffu;
+    if (exponent == 0x7f800000u && mantissa != 0) {
+        std::uint16_t out = static_cast<std::uint16_t>(bits >> 16);
+        out |= 0x0040u;
+        return out;
+    }
+
+    const std::uint32_t lsb = (bits >> 16) & 1u;
+    bits += 0x7fffu + lsb;
+    return static_cast<std::uint16_t>(bits >> 16);
+}
+
+float bf16_to_float(std::uint16_t value) {
+    const std::uint32_t bits = static_cast<std::uint32_t>(value) << 16;
+    float out = 0.0f;
+    std::memcpy(&out, &bits, sizeof(out));
+    return out;
+}
+
 float load_scalar(const void * data, std::size_t index, DType dtype) {
     switch (dtype) {
         case DType::F32:
@@ -97,7 +122,7 @@ float load_scalar(const void * data, std::size_t index, DType dtype) {
         case DType::F16:
             return f16_to_float(static_cast<const std::uint16_t *>(data)[index]);
         case DType::BF16:
-            return 0.0f;
+            return bf16_to_float(static_cast<const std::uint16_t *>(data)[index]);
     }
     return 0.0f;
 }
@@ -111,6 +136,7 @@ void store_scalar(void * data, std::size_t index, DType dtype, float value) {
             static_cast<std::uint16_t *>(data)[index] = float_to_f16(value);
             return;
         case DType::BF16:
+            static_cast<std::uint16_t *>(data)[index] = float_to_bf16(value);
             return;
     }
 }
