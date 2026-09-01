@@ -91,14 +91,17 @@ RUN echo 'if [ -f /opt/intel/oneapi/setvars.sh ]; then source /opt/intel/oneapi/
       > /etc/profile.d/oneapi.sh
 
 # Fail the image build if any API family expected by 990 is absent.
+# Source oneAPI first because icpx and some headers are intentionally installed
+# under /opt/intel/oneapi rather than globally under /usr.
 RUN set -eux; \
+    source /opt/intel/oneapi/setvars.sh >/dev/null; \
     test -x /usr/local/cuda/bin/nvcc; \
     test -x /opt/rocm/bin/hipcc; \
     test -f /usr/include/CL/cl.h; \
     test -f /usr/include/vulkan/vulkan.h; \
     test -f /usr/include/GL/gl.h; \
     test -f /usr/include/EGL/egl.h; \
-    test -f /usr/include/level_zero/ze_api.h; \
+    find /usr /opt/intel -path '*/level_zero/ze_api.h' -print -quit | grep -q .; \
     find /usr /opt/intel -path '*/openvino/openvino.hpp' -print -quit | grep -q .; \
     command -v glslc; \
     command -v glslangValidator; \
