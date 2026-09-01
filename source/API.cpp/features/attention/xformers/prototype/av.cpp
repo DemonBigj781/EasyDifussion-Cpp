@@ -1,7 +1,5 @@
 #include "xformers.hpp"
 
-#include <algorithm>
-
 namespace xformers::prototype {
 namespace {
 
@@ -45,20 +43,17 @@ bool av(const AttentionRequest & request, const ScoreBuffer & probabilities) {
     const auto & v = request.v;
     auto & out = const_cast<MutableTensor4D &>(request.out);
 
-    std::fill(out.data,
-              out.data + static_cast<std::size_t>(out.batch * out.heads * out.tokens * out.head_dim),
-              0.0f);
-
     for (std::int64_t b = 0; b < probabilities.batch; ++b) {
         for (std::int64_t h = 0; h < probabilities.heads; ++h) {
             const std::int64_t kv_head = map_kv_head(h, probabilities.heads, v.heads);
             for (std::int64_t q = 0; q < probabilities.query_tokens; ++q) {
-                for (std::int64_t k = 0; k < probabilities.key_tokens; ++k) {
-                    const float weight = probabilities.values[score_index(probabilities, b, h, q, k)];
-                    for (std::int64_t d = 0; d < v.head_dim; ++d) {
-                        out.data[mutable_index(out, b, h, q, d)] +=
-                            weight * v.data[tensor_index(v, b, kv_head, k, d)];
+                for (std::int64_t d = 0; d < v.head_dim; ++d) {
+                    float accum = 0.0f;
+                    for (std::int64_t k = 0; k < probabilities.key_tokens; ++k) {
+                        const float weight = probabilities.values[score_index(probabilities, b, h, q, k)];
+                        accum += weight * load_scalar(v.data, tensor_index(v, b, kv_head, k, d), request.dtype);
                     }
+                    store_scalar(out.data, mutable_index(out, b, h, q, d), request.dtype, accum);
                 }
             }
         }
