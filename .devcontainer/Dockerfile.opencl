@@ -25,15 +25,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Required OpenCL SDK surface. Keep these separate from optional runtimes so APT failures are obvious.
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends opencl-headers ocl-icd-opencl-dev clinfo; \
-    install_if_available() { for p in "$@"; do if apt-cache show "$p" >/dev/null 2>&1; then apt-get install -y --no-install-recommends "$p"; fi; done; }; \
+    apt-get install -y --no-install-recommends opencl-headers; \
+    apt-get install -y --no-install-recommends ocl-icd-opencl-dev; \
+    if apt-cache policy clinfo 2>/dev/null | grep -q 'Candidate: [^()]'; then \
+      apt-get install -y --no-install-recommends clinfo || echo '[040 warning] clinfo install failed; continuing because it is diagnostic-only'; \
+    else \
+      echo '[040 warning] clinfo has no install candidate on this Ubuntu release'; \
+    fi; \
+    rm -rf /var/lib/apt/lists/*
+
+# Optional OpenCL runtime implementations. Missing distro packages do not invalidate the SDK image.
+RUN set -eux; \
+    apt-get update; \
+    install_optional() { \
+      p="$1"; \
+      candidate="$(apt-cache policy "$p" 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"; \
+      if [ -z "$candidate" ] || [ "$candidate" = '(none)' ]; then \
+        echo "[040 optional] $p unavailable on Ubuntu ${UBUNTU_VERSION}; skipping"; \
+      elif apt-get install -y --no-install-recommends "$p"; then \
+        echo "[040 optional] installed $p ($candidate)"; \
+      else \
+        echo "[040 warning] $p exists but could not be installed; skipping optional runtime package"; \
+        apt-get -f install -y || true; \
+      fi; \
+    }; \
     case "$OPENCL_RUNTIME_PROFILE" in \
-      headers-only) ;; \
-      pocl) install_if_available pocl-opencl-icd libpocl-dev ;; \
-      mesa) install_if_available mesa-opencl-icd libclc-dev ;; \
-      full) install_if_available pocl-opencl-icd libpocl-dev mesa-opencl-icd libclc-dev ;; \
+      headers-only) echo '[040] headers-only profile selected' ;; \
+      pocl) install_optional pocl-opencl-icd; install_optional libpocl-dev ;; \
+      mesa) install_optional mesa-opencl-icd; install_optional libclc-dev ;; \
+      full) install_optional pocl-opencl-icd; install_optional libpocl-dev; install_optional mesa-opencl-icd; install_optional libclc-dev ;; \
       *) echo "Unknown OpenCL runtime profile: $OPENCL_RUNTIME_PROFILE" >&2; exit 1 ;; \
     esac; \
     rm -rf /var/lib/apt/lists/*
