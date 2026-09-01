@@ -1,9 +1,0 @@
-name: '052 - OpenCL llama.cpp [RESERVED]'
-on:
-  workflow_dispatch:
-permissions: {contents: read}
-jobs:
-  reserved:
-    runs-on: ubuntu-24.04
-    steps:
-      - run: echo 'Reserved index 052 for OpenCL llama.cpp compilation.'
