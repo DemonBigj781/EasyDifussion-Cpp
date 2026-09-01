@@ -56,11 +56,6 @@ ValidationResult validate(const AttentionRequest & request) {
         return result;
     }
 
-    if (request.dtype == DType::BF16) {
-        result.message = "Prototype reference path does not execute BF16 yet";
-        return result;
-    }
-
     if (request.mask.data) {
         const bool batch_ok = request.mask.batch == 1 || request.mask.batch == request.q.batch;
         const bool heads_ok = request.mask.heads == 1 || request.mask.heads == request.q.heads;
@@ -88,7 +83,18 @@ ValidationResult validate(const AttentionRequest & request) {
     }
 
     result.ok = true;
-    result.message = request.dtype == DType::F16 ? "ok (F16 storage, F32 accumulation)" : "ok";
+    switch (request.dtype) {
+        case DType::F16:
+            result.message = "ok (F16 storage, F32 accumulation)";
+            break;
+        case DType::BF16:
+            result.message = "ok (BF16 storage, F32 accumulation)";
+            break;
+        case DType::F32:
+        default:
+            result.message = "ok";
+            break;
+    }
     return result;
 }
 
