@@ -1,9 +1,92 @@
-name: '050 - OpenVINO Toolchain Image [RESERVED]'
+name: '050 - OpenVINO Toolchain Image'
 on:
   workflow_dispatch:
-permissions: {contents: read}
+    inputs:
+      openvino_version:
+        description: 'OpenVINO release prefix or latest (for example 2025.2)'
+        required: true
+        default: 'latest'
+        type: string
+      ubuntu_version:
+        description: 'Ubuntu base version'
+        required: true
+        default: '24.04'
+        type: choice
+        options: ['20.04', '22.04', '24.04']
+      python_version:
+        description: 'Python via pyenv (or none)'
+        required: true
+        default: 'none'
+        type: choice
+        options: ['none', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+      pytorch_version:
+        description: 'Exact PyTorch version, or none'
+        required: true
+        default: 'none'
+        type: string
+      pytorch_index_url:
+        description: 'Optional PyTorch wheel index URL, or none'
+        required: true
+        default: 'none'
+        type: string
+permissions:
+  contents: read
+  packages: write
 jobs:
-  reserved:
+  publish:
     runs-on: ubuntu-24.04
+    env:
+      OPENVINO_VERSION: ${{ inputs.openvino_version }}
+      UBUNTU_VERSION: ${{ inputs.ubuntu_version }}
+      PYTHON_VERSION: ${{ inputs.python_version }}
+      PYTORCH_VERSION: ${{ inputs.pytorch_version }}
+      PYTORCH_INDEX_URL: ${{ inputs.pytorch_index_url }}
     steps:
-      - run: echo 'Reserved index 050 for OpenVINO toolchain/image construction.'
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve and validate selections
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$UBUNTU_VERSION" in
+            20.04) repo_dist=ubuntu20 ;;
+            22.04) repo_dist=ubuntu22 ;;
+            24.04) repo_dist=ubuntu24 ;;
+            *) echo "Unsupported Ubuntu version: $UBUNTU_VERSION" >&2; exit 1 ;;
+          esac
+          echo "OPENVINO_REPO_DIST=$repo_dist" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import os, re
+          ov=os.environ['OPENVINO_VERSION']
+          if ov != 'latest' and not re.fullmatch(r'\d{4}(?:\.\d+){0,2}', ov):
+              raise SystemExit(f'Invalid OpenVINO selector: {ov}')
+          py=os.environ['PYTHON_VERSION']
+          if py not in {'none','3.8','3.9','3.10','3.11','3.12','3.13','3.14'}:
+              raise SystemExit(f'Unsupported Python selection: {py}')
+          torch=os.environ['PYTORCH_VERSION']
+          if torch != 'none' and py == 'none':
+              raise SystemExit('PyTorch cannot be enabled when Python is disabled')
+          print(f"[050] OpenVINO={ov} Ubuntu={os.environ['UBUNTU_VERSION']} Python={py} PyTorch={torch}")
+          PY
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish OpenVINO toolchain image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile.openvino
+          push: true
+          build-args: |
+            OPENVINO_VERSION=${{ env.OPENVINO_VERSION }}
+            UBUNTU_VERSION=${{ env.UBUNTU_VERSION }}
+            OPENVINO_REPO_DIST=${{ env.OPENVINO_REPO_DIST }}
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+            PYTORCH_VERSION=${{ env.PYTORCH_VERSION }}
+            PYTORCH_INDEX_URL=${{ env.PYTORCH_INDEX_URL }}
+          tags: |
+            ghcr.io/demonbigj781/easydifussion-cpp-openvino-toolchain:main
+            ghcr.io/demonbigj781/easydifussion-cpp-openvino-toolchain:openvino-${{ env.OPENVINO_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}
+            ghcr.io/demonbigj781/easydifussion-cpp-openvino-toolchain:${{ github.sha }}
