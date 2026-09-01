@@ -90,22 +90,26 @@ ENV LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:/usr/local/cuda/lib64:${LD_LI
 RUN echo 'if [ -f /opt/intel/oneapi/setvars.sh ]; then source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || true; fi' \
       > /etc/profile.d/oneapi.sh
 
-# Fail the image build if any API family expected by 990 is absent.
-# Avoid `find | grep -q` here because this Dockerfile uses pipefail: grep can exit
-# after the first match and leave find with SIGPIPE, producing a false failure.
+# Fail the image build if any API family expected by 990 is absent, and print
+# the exact component that failed so CI logs are actionable.
 RUN set -eux; \
     source /opt/intel/oneapi/setvars.sh >/dev/null; \
-    test -x /usr/local/cuda/bin/nvcc; \
-    test -x /opt/rocm/bin/hipcc; \
-    test -f /usr/include/CL/cl.h; \
-    test -f /usr/include/vulkan/vulkan.h; \
-    test -f /usr/include/GL/gl.h; \
-    test -f /usr/include/EGL/egl.h; \
-    test -n "$(find /usr /opt/intel -path '*/level_zero/ze_api.h' -print -quit)"; \
-    test -n "$(find /usr /opt/intel -path '*/openvino/openvino.hpp' -print -quit)"; \
-    command -v glslc; \
-    command -v glslangValidator; \
-    command -v spirv-val; \
-    command -v icpx
+    check_file() { label="$1"; path="$2"; echo "[990 verify] $label -> $path"; test -f "$path" || { echo "[990 missing] $label: $path" >&2; exit 1; }; }; \
+    check_exec() { label="$1"; path="$2"; echo "[990 verify] $label -> $path"; test -x "$path" || { echo "[990 missing] $label: $path" >&2; exit 1; }; }; \
+    check_cmd() { label="$1"; cmd="$2"; echo "[990 verify] $label -> $cmd"; command -v "$cmd" || { echo "[990 missing] $label command: $cmd" >&2; exit 1; }; }; \
+    check_find() { label="$1"; pattern="$2"; echo "[990 verify] $label -> $pattern"; found="$(find /usr /opt/intel -path "$pattern" -print -quit 2>/dev/null)"; test -n "$found" || { echo "[990 missing] $label pattern: $pattern" >&2; exit 1; }; echo "[990 found] $label -> $found"; }; \
+    check_exec CUDA /usr/local/cuda/bin/nvcc; \
+    check_exec ROCm-HIP /opt/rocm/bin/hipcc; \
+    check_file OpenCL /usr/include/CL/cl.h; \
+    check_file Vulkan /usr/include/vulkan/vulkan.h; \
+    check_file OpenGL /usr/include/GL/gl.h; \
+    check_file EGL /usr/include/EGL/egl.h; \
+    check_find Level-Zero '*/level_zero/ze_api.h'; \
+    check_find OpenVINO '*/openvino/openvino.hpp'; \
+    check_cmd GLSLC glslc; \
+    check_cmd GLSLang glslangValidator; \
+    check_cmd SPIRV-Tools spirv-val; \
+    check_cmd oneAPI-ICPX icpx; \
+    echo '[990 verify] universal toolchain validation complete'
 
 CMD ["/bin/bash"]
