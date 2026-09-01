@@ -1,0 +1,9 @@
+name: '120 - DirectML Toolchain Image [RESERVED]'
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  reserved:
+    runs-on: windows-2025
+    steps:
+      - run: echo 'Reserved index 120 for DirectML toolchain/image construction.'
