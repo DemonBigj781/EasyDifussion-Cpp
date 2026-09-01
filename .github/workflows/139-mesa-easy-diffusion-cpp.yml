@@ -1,0 +1,9 @@
+name: '139 - Mesa Easy Diffusion C++ [RESERVED]'
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  reserved:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Reserved index 139 for Mesa Easy Diffusion C++ compilation.'
