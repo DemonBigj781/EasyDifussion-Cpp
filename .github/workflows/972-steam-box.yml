@@ -1,0 +1,10 @@
+name: '972 - Steam Box [RESERVED]'
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  steam-box:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: echo '972 is reserved for the Steam Box platform workflow.'
