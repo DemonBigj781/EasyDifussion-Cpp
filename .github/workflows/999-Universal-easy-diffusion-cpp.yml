@@ -1,4 +1,4 @@
-name: '999 - Complete Easy Diffusion C++ Pipeline'
+name: '999 - Universal Easy Diffusion C++ Pipeline'
 on:
   workflow_dispatch:
     inputs:
