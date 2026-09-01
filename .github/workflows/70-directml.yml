@@ -1,4 +1,0 @@
-name: '70 - DirectML D3D12'
-on: {workflow_dispatch: {inputs: {mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}}}}
-permissions: {contents: read}
-jobs: {build: {runs-on: windows-2025, steps: [{uses: actions/checkout@v7}, {uses: actions/setup-python@v6, with: {python-version: '3.13'}}, {shell: pwsh, run: 'python ci/scripts/build_backend.py --backend directml --mode "${{ inputs.mode }}" --target-json ''{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'''}]}}
