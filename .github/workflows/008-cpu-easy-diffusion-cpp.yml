@@ -1,7 +1,16 @@
 name: '008 - CPU Easy Diffusion C++'
 on:
   workflow_dispatch:
-permissions:
+    inputs:
+      action:
+        description: 'set current workflow action'
+        required: true
+        default: 'complete'
+        type: choice
+        options:
+          - 'complete'
+          - 'check'
+permissionsons:
   contents: read
   packages: read
 jobs:
