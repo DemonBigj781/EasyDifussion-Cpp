@@ -19,14 +19,12 @@ LABEL org.opencontainers.image.title="EasyDifussion-Cpp 040 OpenCL Toolchain" \
       io.easydifussion.python.version="${PYTHON_VERSION}" \
       io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
 
-# Native C/C++ build foundation plus dependencies required to build Python via pyenv.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ clang cmake ninja-build pkg-config git ca-certificates curl wget \
     make libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev llvm \
     libncurses-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# OpenCL headers, ICD loader/development files, diagnostics, and selectable runtimes.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends opencl-headers ocl-icd-opencl-dev clinfo; \
@@ -44,7 +42,6 @@ ENV CL_TARGET_OPENCL_VERSION="${OPENCL_TARGET_VERSION}"
 ENV PYENV_ROOT="/root/.pyenv"
 ENV PATH="/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
 
-# pyenv is always present; the interpreter itself is optional.
 RUN git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
     && if [ "$PYTHON_VERSION" != "none" ]; then \
          pyenv install "$PYTHON_VERSION" \
@@ -53,7 +50,6 @@ RUN git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
          && python -m pip install --upgrade pip setuptools wheel; \
        fi
 
-# Optional PyTorch layer. OpenCL itself does not require PyTorch; a custom index can be supplied when desired.
 RUN if [ "$PYTORCH_VERSION" != "none" ]; then \
       if [ "$PYTHON_VERSION" = "none" ]; then echo 'PyTorch requires Python' >&2; exit 1; fi; \
       if [ "$PYTORCH_INDEX_URL" = "none" ]; then \
@@ -69,20 +65,18 @@ RUN printf '%s\n' \
     'if command -v pyenv >/dev/null 2>&1; then eval "$(pyenv init -)"; fi' \
     > /etc/profile.d/pyenv.sh
 
-# Validate headers and ICD loader by compiling/linking a tiny program at the requested API target.
 RUN set -eux; \
     test -f /usr/include/CL/cl.h; \
     test -f /usr/include/CL/cl_platform.h; \
-    cat > /tmp/opencl-check.c <<'EOF'
-#define CL_TARGET_OPENCL_VERSION OPENCL_TARGET_VALUE
-#include <CL/cl.h>
-int main(void) {
-    cl_uint n = 0;
-    cl_int rc = clGetPlatformIDs(0, 0, &n);
-    return (rc == CL_SUCCESS || rc == CL_PLATFORM_NOT_FOUND_KHR) ? 0 : 1;
-}
-EOF
-    sed -i "s/OPENCL_TARGET_VALUE/${OPENCL_TARGET_VERSION}/" /tmp/opencl-check.c; \
+    printf '%s\n' \
+      "#define CL_TARGET_OPENCL_VERSION ${OPENCL_TARGET_VERSION}" \
+      '#include <CL/cl.h>' \
+      'int main(void) {' \
+      '    cl_uint n = 0;' \
+      '    cl_int rc = clGetPlatformIDs(0, 0, &n);' \
+      '    return (rc == CL_SUCCESS || rc == CL_PLATFORM_NOT_FOUND_KHR) ? 0 : 1;' \
+      '}' \
+      > /tmp/opencl-check.c; \
     gcc /tmp/opencl-check.c -lOpenCL -o /tmp/opencl-check; \
     /tmp/opencl-check; \
     rm -f /tmp/opencl-check /tmp/opencl-check.c; \
