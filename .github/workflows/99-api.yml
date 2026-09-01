@@ -28,6 +28,29 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build
       - name: Build API baseline
         run: python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
+      - name: Compile complete API.cpp source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' sources < <(find source/API.cpp -type f -name '*.cpp' -print0 | sort -z)
+          if [ "${#sources[@]}" -eq 0 ]; then
+            echo "No C++ translation units found under source/API.cpp" >&2
+            exit 1
+          fi
+
+          echo "Compiling ${#sources[@]} API.cpp translation units"
+          mkdir -p /tmp/api-cpp-objects
+          i=0
+          for src in "${sources[@]}"; do
+            obj="/tmp/api-cpp-objects/unit-${i}.o"
+            echo "[$((i + 1))/${#sources[@]}] $src"
+            c++ -std=c++17 -Wall -Wextra -Wpedantic -c "$src" -o "$obj" \
+              -Isource/API.cpp \
+              -Isource/sdkit3-port-source/include \
+              -Isource/sdkit3-port-source/stable-diffusion.cpp/include \
+              -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include
+            i=$((i + 1))
+          done
       - name: Validate public API headers
         shell: bash
         run: |
@@ -59,6 +82,33 @@ jobs:
       - name: Build API baseline
         shell: pwsh
         run: python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
+      - name: Compile complete API.cpp source tree
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sources = @(Get-ChildItem -Path 'source/API.cpp' -Recurse -File -Filter '*.cpp' | Sort-Object FullName)
+          if ($sources.Count -eq 0) {
+            throw 'No C++ translation units found under source/API.cpp'
+          }
+
+          $objectDir = Join-Path $env:RUNNER_TEMP 'api-cpp-objects'
+          New-Item -ItemType Directory -Force -Path $objectDir | Out-Null
+          Write-Host "Compiling $($sources.Count) API.cpp translation units"
+
+          for ($i = 0; $i -lt $sources.Count; $i++) {
+            $src = $sources[$i].FullName
+            $obj = Join-Path $objectDir ("unit-{0}.obj" -f $i)
+            Write-Host "[$($i + 1)/$($sources.Count)] $src"
+            & cl /nologo /std:c++17 /EHsc /W4 /c "/Fo$obj" \
+              "/Isource\API.cpp" \
+              "/Isource\sdkit3-port-source\include" \
+              "/Isource\sdkit3-port-source\stable-diffusion.cpp\include" \
+              "/Isource\sdkit3-port-source\stable-diffusion.cpp\ggml\include" \
+              $src
+            if ($LASTEXITCODE -ne 0) {
+              throw "Compilation failed: $src"
+            }
+          }
       - name: Validate public API headers
         shell: pwsh
         run: |
