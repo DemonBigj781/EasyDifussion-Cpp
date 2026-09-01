@@ -1,5 +1,6 @@
 #include "xformers.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -68,8 +69,7 @@ int main() {
         return 5;
     }
 
-    // F16 storage path. Convert the same inputs to binary16, execute with F32
-    // score/softmax/AV accumulation, then compare decoded output to F32.
+    // F16 storage path.
     std::vector<std::uint16_t> q16(q.size());
     std::vector<std::uint16_t> k16(k.size());
     std::vector<std::uint16_t> v16(v.size());
@@ -86,28 +86,61 @@ int main() {
     request.causal = true;
 
     const auto validation16 = validate(request);
-    if (!validation16.ok) {
-        std::cerr << "F16 validation failed: " << validation16.message << '\n';
+    if (!validation16.ok || !forward(request)) {
+        std::cerr << "F16 path failed: " << validation16.message << '\n';
         return 6;
-    }
-
-    if (!forward(request)) {
-        std::cerr << "F16 forward failed\n";
-        return 7;
     }
 
     if (!nearly_equal(f16_to_float(out16[0]), 10.f, 1e-2f) ||
         !nearly_equal(f16_to_float(out16[1]), 0.f, 1e-2f)) {
         std::cerr << "F16 causal token-0 result mismatch\n";
+        return 7;
+    }
+
+    // BF16 storage path. The same neutral implementation loads BF16 into F32,
+    // performs QK^T/softmax/AV accumulation in F32, and rounds output to BF16.
+    std::vector<std::uint16_t> qb16(q.size());
+    std::vector<std::uint16_t> kb16(k.size());
+    std::vector<std::uint16_t> vb16(v.size());
+    std::vector<std::uint16_t> outb16(out.size(), 0);
+    for (std::size_t i = 0; i < q.size(); ++i) qb16[i] = float_to_bf16(q[i]);
+    for (std::size_t i = 0; i < k.size(); ++i) kb16[i] = float_to_bf16(k[i]);
+    for (std::size_t i = 0; i < v.size(); ++i) vb16[i] = float_to_bf16(v[i]);
+
+    request.q = Tensor4D{qb16.data(), 1, 2, 2, 2};
+    request.k = Tensor4D{kb16.data(), 1, 1, 2, 2};
+    request.v = Tensor4D{vb16.data(), 1, 1, 2, 2};
+    request.out = MutableTensor4D{outb16.data(), 1, 2, 2, 2};
+    request.dtype = DType::BF16;
+    request.causal = true;
+
+    const auto validation_bf16 = validate(request);
+    if (!validation_bf16.ok || !forward(request)) {
+        std::cerr << "BF16 path failed: " << validation_bf16.message << '\n';
         return 8;
     }
 
-    const auto caps = capabilities();
-    if (!caps.f16) {
-        std::cerr << "F16 capability was not advertised\n";
+    if (!nearly_equal(bf16_to_float(outb16[0]), 10.f, 5e-2f) ||
+        !nearly_equal(bf16_to_float(outb16[1]), 0.f, 5e-2f)) {
+        std::cerr << "BF16 causal token-0 result mismatch\n";
         return 9;
     }
 
-    std::cout << "xFormers prototype F32/F16 self-test passed\n";
+    // Conversion sanity checks include an ordinary non-integer value so BF16
+    // rounding behavior is exercised instead of only exactly representable data.
+    const float probe = 1.234567f;
+    const float probe_roundtrip = bf16_to_float(float_to_bf16(probe));
+    if (!nearly_equal(probe_roundtrip, probe, 1e-2f)) {
+        std::cerr << "BF16 conversion roundtrip mismatch\n";
+        return 10;
+    }
+
+    const auto caps = capabilities();
+    if (!caps.f16 || !caps.bf16) {
+        std::cerr << "F16/BF16 capabilities were not advertised\n";
+        return 11;
+    }
+
+    std::cout << "xFormers prototype F32/F16/BF16 self-test passed\n";
     return 0;
 }
