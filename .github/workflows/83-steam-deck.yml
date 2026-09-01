@@ -1,4 +1,4 @@
-name: '83 - Steam Deck'
+name: '83 - Steam Deck (Bazzite / ROCm)'
 on:
   workflow_dispatch:
     inputs:
@@ -8,17 +8,11 @@ on:
         default: compile
         type: choice
         options: [compile, regression, compile-and-regression]
-      backend:
-        description: Backend
-        required: true
-        default: rocm
-        type: choice
-        options: [rocm, vulkan, opengl]
 permissions: {contents: read}
 jobs:
-  steam-deck:
+  steam-deck-bazzite-rocm:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - run: 'echo "Steam Deck / ${{ inputs.backend }} / ${{ inputs.mode }}"'
-      - run: 'echo "Steam Deck remains an isolated platform workflow slot until its dedicated provisioning/build path is wired."'
+      - run: 'echo "Steam Deck / Bazzite / ROCm / ${{ inputs.mode }}"'
+      - run: 'echo "Steam Deck is treated as a Bazzite-specific ROCm platform workflow slot; dedicated Bazzite/ROCm provisioning and build steps will be wired separately."'
