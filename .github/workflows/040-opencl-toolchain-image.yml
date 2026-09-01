@@ -51,6 +51,16 @@ jobs:
       PYTORCH_INDEX_URL: ${{ inputs.pytorch_index_url }}
     steps:
       - uses: actions/checkout@v7
+      - name: Verify 040 source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "[040 source] ref=${GITHUB_REF} sha=${GITHUB_SHA}"
+          grep -F '[040 optional]' .devcontainer/Dockerfile.opencl >/dev/null || {
+            echo '[040 source] stale Dockerfile detected; start a new workflow_dispatch run instead of re-running an older job.' >&2
+            exit 1
+          }
+          echo '[040 source] current split OpenCL package logic confirmed'
       - uses: docker/setup-buildx-action@v3
       - name: Resolve and validate selections
         shell: bash
