@@ -4,6 +4,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 ARG DEBIAN_FRONTEND=noninteractive
 ARG OPENVINO_VERSION=latest
 ARG UBUNTU_VERSION=24.04
+ARG OPENVINO_REPO_DIST=ubuntu24
 ARG PYTHON_VERSION=none
 ARG PYTORCH_VERSION=none
 ARG PYTORCH_INDEX_URL=none
@@ -23,19 +24,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /etc/apt/keyrings \
-    && wget -qO- https://apt.repos.intel.com/openvino/2025/GPG-PUB-KEY-INTEL-OPENVINO-2025 | gpg --dearmor > /etc/apt/keyrings/openvino.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/openvino.gpg] https://apt.repos.intel.com/openvino/2025 ubuntu24 main" > /etc/apt/sources.list.d/intel-openvino.list \
-    && apt-get update \
-    && if [ "$OPENVINO_VERSION" = "latest" ]; then \
-         apt-get install -y --no-install-recommends openvino; \
-       else \
-         resolved="$(apt-cache madison openvino | awk '{print $3}' | grep -E "^${OPENVINO_VERSION//./\\.}([.-]|$)" | head -n1)"; \
-         test -n "$resolved" || { echo "No OpenVINO package matches ${OPENVINO_VERSION}" >&2; exit 1; }; \
-         echo "[050] resolved OpenVINO ${OPENVINO_VERSION} -> ${resolved}"; \
-         apt-get install -y --no-install-recommends "openvino=${resolved}"; \
-       fi \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB -O /tmp/intel-openvino.pub; \
+    gpg --batch --yes --output /etc/apt/trusted.gpg.d/intel-openvino.gpg --dearmor /tmp/intel-openvino.pub; \
+    echo "deb https://apt.repos.intel.com/openvino ${OPENVINO_REPO_DIST} main" > /etc/apt/sources.list.d/intel-openvino.list; \
+    apt-get update; \
+    if [ "$OPENVINO_VERSION" = "latest" ]; then \
+      apt-get install -y --no-install-recommends openvino; \
+    else \
+      pkg="$(apt-cache search '^openvino-[0-9]' | awk '{print $1}' | grep -E "^openvino-${OPENVINO_VERSION}([.-]|$)" | sort -V | tail -n1)"; \
+      test -n "$pkg" || { echo "No OpenVINO package matches ${OPENVINO_VERSION}" >&2; apt-cache search '^openvino-[0-9]' >&2; exit 1; }; \
+      echo "[050] resolved OpenVINO ${OPENVINO_VERSION} -> ${pkg}"; \
+      apt-get install -y --no-install-recommends "$pkg"; \
+    fi; \
+    rm -f /tmp/intel-openvino.pub; \
+    rm -rf /var/lib/apt/lists/*
 
 ENV PYENV_ROOT="/root/.pyenv"
 ENV PATH="/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
@@ -64,13 +67,11 @@ RUN printf '%s\n' \
     > /etc/profile.d/pyenv.sh
 
 RUN set -eux; \
-    header="$(find /usr /opt -path '*/openvino/openvino.hpp' -print -quit 2>/dev/null)"; \
-    test -n "$header"; \
-    pkg-config --exists openvino || find /usr /opt -name 'OpenVINOConfig.cmake' -print -quit | grep -q .; \
+    header="$(find /usr /opt -path '*/openvino/openvino.hpp' -print -quit 2>/dev/null)"; test -n "$header"; \
+    cmake_cfg="$(find /usr /opt -name 'OpenVINOConfig.cmake' -print -quit 2>/dev/null)"; test -n "$cmake_cfg"; \
     printf '#include <openvino/openvino.hpp>\nint main(){ ov::Core core; return 0; }\n' > /tmp/openvino-test.cpp; \
-    cmake_dir="$(dirname "$(find /usr /opt -name 'OpenVINOConfig.cmake' -print -quit 2>/dev/null)")"; \
     printf 'cmake_minimum_required(VERSION 3.16)\nproject(openvino_test LANGUAGES CXX)\nfind_package(OpenVINO REQUIRED)\nadd_executable(openvino-test openvino-test.cpp)\ntarget_link_libraries(openvino-test PRIVATE openvino::runtime)\n' > /tmp/CMakeLists.txt; \
-    cmake -S /tmp -B /tmp/build -GNinja ${cmake_dir:+-DOpenVINO_DIR="$cmake_dir"}; \
+    cmake -S /tmp -B /tmp/build -GNinja -DOpenVINO_DIR="$(dirname "$cmake_cfg")"; \
     cmake --build /tmp/build; \
     /tmp/build/openvino-test; \
     if [ "$PYTHON_VERSION" != "none" ]; then python --version; fi; \
