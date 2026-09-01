@@ -1,0 +1,45 @@
+FROM nvidia/cuda:12.8.1-devel-ubuntu24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# 010 - CUDA-only native C/C++ build foundation.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    clang \
+    cmake \
+    ninja-build \
+    pkg-config \
+    git \
+    ca-certificates \
+    curl \
+    wget \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python-is-python3 \
+    libomp-dev \
+    libtbb-dev \
+    libnuma-dev \
+    libhwloc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CUDA_HOME="/usr/local/cuda"
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+
+# Validate the CUDA development surface required by native API.cpp backends.
+RUN set -eux; \
+    check_exec() { label="$1"; path="$2"; echo "[010 verify] $label -> $path"; test -x "$path" || { echo "[010 missing] $label: $path" >&2; exit 1; }; }; \
+    check_header() { label="$1"; header="$2"; echo "[010 verify] $label -> $header"; test -f "/usr/local/cuda/include/$header" || { echo "[010 missing] $label: /usr/local/cuda/include/$header" >&2; exit 1; }; }; \
+    check_exec NVCC /usr/local/cuda/bin/nvcc; \
+    check_header CUDA-Runtime cuda_runtime.h; \
+    check_header CUDA-Driver cuda.h; \
+    check_header cuBLAS cublas_v2.h; \
+    check_header cuRAND curand.h; \
+    check_header cuSPARSE cusparse.h; \
+    /usr/local/cuda/bin/nvcc --version; \
+    echo '[010 verify] CUDA toolchain validation complete'
+
+CMD ["/bin/bash"]
