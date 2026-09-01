@@ -1,6 +1,51 @@
-name: '009 - CPU Easy Diffusion C++'
-on: {workflow_dispatch: {inputs: {platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}, mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}}}}
-permissions: {contents: read}
+name: '009 - CPU Easy Diffusion C++ Baseline'
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
 jobs:
-  linux: {if: "inputs.platform == 'linux'", runs-on: ubuntu-24.04, steps: [{uses: actions/checkout@v7}, {uses: actions/setup-python@v6, with: {python-version: '3.13'}}, {run: 'sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build'}, {run: 'python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json ''{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'''}]}
-  windows: {if: "inputs.platform == 'windows'", runs-on: windows-2025, steps: [{uses: actions/checkout@v7}, {uses: actions/setup-python@v6, with: {python-version: '3.13'}}, {shell: pwsh, run: 'python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json ''{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'''}]}
+  compile-current-tree:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:main
+      credentials:
+        username: '${{ github.actor }}'
+        password: '${{ secrets.GITHUB_TOKEN }}'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Show baseline source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          test -f source/sdkit3-port-source/CMakeLists.txt
+          cmake --version
+          c++ --version
+      - name: Configure current Easy Diffusion C++ tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake \
+            -S source/sdkit3-port-source \
+            -B build/009-cpu-baseline \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDKIT_BUILD_LLAMA_RUNTIME=OFF \
+            -DSDKIT_BUILD_NATIVE_VISION=OFF \
+            -DSDKIT_OPENGL_BACKEND=OFF \
+            -DSD_CUDA=OFF \
+            -DSD_HIPBLAS=OFF \
+            -DSD_METAL=OFF \
+            -DSD_VULKAN=OFF \
+            -DSD_OPENCL=OFF \
+            -DSD_SYCL=OFF \
+            -DSD_MUSA=OFF
+      - name: Compile current Easy Diffusion C++ tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --build build/009-cpu-baseline --target sdkit --parallel 2
