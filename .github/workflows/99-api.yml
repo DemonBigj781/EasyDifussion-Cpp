@@ -25,13 +25,42 @@ jobs:
       - uses: actions/setup-python@v6
         with: {python-version: '3.13'}
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
+      - name: Install CUDA
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: '12.8.1'
+          method: local
+          linux-local-args: '["--toolkit"]'
+      - name: Install oneAPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel intel-oneapi-dnnl-devel intel-ocloc libze1 libze-dev
+          command -v ocloc
+      - name: Install ROCm
+        shell: bash
+        run: bash ci/scripts/setup_rocm.sh
       - name: Build API baseline
-        run: python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +u
+          source /opt/intel/oneapi/setvars.sh
+          set -u
+          export PATH=/opt/rocm/bin:$PATH
+          python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"12.8.1","oneapi":[],"rocm":[],"portable":[]}'
       - name: Compile complete API.cpp source tree
         shell: bash
         run: |
           set -euo pipefail
+          set +u
+          source /opt/intel/oneapi/setvars.sh
+          set -u
+          export PATH=/opt/rocm/bin:$PATH
           mapfile -d '' sources < <(find source/API.cpp -type f -name '*.cpp' -print0 | sort -z)
           if [ "${#sources[@]}" -eq 0 ]; then
             echo "No C++ translation units found under source/API.cpp" >&2
@@ -48,7 +77,9 @@ jobs:
               -Isource/API.cpp \
               -Isource/sdkit3-port-source/include \
               -Isource/sdkit3-port-source/stable-diffusion.cpp/include \
-              -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include
+              -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include \
+              -I/usr/local/cuda/include \
+              -I/opt/rocm/include
             i=$((i + 1))
           done
       - name: Validate public API headers
