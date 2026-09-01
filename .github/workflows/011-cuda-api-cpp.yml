@@ -1,9 +1,44 @@
-name: '011 - CUDA API.cpp [RESERVED]'
-on:
+name: '011 - CUDA API.cpp'
+
+"on":
   workflow_dispatch:
-permissions: {contents: read}
+    inputs:
+      mode:
+        description: 'Build mode'
+        required: true
+        default: 'compile'
+        type: choice
+        options: ['compile']
+
+permissions:
+  contents: read
+  packages: read
+
 jobs:
-  reserved:
+  build:
     runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:main
+      credentials:
+        username: '${{ github.actor }}'
+        password: '${{ secrets.GITHUB_TOKEN }}'
     steps:
-      - run: echo 'Reserved index 011 for CUDA API.cpp compilation.'
+      - uses: actions/checkout@v7
+      - name: Verify CUDA toolchain image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f /usr/local/cuda/include/cuda_runtime_api.h
+          test -x /usr/local/cuda/bin/nvcc
+          /usr/local/cuda/bin/nvcc --version
+      - name: Compile CUDA API.cpp handlers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/011
+          c++ -std=c++17 -Wall -Wextra -Wpedantic \
+            -Isource/API.cpp/include \
+            -I/usr/local/cuda/include \
+            -c source/API.cpp/src/cuda_handler.cpp \
+            -o build/011/cuda_handler.o
+          echo '[011] CUDA API.cpp handlers compiled successfully'
