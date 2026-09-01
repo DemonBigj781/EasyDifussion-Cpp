@@ -2,17 +2,19 @@ ARG UBUNTU_VERSION=24.04
 FROM ubuntu:${UBUNTU_VERSION}
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG ROCM_VERSION=7.2.2
+ARG ROCM_VERSION=7.2.4
 ARG UBUNTU_VERSION=24.04
 ARG UBUNTU_CODENAME=noble
 ARG PYTHON_VERSION=none
 ARG PYTORCH_VERSION=none
 ARG PYTORCH_INDEX_URL=none
+ARG ROCM_LIBRARY_PROFILE=full
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 LABEL org.opencontainers.image.title="EasyDifussion-Cpp 020 ROCm Toolchain" \
       io.easydifussion.rocm.version="${ROCM_VERSION}" \
+      io.easydifussion.rocm.library-profile="${ROCM_LIBRARY_PROFILE}" \
       io.easydifussion.ubuntu.version="${UBUNTU_VERSION}" \
       io.easydifussion.python.version="${PYTHON_VERSION}" \
       io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
@@ -25,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ROCm/HIP repository and native development stack.
+# ROCm repository.
 RUN mkdir -p /etc/apt/keyrings \
     && wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor > /etc/apt/keyrings/rocm.gpg \
     && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/${ROCM_VERSION} ${UBUNTU_CODENAME} main" > /etc/apt/sources.list.d/rocm.list \
@@ -33,17 +35,36 @@ RUN mkdir -p /etc/apt/keyrings \
       'Package: rocm-* hip* roc* hsa-* amd-smi* comgr* miopen* rccl* llvm-amdgpu* openmp-extras*' \
       'Pin: origin repo.radeon.com' \
       'Pin-Priority: 1001' \
-      > /etc/apt/preferences.d/rocm-pin \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends rocm-dev hipblas-dev rocblas-dev \
-    && rm -rf /var/lib/apt/lists/*
+      > /etc/apt/preferences.d/rocm-pin
+
+# Native ROCm libraries. Prefer AMD's SDK meta-packages where available, with a
+# compatibility fallback for older ROCm repositories.
+RUN set -eux; \
+    apt-get update; \
+    install_if_available() { for p in "$@"; do if apt-cache show "$p" >/dev/null 2>&1; then apt-get install -y --no-install-recommends "$p"; fi; done; }; \
+    case "$ROCM_LIBRARY_PROFILE" in \
+      core) \
+        install_if_available rocm-dev rocm-hip-runtime-dev hipblas-dev rocblas-dev ;; \
+      hip-sdk) \
+        if apt-cache show rocm-hip-sdk >/dev/null 2>&1; then apt-get install -y --no-install-recommends rocm-hip-sdk; \
+        else install_if_available rocm-dev hipblas-dev rocblas-dev hipblaslt-dev hipfft-dev hiprand-dev hipsolver-dev hipsparse-dev rccl-dev rocfft-dev rocrand-dev rocsolver-dev rocsparse-dev; fi ;; \
+      ml-sdk) \
+        if apt-cache show rocm-ml-sdk >/dev/null 2>&1; then apt-get install -y --no-install-recommends rocm-ml-sdk; \
+        else install_if_available rocm-dev hipblas-dev rocblas-dev miopen-hip-dev; fi ;; \
+      full) \
+        if apt-cache show rocm-hip-sdk >/dev/null 2>&1; then apt-get install -y --no-install-recommends rocm-hip-sdk; \
+        else install_if_available rocm-dev hipblas-dev rocblas-dev hipblaslt-dev hipfft-dev hiprand-dev hipsolver-dev hipsparse-dev rccl-dev rocfft-dev rocrand-dev rocsolver-dev rocsparse-dev; fi; \
+        if apt-cache show rocm-ml-sdk >/dev/null 2>&1; then apt-get install -y --no-install-recommends rocm-ml-sdk; else install_if_available miopen-hip-dev; fi ;; \
+      *) echo "Unknown ROCm library profile: $ROCM_LIBRARY_PROFILE" >&2; exit 1 ;; \
+    esac; \
+    rm -rf /var/lib/apt/lists/*
 
 ENV ROCM_PATH="/opt/rocm"
 ENV PATH="/opt/rocm/bin:/root/.pyenv/bin:/root/.pyenv/shims:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH}"
 ENV PYENV_ROOT="/root/.pyenv"
 
-# pyenv is always available; Python itself is optional.
+# pyenv is always available; Python itself is optional and selectable from the workflow.
 RUN git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
     && if [ "$PYTHON_VERSION" != "none" ]; then \
          pyenv install "$PYTHON_VERSION" \
@@ -52,7 +73,8 @@ RUN git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
          && python -m pip install --upgrade pip setuptools wheel; \
        fi
 
-# Optional PyTorch layer. ROCm wheel source is selectable because support varies by ROCm release.
+# Optional PyTorch layer. The ROCm wheel index is explicit/selectable because
+# PyTorch ROCm builds are tied to particular ROCm families.
 RUN if [ "$PYTORCH_VERSION" != "none" ]; then \
       if [ "$PYTHON_VERSION" = "none" ]; then echo 'PyTorch requires Python' >&2; exit 1; fi; \
       if [ "$PYTORCH_INDEX_URL" = "none" ]; then \
@@ -68,15 +90,23 @@ RUN printf '%s\n' \
     'if command -v pyenv >/dev/null 2>&1; then eval "$(pyenv init -)"; fi' \
     > /etc/profile.d/pyenv.sh
 
-# Validate the native ROCm surface. No GPU is required at image-build time.
+# Validate the ROCm C/C++ development surface. No GPU is required at image-build time.
 RUN set -eux; \
     test -x /opt/rocm/bin/hipcc; \
     test -f /opt/rocm/include/hip/hip_runtime.h; \
-    test -f /opt/rocm/include/rocblas/rocblas.h; \
-    test -f /opt/rocm/include/hipblas/hipblas.h; \
+    find /opt/rocm/include -name 'rocblas.h' -print -quit | grep -q .; \
+    find /opt/rocm/include -name 'hipblas.h' -print -quit | grep -q .; \
+    if [ "$ROCM_LIBRARY_PROFILE" = "hip-sdk" ] || [ "$ROCM_LIBRARY_PROFILE" = "full" ]; then \
+      find /opt/rocm/include -name 'rocsparse.h' -print -quit | grep -q .; \
+      find /opt/rocm/include -name 'rocrand.h' -print -quit | grep -q .; \
+      find /opt/rocm/include -name 'rocfft.h' -print -quit | grep -q .; \
+    fi; \
+    if [ "$ROCM_LIBRARY_PROFILE" = "ml-sdk" ] || [ "$ROCM_LIBRARY_PROFILE" = "full" ]; then \
+      find /opt/rocm/include -path '*/miopen/miopen.h' -print -quit | grep -q .; \
+    fi; \
     /opt/rocm/bin/hipcc --version; \
     if [ "$PYTHON_VERSION" != "none" ]; then python --version; fi; \
-    if [ "$PYTORCH_VERSION" != "none" ]; then python -c 'import torch; print(torch.__version__)'; fi; \
-    echo "[020 verify] ROCm ${ROCM_VERSION} / Ubuntu ${UBUNTU_VERSION} toolchain validation complete"
+    if [ "$PYTORCH_VERSION" != "none" ]; then python -c 'import torch; print(torch.__version__); print(getattr(torch.version, "hip", None))'; fi; \
+    echo "[020 verify] ROCm ${ROCM_VERSION} / ${ROCM_LIBRARY_PROFILE} / Ubuntu ${UBUNTU_VERSION} validation complete"
 
 CMD ["/bin/bash"]
