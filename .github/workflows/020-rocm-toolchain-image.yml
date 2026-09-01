@@ -109,4 +109,3 @@ jobs:
             ghcr.io/demonbigj781/easydifussion-cpp-rocm-toolchain:rocm-${{ env.ROCM_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}-${{ env.ROCM_LIBRARY_PROFILE }}
             ghcr.io/demonbigj781/easydifussion-cpp-rocm-toolchain:${{ github.sha }}
           cache-from: type=gha,scope=rocm-toolchain
-          cache-to: type=gha,mode=min,scope=rocm-toolchain
