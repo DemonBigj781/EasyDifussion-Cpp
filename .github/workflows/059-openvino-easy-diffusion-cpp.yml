@@ -1,9 +1,13 @@
-name: '059 - OpenVINO Easy Diffusion C++ [RESERVED]'
+name: '059 - OpenVINO Complete Compile [RESERVED]'
 on:
   workflow_dispatch:
+    inputs:
+      mode: {description: Mode, required: true, default: check, type: choice, options: [check, compile]}
 permissions: {contents: read}
 jobs:
   reserved:
     runs-on: ubuntu-24.04
     steps:
-      - run: echo 'Reserved index 059 for OpenVINO Easy Diffusion C++ compilation.'
+      - uses: actions/checkout@v7
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - run: echo '059 is reserved for the OpenVINO complete compile after OpenVINO API.cpp, llama.cpp, and Easy Diffusion C++ are wired.'
