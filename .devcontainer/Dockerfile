@@ -91,8 +91,8 @@ RUN echo 'if [ -f /opt/intel/oneapi/setvars.sh ]; then source /opt/intel/oneapi/
       > /etc/profile.d/oneapi.sh
 
 # Fail the image build if any API family expected by 990 is absent.
-# Source oneAPI first because icpx and some headers are intentionally installed
-# under /opt/intel/oneapi rather than globally under /usr.
+# Avoid `find | grep -q` here because this Dockerfile uses pipefail: grep can exit
+# after the first match and leave find with SIGPIPE, producing a false failure.
 RUN set -eux; \
     source /opt/intel/oneapi/setvars.sh >/dev/null; \
     test -x /usr/local/cuda/bin/nvcc; \
@@ -101,8 +101,8 @@ RUN set -eux; \
     test -f /usr/include/vulkan/vulkan.h; \
     test -f /usr/include/GL/gl.h; \
     test -f /usr/include/EGL/egl.h; \
-    find /usr /opt/intel -path '*/level_zero/ze_api.h' -print -quit | grep -q .; \
-    find /usr /opt/intel -path '*/openvino/openvino.hpp' -print -quit | grep -q .; \
+    test -n "$(find /usr /opt/intel -path '*/level_zero/ze_api.h' -print -quit)"; \
+    test -n "$(find /usr /opt/intel -path '*/openvino/openvino.hpp' -print -quit)"; \
     command -v glslc; \
     command -v glslangValidator; \
     command -v spirv-val; \
