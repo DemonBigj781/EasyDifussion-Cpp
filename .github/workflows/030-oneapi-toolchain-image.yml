@@ -1,0 +1,9 @@
+name: '030 - oneAPI Toolchain Image [RESERVED]'
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  reserved:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Reserved index 030 for oneAPI toolchain/image construction.'
