@@ -1,0 +1,18 @@
+name: '971 - Steam Deck OLED (Sephiroth / Bazzite / ROCm)'
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Mode
+        required: true
+        default: compile
+        type: choice
+        options: [compile, regression, compile-and-regression]
+permissions: {contents: read}
+jobs:
+  steam-deck-oled-sephiroth:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: 'echo "Steam Deck OLED / Sephiroth / Bazzite / ROCm / ${{ inputs.mode }}"'
+      - run: 'echo "971 is reserved for the Steam Deck OLED Sephiroth APU platform path."'
