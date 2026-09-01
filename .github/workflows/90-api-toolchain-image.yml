@@ -1,4 +1,4 @@
-name: '90 - API Toolchain Image'
+name: '90 - Shared Toolchain Image'
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and publish API toolchain image
+      - name: Build and publish shared Easy Diffusion C++ toolchain image
         uses: docker/build-push-action@v6
         with:
           context: .
