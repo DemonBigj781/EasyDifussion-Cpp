@@ -32,14 +32,25 @@ jobs:
           set -euo pipefail
           git rev-parse HEAD
           test -f source/sdkit3-port-source/CMakeLists.txt
+          test -f source/Build.sh
+          test -f source/Workflow.sh
+          test -f source/Run.sh
+          test -f source/Start.sh
+          bash -n source/Build.sh
+          bash -n source/Workflow.sh
+          bash -n source/Run.sh
+          bash -n source/Start.sh
           cmake --version
           c++ --version
-      - name: Check current Easy Diffusion C++ configuration
+      - name: Check current Easy Diffusion C++ CPU configuration
+        if: inputs.action == 'check'
         shell: bash
         run: |
           set -euo pipefail
-          cmake -S source/sdkit3-port-source -B build/008-cpu -G Ninja -DCMAKE_BUILD_TYPE=Release -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF
-      - name: Compile current Easy Diffusion C++ tree
+          cmake -S source/sdkit3-port-source -B build/008-cpu-check -G Ninja -DCMAKE_BUILD_TYPE=Release -DSDKIT_BUILD_LLAMA_RUNTIME=OFF -DSDKIT_BUILD_NATIVE_VISION=OFF -DSDKIT_OPENGL_BACKEND=OFF -DSD_CUDA=OFF -DSD_HIPBLAS=OFF -DSD_METAL=OFF -DSD_VULKAN=OFF -DSD_OPENCL=OFF -DSD_SYCL=OFF -DSD_MUSA=OFF
+      - name: Complete current Easy Diffusion C++ CPU build
         if: inputs.action == 'complete'
         shell: bash
-        run: cmake --build build/008-cpu --target sdkit --parallel 2
+        run: |
+          set -euo pipefail
+          bash source/Build.sh --cpu --build-dir "$GITHUB_WORKSPACE/build/008-cpu" --target sdkit
