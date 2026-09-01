@@ -12,11 +12,23 @@ on:
         required: true
         default: '24.04'
         type: choice
-        options:
-          - '20.04'
-          - '22.04'
-          - '24.04'
-          - '26.04'
+        options: ['20.04', '22.04', '24.04', '26.04']
+      python_version:
+        description: 'Python via pyenv (or none)'
+        required: true
+        default: 'none'
+        type: choice
+        options: ['none', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+      pytorch_version:
+        description: 'Exact PyTorch version, or none'
+        required: true
+        default: 'none'
+        type: string
+      pytorch_index_url:
+        description: 'Optional PyTorch wheel index URL, or none'
+        required: true
+        default: 'none'
+        type: string
   push:
     branches: [main]
     paths:
@@ -31,22 +43,31 @@ jobs:
     env:
       CUDA_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.cuda_version || '13.3.1' }}
       UBUNTU_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.ubuntu_version || '24.04' }}
+      PYTHON_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.python_version || 'none' }}
+      PYTORCH_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.pytorch_version || 'none' }}
+      PYTORCH_INDEX_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.pytorch_index_url || 'none' }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
-      - name: Validate CUDA version range
+      - name: Validate selections
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, re, sys
-          value = os.environ['CUDA_VERSION']
-          m = re.fullmatch(r'(\d+)\.(\d+)(?:\.(\d+))?', value)
+          import os, re
+          cuda = os.environ['CUDA_VERSION']
+          m = re.fullmatch(r'(\d+)\.(\d+)(?:\.(\d+))?', cuda)
           if not m:
-              raise SystemExit(f'Invalid CUDA version format: {value}')
+              raise SystemExit(f'Invalid CUDA version format: {cuda}')
           major, minor = int(m.group(1)), int(m.group(2))
           if not ((major == 11 and minor >= 4) or major == 12 or major == 13):
-              raise SystemExit(f'CUDA {value} is outside supported 010 range 11.4.x through 13.x')
-          print(f'[010] CUDA version accepted: {value}')
+              raise SystemExit(f'CUDA {cuda} is outside supported 010 range 11.4.x through 13.x')
+          py = os.environ['PYTHON_VERSION']
+          if py not in {'none','3.8','3.9','3.10','3.11','3.12','3.13','3.14'}:
+              raise SystemExit(f'Unsupported Python selection: {py}')
+          torch = os.environ['PYTORCH_VERSION']
+          if torch != 'none' and py == 'none':
+              raise SystemExit('PyTorch cannot be enabled when Python is disabled')
+          print(f'[010] CUDA={cuda} Ubuntu={os.environ["UBUNTU_VERSION"]} Python={py} PyTorch={torch}')
           PY
       - name: Verify NVIDIA CUDA Ubuntu image exists
         shell: bash
@@ -70,6 +91,9 @@ jobs:
           build-args: |
             CUDA_VERSION=${{ env.CUDA_VERSION }}
             UBUNTU_VERSION=${{ env.UBUNTU_VERSION }}
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+            PYTORCH_VERSION=${{ env.PYTORCH_VERSION }}
+            PYTORCH_INDEX_URL=${{ env.PYTORCH_INDEX_URL }}
           tags: |
             ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:main
             ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:cuda-${{ env.CUDA_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}
