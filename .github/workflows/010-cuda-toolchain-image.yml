@@ -93,5 +93,5 @@ jobs:
             ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:main
             ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:cuda-${{ env.CUDA_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}
             ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=cuda-toolchain
+          cache-to: type=gha,mode=min,scope=cuda-toolchain
