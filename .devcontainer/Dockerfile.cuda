@@ -11,14 +11,19 @@ ARG PYTORCH_INDEX_URL=none
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+ENV PYENV_ROOT="/root/.pyenv"
+ENV PATH="/root/.pyenv/shims:/root/.pyenv/bin:/usr/local/cuda/bin:${PATH}"
+ENV CUDA_HOME="/usr/local/cuda"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+
 LABEL org.opencontainers.image.title="EasyDifussion-Cpp 010 CUDA Toolchain" \
       io.easydifussion.cuda.version="${CUDA_VERSION}" \
       io.easydifussion.ubuntu.version="${UBUNTU_VERSION}" \
       io.easydifussion.python.version="${PYTHON_VERSION}" \
       io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
 
-# 010 - CUDA-only native C/C++ build foundation. Python is intentionally not
-# installed here; it is an optional phase controlled by PYTHON_VERSION.
+# Native CUDA/C++ build foundation plus the libraries pyenv needs when Python
+# is requested. No Python interpreter is installed unless PYTHON_VERSION != none.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     clang \
@@ -33,43 +38,56 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libtbb-dev \
     libnuma-dev \
     libhwloc-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ENV CUDA_HOME="/usr/local/cuda"
-ENV PATH="/opt/python/bin:/root/.local/bin:/usr/local/cuda/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
-
-# Optional Python phase. uv supplies the requested CPython independently of the
-# Ubuntu base, allowing Python 3.8 through 3.14 without forcing Python into the
-# pure native CUDA/C++ image.
+# pyenv is always available as the Python version manager, but installing a
+# Python runtime is optional. `pyenv global` makes the selected interpreter the
+# default for subsequent container sessions through the shims already on PATH.
 RUN set -eux; \
+    git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT"; \
     if [ "$PYTHON_VERSION" = "none" ]; then \
-      echo '[010 python] disabled'; \
+      echo '[010 python] disabled; pyenv installed with no Python runtime'; \
     else \
       case "$PYTHON_VERSION" in 3.8|3.9|3.10|3.11|3.12|3.13|3.14) ;; *) echo "Unsupported Python version: $PYTHON_VERSION" >&2; exit 1 ;; esac; \
-      curl -LsSf https://astral.sh/uv/install.sh | sh; \
-      /root/.local/bin/uv python install "$PYTHON_VERSION"; \
-      /root/.local/bin/uv venv --python "$PYTHON_VERSION" /opt/python; \
-      /opt/python/bin/python --version; \
-    fi
+      pyenv install -s "$PYTHON_VERSION"; \
+      pyenv global "$PYTHON_VERSION"; \
+      python --version; \
+      python -m ensurepip --upgrade; \
+      python -m pip install --no-cache-dir --upgrade pip setuptools wheel; \
+    fi; \
+    printf '%s\n' \
+      'export PYENV_ROOT="$HOME/.pyenv"' \
+      'export PATH="$PYENV_ROOT/bin:$PATH"' \
+      'eval "$(pyenv init -)"' \
+      > /etc/profile.d/pyenv.sh
 
-# Optional PyTorch phase. It requires Python, but otherwise accepts an exact
-# PyTorch version and optionally a caller-supplied wheel index URL so old/new
-# CUDA combinations can select the matching upstream wheel set.
+# Optional PyTorch phase. Exact version and wheel index are caller-controlled.
 RUN set -eux; \
     if [ "$PYTORCH_VERSION" = "none" ]; then \
       echo '[010 pytorch] disabled'; \
     else \
       if [ "$PYTHON_VERSION" = "none" ]; then echo 'PyTorch requires Python to be enabled' >&2; exit 1; fi; \
       if [ "$PYTORCH_INDEX_URL" = "none" ] || [ -z "$PYTORCH_INDEX_URL" ]; then \
-        /root/.local/bin/uv pip install --python /opt/python/bin/python "torch==$PYTORCH_VERSION"; \
+        python -m pip install --no-cache-dir "torch==$PYTORCH_VERSION"; \
       else \
-        /root/.local/bin/uv pip install --python /opt/python/bin/python --index-url "$PYTORCH_INDEX_URL" "torch==$PYTORCH_VERSION"; \
+        python -m pip install --no-cache-dir --index-url "$PYTORCH_INDEX_URL" "torch==$PYTORCH_VERSION"; \
       fi; \
-      /opt/python/bin/python -c 'import torch; print("[010 pytorch]", torch.__version__)'; \
+      python -c 'import torch; print("[010 pytorch]", torch.__version__)'; \
     fi
 
-# Validate the CUDA development surface required by native API.cpp backends.
+# Validate the native CUDA development surface and optional language layers.
 RUN set -eux; \
     check_exec() { label="$1"; path="$2"; echo "[010 verify] $label -> $path"; test -x "$path" || { echo "[010 missing] $label: $path" >&2; exit 1; }; }; \
     check_header() { label="$1"; header="$2"; echo "[010 verify] $label -> $header"; test -f "/usr/local/cuda/include/$header" || { echo "[010 missing] $label: /usr/local/cuda/include/$header" >&2; exit 1; }; }; \
@@ -80,8 +98,9 @@ RUN set -eux; \
     check_header cuRAND curand.h; \
     check_header cuSPARSE cusparse.h; \
     /usr/local/cuda/bin/nvcc --version; \
-    if [ "$PYTHON_VERSION" != "none" ]; then /opt/python/bin/python --version; fi; \
-    if [ "$PYTORCH_VERSION" != "none" ]; then /opt/python/bin/python -c 'import torch; print(torch.__version__)'; fi; \
+    pyenv --version; \
+    if [ "$PYTHON_VERSION" != "none" ]; then python --version; fi; \
+    if [ "$PYTORCH_VERSION" != "none" ]; then python -c 'import torch; print(torch.__version__)'; fi; \
     echo "[010 verify] CUDA ${CUDA_VERSION} / Ubuntu ${UBUNTU_VERSION} / Python ${PYTHON_VERSION} / PyTorch ${PYTORCH_VERSION} validation complete"
 
 CMD ["/bin/bash"]
