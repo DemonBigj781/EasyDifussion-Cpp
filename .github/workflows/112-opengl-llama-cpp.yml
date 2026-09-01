@@ -1,0 +1,10 @@
+name: '112 - OpenGL llama.cpp [RESERVED]'
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reserved:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Reserved index 112 for future OpenGL llama.cpp compilation.'
