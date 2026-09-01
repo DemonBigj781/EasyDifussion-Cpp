@@ -1,4 +1,4 @@
-name: '083 - Steam Deck (Bazzite / ROCm)'
+name: '983 - Steam Deck (Bazzite / ROCm)'
 on:
   workflow_dispatch:
     inputs:
