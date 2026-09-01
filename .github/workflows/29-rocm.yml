@@ -1,0 +1,17 @@
+name: '29 - ROCm Easy Diffusion C++'
+on: {workflow_dispatch: {inputs: {mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}, targets: {description: 'Comma-separated catalog GPU IDs', required: true, default: rx-6800, type: string}}}}
+permissions: {contents: read}
+jobs:
+  rocm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config gnupg wget
+      - name: Install minimum ROCm
+        shell: bash
+        run: bash ci/scripts/setup_rocm.sh
+      - shell: bash
+        run: |
+          export PATH=/opt/rocm/bin:$PATH; IFS=',' read -ra G <<< '${{ inputs.targets }}'; j=$(python ci/scripts/resolve_hardware.py --backend rocm "${G[@]}"); python ci/scripts/build_backend.py --backend rocm --mode '${{ inputs.mode }}' --target-json "$j"
