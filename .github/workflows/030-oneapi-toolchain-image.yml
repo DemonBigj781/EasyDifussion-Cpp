@@ -1,9 +1,86 @@
-name: '030 - oneAPI Toolchain Image [RESERVED]'
+name: '030 - oneAPI Toolchain Image'
 on:
   workflow_dispatch:
-permissions: {contents: read}
+    inputs:
+      oneapi_version:
+        description: 'oneAPI release prefix or latest (for example 2025.2, 2026.1)'
+        required: true
+        default: 'latest'
+        type: string
+      ubuntu_version:
+        description: 'Ubuntu base version'
+        required: true
+        default: '24.04'
+        type: choice
+        options: ['20.04', '22.04', '24.04', '26.04']
+      python_version:
+        description: 'Python via pyenv (or none)'
+        required: true
+        default: 'none'
+        type: choice
+        options: ['none', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+      pytorch_version:
+        description: 'Exact PyTorch version, or none'
+        required: true
+        default: 'none'
+        type: string
+      pytorch_index_url:
+        description: 'Optional PyTorch/XPU wheel index URL, or none'
+        required: true
+        default: 'none'
+        type: string
+permissions:
+  contents: read
+  packages: write
 jobs:
-  reserved:
+  publish:
     runs-on: ubuntu-24.04
+    env:
+      ONEAPI_VERSION: ${{ inputs.oneapi_version }}
+      UBUNTU_VERSION: ${{ inputs.ubuntu_version }}
+      PYTHON_VERSION: ${{ inputs.python_version }}
+      PYTORCH_VERSION: ${{ inputs.pytorch_version }}
+      PYTORCH_INDEX_URL: ${{ inputs.pytorch_index_url }}
     steps:
-      - run: echo 'Reserved index 030 for oneAPI toolchain/image construction.'
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Validate selections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          oneapi=os.environ['ONEAPI_VERSION']
+          if oneapi != 'latest' and not re.fullmatch(r'\d{4}(?:\.\d+){0,2}', oneapi):
+              raise SystemExit(f'Invalid oneAPI selector: {oneapi}')
+          py=os.environ['PYTHON_VERSION']
+          if py not in {'none','3.8','3.9','3.10','3.11','3.12','3.13','3.14'}:
+              raise SystemExit(f'Unsupported Python selection: {py}')
+          torch=os.environ['PYTORCH_VERSION']
+          if torch != 'none' and py == 'none':
+              raise SystemExit('PyTorch cannot be enabled when Python is disabled')
+          print(f"[030] oneAPI={oneapi} Ubuntu={os.environ['UBUNTU_VERSION']} Python={py} PyTorch={torch}")
+          PY
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish oneAPI toolchain image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile.oneapi
+          push: true
+          build-args: |
+            ONEAPI_VERSION=${{ env.ONEAPI_VERSION }}
+            UBUNTU_VERSION=${{ env.UBUNTU_VERSION }}
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+            PYTORCH_VERSION=${{ env.PYTORCH_VERSION }}
+            PYTORCH_INDEX_URL=${{ env.PYTORCH_INDEX_URL }}
+          tags: |
+            ghcr.io/demonbigj781/easydifussion-cpp-oneapi-toolchain:theory
+            ghcr.io/demonbigj781/easydifussion-cpp-oneapi-toolchain:oneapi-${{ env.ONEAPI_VERSION }}-ubuntu-${{ env.UBUNTU_VERSION }}
+            ghcr.io/demonbigj781/easydifussion-cpp-oneapi-toolchain:${{ github.sha }}
+          cache-from: type=gha,scope=oneapi-toolchain
+          cache-to: type=gha,mode=min,scope=oneapi-toolchain
