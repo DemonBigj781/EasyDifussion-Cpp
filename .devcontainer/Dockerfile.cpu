@@ -1,0 +1,47 @@
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# 000 CPU-only toolchain base: no CUDA, ROCm, oneAPI, or GPU runtime dependencies.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    clang \
+    cmake \
+    ninja-build \
+    pkg-config \
+    git \
+    ca-certificates \
+    curl \
+    wget \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python-is-python3 \
+    libomp-dev \
+    libtbb-dev \
+    libopenblas-dev \
+    liblapack-dev \
+    libdnnl-dev \
+    libnuma-dev \
+    libhwloc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# CPU image sanity checks. Keep these explicit so failures identify the missing base component.
+RUN set -eux; \
+    command -v gcc; \
+    command -v g++; \
+    command -v clang; \
+    command -v cmake; \
+    command -v ninja; \
+    command -v python; \
+    pkg-config --exists tbb || test -d /usr/include/oneapi/tbb || test -d /usr/include/tbb; \
+    pkg-config --exists openblas || test -f /usr/include/x86_64-linux-gnu/openblas-pthread/cblas.h || find /usr/include -name cblas.h -print -quit | grep -q .; \
+    pkg-config --exists dnnl || test -f /usr/include/dnnl.h; \
+    test -f /usr/include/numa.h; \
+    test -f /usr/include/hwloc.h
+
+CMD ["/bin/bash"]
