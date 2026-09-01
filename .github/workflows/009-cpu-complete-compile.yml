@@ -1,0 +1,26 @@
+name: '009 - CPU Complete Compile'
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'set current workflow action'
+        required: true
+        default: 'complete'
+        type: choice
+        options: ['complete', 'check']
+permissions:
+  contents: read
+jobs:
+  complete-compile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Load and check repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git rev-parse HEAD
+          test -d source
+      - name: Complete compile status
+        run: echo '009 complete compile is reserved until CPU API.cpp, llama.cpp, and Easy Diffusion compile stages are fully wired.'
