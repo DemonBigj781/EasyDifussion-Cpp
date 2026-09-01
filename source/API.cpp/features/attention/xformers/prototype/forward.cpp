@@ -56,8 +56,8 @@ ValidationResult validate(const AttentionRequest & request) {
         return result;
     }
 
-    if (request.dtype != DType::F32) {
-        result.message = "Prototype reference path currently executes float32 only; F16/BF16 remain definition-layer targets";
+    if (request.dtype == DType::BF16) {
+        result.message = "Prototype reference path does not execute BF16 yet";
         return result;
     }
 
@@ -88,7 +88,7 @@ ValidationResult validate(const AttentionRequest & request) {
     }
 
     result.ok = true;
-    result.message = "ok";
+    result.message = request.dtype == DType::F16 ? "ok (F16 storage, F32 accumulation)" : "ok";
     return result;
 }
 
