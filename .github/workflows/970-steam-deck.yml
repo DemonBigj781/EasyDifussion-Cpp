@@ -1,4 +1,4 @@
-name: '970 - Steam Deck (Bazzite / ROCm)'
+name: '970 - Steam Deck LCD (Aerith / Bazzite / ROCm)'
 on:
   workflow_dispatch:
     inputs:
@@ -10,9 +10,9 @@ on:
         options: [compile, regression, compile-and-regression]
 permissions: {contents: read}
 jobs:
-  steam-deck-bazzite-rocm:
+  steam-deck-lcd-aerith:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - run: 'echo "Steam Deck / Bazzite / ROCm / ${{ inputs.mode }}"'
-      - run: 'echo "Steam Deck is treated as a Bazzite-specific ROCm platform workflow slot; dedicated Bazzite/ROCm provisioning and build steps will be wired separately."'
+      - run: 'echo "Steam Deck LCD / Aerith / Bazzite / ROCm / ${{ inputs.mode }}"'
+      - run: 'echo "970 is reserved for the original Steam Deck LCD Aerith APU platform path."'
