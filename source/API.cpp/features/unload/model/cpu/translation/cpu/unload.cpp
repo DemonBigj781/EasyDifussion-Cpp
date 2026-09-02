@@ -20,4 +20,8 @@ Result unload(const load::Resource& resource) {
     return result;
 }
 
+namespace {
+[[maybe_unused]] const bool registered = edcpp::api::unload::register_model_translation(Backend::cpu, &unload);
+}
+
 } // namespace edcpp::api::unload::model::cpu::translation::cpu
