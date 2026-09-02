@@ -29,27 +29,20 @@ edcpp::api::load::Resource to_internal(const ModelResource& resource) {
 
 } // namespace
 
-const char* CpuModelLifecycleHandler::name() const noexcept {
-    return "cpu";
-}
+const char* CpuModelLifecycleHandler::name() const noexcept { return "cpu"; }
 
-LoadModelResult CpuModelLifecycleHandler::load(
-    const void* data, std::size_t size, int device_index) const {
+LoadModelResult CpuModelLifecycleHandler::load(const void* data, std::size_t size, int device_index) const {
     (void) device_index;
-
     edcpp::api::load::Request request;
     request.data = data;
     request.size = static_cast<std::uint64_t>(size);
     request.device_index = 0;
 
-    auto internal = edcpp::api::load::model(edcpp::api::Backend::cpu, request);
-
+    auto internal = edcpp::api::load::load_model(edcpp::api::Backend::cpu, request);
     LoadModelResult result;
     result.success = internal.loaded;
     result.diagnostic = std::move(internal.diagnostic);
-    if (internal.loaded) {
-        result.resource = to_public(internal.resource);
-    }
+    if (internal.loaded) result.resource = to_public(internal.resource);
     return result;
 }
 
@@ -59,15 +52,11 @@ UnloadModelResult CpuModelLifecycleHandler::unload(ModelResource& resource) cons
         result.diagnostic = "CPU lifecycle cannot unload a resource owned by another backend";
         return result;
     }
-
     auto internal_resource = to_internal(resource);
-    auto internal = edcpp::api::unload::model(internal_resource);
-
+    auto internal = edcpp::api::unload::unload_model(internal_resource);
     result.success = internal.unloaded;
     result.diagnostic = std::move(internal.diagnostic);
-    if (internal.unloaded) {
-        resource = {};
-    }
+    if (internal.unloaded) resource = {};
     return result;
 }
 
