@@ -1,9 +1,7 @@
 #include "api/model_lifecycle.hpp"
 
 #include "features/load/common/load.hpp"
-#include "features/load/model/cuda/translation/gpu/load.hpp"
 #include "features/unload/common/unload.hpp"
-#include "features/unload/model/cuda/translation/gpu/unload.hpp"
 
 #include <cstdint>
 #include <utility>
@@ -42,8 +40,7 @@ LoadModelResult CudaModelLifecycleHandler::load(
     request.size = static_cast<std::uint64_t>(size);
     request.device_index = device_index;
 
-    auto internal = edcpp::api::load::normalize(
-        edcpp::api::load::model::cuda::translation::gpu::load(request));
+    auto internal = edcpp::api::load::model(edcpp::api::Backend::cuda, request);
 
     LoadModelResult result;
     result.success = internal.loaded;
@@ -62,9 +59,7 @@ UnloadModelResult CudaModelLifecycleHandler::unload(ModelResource& resource) con
     }
 
     auto internal_resource = to_internal(resource);
-    auto internal = edcpp::api::unload::normalize(
-        edcpp::api::unload::model::cuda::translation::gpu::unload(internal_resource),
-        internal_resource);
+    auto internal = edcpp::api::unload::model(internal_resource);
 
     result.success = internal.unloaded;
     result.diagnostic = std::move(internal.diagnostic);
