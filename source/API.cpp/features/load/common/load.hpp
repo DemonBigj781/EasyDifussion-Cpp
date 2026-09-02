@@ -18,10 +18,7 @@ struct Resource {
     void* native_handle = nullptr;
     std::uint64_t size = 0;
     int device_index = -1;
-
-    bool loaded() const noexcept {
-        return backend != Backend::none && native_handle != nullptr && size != 0;
-    }
+    bool loaded() const noexcept { return backend != Backend::none && native_handle != nullptr && size != 0; }
 };
 
 struct Result {
@@ -30,9 +27,9 @@ struct Result {
     std::string diagnostic;
 };
 
-// Public Common model-load entry point. Common owns backend translation routing.
-Result model(Backend backend, const Request& request);
-
+using ModelTranslationFn = Result (*)(const Request&);
+bool register_model_translation(Backend backend, ModelTranslationFn translation) noexcept;
+Result load_model(Backend backend, const Request& request);
 Result normalize(Result result);
 
 } // namespace edcpp::api::load
