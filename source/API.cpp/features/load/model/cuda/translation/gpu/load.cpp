@@ -7,8 +7,7 @@
 namespace edcpp::api::load::model::cuda::translation::gpu {
 
 Result load(const Request& request) {
-    auto native = definition::gpu::load(
-        request.data, request.size, request.device_index);
+    auto native = definition::gpu::load(request.data, request.size, request.device_index);
 
     Result result;
     result.loaded = native.loaded;
@@ -18,6 +17,10 @@ Result load(const Request& request) {
     result.resource.device_index = native.device_index;
     result.diagnostic = std::move(native.diagnostic);
     return result;
+}
+
+namespace {
+[[maybe_unused]] const bool registered = edcpp::api::load::register_model_translation(Backend::cuda, &load);
 }
 
 } // namespace edcpp::api::load::model::cuda::translation::gpu
