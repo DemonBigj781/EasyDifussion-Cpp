@@ -14,11 +14,14 @@ Result unload(const load::Resource& resource) {
         return result;
     }
 
-    auto native = definition::gpu::unload(
-        resource.native_handle, resource.device_index);
+    auto native = definition::gpu::unload(resource.native_handle, resource.device_index);
     result.unloaded = native.unloaded;
     result.diagnostic = std::move(native.diagnostic);
     return result;
+}
+
+namespace {
+[[maybe_unused]] const bool registered = edcpp::api::unload::register_model_translation(Backend::cuda, &unload);
 }
 
 } // namespace edcpp::api::unload::model::cuda::translation::gpu
