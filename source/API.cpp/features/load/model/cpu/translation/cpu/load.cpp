@@ -19,4 +19,8 @@ Result load(const Request& request) {
     return result;
 }
 
+namespace {
+const bool registered = edcpp::api::load::register_model_translation(Backend::cpu, &load);
+}
+
 } // namespace edcpp::api::load::model::cpu::translation::cpu
