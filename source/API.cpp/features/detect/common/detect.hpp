@@ -8,12 +8,7 @@
 
 namespace edcpp::api::detect {
 
-enum class DeviceClass : std::uint8_t {
-    unknown = 0,
-    cpu,
-    gpu,
-    npu,
-};
+enum class DeviceClass : std::uint8_t { unknown = 0, cpu, gpu, npu };
 
 struct Device {
     Backend backend = Backend::none;
@@ -36,15 +31,13 @@ struct Result {
     std::string diagnostic;
 };
 
-// Public Common entry point. Callers select a normalized backend identity only;
-// Common owns the backend translation route.
+using TranslationFn = Result (*)();
+
+// Backend translations register themselves here when linked. Common remains
+// backend-neutral and owns all application-facing selection and dispatch.
+bool register_translation(Backend backend, TranslationFn translation) noexcept;
 Result detect(Backend backend);
-
-// Applies backend-neutral invariants at the Common boundary.
 Result normalize(Result result);
-
-// Combines device-class translations belonging to one backend, then applies
-// the same Common invariants to the aggregate.
 Result combine(Backend backend, std::string backend_name, std::vector<Result> parts);
 
 } // namespace edcpp::api::detect
