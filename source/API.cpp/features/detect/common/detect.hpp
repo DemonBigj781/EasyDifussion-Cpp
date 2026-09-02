@@ -36,7 +36,11 @@ struct Result {
     std::string diagnostic;
 };
 
-// Applies the backend-neutral invariants at the Common boundary.
+// Public Common entry point. Callers select a normalized backend identity only;
+// Common owns the backend translation route.
+Result detect(Backend backend);
+
+// Applies backend-neutral invariants at the Common boundary.
 Result normalize(Result result);
 
 // Combines device-class translations belonging to one backend, then applies
