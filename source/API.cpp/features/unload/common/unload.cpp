@@ -1,6 +1,24 @@
 #include "unload.hpp"
 
+#include "features/unload/model/cpu/translation/cpu/unload.hpp"
+#include "features/unload/model/cuda/translation/gpu/unload.hpp"
+
 namespace edcpp::api::unload {
+
+Result model(load::Resource& resource) {
+    switch (resource.backend) {
+        case Backend::cpu:
+            return normalize(model::cpu::translation::cpu::unload(resource), resource);
+        case Backend::cuda:
+            return normalize(model::cuda::translation::gpu::unload(resource), resource);
+        default: {
+            Result result;
+            result.backend = resource.backend;
+            result.diagnostic = "Common model unload has no wired translation for the resource backend";
+            return normalize(std::move(result), resource);
+        }
+    }
+}
 
 Result normalize(Result result, load::Resource& resource) {
     if (!result.unloaded) {
