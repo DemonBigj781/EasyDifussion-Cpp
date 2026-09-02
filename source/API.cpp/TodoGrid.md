@@ -1,8 +1,24 @@
 # API.cpp implementation grid
 
-Each feature is followed by its normalized Common method files. A backend cell
-is intentionally left blank until its definition, translation, Library wiring,
-and validation are complete.
+Each feature is followed by its normalized Common method files. Backend cells track implementation and validation maturity rather than only whether a compiler accepted the code.
+
+## Status legend
+
+A cell may advance through the following states without implying that later stages have been proven:
+
+| Mark | State | Meaning |
+| --- | --- | --- |
+| blank | Not established | No implementation or validation state has been established yet. |
+| `I` | Implemented | An implementation exists, but it may still contain missing paths, placeholders, or incomplete behavior. |
+| `C` | Code complete | The intended feature contract is implemented and no known required code paths remain unfinished. |
+| `B` | Builds | The applicable backend/toolchain has successfully compiled the implementation. This does not imply that it has executed correctly on real hardware. |
+| `R` | Runtime tested | The implementation has successfully executed relevant runtime tests on applicable hardware/runtime. |
+| `E` | End-to-end tested | The complete definition -> translation -> Common -> Library -> Easy Diffusion route has successfully executed for the intended workflow. |
+| `XXX` / `XXXX` | Proven complete | The implementation has been thoroughly accounted for end to end, including the intended feature paths, integration, relevant edge/error behavior, cleanup/ownership/fallback behavior where applicable, and required validation. Existing marked cells retain this meaning. |
+
+Status is progressive: `I -> C -> B -> R -> E -> proven complete`. A later state includes the expectations of the earlier states, but a successful build or narrow runtime test must never be interpreted as proof that the implementation itself is complete. Likewise, an end-to-end happy-path result is not sufficient for `XXX` / `XXXX` unless the feature's intended behavior has been thoroughly accounted for.
+
+All cells that were already marked `XXX` / `XXXX` before this legend was introduced are intentionally preserved as proven-complete results; this change does not downgrade or reinterpret them.
 
 ## Detect
 
@@ -24,8 +40,8 @@ image-object detection are separate concerns.
 Source routes and compiler-only workflows now exist for every column. The
 workflow assignments are CPU `001`, CUDA `011`, ROCm `021`, oneAPI `031`,
 OpenCL `041`, OpenVINO `051`, Vulkan `101`, OpenGL `111`, DirectML `121`, and
-Mesa `131`. Cells remain blank until the applicable workflow has passed and
-required runtime-device validation is recorded.
+Mesa `131`. Intermediate states may now be recorded as work progresses; only
+`XXX` / `XXXX` denotes that the backend/feature has been thoroughly proven.
 
 ## Load
 
@@ -229,44 +245,4 @@ swap also remain unimplemented.
 [support.cpp   ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
 [validate.cpp  ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
 [reset.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[init.cpp      ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[enabled.cpp   ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[sigma.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[begin_step.cpp][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[active.cpp    ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[skipped.cpp   ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[has_cache.cpp ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[store.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[apply.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[before.cpp    ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[after.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-===========================================================================================
-[tea           ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-===========================================================================================
-[support.cpp   ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[configure.cpp ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[validate.cpp  ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[init.cpp      ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[enabled.cpp   ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[begin_step.cpp][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[rel_l1.cpp    ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[rescale.cpp   ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[accumulate.cpp][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[reuse.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[store.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[apply.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[skipped.cpp   ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[before.cpp    ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-[after.cpp     ][   ][    ][    ][      ][      ][        ][      ][      ][    ][        ]
-===========================================================================================
-```
-
-Every completed method cell follows this route:
-
-```text
-[backend]/definition/[device-type]/[method].cpp
-    -> [backend]/translation/[device-type]/[method].cpp
-    -> common/[method].cpp
-    -> Library
-    -> Easy Diffusion
-```
+[init.cpp      ][   ][    ][    ][      ][      ][
