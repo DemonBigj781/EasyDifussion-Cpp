@@ -1,7 +1,6 @@
 #include "api/cuda_handler.hpp"
 
 #include "features/detect/common/detect.hpp"
-#include "features/detect/cuda/translation/gpu/detect.hpp"
 
 #include <utility>
 
@@ -10,8 +9,7 @@ namespace easyapi {
 namespace {
 
 edcpp::api::detect::Result detect_cuda() {
-    return edcpp::api::detect::normalize(
-        edcpp::api::detect::cuda::translation::gpu::detect());
+    return edcpp::api::detect::detect(edcpp::api::Backend::cuda);
 }
 
 } // namespace
