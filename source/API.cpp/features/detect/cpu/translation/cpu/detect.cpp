@@ -32,7 +32,7 @@ Result detect() {
 }
 
 namespace {
-const bool registered = edcpp::api::detect::register_translation(Backend::cpu, &detect);
+[[maybe_unused]] const bool registered = edcpp::api::detect::register_translation(Backend::cpu, &detect);
 }
 
 } // namespace edcpp::api::detect::cpu::translation::cpu
