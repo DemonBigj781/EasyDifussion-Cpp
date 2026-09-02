@@ -1,9 +1,28 @@
 #include "detect.hpp"
 
+#include "features/detect/cpu/translation/cpu/detect.hpp"
+#include "features/detect/cuda/translation/gpu/detect.hpp"
+
 #include <algorithm>
 #include <utility>
 
 namespace edcpp::api::detect {
+
+Result detect(Backend backend) {
+    switch (backend) {
+        case Backend::cpu:
+            return normalize(cpu::translation::cpu::detect());
+        case Backend::cuda:
+            return normalize(cuda::translation::gpu::detect());
+        default: {
+            Result result;
+            result.backend = backend;
+            result.backend_name = edcpp::api::backend_name(backend);
+            result.diagnostic = "Common Detect has no wired translation for the requested backend";
+            return normalize(std::move(result));
+        }
+    }
+}
 
 Result normalize(Result result) {
     if (result.backend == Backend::none) {
