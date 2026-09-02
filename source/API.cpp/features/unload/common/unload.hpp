@@ -12,9 +12,9 @@ struct Result {
     std::string diagnostic;
 };
 
-// Public Common model-unload entry point. Resource ownership selects the backend.
-Result model(load::Resource& resource);
-
+using ModelTranslationFn = Result (*)(const load::Resource&);
+bool register_model_translation(Backend backend, ModelTranslationFn translation) noexcept;
+Result unload_model(load::Resource& resource);
 Result normalize(Result result, load::Resource& resource);
 
 } // namespace edcpp::api::unload
