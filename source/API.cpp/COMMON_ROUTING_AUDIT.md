@@ -26,23 +26,23 @@ Behavioral proof and architectural proof are separate.
 
 Existing behavioral test results are retained when a routing defect is found. Fixing the route does not erase the earlier test history, but architectural completion must be re-proven through Common.
 
-## Initial audit of previously tested features
+## Current audit of previously tested features
 
 ### Detect
 
-Feature-specific Common implementation exists. Current Library handler code has been observed including and calling backend translation directly before Common normalization. Behavioral proof remains valid; Common-only routing still requires migration and revalidation.
+Feature-specific Common implementation exists. CPU and CUDA Library handlers now call the Common Detect entry point only. CPU/CUDA translations self-register with Common and remain responsible for reaching their backend definitions. This migration is coded but must be compiled and runtime-revalidated before Common-only routing is considered architecturally proven.
 
 ### Load / model lifecycle
 
-Feature-specific Common implementation exists. Current Library model lifecycle code has been observed including backend-specific load translation directly and then passing its result through Common normalization. Behavioral proof remains valid; Common-only routing still requires migration and revalidation.
+Feature-specific Common implementation exists. CPU and CUDA Library model lifecycle handlers now call Common `load_model` only. CPU/CUDA model-load translations self-register with Common. The earlier behavioral proof remains valid, but the new Common-only route requires compile and runtime revalidation.
 
 ### Unload / model lifecycle
 
-Feature-specific Common implementation exists. Current Library model lifecycle code has been observed including backend-specific unload translation directly and then passing its result through Common normalization. Behavioral proof remains valid; Common-only routing still requires migration and revalidation.
+Feature-specific Common implementation exists. CPU and CUDA Library model lifecycle handlers now call Common `unload_model` only. Resource ownership selects the registered backend translation inside Common. The earlier behavioral proof remains valid, but the new Common-only route requires compile and runtime revalidation.
 
 ### Overflow
 
-Feature-specific Common planning, normalization, and normalized resource contracts exist. Library/backend overflow paths must be audited for the same Common-only rule before architectural completion is claimed. Existing CPU/CUDA overflow runtime and stress-test results remain behavioral evidence.
+Feature-specific Common planning, normalization, and normalized resource contracts exist. Overflow is intentionally deferred because its policy and execution model are substantially more complex and only partially planned beyond the proven CPU/CUDA paths. Existing CPU/CUDA overflow runtime and stress-test results remain behavioral evidence; no Common-routing refactor is claimed here yet.
 
 ### xFormers
 
@@ -55,7 +55,7 @@ For new or unfinished features:
 1. Establish the normalized feature Common contract.
 2. Define backend-native semantics in `definition/`.
 3. Implement backend adapters in `translation/` against the Common contract.
-4. Connect Common dispatch to the translations without exposing backend-native objects upward.
+4. Register translations with Common or otherwise connect them through a backend-neutral Common dispatch mechanism.
 5. Connect Library only to Common.
 6. Compile the route.
 7. Runtime-test backend behavior.
