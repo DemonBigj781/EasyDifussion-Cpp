@@ -1,7 +1,6 @@
 #include "api/cpu_handler.hpp"
 
 #include "features/detect/common/detect.hpp"
-#include "features/detect/cpu/translation/cpu/detect.hpp"
 
 #include <utility>
 
@@ -9,8 +8,7 @@ namespace easyapi {
 namespace {
 
 edcpp::api::detect::Result detect_cpu() {
-    return edcpp::api::detect::normalize(
-        edcpp::api::detect::cpu::translation::cpu::detect());
+    return edcpp::api::detect::detect(edcpp::api::Backend::cpu);
 }
 
 } // namespace
