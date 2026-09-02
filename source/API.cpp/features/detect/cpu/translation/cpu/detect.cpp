@@ -20,9 +20,7 @@ Result detect() {
         Device device;
         device.backend = Backend::cpu;
         device.device_class = DeviceClass::cpu;
-        device.index = native_device.index < 0
-            ? 0u
-            : static_cast<std::uint32_t>(native_device.index);
+        device.index = native_device.index < 0 ? 0u : static_cast<std::uint32_t>(native_device.index);
         device.name = std::move(native_device.name);
         device.architecture = std::move(native_device.architecture);
         device.total_memory = native_device.total_memory;
@@ -30,8 +28,11 @@ Result detect() {
         device.available = native_device.available;
         result.devices.push_back(std::move(device));
     }
-
     return result;
+}
+
+namespace {
+const bool registered = edcpp::api::detect::register_translation(Backend::cpu, &detect);
 }
 
 } // namespace edcpp::api::detect::cpu::translation::cpu
