@@ -12,7 +12,12 @@ enum class Backend : std::uint8_t {
     cuda,
     rocm,
     oneapi,
+    opencl,
+    openvino,
+    opengl,
     vulkan,
+    mesa,
+    directml,
 };
 
 enum class Operation : std::uint16_t {

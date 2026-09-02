@@ -1,0 +1,102 @@
+ARG UBUNTU_VERSION=24.04
+FROM ubuntu:${UBUNTU_VERSION}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_VERSION
+ARG PYTHON_VERSION=none
+ARG PYTORCH_VERSION=none
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+LABEL org.opencontainers.image.title="EasyDifussion-Cpp 000 CPU Toolchain" \
+      io.easydifussion.ubuntu.version="${UBUNTU_VERSION}" \
+      io.easydifussion.python.version="${PYTHON_VERSION}" \
+      io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
+
+# 000 CPU-only native C/C++ build and acceleration foundation.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    clang \
+    cmake \
+    ninja-build \
+    pkg-config \
+    git \
+    ca-certificates \
+    curl \
+    wget \
+    libomp-dev \
+    libtbb-dev \
+    libopenblas-dev \
+    liblapack-dev \
+    libdnnl-dev \
+    libnuma-dev \
+    libhwloc-dev \
+    make \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    llvm \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# pyenv is present even when no Python runtime is selected.
+ENV PYENV_ROOT="/opt/pyenv"
+ENV PATH="/opt/pyenv/bin:/opt/pyenv/shims:${PATH}"
+RUN git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
+    && printf '%s\n' \
+      'export PYENV_ROOT=/opt/pyenv' \
+      'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' \
+      'eval "$(pyenv init -)"' \
+      > /etc/profile.d/pyenv.sh
+
+# Optional Python 3.8-3.14 runtime managed by pyenv. "none" leaves this a pure C/C++ image.
+RUN set -eux; \
+    case "$PYTHON_VERSION" in \
+      none) echo '[000] Python runtime disabled' ;; \
+      3.8|3.9|3.10|3.11|3.12|3.13|3.14) \
+        pyenv install "$PYTHON_VERSION"; \
+        installed="$(pyenv versions --bare | grep -E "^${PYTHON_VERSION}(\.|$)" | sort -V | tail -n 1)"; \
+        test -n "$installed"; \
+        pyenv global "$installed"; \
+        python --version; \
+        python -m ensurepip --upgrade; \
+        python -m pip install --upgrade pip setuptools wheel ;; \
+      *) echo "[000] unsupported Python selector: $PYTHON_VERSION" >&2; exit 1 ;; \
+    esac
+
+# Optional CPU-only PyTorch. Exact version is requested; incompatible Python/PyTorch pairs fail rather than substitute.
+RUN set -eux; \
+    if [ "$PYTORCH_VERSION" = none ]; then \
+      echo '[000] PyTorch disabled'; \
+    else \
+      [ "$PYTHON_VERSION" != none ] || { echo '[000] PyTorch requires Python to be enabled' >&2; exit 1; }; \
+      python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==${PYTORCH_VERSION}"; \
+      python -c 'import torch; print("[000] PyTorch", torch.__version__, "CUDA available:", torch.cuda.is_available())'; \
+    fi
+
+# CPU image sanity checks. Python is only checked when requested.
+RUN set -eux; \
+    command -v gcc; \
+    command -v g++; \
+    command -v clang; \
+    command -v cmake; \
+    command -v ninja; \
+    command -v pyenv; \
+    pkg-config --exists tbb || test -d /usr/include/oneapi/tbb || test -d /usr/include/tbb; \
+    pkg-config --exists openblas || test -f /usr/include/x86_64-linux-gnu/openblas-pthread/cblas.h || test -n "$(find /usr/include -name cblas.h -print -quit 2>/dev/null)"; \
+    pkg-config --exists dnnl || test -f /usr/include/dnnl.h; \
+    test -f /usr/include/numa.h; \
+    test -f /usr/include/hwloc.h; \
+    if [ "$PYTHON_VERSION" != none ]; then python --version; fi
+
+CMD ["/bin/bash"]

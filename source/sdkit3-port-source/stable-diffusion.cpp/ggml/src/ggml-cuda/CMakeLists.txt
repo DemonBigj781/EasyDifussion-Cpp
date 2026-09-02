@@ -103,8 +103,10 @@ if (CUDAToolkit_FOUND)
     list(APPEND GGML_HEADERS_CUDA "../../include/ggml-cuda.h")
 
     file(GLOB   GGML_SOURCES_CUDA "*.cu")
-    set(GGML_API_CUDA_ATTENTION_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/cuda/attention")
-    set(GGML_API_CUDA_FLASH_DIR "${GGML_API_CUDA_ATTENTION_DIR}/flash")
+    set(GGML_API_ATTENTION_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/features/attention")
+    set(GGML_API_CUDA_FLASH_DIR "${GGML_API_ATTENTION_DIR}/flash/cuda/translation/gpu")
+    set(GGML_API_CUDA_SAGE_DIR "${GGML_API_ATTENTION_DIR}/sage/cuda/translation/gpu")
+    set(GGML_API_CUDA_XFORMERS_DIR "${GGML_API_ATTENTION_DIR}/xformers/cuda/translation/gpu")
 
     # Compile canonical API.cpp attention sources directly. The legacy .cu
     # files remain compatibility shims for downstream source-tree consumers.
@@ -113,9 +115,9 @@ if (CUDAToolkit_FOUND)
         "${GGML_API_CUDA_FLASH_DIR}/fattn.cu"
         "${GGML_API_CUDA_FLASH_DIR}/fattn-tile.cu"
         "${GGML_API_CUDA_FLASH_DIR}/fattn-wmma-f16.cu"
-        "${GGML_API_CUDA_ATTENTION_DIR}/sage/sage-attention.cu"
-        "${GGML_API_CUDA_ATTENTION_DIR}/sage/sage-attention-sm80.cu"
-        "${GGML_API_CUDA_ATTENTION_DIR}/xformers/xformers-attention.cu"
+        "${GGML_API_CUDA_SAGE_DIR}/sage-attention.cu"
+        "${GGML_API_CUDA_SAGE_DIR}/sage-attention-sm80.cu"
+        "${GGML_API_CUDA_XFORMERS_DIR}/xformers-attention.cu"
     )
     file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-tile*.cu")
     list(APPEND GGML_SOURCES_CUDA ${SRCS})

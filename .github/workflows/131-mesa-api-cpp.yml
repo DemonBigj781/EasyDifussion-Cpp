@@ -1,11 +1,56 @@
-name: '131 - Mesa API.cpp [RESERVED]'
-on:
-  workflow_dispatch: {}
+name: '131 - Mesa API.cpp'
+
+"on":
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Build mode'
+        required: true
+        default: 'compile'
+        type: choice
+        options: ['compile']
+
 permissions:
   contents: read
+
 jobs:
-  reserved:
+  build:
     runs-on: ubuntu-24.04
     steps:
-      - name: Reserved slot
-        run: echo 'Reserved index 131 for future Mesa API.cpp compilation.'
+      - uses: actions/checkout@v7
+      - name: Install Mesa/OpenGL compiler headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential libgl-dev
+          c++ --version
+          test -f /usr/include/GL/gl.h
+      - name: Compile Mesa detect route
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/131
+          flags=(
+            -std=c++17 -Wall -Wextra -Wpedantic
+            -Isource/API.cpp
+            -Isource/API.cpp/library/include
+          )
+          c++ "${flags[@]}" \
+            -c source/API.cpp/common/api.cpp \
+            -o build/131/api-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/detect/common/detect.cpp \
+            -o build/131/detect-common.o
+          for device in cpu gpu; do
+            c++ "${flags[@]}" -DEDCPP_DETECT_MESA=1 \
+              -c "source/API.cpp/features/detect/mesa/definition/${device}/detect.cpp" \
+              -o "build/131/detect-mesa-definition-${device}.o"
+            c++ "${flags[@]}" \
+              -c "source/API.cpp/features/detect/mesa/translation/${device}/detect.cpp" \
+              -o "build/131/detect-mesa-translation-${device}.o"
+          done
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/mesa_handler.cpp \
+            -o build/131/mesa-handler.o
+          echo '[131] Mesa detect definitions, translations, Common, and Library sources compiled successfully'

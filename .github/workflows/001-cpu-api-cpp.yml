@@ -1,9 +1,102 @@
-name: '001 - CPU API.cpp [RESERVED]'
-on:
+name: '001 - CPU API.cpp'
+
+"on":
   workflow_dispatch:
-permissions: {contents: read}
+    inputs:
+      mode:
+        description: 'Build mode'
+        required: true
+        default: 'compile'
+        type: choice
+        options: ['compile']
+
+permissions:
+  contents: read
+  packages: read
+
 jobs:
-  reserved:
+  build:
     runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:theory
+      credentials:
+        username: '${{ github.actor }}'
+        password: '${{ secrets.GITHUB_TOKEN }}'
     steps:
-      - run: echo 'Reserved index 001 for CPU API.cpp compilation.'
+      - uses: actions/checkout@v7
+      - name: Verify CPU compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          c++ --version
+      - name: Compile CPU API routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/001
+          flags=(
+            -std=c++17 -Wall -Wextra -Wpedantic
+            -Isource/API.cpp
+            -Isource/API.cpp/library/include
+          )
+          c++ "${flags[@]}" \
+            -c source/API.cpp/common/api.cpp \
+            -o build/001/api-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/detect/common/detect.cpp \
+            -o build/001/detect-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/detect/cpu/definition/cpu/detect.cpp \
+            -o build/001/detect-cpu-definition.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/detect/cpu/translation/cpu/detect.cpp \
+            -o build/001/detect-cpu-translation.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/cpu_handler.cpp \
+            -o build/001/cpu-handler.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/load/common/load.cpp \
+            -o build/001/load-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/load/model/cpu/definition/cpu/load.cpp \
+            -o build/001/load-model-cpu-definition.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/load/model/cpu/translation/cpu/load.cpp \
+            -o build/001/load-model-cpu-translation.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/unload/common/unload.cpp \
+            -o build/001/unload-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/unload/model/cpu/definition/cpu/unload.cpp \
+            -o build/001/unload-model-cpu-definition.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/unload/model/cpu/translation/cpu/unload.cpp \
+            -o build/001/unload-model-cpu-translation.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/cpu_model_lifecycle.cpp \
+            -o build/001/cpu-model-lifecycle.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/common/plan.cpp \
+            -o build/001/overflow-plan-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/common/normalize.cpp \
+            -o build/001/overflow-normalize-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/cpu/definition/cpu/allocate.cpp \
+            -o build/001/overflow-allocate-cpu-definition.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/cpu/definition/cpu/release.cpp \
+            -o build/001/overflow-release-cpu-definition.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/cpu/translation/cpu/allocate.cpp \
+            -o build/001/overflow-allocate-cpu-translation.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/cpu/translation/cpu/release.cpp \
+            -o build/001/overflow-release-cpu-translation.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/overflow.cpp \
+            -o build/001/overflow-library-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/cpu_overflow.cpp \
+            -o build/001/cpu-overflow.o
+          echo '[001] CPU detect, model lifecycle, and Overflow routes compiled successfully'

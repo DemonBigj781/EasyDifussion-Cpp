@@ -2,7 +2,9 @@
 
 Feature-first namespace for xFormers-compatible attention methods.
 
-Canonical path: `API.cpp/features/attention/xformers/[backend]/[method].cpp`.
+Canonical backend path: `API.cpp/features/attention/xformers/[backend]/definition/[device]/[method].cpp`.
+Backend-neutral contracts remain in `API.cpp/features/attention/xformers/common/[method].cpp`.
+Backend adapters live in `API.cpp/features/attention/xformers/[backend]/translation/[device]/[method].cpp`.
 
 Each backend directory provides the same method names where that backend can support them. Each method file is initially a definition placeholder only; it documents the intended stage and must not be treated as a validated implementation until backend code and tests exist.
 

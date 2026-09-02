@@ -8,7 +8,12 @@ const char* backend_name(Backend backend) noexcept {
         case Backend::cuda: return "cuda";
         case Backend::rocm: return "rocm";
         case Backend::oneapi: return "oneapi";
+        case Backend::opencl: return "opencl";
+        case Backend::openvino: return "openvino";
+        case Backend::opengl: return "opengl";
         case Backend::vulkan: return "vulkan";
+        case Backend::mesa: return "mesa";
+        case Backend::directml: return "directml";
         case Backend::none:
         default: return "none";
     }

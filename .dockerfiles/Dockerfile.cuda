@@ -1,0 +1,99 @@
+ARG CUDA_VERSION=13.3.1
+ARG UBUNTU_VERSION=24.04
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG CUDA_VERSION
+ARG UBUNTU_VERSION
+ARG PYTHON_VERSION=none
+ARG PYTORCH_VERSION=none
+ARG PYTORCH_INDEX_URL=none
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV PYENV_ROOT="/root/.pyenv"
+ENV PATH="/root/.pyenv/shims:/root/.pyenv/bin:/usr/local/cuda/bin:${PATH}"
+ENV CUDA_HOME="/usr/local/cuda"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+
+LABEL org.opencontainers.image.title="EasyDifussion-Cpp 010 CUDA Toolchain" \
+      io.easydifussion.cuda.version="${CUDA_VERSION}" \
+      io.easydifussion.ubuntu.version="${UBUNTU_VERSION}" \
+      io.easydifussion.python.version="${PYTHON_VERSION}" \
+      io.easydifussion.pytorch.version="${PYTORCH_VERSION}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    clang \
+    cmake \
+    ninja-build \
+    pkg-config \
+    git \
+    ca-certificates \
+    curl \
+    wget \
+    libomp-dev \
+    libtbb-dev \
+    libnuma-dev \
+    libhwloc-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT"; \
+    if [ "$PYTHON_VERSION" = "none" ]; then \
+      echo '[010 python] disabled; pyenv installed with no Python runtime'; \
+    else \
+      case "$PYTHON_VERSION" in 3.8|3.9|3.10|3.11|3.12|3.13|3.14) ;; *) echo "Unsupported Python version: $PYTHON_VERSION" >&2; exit 1 ;; esac; \
+      pyenv install -s "$PYTHON_VERSION"; \
+      pyenv global "$PYTHON_VERSION"; \
+      python --version; \
+      python -m ensurepip --upgrade; \
+      python -m pip install --no-cache-dir --upgrade pip setuptools wheel; \
+    fi; \
+    printf '%s\n' \
+      'export PYENV_ROOT="$HOME/.pyenv"' \
+      'export PATH="$PYENV_ROOT/bin:$PATH"' \
+      'eval "$(pyenv init -)"' \
+      > /etc/profile.d/pyenv.sh
+
+RUN set -eux; \
+    if [ "$PYTORCH_VERSION" = "none" ]; then \
+      echo '[010 pytorch] disabled'; \
+    else \
+      if [ "$PYTHON_VERSION" = "none" ]; then echo 'PyTorch requires Python to be enabled' >&2; exit 1; fi; \
+      if [ "$PYTORCH_INDEX_URL" = "none" ] || [ -z "$PYTORCH_INDEX_URL" ]; then \
+        python -m pip install --no-cache-dir "torch==$PYTORCH_VERSION"; \
+      else \
+        python -m pip install --no-cache-dir --index-url "$PYTORCH_INDEX_URL" "torch==$PYTORCH_VERSION"; \
+      fi; \
+      python -c 'import torch; print("[010 pytorch]", torch.__version__)'; \
+    fi
+
+RUN set -eux; \
+    check_exec() { label="$1"; path="$2"; echo "[010 verify] $label -> $path"; test -x "$path" || { echo "[010 missing] $label: $path" >&2; exit 1; }; }; \
+    check_header() { label="$1"; header="$2"; echo "[010 verify] $label -> $header"; test -f "/usr/local/cuda/include/$header" || { echo "[010 missing] $label: /usr/local/cuda/include/$header" >&2; exit 1; }; }; \
+    check_exec NVCC /usr/local/cuda/bin/nvcc; \
+    check_header CUDA-Runtime cuda_runtime.h; \
+    check_header CUDA-Driver cuda.h; \
+    check_header cuBLAS cublas_v2.h; \
+    check_header cuRAND curand.h; \
+    check_header cuSPARSE cusparse.h; \
+    /usr/local/cuda/bin/nvcc --version; \
+    pyenv --version; \
+    if [ "$PYTHON_VERSION" != "none" ]; then python --version; fi; \
+    if [ "$PYTORCH_VERSION" != "none" ]; then python -c 'import torch; print(torch.__version__)'; fi; \
+    echo "[010 verify] CUDA ${CUDA_VERSION} / Ubuntu ${UBUNTU_VERSION} / Python ${PYTHON_VERSION} / PyTorch ${PYTORCH_VERSION} validation complete"
+
+CMD ["/bin/bash"]

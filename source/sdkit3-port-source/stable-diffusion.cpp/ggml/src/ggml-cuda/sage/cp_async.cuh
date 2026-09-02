@@ -1,3 +1,3 @@
 #pragma once
 // Compatibility bridge: SageAttention helper implementation is owned by API.cpp.
-#include "../../../../../../API.cpp/cuda/attention/sage/cp_async.cuh"
+#include "../../../../../../API.cpp/features/attention/sage/cuda/translation/gpu/cp_async.cuh"

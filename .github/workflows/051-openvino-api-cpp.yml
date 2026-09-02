@@ -1,9 +1,63 @@
-name: '051 - OpenVINO API.cpp [RESERVED]'
-on:
+name: '051 - OpenVINO API.cpp'
+
+"on":
   workflow_dispatch:
-permissions: {contents: read}
+    inputs:
+      mode:
+        description: 'Build mode'
+        required: true
+        default: 'compile'
+        type: choice
+        options: ['compile']
+
+permissions:
+  contents: read
+  packages: read
+
 jobs:
-  reserved:
+  build:
     runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/demonbigj781/easydifussion-cpp-openvino-toolchain:theory
+      credentials:
+        username: '${{ github.actor }}'
+        password: '${{ secrets.GITHUB_TOKEN }}'
     steps:
-      - run: echo 'Reserved index 051 for OpenVINO API.cpp compilation.'
+      - uses: actions/checkout@v7
+      - name: Verify OpenVINO compiler headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          c++ --version
+          header="$(find /usr /opt -path '*/openvino/openvino.hpp' -print -quit 2>/dev/null)"
+          test -n "$header"
+          echo "OPENVINO_INCLUDE=${header%/openvino/openvino.hpp}" >> "$GITHUB_ENV"
+      - name: Compile OpenVINO detect route
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/051
+          flags=(
+            -std=c++17 -Wall -Wextra -Wpedantic
+            -Isource/API.cpp
+            -Isource/API.cpp/library/include
+            "-I${OPENVINO_INCLUDE}"
+          )
+          c++ "${flags[@]}" \
+            -c source/API.cpp/common/api.cpp \
+            -o build/051/api-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/detect/common/detect.cpp \
+            -o build/051/detect-common.o
+          for device in cpu gpu npu; do
+            c++ "${flags[@]}" -DEDCPP_DETECT_OPENVINO=1 \
+              -c "source/API.cpp/features/detect/openvino/definition/${device}/detect.cpp" \
+              -o "build/051/detect-openvino-definition-${device}.o"
+            c++ "${flags[@]}" \
+              -c "source/API.cpp/features/detect/openvino/translation/${device}/detect.cpp" \
+              -o "build/051/detect-openvino-translation-${device}.o"
+          done
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/openvino_handler.cpp \
+            -o build/051/openvino-handler.o
+          echo '[051] OpenVINO detect definitions, translations, Common, and Library sources compiled successfully'

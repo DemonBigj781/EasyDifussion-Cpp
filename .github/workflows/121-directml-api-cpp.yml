@@ -1,12 +1,53 @@
-name: '121 - DirectML API.cpp [RESERVED]'
-on:
-  workflow_dispatch: {}
+name: '121 - DirectML API.cpp'
+
+"on":
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Build mode'
+        required: true
+        default: 'compile'
+        type: choice
+        options: ['compile']
+
 permissions:
   contents: read
+
 jobs:
-  reserved:
+  build:
     runs-on: windows-2025
     steps:
-      - name: Reserved slot
+      - uses: actions/checkout@v7
+      - name: Acquire pinned DirectML compiler header
         shell: pwsh
-        run: Write-Host 'Reserved index 121 for future DirectML API.cpp compilation.'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cl 2>&1 | Select-Object -First 3
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'directml-package'
+          nuget install Microsoft.AI.DirectML -Version 1.15.4 -OutputDirectory $packageRoot -NonInteractive
+          $header = Get-ChildItem $packageRoot -Recurse -File -Filter 'DirectML.h' | Select-Object -First 1
+          if (-not $header) { throw 'Microsoft.AI.DirectML 1.15.4 did not contain DirectML.h' }
+          "DIRECTML_INCLUDE=$($header.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Compile DirectML detect route
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = 'build/121'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $flags = @(
+            '/nologo', '/std:c++17', '/EHsc', '/W4',
+            '/Isource\API.cpp',
+            '/Isource\API.cpp\library\include',
+            "/I$env:DIRECTML_INCLUDE"
+          )
+          & cl @flags /c '/Fobuild/121/api-common.obj' 'source/API.cpp/common/api.cpp'
+          if ($LASTEXITCODE -ne 0) { throw 'Root Common API compilation failed' }
+          & cl @flags /c '/Fobuild/121/detect-common.obj' 'source/API.cpp/features/detect/common/detect.cpp'
+          if ($LASTEXITCODE -ne 0) { throw 'Common detect compilation failed' }
+          & cl @flags /DEDCPP_DETECT_DIRECTML=1 /c '/Fobuild/121/detect-directml-definition-gpu.obj' 'source/API.cpp/features/detect/directml/definition/gpu/detect.cpp'
+          if ($LASTEXITCODE -ne 0) { throw 'DirectML definition compilation failed' }
+          & cl @flags /c '/Fobuild/121/detect-directml-translation-gpu.obj' 'source/API.cpp/features/detect/directml/translation/gpu/detect.cpp'
+          if ($LASTEXITCODE -ne 0) { throw 'DirectML translation compilation failed' }
+          & cl @flags /c '/Fobuild/121/directml-handler.obj' 'source/API.cpp/library/src/directml_handler.cpp'
+          if ($LASTEXITCODE -ne 0) { throw 'DirectML Library handler compilation failed' }
+          Write-Host '[121] DirectML detect definition, translation, Common, and Library sources compiled successfully'

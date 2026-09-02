@@ -23,6 +23,12 @@
 /options.json
 /source/artifacts
 
+# API.cpp compiler outputs and locally managed model fixtures
+/source/API.test/build/
+/source/API.test/MODELS/*
+!/source/API.test/MODELS/README.md
+!/source/API.test/MODELS/lifecycle-model.fixture
+
 # sdkit is vendored as a de-gitted source snapshot. Keep local native builds
 # and private/runtime configuration out of the main repository.
 /source/sdkit3-port-source/build*/

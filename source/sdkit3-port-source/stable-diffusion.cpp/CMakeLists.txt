@@ -242,7 +242,7 @@ file(GLOB SD_LIB_SOURCES CONFIGURE_DEPENDS
 # Attention implementations are owned by source/API.cpp. Keep compatibility
 # files in the legacy tree for downstream includes, but compile the canonical
 # source directly so the API layer cannot silently drift from the built code.
-set(SD_API_ATTENTION_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../API.cpp/common/attention")
+set(SD_API_ATTENTION_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../API.cpp/features/attention/flex/common")
 list(FILTER SD_LIB_SOURCES EXCLUDE REGEX "/src/runtime/flex_attention\\.cpp$")
 list(APPEND SD_LIB_SOURCES
     "${SD_API_ATTENTION_DIR}/flex_attention.cpp"

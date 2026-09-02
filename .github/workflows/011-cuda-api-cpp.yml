@@ -31,14 +31,75 @@ jobs:
           test -f /usr/local/cuda/include/cuda_runtime_api.h
           test -x /usr/local/cuda/bin/nvcc
           /usr/local/cuda/bin/nvcc --version
-      - name: Compile CUDA API.cpp handlers
+      - name: Compile CUDA API routes
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build/011
-          c++ -std=c++17 -Wall -Wextra -Wpedantic \
-            -Isource/API.cpp/include \
-            -I/usr/local/cuda/include \
-            -c source/API.cpp/src/cuda_handler.cpp \
-            -o build/011/cuda_handler.o
-          echo '[011] CUDA API.cpp handlers compiled successfully'
+          flags=(
+            -std=c++17 -Wall -Wextra -Wpedantic
+            -Isource/API.cpp
+            -Isource/API.cpp/library/include
+            -I/usr/local/cuda/include
+          )
+          c++ "${flags[@]}" \
+            -c source/API.cpp/common/api.cpp \
+            -o build/011/api-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/detect/common/detect.cpp \
+            -o build/011/detect-common.o
+          c++ "${flags[@]}" -DEDCPP_DETECT_CUDA=1 \
+            -c source/API.cpp/features/detect/cuda/definition/gpu/detect.cpp \
+            -o build/011/detect-cuda-definition-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/detect/cuda/translation/gpu/detect.cpp \
+            -o build/011/detect-cuda-translation-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/cuda_handler.cpp \
+            -o build/011/cuda-handler.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/load/common/load.cpp \
+            -o build/011/load-common.o
+          c++ "${flags[@]}" -DEDCPP_LOAD_CUDA=1 \
+            -c source/API.cpp/features/load/model/cuda/definition/gpu/load.cpp \
+            -o build/011/load-model-cuda-definition-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/load/model/cuda/translation/gpu/load.cpp \
+            -o build/011/load-model-cuda-translation-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/unload/common/unload.cpp \
+            -o build/011/unload-common.o
+          c++ "${flags[@]}" -DEDCPP_UNLOAD_CUDA=1 \
+            -c source/API.cpp/features/unload/model/cuda/definition/gpu/unload.cpp \
+            -o build/011/unload-model-cuda-definition-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/unload/model/cuda/translation/gpu/unload.cpp \
+            -o build/011/unload-model-cuda-translation-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/cuda_model_lifecycle.cpp \
+            -o build/011/cuda-model-lifecycle.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/common/plan.cpp \
+            -o build/011/overflow-plan-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/common/normalize.cpp \
+            -o build/011/overflow-normalize-common.o
+          c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 \
+            -c source/API.cpp/features/overflow/cuda/definition/gpu/allocate.cpp \
+            -o build/011/overflow-allocate-cuda-definition-gpu.o
+          c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 \
+            -c source/API.cpp/features/overflow/cuda/definition/gpu/release.cpp \
+            -o build/011/overflow-release-cuda-definition-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/cuda/translation/gpu/allocate.cpp \
+            -o build/011/overflow-allocate-cuda-translation-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/overflow/cuda/translation/gpu/release.cpp \
+            -o build/011/overflow-release-cuda-translation-gpu.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/overflow.cpp \
+            -o build/011/overflow-library-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/library/src/cuda_overflow.cpp \
+            -o build/011/cuda-overflow.o
+          echo '[011] CUDA detect, model lifecycle, and Overflow routes compiled successfully'

@@ -1,3 +1,3 @@
 #pragma once
 // Compatibility forwarding header. CUDA FlashAttention API lives in source/API.cpp.
-#include "../../../../../API.cpp/cuda/attention/flash/fattn.cuh"
+#include "../../../../../API.cpp/features/attention/flash/cuda/translation/gpu/fattn.cuh"

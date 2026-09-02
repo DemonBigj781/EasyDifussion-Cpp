@@ -1,0 +1,6 @@
+EASY-DIFFUSION-API-TEST-MODEL
+format=opaque-model-byte-fixture
+purpose=validate-load-transfer-integrity-and-unload-ownership
+payload=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+payload=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz9876543210
+payload=the-API-must-preserve-every-byte-across-the-selected-storage-backend

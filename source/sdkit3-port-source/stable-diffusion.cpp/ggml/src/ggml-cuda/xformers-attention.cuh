@@ -1,3 +1,3 @@
 #pragma once
-// Compatibility shim: implementation interface moved to source/API.cpp/cuda/attention/xformers.
-#include "../../../../../API.cpp/cuda/attention/xformers/xformers-attention.cuh"
+// Compatibility shim: interface is owned by the API.cpp CUDA translation.
+#include "../../../../../API.cpp/features/attention/xformers/cuda/translation/gpu/xformers-attention.cuh"

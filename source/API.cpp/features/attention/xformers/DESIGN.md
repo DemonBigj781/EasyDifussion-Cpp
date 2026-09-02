@@ -52,15 +52,24 @@ API.cpp/features/attention/xformers/
 
 Not every backend family must implement every device class. The device-class layer exists so one backend family may expose multiple independently translated execution targets without creating fake top-level backends.
 
+The diagram above records definition coverage. Every backend also owns the parallel
+`[backend]/translation/[device-class]/[method].cpp` path defined by `API.cpp/LAYOUT.md`.
+
 ## Core rule
 
 **Translate first. Unify second.**
 
-The normalized definition path is:
+The backend-definition path is:
 
 `[backend]/definition/[device-class]/[method].cpp`
 
 A definition answers: "What does this normalized xFormers operation mean for this exact backend family and device class, and how can it produce equivalent behavior?"
+
+The translation path is:
+
+`[backend]/translation/[device-class]/[method].cpp`
+
+A translation adapts that backend definition to the xFormers common contract.
 
 A `common/[method].cpp` file answers: "Given the normalized definitions, what is the single application-facing behavior?"
 
@@ -79,11 +88,17 @@ Common should not care whether a normalized operation originated from a GPU, CPU
 
 ## Definition layer
 
-A definition may contain declarations, translation code, adapters, alternate procedures, emulation, helper calls, or roundabout code when the target does not expose a direct equivalent.
+A definition may contain declarations, native API semantics, alternate procedures, emulation requirements, capability state, or roundabout behavior when the target does not expose a direct equivalent. Backend-to-common adapter code belongs in the parallel translation path.
 
 Definitions should normalize operation meaning, inputs/outputs, dtype and shape rules, masking/bias semantics, memory/layout assumptions, synchronization, unsupported cases, fallbacks/equivalents, capability state, and validation state.
 
 The goal is semantic equivalence, not identical native implementation.
+
+## Translation layer
+
+Translations implement the backend-to-common boundary. They may call native kernels,
+SDK functions, or compatibility helpers, but must return normalized behavior to
+`common/` without leaking backend-native objects into the Library API.
 
 ## Common layer
 
@@ -108,12 +123,12 @@ Logical methods do not imply separate native kernel launches. A backend/device d
 1. Create the complete folder and file skeleton.
 2. Do not implement Common yet.
 3. Analyze backend family + device class + method combinations independently.
-4. Fill `[backend]/definition/[device-class]/[method].cpp` with the translated meaning and target-specific procedure.
-5. Compare translated definitions across targets.
-6. Identify behavior that is genuinely common.
-7. Design the common contract from those definitions.
-8. Implement `common/[method].cpp` only after definition coverage is sufficient.
-9. Route application code to Common only after Common is stable.
+4. Fill `[backend]/definition/[device-class]/[method].cpp` with native API semantics and constraints.
+5. Implement `[backend]/translation/[device-class]/[method].cpp` against the normalized contract.
+6. Compare translated behavior across targets.
+7. Identify behavior that is genuinely common.
+8. Design and implement `common/[method].cpp` only after translation coverage is sufficient.
+9. Route the Library to Common only after Common is stable.
 10. Validate runtime behavior independently per backend/device target.
 
 ## Constraints for AI/code agents
