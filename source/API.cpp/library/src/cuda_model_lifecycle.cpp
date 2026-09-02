@@ -29,25 +29,19 @@ edcpp::api::load::Resource to_internal(const ModelResource& resource) {
 
 } // namespace
 
-const char* CudaModelLifecycleHandler::name() const noexcept {
-    return "cuda";
-}
+const char* CudaModelLifecycleHandler::name() const noexcept { return "cuda"; }
 
-LoadModelResult CudaModelLifecycleHandler::load(
-    const void* data, std::size_t size, int device_index) const {
+LoadModelResult CudaModelLifecycleHandler::load(const void* data, std::size_t size, int device_index) const {
     edcpp::api::load::Request request;
     request.data = data;
     request.size = static_cast<std::uint64_t>(size);
     request.device_index = device_index;
 
-    auto internal = edcpp::api::load::model(edcpp::api::Backend::cuda, request);
-
+    auto internal = edcpp::api::load::load_model(edcpp::api::Backend::cuda, request);
     LoadModelResult result;
     result.success = internal.loaded;
     result.diagnostic = std::move(internal.diagnostic);
-    if (internal.loaded) {
-        result.resource = to_public(internal.resource);
-    }
+    if (internal.loaded) result.resource = to_public(internal.resource);
     return result;
 }
 
@@ -57,15 +51,11 @@ UnloadModelResult CudaModelLifecycleHandler::unload(ModelResource& resource) con
         result.diagnostic = "CUDA lifecycle cannot unload a resource owned by another backend";
         return result;
     }
-
     auto internal_resource = to_internal(resource);
-    auto internal = edcpp::api::unload::model(internal_resource);
-
+    auto internal = edcpp::api::unload::unload_model(internal_resource);
     result.success = internal.unloaded;
     result.diagnostic = std::move(internal.diagnostic);
-    if (internal.unloaded) {
-        resource = {};
-    }
+    if (internal.unloaded) resource = {};
     return result;
 }
 
