@@ -30,6 +30,9 @@ struct Result {
     std::string diagnostic;
 };
 
+// Public Common model-load entry point. Common owns backend translation routing.
+Result model(Backend backend, const Request& request);
+
 Result normalize(Result result);
 
 } // namespace edcpp::api::load
