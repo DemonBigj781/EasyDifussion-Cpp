@@ -1,9 +1,7 @@
 #include "api/model_lifecycle.hpp"
 
 #include "features/load/common/load.hpp"
-#include "features/load/model/cpu/translation/cpu/load.hpp"
 #include "features/unload/common/unload.hpp"
-#include "features/unload/model/cpu/translation/cpu/unload.hpp"
 
 #include <cstdint>
 #include <utility>
@@ -44,8 +42,7 @@ LoadModelResult CpuModelLifecycleHandler::load(
     request.size = static_cast<std::uint64_t>(size);
     request.device_index = 0;
 
-    auto internal = edcpp::api::load::normalize(
-        edcpp::api::load::model::cpu::translation::cpu::load(request));
+    auto internal = edcpp::api::load::model(edcpp::api::Backend::cpu, request);
 
     LoadModelResult result;
     result.success = internal.loaded;
@@ -64,9 +61,7 @@ UnloadModelResult CpuModelLifecycleHandler::unload(ModelResource& resource) cons
     }
 
     auto internal_resource = to_internal(resource);
-    auto internal = edcpp::api::unload::normalize(
-        edcpp::api::unload::model::cpu::translation::cpu::unload(internal_resource),
-        internal_resource);
+    auto internal = edcpp::api::unload::model(internal_resource);
 
     result.success = internal.unloaded;
     result.diagnostic = std::move(internal.diagnostic);
