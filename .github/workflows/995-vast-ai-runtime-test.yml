@@ -72,6 +72,16 @@ jobs:
           name: ${{ inputs.artifact_name }}
           path: vast-build
 
+      - name: Restore executable permissions in downloaded test artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          find vast-build -maxdepth 1 -type f -name '*-test' -exec chmod 0755 {} +
+          if [[ -f vast-build/xformers-cpu-test ]]; then
+            chmod 0755 vast-build/xformers-cpu-test
+            test -x vast-build/xformers-cpu-test
+          fi
+
       - name: Build immutable Vast test image on GitHub
         shell: bash
         run: |
@@ -82,6 +92,7 @@ jobs:
           ARG BASE_IMAGE
           FROM ${BASE_IMAGE}
           COPY vast-build/ /opt/edcpp-test/build/
+          RUN if [ -f /opt/edcpp-test/build/xformers-cpu-test ]; then chmod 0755 /opt/edcpp-test/build/xformers-cpu-test; fi
           LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
           LABEL edcpp.vast-test.commit="${{ github.sha }}"
           LABEL edcpp.vast-test.backend="${{ inputs.backend }}"
