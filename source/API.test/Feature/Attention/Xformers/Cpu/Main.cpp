@@ -102,7 +102,6 @@ int main() {
     };
     ok &= check_array(out, expected, 4, "Deterministic attention output matches analytical result");
 
-    // Causal attention: query 0 can only attend to key 0; query 1 can attend to both.
     const float zero_qk[] = {0.0f, 0.0f, 0.0f, 0.0f};
     const float scalar_v[] = {10.0f, 30.0f};
     float causal_out[2] = {};
@@ -119,7 +118,6 @@ int main() {
     ok &= check(forward(Backend::cpu, causal), "CPU Common dispatch executes causal attention");
     ok &= check_array(causal_out, causal_expected, 2, "Causal mask produces expected output");
 
-    // Additive mask: zero logits plus [0, ln(3)] gives weights [1/4, 3/4].
     const float additive_mask[] = {0.0f, std::log(3.0f)};
     float mask_out[2] = {};
     AttentionRequest masked = causal;
@@ -131,7 +129,6 @@ int main() {
     ok &= check(forward(Backend::cpu, masked), "CPU Common dispatch executes additive mask");
     ok &= check_array(mask_out, mask_expected, 2, "Additive mask broadcasting produces expected output");
 
-    // ALiBi: slope ln(3) yields the same 1:3 weighting between neighboring keys.
     const float alibi_slope[] = {std::log(3.0f)};
     float alibi_out[2] = {};
     AttentionRequest alibi = causal;
@@ -145,7 +142,6 @@ int main() {
     ok &= check(forward(Backend::cpu, alibi), "CPU Common dispatch executes ALiBi");
     ok &= check_array(alibi_out, alibi_expected, 2, "ALiBi bias produces expected output");
 
-    // Soft-cap is applied to finite logits before masks/biases.
     const float soft_q[] = {2.0f, 0.0f};
     const float soft_k[] = {1.0f, 0.0f, 0.0f, 1.0f};
     const float soft_v[] = {4.0f, 8.0f};
@@ -165,7 +161,6 @@ int main() {
     ok &= check(forward(Backend::cpu, softcap), "CPU Common dispatch executes soft-cap attention");
     ok &= check_array(soft_out, soft_expected, 1, "Soft-cap produces expected analytical output");
 
-    // GQA: four Q heads grouped across two K/V heads.
     const float gqa_q[] = {
         1,0, 1,0,
         1,0, 1,0,
@@ -195,7 +190,6 @@ int main() {
     ok &= check(forward(Backend::cpu, gqa), "CPU Common dispatch executes GQA");
     ok &= check_array(gqa_out, gqa_expected, 8, "GQA maps Q-head groups to expected K/V heads");
 
-    // MQA: all Q heads share one K/V head.
     const float mqa_q[] = {1,0, 0,1, 1,0, 0,1};
     const float mqa_k[] = {1,0, 0,1};
     const float mqa_v[] = {5,9};
@@ -217,13 +211,14 @@ int main() {
     ok &= check(forward(Backend::cpu, mqa), "CPU Common dispatch executes MQA");
     ok &= check_array(mqa_out, mqa_expected, 4, "MQA shares one K/V head across all Q heads");
 
-    // Validation failures are part of the Common contract too.
     AttentionRequest unsupported = request;
     unsupported.dtype = DType::f16;
     ok &= check(!validate(Backend::cpu, unsupported).ok, "CPU validation rejects unsupported F16 request");
 
     AttentionRequest bad_heads = request;
     bad_heads.q.heads = 3;
+    bad_heads.k.heads = 2;
+    bad_heads.v.heads = 2;
     bad_heads.out.heads = 3;
     ok &= check(!validate(Backend::cpu, bad_heads).ok, "CPU validation rejects non-divisible K/V head counts");
 
