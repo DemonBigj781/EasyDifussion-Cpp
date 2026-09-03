@@ -24,7 +24,7 @@ name: '995 - Vast AI Runtime Test'
         required: true
         type: string
       test_command:
-        description: 'Runtime smoke command; must not compile or link on Vast'
+        description: 'Runtime test command; must not compile or link on Vast'
         required: false
         default: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q .'
         type: string
@@ -143,14 +143,34 @@ jobs:
           echo 'Timed out waiting for Vast.ai instance to become running.' >&2
           exit 1
 
-      - name: Run runtime smoke test without compiling on Vast
+      - name: Resolve Vast.ai SSH command
+        id: ssh
         env:
           VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
           INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
         shell: bash
         run: |
           set -euo pipefail
-          vastai execute "$INSTANCE_ID" "${{ inputs.test_command }}" --api-key "$VASTAI_KEY" --raw
+          ssh_cmd="$(vastai ssh-url "$INSTANCE_ID" --api-key "$VASTAI_KEY")"
+          if [[ -z "$ssh_cmd" ]]; then
+            echo 'Vast.ai did not return an SSH command.' >&2
+            exit 1
+          fi
+          printf '%s\n' "$ssh_cmd"
+          echo "ssh_cmd=$ssh_cmd" >> "$GITHUB_OUTPUT"
+
+      - name: Run runtime test on Vast.ai without compiling
+        env:
+          SSH_CMD: ${{ steps.ssh.outputs.ssh_cmd }}
+          TEST_COMMAND: ${{ inputs.test_command }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r -a ssh_parts <<< "$SSH_CMD"
+          "${ssh_parts[@]}" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$TEST_COMMAND"
 
       - name: Destroy Vast.ai instance
         if: ${{ always() && steps.create.outputs.instance_id != '' }}
@@ -160,5 +180,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          vastai destroy instance "$INSTANCE_ID" --api-key "$VASTAI_KEY" --raw
+          echo "Destroying Vast.ai instance $INSTANCE_ID"
+          vastai destroy instance "$INSTANCE_ID" -y --api-key "$VASTAI_KEY" --raw
+          destroy_rc=$?
+          if [[ $destroy_rc -ne 0 ]]; then
+            echo "WARNING: Vast.ai destroy command failed with exit code $destroy_rc" >&2
+          fi
           exit 0
