@@ -174,6 +174,33 @@ jobs:
           echo "host=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
           echo "port=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
 
+      - name: Wait for Vast.ai SSH service
+        env:
+          SSH_USER: ${{ steps.ssh.outputs.user }}
+          SSH_HOST: ${{ steps.ssh.outputs.host }}
+          SSH_PORT: ${{ steps.ssh.outputs.port }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if ssh \
+              -i "$SSH_KEY_PATH" \
+              -p "$SSH_PORT" \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=5 \
+              "$SSH_USER@$SSH_HOST" \
+              'echo edcpp-ssh-ready' >/tmp/edcpp-ssh-ready.out 2>/tmp/edcpp-ssh-ready.err; then
+              cat /tmp/edcpp-ssh-ready.out
+              exit 0
+            fi
+            echo "SSH not ready yet (attempt $attempt/60): $(tail -n 1 /tmp/edcpp-ssh-ready.err 2>/dev/null || true)"
+            sleep 5
+          done
+          echo 'Timed out waiting for Vast.ai SSH service.' >&2
+          exit 1
+
       - name: Run runtime test on Vast.ai without compiling
         env:
           SSH_USER: ${{ steps.ssh.outputs.user }}
