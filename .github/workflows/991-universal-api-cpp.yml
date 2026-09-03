@@ -3,8 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
-      mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression]}
-permissions: {contents: read, packages: read}
+      mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression, 'Test, Vast AI']}
+      vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
+      vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
+permissions: {contents: read, packages: write}
 jobs:
   linux:
     if: "inputs.platform == 'linux'"
@@ -22,7 +24,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail; set +u; source /opt/intel/oneapi/setvars.sh >/dev/null; set -u; export PATH=/opt/rocm/bin:/usr/local/cuda/bin:$PATH
-          python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"12.8.1","oneapi":[],"rocm":[],"portable":[]}'
+          mode='${{ inputs.mode }}'; if [[ "$mode" == 'Test, Vast AI' ]]; then mode=compile; fi
+          python ci/scripts/build_backend.py --backend cpu --mode "$mode" --target-json '{"devices":[],"cuda":[],"cuda_version":"12.8.1","oneapi":[],"rocm":[],"portable":[]}'
       - name: Compile complete API.cpp source tree
         shell: bash
         run: |
@@ -31,6 +34,10 @@ jobs:
           [ "${#sources[@]}" -gt 0 ] || { echo 'No C++ translation units found under source/API.cpp' >&2; exit 1; }
           mkdir -p /tmp/api-cpp-objects; i=0
           for src in "${sources[@]}"; do c++ -std=c++17 -Wall -Wextra -Wpedantic -c "$src" -o "/tmp/api-cpp-objects/unit-${i}.o" -Isource/API.cpp -Isource/sdkit3-port-source/include -Isource/sdkit3-port-source/stable-diffusion.cpp/include -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include -I/usr/local/cuda/include -I/opt/rocm/include; i=$((i+1)); done
+      - name: Preserve GitHub-compiled artifact for approved Vast.ai test
+        if: ${{ inputs.mode == 'Test, Vast AI' }}
+        uses: actions/upload-artifact@v4
+        with: {name: 'vast-api-991-${{ github.run_id }}', path: /tmp/api-cpp-objects, if-no-files-found: error}
   windows:
     if: "inputs.platform == 'windows'"
     runs-on: windows-2025
@@ -38,10 +45,29 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with: {python-version: '3.13'}
+      - name: Reject paid Vast test for non-container Windows path
+        if: ${{ inputs.mode == 'Test, Vast AI' }}
+        shell: pwsh
+        run: throw 'Test, Vast AI requires the exact GitHub build container. The Universal Windows path is not containerized, so no Vast.ai API call will be made.'
       - name: Build API baseline
+        if: ${{ inputs.mode != 'Test, Vast AI' }}
         shell: pwsh
         run: python ci/scripts/build_backend.py --backend cpu --mode "${{ inputs.mode }}" --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
       - name: Compile complete API.cpp source tree
+        if: ${{ inputs.mode != 'Test, Vast AI' }}
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'; $sources=@(Get-ChildItem 'source/API.cpp' -Recurse -File -Filter '*.cpp' | Sort-Object FullName); if($sources.Count -eq 0){throw 'No C++ translation units found under source/API.cpp'}; $d=Join-Path $env:RUNNER_TEMP 'api-cpp-objects'; New-Item -ItemType Directory -Force -Path $d|Out-Null; for($i=0;$i -lt $sources.Count;$i++){ $src=$sources[$i].FullName; $obj=Join-Path $d ("unit-{0}.obj" -f $i); & cl /nologo /std:c++17 /EHsc /W4 /c "/Fo$obj" "/Isource\API.cpp" "/Isource\sdkit3-port-source\include" "/Isource\sdkit3-port-source\stable-diffusion.cpp\include" "/Isource\sdkit3-port-source\stable-diffusion.cpp\ggml\include" $src; if($LASTEXITCODE -ne 0){throw "Compilation failed: $src"} }
+
+  vast-test:
+    if: ${{ inputs.platform == 'linux' && inputs.mode == 'Test, Vast AI' }}
+    needs: linux
+    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    with:
+      approval: ${{ inputs.vast_approval }}
+      offer_id: ${{ inputs.vast_offer_id }}
+      backend: universal
+      artifact_name: vast-api-991-${{ github.run_id }}
+      base_image: ghcr.io/demonbigj781/easydifussion-cpp-api-toolchain:theory
+      test_command: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q . && c++ --version'
+    secrets: inherit
