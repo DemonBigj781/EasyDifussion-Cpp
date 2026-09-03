@@ -63,7 +63,8 @@ jobs:
     needs: approval-gate
     runs-on: ubuntu-24.04
     env:
-      TEST_IMAGE: ghcr.io/${{ github.repository_owner }}/easydifussion-cpp-vast-test:${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}
+      TEST_IMAGE_REPOSITORY: ghcr.io/demonbigj781/easydifussion-cpp-vast-test
+      TEST_IMAGE_TAG: ${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Download GitHub-compiled API artifact
         uses: actions/download-artifact@v5
@@ -75,6 +76,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          TEST_IMAGE="${TEST_IMAGE_REPOSITORY}:${TEST_IMAGE_TAG}"
+          echo "TEST_IMAGE=$TEST_IMAGE" >> "$GITHUB_ENV"
           cat > Dockerfile.vast-test <<'EOF'
           ARG BASE_IMAGE
           FROM ${BASE_IMAGE}
