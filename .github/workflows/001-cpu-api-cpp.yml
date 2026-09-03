@@ -69,7 +69,19 @@ jobs:
           c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/translation/cpu/release.cpp -o build/001/overflow-release-cpu-translation.o
           c++ "${flags[@]}" -c source/API.cpp/library/src/overflow.cpp -o build/001/overflow-library-common.o
           c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_overflow.cpp -o build/001/cpu-overflow.o
-          echo '[001] CPU detect, model lifecycle, and Overflow routes compiled successfully'
+
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/qkt.cpp -o build/001/xformers-common-qkt.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/mask.cpp -o build/001/xformers-common-mask.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/softmax.cpp -o build/001/xformers-common-softmax.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/av.cpp -o build/001/xformers-common-av.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/forward.cpp -o build/001/xformers-common-forward.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/qkt.cpp -o build/001/xformers-cpu-qkt.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/mask.cpp -o build/001/xformers-cpu-mask.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/softmax.cpp -o build/001/xformers-cpu-softmax.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/av.cpp -o build/001/xformers-cpu-av.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp -o build/001/xformers-cpu-forward.o
+
+          echo '[001] CPU detect, model lifecycle, Overflow, and xFormers Common/translation routes compiled successfully'
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
