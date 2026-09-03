@@ -143,7 +143,7 @@ jobs:
           echo 'Timed out waiting for Vast.ai instance to become running.' >&2
           exit 1
 
-      - name: Resolve Vast.ai SSH command
+      - name: Resolve Vast.ai SSH endpoint
         id: ssh
         env:
           VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
@@ -151,25 +151,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ssh_cmd="$(vastai ssh-url "$INSTANCE_ID" --api-key "$VASTAI_KEY")"
-          if [[ -z "$ssh_cmd" ]]; then
-            echo 'Vast.ai did not return an SSH command.' >&2
+          ssh_uri="$(vastai ssh-url "$INSTANCE_ID" --api-key "$VASTAI_KEY" | tail -n 1 | tr -d '\r')"
+          if [[ ! "$ssh_uri" =~ ^ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
+            echo "Unexpected Vast.ai SSH URI: $ssh_uri" >&2
             exit 1
           fi
-          printf '%s\n' "$ssh_cmd"
-          echo "ssh_cmd=$ssh_cmd" >> "$GITHUB_OUTPUT"
+          ssh_user="${BASH_REMATCH[1]}"
+          ssh_host="${BASH_REMATCH[2]}"
+          ssh_port="${BASH_REMATCH[3]}"
+          echo "user=$ssh_user" >> "$GITHUB_OUTPUT"
+          echo "host=$ssh_host" >> "$GITHUB_OUTPUT"
+          echo "port=$ssh_port" >> "$GITHUB_OUTPUT"
 
       - name: Run runtime test on Vast.ai without compiling
         env:
-          SSH_CMD: ${{ steps.ssh.outputs.ssh_cmd }}
+          SSH_USER: ${{ steps.ssh.outputs.user }}
+          SSH_HOST: ${{ steps.ssh.outputs.host }}
+          SSH_PORT: ${{ steps.ssh.outputs.port }}
           TEST_COMMAND: ${{ inputs.test_command }}
         shell: bash
         run: |
           set -euo pipefail
-          read -r -a ssh_parts <<< "$SSH_CMD"
-          "${ssh_parts[@]}" \
+          ssh \
+            -p "$SSH_PORT" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
+            "$SSH_USER@$SSH_HOST" \
             "$TEST_COMMAND"
 
       - name: Destroy Vast.ai instance
