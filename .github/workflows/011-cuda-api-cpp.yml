@@ -8,11 +8,21 @@ name: '011 - CUDA API.cpp'
         required: true
         default: 'compile'
         type: choice
-        options: ['compile']
+        options: ['compile', 'Test, Vast AI']
+      vast_approval:
+        description: 'Paid Vast.ai test permission: type APPROVE'
+        required: false
+        default: ''
+        type: string
+      vast_offer_id:
+        description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   build:
@@ -42,64 +52,44 @@ jobs:
             -Isource/API.cpp/library/include
             -I/usr/local/cuda/include
           )
-          c++ "${flags[@]}" \
-            -c source/API.cpp/common/api.cpp \
-            -o build/011/api-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/detect/common/detect.cpp \
-            -o build/011/detect-common.o
-          c++ "${flags[@]}" -DEDCPP_DETECT_CUDA=1 \
-            -c source/API.cpp/features/detect/cuda/definition/gpu/detect.cpp \
-            -o build/011/detect-cuda-definition-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/detect/cuda/translation/gpu/detect.cpp \
-            -o build/011/detect-cuda-translation-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/cuda_handler.cpp \
-            -o build/011/cuda-handler.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/load/common/load.cpp \
-            -o build/011/load-common.o
-          c++ "${flags[@]}" -DEDCPP_LOAD_CUDA=1 \
-            -c source/API.cpp/features/load/model/cuda/definition/gpu/load.cpp \
-            -o build/011/load-model-cuda-definition-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/load/model/cuda/translation/gpu/load.cpp \
-            -o build/011/load-model-cuda-translation-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/unload/common/unload.cpp \
-            -o build/011/unload-common.o
-          c++ "${flags[@]}" -DEDCPP_UNLOAD_CUDA=1 \
-            -c source/API.cpp/features/unload/model/cuda/definition/gpu/unload.cpp \
-            -o build/011/unload-model-cuda-definition-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/unload/model/cuda/translation/gpu/unload.cpp \
-            -o build/011/unload-model-cuda-translation-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/cuda_model_lifecycle.cpp \
-            -o build/011/cuda-model-lifecycle.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/common/plan.cpp \
-            -o build/011/overflow-plan-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/common/normalize.cpp \
-            -o build/011/overflow-normalize-common.o
-          c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 \
-            -c source/API.cpp/features/overflow/cuda/definition/gpu/allocate.cpp \
-            -o build/011/overflow-allocate-cuda-definition-gpu.o
-          c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 \
-            -c source/API.cpp/features/overflow/cuda/definition/gpu/release.cpp \
-            -o build/011/overflow-release-cuda-definition-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/cuda/translation/gpu/allocate.cpp \
-            -o build/011/overflow-allocate-cuda-translation-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/cuda/translation/gpu/release.cpp \
-            -o build/011/overflow-release-cuda-translation-gpu.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/overflow.cpp \
-            -o build/011/overflow-library-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/cuda_overflow.cpp \
-            -o build/011/cuda-overflow.o
+          c++ "${flags[@]}" -c source/API.cpp/common/api.cpp -o build/011/api-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/detect/common/detect.cpp -o build/011/detect-common.o
+          c++ "${flags[@]}" -DEDCPP_DETECT_CUDA=1 -c source/API.cpp/features/detect/cuda/definition/gpu/detect.cpp -o build/011/detect-cuda-definition-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/features/detect/cuda/translation/gpu/detect.cpp -o build/011/detect-cuda-translation-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/cuda_handler.cpp -o build/011/cuda-handler.o
+          c++ "${flags[@]}" -c source/API.cpp/features/load/common/load.cpp -o build/011/load-common.o
+          c++ "${flags[@]}" -DEDCPP_LOAD_CUDA=1 -c source/API.cpp/features/load/model/cuda/definition/gpu/load.cpp -o build/011/load-model-cuda-definition-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/features/load/model/cuda/translation/gpu/load.cpp -o build/011/load-model-cuda-translation-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/features/unload/common/unload.cpp -o build/011/unload-common.o
+          c++ "${flags[@]}" -DEDCPP_UNLOAD_CUDA=1 -c source/API.cpp/features/unload/model/cuda/definition/gpu/unload.cpp -o build/011/unload-model-cuda-definition-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/features/unload/model/cuda/translation/gpu/unload.cpp -o build/011/unload-model-cuda-translation-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/cuda_model_lifecycle.cpp -o build/011/cuda-model-lifecycle.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/plan.cpp -o build/011/overflow-plan-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/normalize.cpp -o build/011/overflow-normalize-common.o
+          c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 -c source/API.cpp/features/overflow/cuda/definition/gpu/allocate.cpp -o build/011/overflow-allocate-cuda-definition-gpu.o
+          c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 -c source/API.cpp/features/overflow/cuda/definition/gpu/release.cpp -o build/011/overflow-release-cuda-definition-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/cuda/translation/gpu/allocate.cpp -o build/011/overflow-allocate-cuda-translation-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/cuda/translation/gpu/release.cpp -o build/011/overflow-release-cuda-translation-gpu.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/overflow.cpp -o build/011/overflow-library-common.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/cuda_overflow.cpp -o build/011/cuda-overflow.o
           echo '[011] CUDA detect, model lifecycle, and Overflow routes compiled successfully'
+      - name: Preserve GitHub-compiled artifact for approved Vast.ai test
+        if: ${{ inputs.mode == 'Test, Vast AI' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vast-api-011-${{ github.run_id }}
+          path: build/011
+          if-no-files-found: error
+
+  vast-test:
+    if: ${{ inputs.mode == 'Test, Vast AI' }}
+    needs: build
+    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    with:
+      approval: ${{ inputs.vast_approval }}
+      offer_id: ${{ inputs.vast_offer_id }}
+      backend: cuda
+      artifact_name: vast-api-011-${{ github.run_id }}
+      base_image: ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:theory
+      test_command: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q . && nvidia-smi'
+    secrets: inherit
