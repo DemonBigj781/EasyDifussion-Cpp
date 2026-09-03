@@ -69,7 +69,6 @@ jobs:
           c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/translation/cpu/release.cpp -o build/001/overflow-release-cpu-translation.o
           c++ "${flags[@]}" -c source/API.cpp/library/src/overflow.cpp -o build/001/overflow-library-common.o
           c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_overflow.cpp -o build/001/cpu-overflow.o
-
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/qkt.cpp -o build/001/xformers-common-qkt.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/mask.cpp -o build/001/xformers-common-mask.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/softmax.cpp -o build/001/xformers-common-softmax.o
@@ -80,10 +79,9 @@ jobs:
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/softmax.cpp -o build/001/xformers-cpu-softmax.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/av.cpp -o build/001/xformers-cpu-av.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp -o build/001/xformers-cpu-forward.o
-
-          echo '[001] CPU detect, model lifecycle, Overflow, and xFormers Common/translation routes compiled successfully'
+          echo '[001] CPU API/xFormers routes compiled successfully'
       - name: Compile xFormers CPU test application
-        if: ${{ inputs.mode == 'Compile Test Code' }}
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -106,7 +104,7 @@ jobs:
             source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp \
             -o build/001/xformers-cpu-test
           test -x build/001/xformers-cpu-test
-          echo '[001] xFormers CPU test application compiled and linked successfully'
+          echo '[001] xFormers CPU test application compiled and linked; not executed on GitHub'
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
@@ -125,4 +123,5 @@ jobs:
       backend: cpu
       artifact_name: vast-api-001-${{ github.run_id }}
       base_image: ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:theory
+      test_command: '/opt/edcpp-test/build/xformers-cpu-test'
     secrets: inherit
