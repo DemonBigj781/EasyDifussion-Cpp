@@ -3,15 +3,11 @@ name: '121 - DirectML API.cpp'
 "on":
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'Build mode'
-        required: true
-        default: 'compile'
-        type: choice
-        options: ['compile']
+      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Test, Vast AI']}
+      vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
+      vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
 
-permissions:
-  contents: read
+permissions: {contents: read, packages: write}
 
 jobs:
   build:
@@ -34,20 +30,26 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $output = 'build/121'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
-          $flags = @(
-            '/nologo', '/std:c++17', '/EHsc', '/W4',
-            '/Isource\API.cpp',
-            '/Isource\API.cpp\library\include',
-            "/I$env:DIRECTML_INCLUDE"
-          )
-          & cl @flags /c '/Fobuild/121/api-common.obj' 'source/API.cpp/common/api.cpp'
-          if ($LASTEXITCODE -ne 0) { throw 'Root Common API compilation failed' }
-          & cl @flags /c '/Fobuild/121/detect-common.obj' 'source/API.cpp/features/detect/common/detect.cpp'
-          if ($LASTEXITCODE -ne 0) { throw 'Common detect compilation failed' }
-          & cl @flags /DEDCPP_DETECT_DIRECTML=1 /c '/Fobuild/121/detect-directml-definition-gpu.obj' 'source/API.cpp/features/detect/directml/definition/gpu/detect.cpp'
-          if ($LASTEXITCODE -ne 0) { throw 'DirectML definition compilation failed' }
-          & cl @flags /c '/Fobuild/121/detect-directml-translation-gpu.obj' 'source/API.cpp/features/detect/directml/translation/gpu/detect.cpp'
-          if ($LASTEXITCODE -ne 0) { throw 'DirectML translation compilation failed' }
-          & cl @flags /c '/Fobuild/121/directml-handler.obj' 'source/API.cpp/library/src/directml_handler.cpp'
-          if ($LASTEXITCODE -ne 0) { throw 'DirectML Library handler compilation failed' }
+          $flags = @('/nologo', '/std:c++17', '/EHsc', '/W4', '/Isource\API.cpp', '/Isource\API.cpp\library\include', "/I$env:DIRECTML_INCLUDE")
+          & cl @flags /c '/Fobuild/121/api-common.obj' 'source/API.cpp/common/api.cpp'; if ($LASTEXITCODE -ne 0) { throw 'Root Common API compilation failed' }
+          & cl @flags /c '/Fobuild/121/detect-common.obj' 'source/API.cpp/features/detect/common/detect.cpp'; if ($LASTEXITCODE -ne 0) { throw 'Common detect compilation failed' }
+          & cl @flags /DEDCPP_DETECT_DIRECTML=1 /c '/Fobuild/121/detect-directml-definition-gpu.obj' 'source/API.cpp/features/detect/directml/definition/gpu/detect.cpp'; if ($LASTEXITCODE -ne 0) { throw 'DirectML definition compilation failed' }
+          & cl @flags /c '/Fobuild/121/detect-directml-translation-gpu.obj' 'source/API.cpp/features/detect/directml/translation/gpu/detect.cpp'; if ($LASTEXITCODE -ne 0) { throw 'DirectML translation compilation failed' }
+          & cl @flags /c '/Fobuild/121/directml-handler.obj' 'source/API.cpp/library/src/directml_handler.cpp'; if ($LASTEXITCODE -ne 0) { throw 'DirectML Library handler compilation failed' }
           Write-Host '[121] DirectML detect definition, translation, Common, and Library sources compiled successfully'
+      - name: Preserve GitHub-compiled artifact for approved Vast.ai test
+        if: ${{ inputs.mode == 'Test, Vast AI' }}
+        uses: actions/upload-artifact@v4
+        with: {name: 'vast-api-121-${{ github.run_id }}', path: build/121, if-no-files-found: error}
+
+  vast-test:
+    if: ${{ inputs.mode == 'Test, Vast AI' }}
+    needs: build
+    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    with:
+      approval: ${{ inputs.vast_approval }}
+      offer_id: ${{ inputs.vast_offer_id }}
+      backend: directml
+      artifact_name: vast-api-121-${{ github.run_id }}
+      base_image: ''
+    secrets: inherit
