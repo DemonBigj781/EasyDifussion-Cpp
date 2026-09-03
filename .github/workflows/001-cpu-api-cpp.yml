@@ -1,10 +1,14 @@
-name: '001 - CPU API.cpp [RESERVED]'
+name: '001 - CPU API.cpp'
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
-  reserved:
+  branch-note:
     runs-on: ubuntu-24.04
     steps:
-      - run: echo 'Reserved index 001 for CPU API.cpp compilation.'
+      - name: Main branch note
+        run: echo 'CPU API.cpp is active on the Theory branch. Select Theory when dispatching this workflow for the current CPU API/xFormers compile path.'
