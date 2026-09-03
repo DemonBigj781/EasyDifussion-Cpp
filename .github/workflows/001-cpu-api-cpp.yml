@@ -1,14 +1,105 @@
 name: '001 - CPU API.cpp'
 
-on:
+"on":
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Build mode'
+        required: true
+        default: 'compile'
+        type: choice
+        options: ['compile', 'Test, Vast AI']
+      vast_approval:
+        description: 'Paid Vast.ai test permission: type APPROVE'
+        required: false
+        default: ''
+        type: string
+      vast_offer_id:
+        description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  branch-note:
+  build:
     runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:${{ github.ref_name }}
+      credentials:
+        username: '${{ github.actor }}'
+        password: '${{ secrets.GITHUB_TOKEN }}'
     steps:
-      - name: Main branch note
-        run: echo 'CPU API.cpp is active on the Theory branch. Select Theory when dispatching this workflow for the current CPU API/xFormers compile path.'
+      - uses: actions/checkout@v7
+      - name: Verify CPU compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          c++ --version
+      - name: Compile CPU API.cpp
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.ref_name }}" == 'Theory' ]]; then
+            mkdir -p build/001
+            flags=(
+              -std=c++17 -Wall -Wextra -Wpedantic
+              -Isource/API.cpp
+              -Isource/API.cpp/library/include
+            )
+            c++ "${flags[@]}" -c source/API.cpp/common/api.cpp -o build/001/api-common.o
+            c++ "${flags[@]}" -c source/API.cpp/features/detect/common/detect.cpp -o build/001/detect-common.o
+            c++ "${flags[@]}" -c source/API.cpp/features/detect/cpu/definition/cpu/detect.cpp -o build/001/detect-cpu-definition.o
+            c++ "${flags[@]}" -c source/API.cpp/features/detect/cpu/translation/cpu/detect.cpp -o build/001/detect-cpu-translation.o
+            c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_handler.cpp -o build/001/cpu-handler.o
+            c++ "${flags[@]}" -c source/API.cpp/features/load/common/load.cpp -o build/001/load-common.o
+            c++ "${flags[@]}" -c source/API.cpp/features/load/model/cpu/definition/cpu/load.cpp -o build/001/load-model-cpu-definition.o
+            c++ "${flags[@]}" -c source/API.cpp/features/load/model/cpu/translation/cpu/load.cpp -o build/001/load-model-cpu-translation.o
+            c++ "${flags[@]}" -c source/API.cpp/features/unload/common/unload.cpp -o build/001/unload-common.o
+            c++ "${flags[@]}" -c source/API.cpp/features/unload/model/cpu/definition/cpu/unload.cpp -o build/001/unload-model-cpu-definition.o
+            c++ "${flags[@]}" -c source/API.cpp/features/unload/model/cpu/translation/cpu/unload.cpp -o build/001/unload-model-cpu-translation.o
+            c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_model_lifecycle.cpp -o build/001/cpu-model-lifecycle.o
+            c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/plan.cpp -o build/001/overflow-plan-common.o
+            c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/normalize.cpp -o build/001/overflow-normalize-common.o
+            c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/definition/cpu/allocate.cpp -o build/001/overflow-allocate-cpu-definition.o
+            c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/definition/cpu/release.cpp -o build/001/overflow-release-cpu-definition.o
+            c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/translation/cpu/allocate.cpp -o build/001/overflow-allocate-cpu-translation.o
+            c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/translation/cpu/release.cpp -o build/001/overflow-release-cpu-translation.o
+            c++ "${flags[@]}" -c source/API.cpp/library/src/overflow.cpp -o build/001/overflow-library-common.o
+            c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_overflow.cpp -o build/001/cpu-overflow.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/qkt.cpp -o build/001/xformers-common-qkt.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/mask.cpp -o build/001/xformers-common-mask.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/softmax.cpp -o build/001/xformers-common-softmax.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/av.cpp -o build/001/xformers-common-av.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/forward.cpp -o build/001/xformers-common-forward.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/qkt.cpp -o build/001/xformers-cpu-qkt.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/mask.cpp -o build/001/xformers-cpu-mask.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/softmax.cpp -o build/001/xformers-cpu-softmax.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/av.cpp -o build/001/xformers-cpu-av.o
+            c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp -o build/001/xformers-cpu-forward.o
+            echo '[001] Theory CPU API.cpp + xFormers compiled successfully'
+          else
+            echo 'CPU API.cpp implementation is currently developed on Theory. Select Theory in the Run workflow branch selector for the active CPU/xFormers build.'
+          fi
+      - name: Preserve GitHub-compiled artifact for approved Vast.ai test
+        if: ${{ inputs.mode == 'Test, Vast AI' && github.ref_name == 'Theory' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vast-api-001-${{ github.run_id }}
+          path: build/001
+          if-no-files-found: error
+
+  vast-test:
+    if: ${{ inputs.mode == 'Test, Vast AI' && github.ref_name == 'Theory' }}
+    needs: build
+    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    with:
+      approval: ${{ inputs.vast_approval }}
+      offer_id: ${{ inputs.vast_offer_id }}
+      backend: cpu
+      artifact_name: vast-api-001-${{ github.run_id }}
+      base_image: ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:theory
+    secrets: inherit
