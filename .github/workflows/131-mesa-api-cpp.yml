@@ -3,15 +3,11 @@ name: '131 - Mesa API.cpp'
 "on":
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'Build mode'
-        required: true
-        default: 'compile'
-        type: choice
-        options: ['compile']
+      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Test, Vast AI']}
+      vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
+      vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
 
-permissions:
-  contents: read
+permissions: {contents: read, packages: write}
 
 jobs:
   build:
@@ -31,26 +27,28 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/131
-          flags=(
-            -std=c++17 -Wall -Wextra -Wpedantic
-            -Isource/API.cpp
-            -Isource/API.cpp/library/include
-          )
-          c++ "${flags[@]}" \
-            -c source/API.cpp/common/api.cpp \
-            -o build/131/api-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/detect/common/detect.cpp \
-            -o build/131/detect-common.o
+          flags=(-std=c++17 -Wall -Wextra -Wpedantic -Isource/API.cpp -Isource/API.cpp/library/include)
+          c++ "${flags[@]}" -c source/API.cpp/common/api.cpp -o build/131/api-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/detect/common/detect.cpp -o build/131/detect-common.o
           for device in cpu gpu; do
-            c++ "${flags[@]}" -DEDCPP_DETECT_MESA=1 \
-              -c "source/API.cpp/features/detect/mesa/definition/${device}/detect.cpp" \
-              -o "build/131/detect-mesa-definition-${device}.o"
-            c++ "${flags[@]}" \
-              -c "source/API.cpp/features/detect/mesa/translation/${device}/detect.cpp" \
-              -o "build/131/detect-mesa-translation-${device}.o"
+            c++ "${flags[@]}" -DEDCPP_DETECT_MESA=1 -c "source/API.cpp/features/detect/mesa/definition/${device}/detect.cpp" -o "build/131/detect-mesa-definition-${device}.o"
+            c++ "${flags[@]}" -c "source/API.cpp/features/detect/mesa/translation/${device}/detect.cpp" -o "build/131/detect-mesa-translation-${device}.o"
           done
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/mesa_handler.cpp \
-            -o build/131/mesa-handler.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/mesa_handler.cpp -o build/131/mesa-handler.o
           echo '[131] Mesa detect definitions, translations, Common, and Library sources compiled successfully'
+      - name: Preserve GitHub-compiled artifact for approved Vast.ai test
+        if: ${{ inputs.mode == 'Test, Vast AI' }}
+        uses: actions/upload-artifact@v4
+        with: {name: 'vast-api-131-${{ github.run_id }}', path: build/131, if-no-files-found: error}
+
+  vast-test:
+    if: ${{ inputs.mode == 'Test, Vast AI' }}
+    needs: build
+    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    with:
+      approval: ${{ inputs.vast_approval }}
+      offer_id: ${{ inputs.vast_offer_id }}
+      backend: mesa
+      artifact_name: vast-api-131-${{ github.run_id }}
+      base_image: ''
+    secrets: inherit
