@@ -100,33 +100,27 @@ jobs:
           python3 -m pip install --disable-pip-version-check --no-input vastai
 
       - name: Generate one-run SSH key
-        id: key
         shell: bash
         run: |
           set -euo pipefail
           key_path="$RUNNER_TEMP/vast_edcpp_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
           ssh-keygen -q -t rsa -b 3072 -N '' -f "$key_path"
           chmod 600 "$key_path"
-          pubkey_b64="$(base64 -w0 < "${key_path}.pub")"
           echo "SSH_KEY_PATH=$key_path" >> "$GITHUB_ENV"
-          echo "pubkey_b64=$pubkey_b64" >> "$GITHUB_OUTPUT"
 
       - name: Create approved Vast.ai instance
         id: create
         env:
           VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
-          PUBKEY_B64: ${{ steps.key.outputs.pubkey_b64 }}
         shell: bash
         run: |
           set -euo pipefail
-          onstart="mkdir -p /root/.ssh; chmod 700 /root/.ssh; echo '$PUBKEY_B64' | base64 -d >> /root/.ssh/authorized_keys; chmod 600 /root/.ssh/authorized_keys; echo edcpp-vast-ready"
           result="$(vastai create instance '${{ inputs.offer_id }}' \
             --image "$TEST_IMAGE" \
             --disk 10 \
             --ssh \
             --direct \
             --label 'edcpp-${{ inputs.backend }}-${{ github.run_id }}' \
-            --onstart-cmd "$onstart" \
             --api-key "$VASTAI_KEY" \
             --raw)"
           printf '%s\n' "$result"
@@ -136,6 +130,16 @@ jobs:
             exit 1
           fi
           echo "instance_id=$instance_id" >> "$GITHUB_OUTPUT"
+
+      - name: Attach one-run SSH key through Vast.ai
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_key="$(cat "${SSH_KEY_PATH}.pub")"
+          vastai attach ssh "$INSTANCE_ID" "$public_key" --api-key "$VASTAI_KEY" --raw
 
       - name: Wait for Vast.ai container
         env:
