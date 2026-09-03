@@ -1,20 +1,20 @@
 #include "features/attention/xformers/common/xformers.hpp"
 
 #include <cmath>
+#include <cstddef>
 
 namespace edcpp::api::attention::xformers::cpu::translation {
-
-float load_scalar(const void* data, std::size_t index, DType dtype);
-
 namespace {
 std::size_t tensor_index(const Tensor4D& t, std::int64_t b, std::int64_t h,
                          std::int64_t token, std::int64_t d) {
     return static_cast<std::size_t>((((b * t.heads) + h) * t.tokens + token) * t.head_dim + d);
 }
+
 std::size_t score_index(const ScoreBuffer& s, std::int64_t b, std::int64_t h,
                         std::int64_t q, std::int64_t k) {
     return static_cast<std::size_t>((((b * s.heads) + h) * s.query_tokens + q) * s.key_tokens + k);
 }
+
 std::int64_t map_kv_head(std::int64_t q_head, std::int64_t q_heads, std::int64_t kv_heads) {
     if (kv_heads == q_heads) return q_head;
     const std::int64_t group = q_heads / kv_heads;
@@ -23,8 +23,14 @@ std::int64_t map_kv_head(std::int64_t q_head, std::int64_t q_heads, std::int64_t
 }
 
 bool qkt(const AttentionRequest& request, ScoreBuffer& scores) {
+    if (request.dtype != DType::f32) return false;
+
     const auto& q = request.q;
     const auto& k = request.k;
+    const auto* q_data = static_cast<const float*>(q.data);
+    const auto* k_data = static_cast<const float*>(k.data);
+    if (q_data == nullptr || k_data == nullptr) return false;
+
     scores.batch = q.batch;
     scores.heads = q.heads;
     scores.query_tokens = q.tokens;
@@ -43,8 +49,8 @@ bool qkt(const AttentionRequest& request, ScoreBuffer& scores) {
                 for (std::int64_t ki = 0; ki < k.tokens; ++ki) {
                     float dot = 0.0f;
                     for (std::int64_t d = 0; d < q.head_dim; ++d) {
-                        dot += load_scalar(q.data, tensor_index(q, b, h, qi, d), request.dtype) *
-                               load_scalar(k.data, tensor_index(k, b, kv_head, ki, d), request.dtype);
+                        dot += q_data[tensor_index(q, b, h, qi, d)] *
+                               k_data[tensor_index(k, b, kv_head, ki, d)];
                     }
                     scores.values[score_index(scores, b, h, qi, ki)] = dot * scale;
                 }
