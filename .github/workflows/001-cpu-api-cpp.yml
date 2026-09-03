@@ -8,7 +8,7 @@ name: '001 - CPU API.cpp'
         required: true
         default: 'compile'
         type: choice
-        options: ['compile', 'Test, Vast AI']
+        options: ['compile', 'Compile Test Code', 'Test, Vast AI']
       vast_approval:
         description: 'Paid Vast.ai test permission: type APPROVE'
         required: false
@@ -82,6 +82,31 @@ jobs:
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp -o build/001/xformers-cpu-forward.o
 
           echo '[001] CPU detect, model lifecycle, Overflow, and xFormers Common/translation routes compiled successfully'
+      - name: Compile xFormers CPU test application
+        if: ${{ inputs.mode == 'Compile Test Code' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          flags=(
+            -std=c++17 -Wall -Wextra -Wpedantic
+            -Isource/API.cpp
+            -Isource/API.cpp/library/include
+          )
+          c++ "${flags[@]}" \
+            source/API.test/Feature/Attention/Xformers/Cpu/Main.cpp \
+            source/API.cpp/features/attention/xformers/common/qkt.cpp \
+            source/API.cpp/features/attention/xformers/common/mask.cpp \
+            source/API.cpp/features/attention/xformers/common/softmax.cpp \
+            source/API.cpp/features/attention/xformers/common/av.cpp \
+            source/API.cpp/features/attention/xformers/common/forward.cpp \
+            source/API.cpp/features/attention/xformers/cpu/translation/cpu/qkt.cpp \
+            source/API.cpp/features/attention/xformers/cpu/translation/cpu/mask.cpp \
+            source/API.cpp/features/attention/xformers/cpu/translation/cpu/softmax.cpp \
+            source/API.cpp/features/attention/xformers/cpu/translation/cpu/av.cpp \
+            source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp \
+            -o build/001/xformers-cpu-test
+          test -x build/001/xformers-cpu-test
+          echo '[001] xFormers CPU test application compiled and linked successfully'
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
