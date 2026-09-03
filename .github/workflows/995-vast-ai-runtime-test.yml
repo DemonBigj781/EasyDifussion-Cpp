@@ -1,0 +1,161 @@
+name: '995 - Vast AI Runtime Test'
+
+"on":
+  workflow_call:
+    inputs:
+      approval:
+        description: 'Must be exactly APPROVE before any paid Vast.ai work can start'
+        required: true
+        type: string
+      offer_id:
+        description: 'Explicit Vast.ai offer ID selected by the human approving the paid test'
+        required: true
+        type: string
+      backend:
+        description: 'Backend/API target name'
+        required: true
+        type: string
+      artifact_name:
+        description: 'GitHub-built artifact to package into the Vast test image'
+        required: true
+        type: string
+      base_image:
+        description: 'Exact GHCR toolchain image used for the GitHub build'
+        required: true
+        type: string
+      test_command:
+        description: 'Runtime smoke command; must not compile or link on Vast'
+        required: false
+        default: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q .'
+        type: string
+    secrets:
+      VASTAI_KEY:
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  approval-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require explicit paid-test permission
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.approval }}" != 'APPROVE' ]]; then
+            echo 'Vast.ai test was requested without explicit APPROVE permission.' >&2
+            echo 'No Vast.ai API call was made and no Vast.ai credit was spent.' >&2
+            exit 1
+          fi
+          if ! [[ "${{ inputs.offer_id }}" =~ ^[0-9]+$ ]]; then
+            echo 'A numeric Vast.ai offer ID is required. No instance was created.' >&2
+            exit 1
+          fi
+          if [[ -z "${{ inputs.base_image }}" ]]; then
+            echo 'This target does not yet have a container image suitable for Vast.ai.' >&2
+            echo 'No Vast.ai API call was made.' >&2
+            exit 1
+          fi
+
+  package-and-test:
+    needs: approval-gate
+    runs-on: ubuntu-24.04
+    env:
+      TEST_IMAGE: ghcr.io/${{ github.repository_owner }}/easydifussion-cpp-vast-test:${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Download GitHub-compiled API artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: vast-build
+
+      - name: Build immutable Vast test image on GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > Dockerfile.vast-test <<'EOF'
+          ARG BASE_IMAGE
+          FROM ${BASE_IMAGE}
+          COPY vast-build/ /opt/edcpp-test/build/
+          LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
+          LABEL edcpp.vast-test.commit="${{ github.sha }}"
+          LABEL edcpp.vast-test.backend="${{ inputs.backend }}"
+          EOF
+          echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker build --pull=false \
+            --build-arg BASE_IMAGE='${{ inputs.base_image }}' \
+            -f Dockerfile.vast-test \
+            -t "$TEST_IMAGE" .
+          docker push "$TEST_IMAGE"
+
+      - name: Install Vast.ai CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-input vastai
+
+      - name: Create approved Vast.ai instance
+        id: create
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(vastai create instance '${{ inputs.offer_id }}' \
+            --image "$TEST_IMAGE" \
+            --disk 10 \
+            --ssh \
+            --direct \
+            --label 'edcpp-${{ inputs.backend }}-${{ github.run_id }}' \
+            --onstart-cmd 'echo edcpp-vast-ready' \
+            --api-key "$VASTAI_KEY" \
+            --raw)"
+          printf '%s\n' "$result"
+          instance_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("new_contract", ""))' <<<"$result")"
+          if ! [[ "$instance_id" =~ ^[0-9]+$ ]]; then
+            echo 'Vast.ai did not return a valid instance ID.' >&2
+            exit 1
+          fi
+          echo "instance_id=$instance_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Vast.ai container
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            status_json="$(vastai show instance "$INSTANCE_ID" --api-key "$VASTAI_KEY" --raw)"
+            status="$(python3 -c 'import json,sys; d=json.load(sys.stdin); d=d.get("instances", d); print(d.get("actual_status") or "")' <<<"$status_json")"
+            echo "Vast.ai instance status: ${status:-unknown}"
+            case "$status" in
+              running) exit 0 ;;
+              exited|offline) echo "Instance entered terminal status: $status" >&2; exit 1 ;;
+            esac
+            sleep 5
+          done
+          echo 'Timed out waiting for Vast.ai instance to become running.' >&2
+          exit 1
+
+      - name: Run runtime smoke test without compiling on Vast
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          vastai execute "$INSTANCE_ID" "${{ inputs.test_command }}" --api-key "$VASTAI_KEY" --raw
+
+      - name: Destroy Vast.ai instance
+        if: ${{ always() && steps.create.outputs.instance_id != '' }}
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set +e
+          vastai destroy instance "$INSTANCE_ID" --api-key "$VASTAI_KEY" --raw
+          exit 0
