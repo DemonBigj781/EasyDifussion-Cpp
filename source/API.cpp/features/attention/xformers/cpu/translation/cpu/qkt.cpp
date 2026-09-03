@@ -1,31 +1,57 @@
-#include <algorithm>
-#include <cstddef>
+#include "features/attention/xformers/common/xformers.hpp"
+
 #include <cmath>
 
-namespace easyapi::attention::xformers::cpu {
+namespace edcpp::api::attention::xformers::cpu::translation {
 
-void qkt(const float* q, const float* k, float* scores,
-         std::size_t q_tokens, std::size_t kv_tokens,
-         std::size_t head_dim, float scale) {
-    if (!q || !k || !scores || head_dim == 0) {
-        return;
-    }
+float load_scalar(const void* data, std::size_t index, DType dtype);
 
-    const float applied_scale = scale == 0.0f
-        ? 1.0f / std::sqrt(static_cast<float>(head_dim))
-        : scale;
-
-    for (std::size_t qi = 0; qi < q_tokens; ++qi) {
-        const float* q_row = q + qi * head_dim;
-        for (std::size_t ki = 0; ki < kv_tokens; ++ki) {
-            const float* k_row = k + ki * head_dim;
-            float dot = 0.0f;
-            for (std::size_t d = 0; d < head_dim; ++d) {
-                dot += q_row[d] * k_row[d];
-            }
-            scores[qi * kv_tokens + ki] = dot * applied_scale;
-        }
-    }
+namespace {
+std::size_t tensor_index(const Tensor4D& t, std::int64_t b, std::int64_t h,
+                         std::int64_t token, std::int64_t d) {
+    return static_cast<std::size_t>((((b * t.heads) + h) * t.tokens + token) * t.head_dim + d);
+}
+std::size_t score_index(const ScoreBuffer& s, std::int64_t b, std::int64_t h,
+                        std::int64_t q, std::int64_t k) {
+    return static_cast<std::size_t>((((b * s.heads) + h) * s.query_tokens + q) * s.key_tokens + k);
+}
+std::int64_t map_kv_head(std::int64_t q_head, std::int64_t q_heads, std::int64_t kv_heads) {
+    if (kv_heads == q_heads) return q_head;
+    const std::int64_t group = q_heads / kv_heads;
+    return group > 0 ? q_head / group : 0;
+}
 }
 
-} // namespace easyapi::attention::xformers::cpu
+bool qkt(const AttentionRequest& request, ScoreBuffer& scores) {
+    const auto& q = request.q;
+    const auto& k = request.k;
+    scores.batch = q.batch;
+    scores.heads = q.heads;
+    scores.query_tokens = q.tokens;
+    scores.key_tokens = k.tokens;
+    scores.values.assign(static_cast<std::size_t>(q.batch * q.heads * q.tokens * k.tokens), 0.0f);
+    scores.extra_denominator_logits.clear();
+
+    const float scale = request.scale > 0.0f
+        ? request.scale
+        : 1.0f / std::sqrt(static_cast<float>(q.head_dim));
+
+    for (std::int64_t b = 0; b < q.batch; ++b) {
+        for (std::int64_t h = 0; h < q.heads; ++h) {
+            const std::int64_t kv_head = map_kv_head(h, q.heads, k.heads);
+            for (std::int64_t qi = 0; qi < q.tokens; ++qi) {
+                for (std::int64_t ki = 0; ki < k.tokens; ++ki) {
+                    float dot = 0.0f;
+                    for (std::int64_t d = 0; d < q.head_dim; ++d) {
+                        dot += load_scalar(q.data, tensor_index(q, b, h, qi, d), request.dtype) *
+                               load_scalar(k.data, tensor_index(k, b, kv_head, ki, d), request.dtype);
+                    }
+                    scores.values[score_index(scores, b, h, qi, ki)] = dot * scale;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+} // namespace edcpp::api::attention::xformers::cpu::translation
