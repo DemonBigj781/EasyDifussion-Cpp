@@ -27,6 +27,9 @@ bool apply_mask_and_bias(const AttentionRequest& request, ScoreBuffer& scores) {
             for (std::int64_t q = 0; q < scores.query_tokens; ++q) {
                 for (std::int64_t k = 0; k < scores.key_tokens; ++k) {
                     float& value = scores.values[score_index(scores, b, h, q, k)];
+                    if (request.softcap > 0.0f && std::isfinite(value)) {
+                        value = request.softcap * std::tanh(value / request.softcap);
+                    }
                     if (request.causal && k > q) {
                         value = neg_inf;
                         continue;
@@ -36,9 +39,6 @@ bool apply_mask_and_bias(const AttentionRequest& request, ScoreBuffer& scores) {
                     }
                     if (request.alibi.enabled) {
                         value += alibi_slope * static_cast<float>(k - q);
-                    }
-                    if (request.softcap > 0.0f && std::isfinite(value)) {
-                        value = request.softcap * std::tanh(value / request.softcap);
                     }
                 }
             }
