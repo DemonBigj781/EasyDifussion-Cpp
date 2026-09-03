@@ -103,6 +103,136 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(result["generated_amount"], 2)
 
+    async def test_gallery_uses_lazy_local_cache_without_browser_download(self):
+        image_id = "a" * 64
+        calls = []
+
+        async def run_perchance(arguments, _timeout):
+            calls.append(arguments)
+            page = {
+                "entries": [{
+                    "imageId": image_id,
+                    "imageUrl": f"https://aigc.uploads.dev/image/{image_id}.jpeg",
+                    "prompt": "test",
+                }]
+            }
+            return {"stdout": json.dumps(page), "stderr": "", "returncode": 0}
+
+        with (
+            patch.object(perchance, "_run_perchance", side_effect=run_perchance),
+            patch.object(perchance, "get_settings", return_value={"channel": "ai-text-to-image-generator"}),
+        ):
+            result = await perchance.gallery_list({"download": False})
+
+        self.assertNotIn("--download", calls[0])
+        self.assertNotIn("--output", calls[0])
+        self.assertEqual(
+            result["entries"][0]["local_url"],
+            f"/perchance/gallery/cache/{image_id}.jpeg",
+        )
+
+    async def test_gallery_retries_transient_frame_startup_failure(self):
+        image_id = "d" * 64
+        page = {
+            "entries": [{
+                "imageId": image_id,
+                "imageUrl": f"https://aigc.uploads.dev/image/{image_id}.jpeg",
+                "prompt": "test",
+            }]
+        }
+        run_perchance = unittest.mock.AsyncMock(side_effect=[
+            HTTPException(
+                status_code=502,
+                detail="The official generator did not open its public gallery frame.",
+            ),
+            {"stdout": json.dumps(page), "stderr": "", "returncode": 0},
+        ])
+
+        with (
+            patch.object(perchance, "_run_perchance", run_perchance),
+            patch.object(perchance.asyncio, "sleep", unittest.mock.AsyncMock()),
+            patch.object(perchance, "get_settings", return_value={"channel": "ai-text-to-image-generator"}),
+        ):
+            result = await perchance.gallery_list({"download": False})
+
+        self.assertEqual(run_perchance.await_count, 2)
+        self.assertEqual(result["entries"][0]["imageId"], image_id)
+
+    async def test_gallery_save_downloads_directly_to_output_subdirectory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            image_id = "b" * 64
+            image_path = output / "perchance-gallery" / f"{image_id}.jpeg"
+            calls = []
+
+            async def run_perchance(arguments, _timeout):
+                calls.append(arguments)
+                page = {
+                    "entries": [{
+                        "imageId": image_id,
+                        "imageUrl": f"https://aigc.uploads.dev/image/{image_id}.jpeg",
+                        "prompt": "test",
+                    }]
+                }
+                return {"stdout": json.dumps(page), "stderr": "", "returncode": 0}
+
+            def download(_image_url, target):
+                self.assertEqual(target, output / "perchance-gallery")
+                image_path.parent.mkdir()
+                image_path.write_bytes(b"image")
+                return image_path
+
+            with (
+                patch.object(perchance, "_output_directory", return_value=output),
+                patch.object(perchance, "_download_gallery_image", side_effect=download),
+                patch.object(perchance, "_run_perchance", side_effect=run_perchance),
+                patch.object(perchance, "get_settings", return_value={"channel": "ai-text-to-image-generator"}),
+            ):
+                result = await perchance.gallery_list({"download": True})
+
+            self.assertNotIn("--download", calls[0])
+            self.assertEqual(
+                result["entries"][0]["local_url"],
+                f"/perchance/file/perchance-gallery/{image_id}.jpeg",
+            )
+
+    async def test_gallery_cache_resolution_rejects_traversal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = pathlib.Path(directory) / "cache"
+            cache.mkdir()
+            image = cache / "safe.png"
+            image.write_bytes(b"image")
+            with patch.object(perchance, "_gallery_cache_directory", return_value=cache):
+                self.assertEqual(perchance.resolve_gallery_cache_file("safe.png"), image)
+                with self.assertRaises(HTTPException) as raised:
+                    perchance.resolve_gallery_cache_file("../outside.png")
+            self.assertEqual(raised.exception.status_code, 403)
+
+    async def test_gallery_cache_fetches_a_missing_trusted_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = pathlib.Path(directory) / "cache"
+            cache.mkdir()
+            image_id = "c" * 64
+            expected = cache / f"{image_id}.webp"
+
+            def download(image_url, target):
+                self.assertEqual(
+                    image_url,
+                    f"https://aigc.uploads.dev/image/{image_id}.webp",
+                )
+                self.assertEqual(target, cache)
+                expected.write_bytes(b"image")
+                return expected
+
+            with (
+                patch.object(perchance, "_gallery_cache_directory", return_value=cache),
+                patch.object(perchance, "_download_gallery_image", side_effect=download),
+            ):
+                self.assertEqual(
+                    perchance.resolve_gallery_cache_file(f"{image_id}.webp"),
+                    expected,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,14 +5,18 @@ the bundled Camoufox runtime to one operation at a time.
 """
 
 from pathlib import Path
-from urllib.parse import quote
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlsplit
+from urllib.request import Request, urlopen
 import asyncio
+import concurrent.futures
 import json
 import math
 import os
 import re
 import signal
 import threading
+import time
 
 from easydiffusion import app as easy_app
 from fastapi import HTTPException
@@ -72,6 +76,22 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 PERCHANCE_IMAGE_NAME_PATTERN = re.compile(
     r"^[0-9a-f]{64}(?:-[0-9]+)?\.(?:png|jpe?g|webp|gif)$",
     re.IGNORECASE,
+)
+PERCHANCE_GALLERY_CACHE_DIRNAME = "perchance-gallery-cache"
+PERCHANCE_GALLERY_IMAGE_ORIGIN = "https://aigc.uploads.dev"
+PERCHANCE_GALLERY_IMAGE_PATTERN = re.compile(
+    r"^/image/(?P<filename>[0-9a-f]{64}\.(?:png|jpe?g|webp))$",
+    re.IGNORECASE,
+)
+GALLERY_IMAGE_TIMEOUT_SECONDS = 45
+GALLERY_IMAGE_DOWNLOAD_ATTEMPTS = 3
+MAX_GALLERY_IMAGE_BYTES = 50 * 1024 * 1024
+GALLERY_LAUNCH_ATTEMPTS = 3
+GALLERY_TRANSIENT_ERROR_MARKERS = (
+    "ns_error_unknown_host",
+    "official generator did not open its public gallery frame",
+    "public gallery frame did not finish loading structured data",
+    "page.goto: timeout",
 )
 DEFAULT_GALLERY_CHANNEL = "ai-text-to-image-generator"
 CHANNEL_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -424,6 +444,27 @@ def _run_locked(arguments: list[str], timeout_seconds: int):
     return run()
 
 
+def _run_gallery_locked(arguments: list[str]):
+    async def run():
+        _acquire_perchance()
+        try:
+            for attempt in range(GALLERY_LAUNCH_ATTEMPTS):
+                try:
+                    return await _run_perchance(arguments, GALLERY_TIMEOUT_SECONDS)
+                except HTTPException as error:
+                    detail = str(error.detail).lower()
+                    transient = error.status_code == 502 and any(
+                        marker in detail for marker in GALLERY_TRANSIENT_ERROR_MARKERS
+                    )
+                    if not transient or attempt + 1 >= GALLERY_LAUNCH_ATTEMPTS:
+                        raise
+                    await asyncio.sleep(attempt + 1)
+        finally:
+            PERCHANCE_LOCK.release()
+
+    return run()
+
+
 def status() -> dict:
     launcher = _launcher_path()
     try:
@@ -536,24 +577,132 @@ async def generate_text(payload) -> dict:
     return {"text": parsed["text"]}
 
 
-def _decorate_download(item: dict) -> dict:
+def _gallery_cache_directory() -> Path:
+    directory = (ED_ROOT / "tmp" / PERCHANCE_GALLERY_CACHE_DIRNAME).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _gallery_image_filename(image_url: str) -> str:
+    try:
+        parsed = urlsplit(image_url)
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail="Perchance returned an invalid gallery image URL.") from error
+    match = (
+        PERCHANCE_GALLERY_IMAGE_PATTERN.fullmatch(parsed.path)
+        if parsed.scheme == "https"
+        and parsed.netloc == urlsplit(PERCHANCE_GALLERY_IMAGE_ORIGIN).netloc
+        and not parsed.query
+        and not parsed.fragment
+        else None
+    )
+    if match is None:
+        raise HTTPException(
+            status_code=502,
+            detail="Perchance returned a gallery image outside the supported image origin.",
+        )
+    return match.group("filename").lower()
+
+
+def _download_gallery_image(image_url: str, directory: Path) -> Path:
+    filename = _gallery_image_filename(image_url)
+    directory = directory.resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    destination = directory / filename
+    if destination.is_file():
+        return destination
+
+    last_error = None
+    for attempt in range(GALLERY_IMAGE_DOWNLOAD_ATTEMPTS):
+        partial = directory / f".{filename}.{os.getpid()}.{threading.get_ident()}.part"
+        try:
+            request = Request(
+                image_url,
+                headers={
+                    "Accept": "image/*",
+                    "User-Agent": "Easy-Diffusion-Perchance/1.0",
+                },
+            )
+            with urlopen(request, timeout=GALLERY_IMAGE_TIMEOUT_SECONDS) as response:
+                final_filename = _gallery_image_filename(response.geturl())
+                if final_filename != filename:
+                    raise ValueError("Gallery image download redirected to a different image.")
+                content_type = str(response.headers.get("Content-Type", "")).lower()
+                if not content_type.startswith("image/"):
+                    raise ValueError("Gallery image download returned a non-image response.")
+                raw_length = response.headers.get("Content-Length")
+                if raw_length is not None and int(raw_length) > MAX_GALLERY_IMAGE_BYTES:
+                    raise ValueError("Gallery image exceeds the maximum supported size.")
+
+                total = 0
+                with partial.open("wb") as output:
+                    while chunk := response.read(1024 * 1024):
+                        total += len(chunk)
+                        if total > MAX_GALLERY_IMAGE_BYTES:
+                            raise ValueError("Gallery image exceeds the maximum supported size.")
+                        output.write(chunk)
+                if total == 0:
+                    raise ValueError("Gallery image download was empty.")
+                os.replace(partial, destination)
+                return destination
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, HTTPException) as error:
+            last_error = error
+            partial.unlink(missing_ok=True)
+            if destination.is_file():
+                return destination
+            if attempt + 1 < GALLERY_IMAGE_DOWNLOAD_ATTEMPTS:
+                time.sleep(0.25 * (attempt + 1))
+
+    raise HTTPException(
+        status_code=502,
+        detail=f"Could not download Perchance gallery image after {GALLERY_IMAGE_DOWNLOAD_ATTEMPTS} attempts: {last_error}",
+    )
+
+
+def _decorate_download(
+    item: dict,
+    root_directory: Path | None = None,
+    route: str = "/perchance/file",
+) -> dict:
     file_path = item.get("filePath")
     if not isinstance(file_path, str) or not file_path:
         return item
-    output_directory = _output_directory()
+    root_directory = (root_directory or _output_directory()).resolve()
     resolved = Path(file_path).expanduser().resolve()
     try:
-        relative_path = resolved.relative_to(output_directory).as_posix()
+        relative_path = resolved.relative_to(root_directory).as_posix()
     except ValueError as error:
         raise HTTPException(
             status_code=502,
-            detail=f"Perchance saved outside the Easy Diffusion output directory: {resolved}",
+            detail=f"Perchance saved outside its selected gallery directory: {resolved}",
         ) from error
     if not resolved.is_file() or resolved.suffix.lower() not in IMAGE_EXTENSIONS:
         raise HTTPException(status_code=502, detail=f"Perchance did not create {resolved}.")
     item["relative_path"] = relative_path
-    item["local_url"] = f"/perchance/file/{quote(relative_path, safe='/')}"
+    item["local_url"] = f"{route}/{quote(relative_path, safe='/')}"
     return item
+
+
+def _decorate_lazy_cache(item: dict) -> dict:
+    filename = _gallery_image_filename(str(item.get("imageUrl", "")))
+    item["local_url"] = f"/perchance/gallery/cache/{quote(filename)}"
+    return item
+
+
+def _save_gallery_image(item: dict) -> dict:
+    output_directory = _output_directory()
+    target = output_directory / "perchance-gallery"
+    saved_path = _download_gallery_image(str(item.get("imageUrl", "")), target)
+    item["filePath"] = str(saved_path)
+    return _decorate_download(item, output_directory, "/perchance/file")
+
+
+async def _save_gallery_images(entries: list[dict]) -> list[dict]:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(_save_gallery_image, item) for item in entries]
+        while any(not future.done() for future in futures):
+            await asyncio.sleep(0.05)
+        return [future.result() for future in futures]
 
 
 def _gallery_common(payload: dict) -> tuple[str, str, bool, bool]:
@@ -601,19 +750,18 @@ async def gallery_list(payload) -> dict:
         arguments.extend(["--cursor", cursor])
     if time_range:
         arguments.extend(["--time-range", time_range])
-    if download:
-        target = _output_directory() / "perchance-gallery"
-        target.mkdir(parents=True, exist_ok=True)
-        arguments.extend(["--download", "--output", str(target)])
     if visible:
         arguments.append("--visible")
 
-    result = await _run_locked(arguments, GALLERY_TIMEOUT_SECONDS)
+    result = await _run_gallery_locked(arguments)
     parsed = _parse_json_object(result["stdout"], "gallery list")
     entries = parsed.get("entries")
     if not isinstance(entries, list) or not all(isinstance(item, dict) for item in entries):
         raise HTTPException(status_code=502, detail="Perchance returned an invalid gallery page.")
-    parsed["entries"] = [_decorate_download(item) for item in entries]
+    if download:
+        parsed["entries"] = await _save_gallery_images(entries)
+    else:
+        parsed["entries"] = [_decorate_lazy_cache(item) for item in entries]
     parsed["channel"] = channel
     return parsed
 
@@ -636,17 +784,15 @@ async def gallery_get(payload) -> dict:
         "--content-filter",
         content_filter,
     ]
-    if download:
-        target = _output_directory() / "perchance-gallery"
-        target.mkdir(parents=True, exist_ok=True)
-        arguments.extend(["--download", "--output", str(target)])
     if visible:
         arguments.append("--visible")
 
-    result = await _run_locked(arguments, GALLERY_TIMEOUT_SECONDS)
+    result = await _run_gallery_locked(arguments)
     parsed = _parse_json_object(result["stdout"], "gallery item")
     parsed["channel"] = channel
-    return _decorate_download(parsed)
+    if download:
+        return (await _save_gallery_images([parsed]))[0]
+    return _decorate_lazy_cache(parsed)
 
 
 def resolve_output_file(relative_path: str) -> Path:
@@ -661,4 +807,22 @@ def resolve_output_file(relative_path: str) -> Path:
         ) from error
     if not image_path.is_file() or image_path.suffix.lower() not in IMAGE_EXTENSIONS:
         raise HTTPException(status_code=404, detail="Generated image not found.")
+    return image_path
+
+
+def resolve_gallery_cache_file(relative_path: str) -> Path:
+    cache_directory = _gallery_cache_directory()
+    image_path = (cache_directory / relative_path).resolve()
+    try:
+        image_path.relative_to(cache_directory)
+    except ValueError as error:
+        raise HTTPException(status_code=403, detail="Path is outside the Perchance cache.") from error
+    if image_path.is_file() and image_path.suffix.lower() in IMAGE_EXTENSIONS:
+        return image_path
+    match = PERCHANCE_GALLERY_IMAGE_PATTERN.fullmatch(f"/image/{image_path.name}")
+    if image_path.parent == cache_directory and match is not None:
+        image_url = f"{PERCHANCE_GALLERY_IMAGE_ORIGIN}/image/{match.group('filename').lower()}"
+        return _download_gallery_image(image_url, cache_directory)
+    if not image_path.is_file() or image_path.suffix.lower() not in IMAGE_EXTENSIONS:
+        raise HTTPException(status_code=404, detail="Cached Perchance image not found.")
     return image_path

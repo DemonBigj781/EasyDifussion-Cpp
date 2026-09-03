@@ -295,6 +295,13 @@ def init():
             headers={"Cache-Control": "private, max-age=60"},
         )
 
+    @server_api.get("/perchance/gallery/cache/{relative_path:path}")
+    def perchance_gallery_cache_file(relative_path: str):
+        return FileResponse(
+            perchance.resolve_gallery_cache_file(relative_path),
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
+
     @server_api.get("/files/health")
     def fileparser_health():
         from ui.plugins.server.file_parser import lora_dir

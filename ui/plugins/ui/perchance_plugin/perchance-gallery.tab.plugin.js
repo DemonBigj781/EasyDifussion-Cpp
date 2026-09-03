@@ -89,6 +89,13 @@
                     image.src = imageUrl
                     image.alt = "Perchance gallery image"
                     image.loading = "lazy"
+                    image.decoding = "async"
+                    image.referrerPolicy = "no-referrer"
+                    image.addEventListener("error", () => {
+                        image.alt = "Perchance gallery image could not be loaded"
+                        image.style.minHeight = "80px"
+                        core.setStatus("A Perchance gallery image could not be loaded from the local cache.")
+                    }, { once: true })
                     image.style.cssText = "display:block;width:100%;height:220px;object-fit:contain;border-radius:4px;background:rgba(0,0,0,.12);"
                     card.appendChild(image)
                 }
