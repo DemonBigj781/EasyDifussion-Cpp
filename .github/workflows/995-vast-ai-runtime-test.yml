@@ -99,20 +99,34 @@ jobs:
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check --no-input vastai
 
+      - name: Generate one-run SSH key
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          key_path="$RUNNER_TEMP/vast_edcpp_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          ssh-keygen -q -t rsa -b 3072 -N '' -f "$key_path"
+          chmod 600 "$key_path"
+          pubkey_b64="$(base64 -w0 < "${key_path}.pub")"
+          echo "SSH_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+          echo "pubkey_b64=$pubkey_b64" >> "$GITHUB_OUTPUT"
+
       - name: Create approved Vast.ai instance
         id: create
         env:
           VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          PUBKEY_B64: ${{ steps.key.outputs.pubkey_b64 }}
         shell: bash
         run: |
           set -euo pipefail
+          onstart="mkdir -p /root/.ssh; chmod 700 /root/.ssh; echo '$PUBKEY_B64' | base64 -d >> /root/.ssh/authorized_keys; chmod 600 /root/.ssh/authorized_keys; echo edcpp-vast-ready"
           result="$(vastai create instance '${{ inputs.offer_id }}' \
             --image "$TEST_IMAGE" \
             --disk 10 \
             --ssh \
             --direct \
             --label 'edcpp-${{ inputs.backend }}-${{ github.run_id }}' \
-            --onstart-cmd 'echo edcpp-vast-ready' \
+            --onstart-cmd "$onstart" \
             --api-key "$VASTAI_KEY" \
             --raw)"
           printf '%s\n' "$result"
@@ -151,17 +165,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ssh_uri="$(vastai ssh-url "$INSTANCE_ID" --api-key "$VASTAI_KEY" | tail -n 1 | tr -d '\r')"
+          ssh_uri="$(vastai ssh-url "$INSTANCE_ID" --api-key "$VASTAI_KEY")"
           if [[ ! "$ssh_uri" =~ ^ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
-            echo "Unexpected Vast.ai SSH URI: $ssh_uri" >&2
+            echo "Unexpected Vast.ai SSH endpoint: $ssh_uri" >&2
             exit 1
           fi
-          ssh_user="${BASH_REMATCH[1]}"
-          ssh_host="${BASH_REMATCH[2]}"
-          ssh_port="${BASH_REMATCH[3]}"
-          echo "user=$ssh_user" >> "$GITHUB_OUTPUT"
-          echo "host=$ssh_host" >> "$GITHUB_OUTPUT"
-          echo "port=$ssh_port" >> "$GITHUB_OUTPUT"
+          echo "user=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "host=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+          echo "port=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
 
       - name: Run runtime test on Vast.ai without compiling
         env:
@@ -173,9 +184,12 @@ jobs:
         run: |
           set -euo pipefail
           ssh \
+            -i "$SSH_KEY_PATH" \
             -p "$SSH_PORT" \
+            -o BatchMode=yes \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=20 \
             "$SSH_USER@$SSH_HOST" \
             "$TEST_COMMAND"
 
@@ -193,4 +207,5 @@ jobs:
           if [[ $destroy_rc -ne 0 ]]; then
             echo "WARNING: Vast.ai destroy command failed with exit code $destroy_rc" >&2
           fi
+          rm -f "$SSH_KEY_PATH" "${SSH_KEY_PATH}.pub"
           exit 0
