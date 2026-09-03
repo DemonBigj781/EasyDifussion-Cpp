@@ -8,11 +8,21 @@ name: '001 - CPU API.cpp'
         required: true
         default: 'compile'
         type: choice
-        options: ['compile']
+        options: ['compile', 'Test, Vast AI']
+      vast_approval:
+        description: 'Paid Vast.ai test permission: type APPROVE'
+        required: false
+        default: ''
+        type: string
+      vast_offer_id:
+        description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   build:
@@ -39,64 +49,43 @@ jobs:
             -Isource/API.cpp
             -Isource/API.cpp/library/include
           )
-          c++ "${flags[@]}" \
-            -c source/API.cpp/common/api.cpp \
-            -o build/001/api-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/detect/common/detect.cpp \
-            -o build/001/detect-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/detect/cpu/definition/cpu/detect.cpp \
-            -o build/001/detect-cpu-definition.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/detect/cpu/translation/cpu/detect.cpp \
-            -o build/001/detect-cpu-translation.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/cpu_handler.cpp \
-            -o build/001/cpu-handler.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/load/common/load.cpp \
-            -o build/001/load-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/load/model/cpu/definition/cpu/load.cpp \
-            -o build/001/load-model-cpu-definition.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/load/model/cpu/translation/cpu/load.cpp \
-            -o build/001/load-model-cpu-translation.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/unload/common/unload.cpp \
-            -o build/001/unload-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/unload/model/cpu/definition/cpu/unload.cpp \
-            -o build/001/unload-model-cpu-definition.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/unload/model/cpu/translation/cpu/unload.cpp \
-            -o build/001/unload-model-cpu-translation.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/cpu_model_lifecycle.cpp \
-            -o build/001/cpu-model-lifecycle.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/common/plan.cpp \
-            -o build/001/overflow-plan-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/common/normalize.cpp \
-            -o build/001/overflow-normalize-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/cpu/definition/cpu/allocate.cpp \
-            -o build/001/overflow-allocate-cpu-definition.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/cpu/definition/cpu/release.cpp \
-            -o build/001/overflow-release-cpu-definition.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/cpu/translation/cpu/allocate.cpp \
-            -o build/001/overflow-allocate-cpu-translation.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/features/overflow/cpu/translation/cpu/release.cpp \
-            -o build/001/overflow-release-cpu-translation.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/overflow.cpp \
-            -o build/001/overflow-library-common.o
-          c++ "${flags[@]}" \
-            -c source/API.cpp/library/src/cpu_overflow.cpp \
-            -o build/001/cpu-overflow.o
+          c++ "${flags[@]}" -c source/API.cpp/common/api.cpp -o build/001/api-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/detect/common/detect.cpp -o build/001/detect-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/detect/cpu/definition/cpu/detect.cpp -o build/001/detect-cpu-definition.o
+          c++ "${flags[@]}" -c source/API.cpp/features/detect/cpu/translation/cpu/detect.cpp -o build/001/detect-cpu-translation.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_handler.cpp -o build/001/cpu-handler.o
+          c++ "${flags[@]}" -c source/API.cpp/features/load/common/load.cpp -o build/001/load-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/load/model/cpu/definition/cpu/load.cpp -o build/001/load-model-cpu-definition.o
+          c++ "${flags[@]}" -c source/API.cpp/features/load/model/cpu/translation/cpu/load.cpp -o build/001/load-model-cpu-translation.o
+          c++ "${flags[@]}" -c source/API.cpp/features/unload/common/unload.cpp -o build/001/unload-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/unload/model/cpu/definition/cpu/unload.cpp -o build/001/unload-model-cpu-definition.o
+          c++ "${flags[@]}" -c source/API.cpp/features/unload/model/cpu/translation/cpu/unload.cpp -o build/001/unload-model-cpu-translation.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_model_lifecycle.cpp -o build/001/cpu-model-lifecycle.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/plan.cpp -o build/001/overflow-plan-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/normalize.cpp -o build/001/overflow-normalize-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/definition/cpu/allocate.cpp -o build/001/overflow-allocate-cpu-definition.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/definition/cpu/release.cpp -o build/001/overflow-release-cpu-definition.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/translation/cpu/allocate.cpp -o build/001/overflow-allocate-cpu-translation.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/cpu/translation/cpu/release.cpp -o build/001/overflow-release-cpu-translation.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/overflow.cpp -o build/001/overflow-library-common.o
+          c++ "${flags[@]}" -c source/API.cpp/library/src/cpu_overflow.cpp -o build/001/cpu-overflow.o
           echo '[001] CPU detect, model lifecycle, and Overflow routes compiled successfully'
+      - name: Preserve GitHub-compiled artifact for approved Vast.ai test
+        if: ${{ inputs.mode == 'Test, Vast AI' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vast-api-001-${{ github.run_id }}
+          path: build/001
+          if-no-files-found: error
+
+  vast-test:
+    if: ${{ inputs.mode == 'Test, Vast AI' }}
+    needs: build
+    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    with:
+      approval: ${{ inputs.vast_approval }}
+      offer_id: ${{ inputs.vast_offer_id }}
+      backend: cpu
+      artifact_name: vast-api-001-${{ github.run_id }}
+      base_image: ghcr.io/demonbigj781/easydifussion-cpp-cpu-toolchain:theory
+    secrets: inherit
