@@ -65,6 +65,7 @@ jobs:
     env:
       TEST_IMAGE_REPOSITORY: ghcr.io/demonbigj781/easydifussion-cpp-vast-test
       TEST_IMAGE_TAG: ${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}
+      BASE_IMAGE: ${{ inputs.base_image }}
     steps:
       - name: Download GitHub-compiled API artifact
         uses: actions/download-artifact@v5
@@ -88,21 +89,31 @@ jobs:
           set -euo pipefail
           TEST_IMAGE="${TEST_IMAGE_REPOSITORY}:${TEST_IMAGE_TAG}"
           echo "TEST_IMAGE=$TEST_IMAGE" >> "$GITHUB_ENV"
-          cat > Dockerfile.vast-test <<'EOF'
-          ARG BASE_IMAGE
-          FROM ${BASE_IMAGE}
+          {
+            printf 'FROM %s\n' "$BASE_IMAGE"
+            cat <<'EOF'
           COPY vast-build/ /opt/edcpp-test/build/
           RUN if [ -f /opt/edcpp-test/build/xformers-cpu-test ]; then chmod 0755 /opt/edcpp-test/build/xformers-cpu-test; fi
           LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
           LABEL edcpp.vast-test.commit="${{ github.sha }}"
           LABEL edcpp.vast-test.backend="${{ inputs.backend }}"
           EOF
+          } > Dockerfile.vast-test
           echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker pull "$BASE_IMAGE"
           docker build --pull=false \
-            --build-arg BASE_IMAGE='${{ inputs.base_image }}' \
             -f Dockerfile.vast-test \
             -t "$TEST_IMAGE" .
-          docker push "$TEST_IMAGE"
+          for attempt in 1 2 3; do
+            if docker push "$TEST_IMAGE"; then
+              exit 0
+            fi
+            echo "GHCR push failed (attempt $attempt/3); retrying after clearing builder state" >&2
+            docker builder prune -af || true
+            sleep $((attempt * 5))
+          done
+          echo 'GHCR push failed after 3 attempts.' >&2
+          exit 1
 
       - name: Install Vast.ai CLI
         shell: bash
