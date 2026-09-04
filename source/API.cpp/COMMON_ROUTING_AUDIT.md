@@ -48,6 +48,12 @@ Feature-specific Common planning, normalization, and normalized resource contrac
 
 The root Common API already knows the `xformers_attention` operation/capability, but the feature-specific xFormers Common method files were originally structural placeholders. xFormers must establish its authoritative Common contract and route Library calls through it before backend implementations are considered integrated.
 
+### FlashAttention
+
+The feature Common API owns a backend-neutral tensor, parameter, execution, capability, validation, and result contract. The CPU translation maps that contract to the existing GGML `FLASH_ATTN_EXT` compatibility definition; GGML tensor and compute objects do not cross the feature Common boundary. Workflow `001` compiles the route and runs a native-boundary smoke test covering registration, normalized validation, capability reporting, translation, and exactly one native dispatch.
+
+This is not yet Common-only architectural completion. No Library handler calls the FlashAttention Common entry point, and the smoke test substitutes the native GGML operation to validate the route without claiming numerical or performance proof. The current CPU translation intentionally accepts only single-thread execution until ownership of backend-native thread-pool scheduling is normalized.
+
 ## Development expectation
 
 For new or unfinished features:

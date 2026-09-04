@@ -48,6 +48,9 @@ jobs:
             -std=c++17 -Wall -Wextra -Wpedantic
             -Isource/API.cpp
             -Isource/API.cpp/library/include
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/src
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/src/ggml-cpu
           )
           c++ "${flags[@]}" -c source/API.cpp/common/api.cpp -o build/001/api-common.o
           c++ "${flags[@]}" -c source/API.cpp/features/detect/common/detect.cpp -o build/001/detect-common.o
@@ -79,7 +82,9 @@ jobs:
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/softmax.cpp -o build/001/xformers-cpu-softmax.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/av.cpp -o build/001/xformers-cpu-av.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp -o build/001/xformers-cpu-forward.o
-          echo '[001] CPU API/xFormers routes compiled successfully'
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/flash/common/flash_attention.cpp -o build/001/flash-attention-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/flash/cpu/translation/cpu/flash_attention_cpu.cpp -o build/001/flash-attention-cpu.o
+          echo '[001] CPU API/xFormers/FlashAttention routes compiled successfully'
       - name: Compile xFormers CPU test application
         if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
         shell: bash
@@ -105,6 +110,25 @@ jobs:
             -o build/001/xformers-cpu-test
           test -x build/001/xformers-cpu-test
           echo '[001] xFormers CPU test application compiled and linked; not executed on GitHub'
+      - name: Compile and run normalized FlashAttention CPU route test
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          flags=(
+            -std=c++17 -Wall -Wextra -Wpedantic
+            -Isource/API.cpp
+            -Isource/API.cpp/library/include
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/src
+            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/src/ggml-cpu
+          )
+          c++ "${flags[@]}" \
+            source/API.test/Feature/Attention/Flash/Cpu/Main.cpp \
+            source/API.cpp/features/attention/flash/common/flash_attention.cpp \
+            source/API.cpp/features/attention/flash/cpu/translation/cpu/flash_attention_cpu.cpp \
+            -o build/001/flash-attention-cpu-test
+          build/001/flash-attention-cpu-test
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
