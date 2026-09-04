@@ -86,17 +86,27 @@
                 const imageUrl = entry.local_url || entry.imageUrl || ""
                 if (imageUrl) {
                     const image = document.createElement("img")
-                    image.src = imageUrl
                     image.alt = "Perchance gallery image"
-                    image.loading = "lazy"
+                    image.loading = "eager"
                     image.decoding = "async"
                     image.referrerPolicy = "no-referrer"
+                    const sources = [entry.local_url, entry.imageUrl]
+                        .filter((value, index, values) => (
+                            typeof value === "string" && value && values.indexOf(value) === index
+                        ))
+                    let sourceIndex = 0
                     image.addEventListener("error", () => {
+                        sourceIndex += 1
+                        if (sourceIndex < sources.length) {
+                            image.src = sources[sourceIndex]
+                            return
+                        }
                         image.alt = "Perchance gallery image could not be loaded"
                         image.style.minHeight = "80px"
-                        core.setStatus("A Perchance gallery image could not be loaded from the local cache.")
-                    }, { once: true })
+                        core.setStatus("A Perchance gallery image could not be loaded from either the local cache or Perchance.")
+                    })
                     image.style.cssText = "display:block;width:100%;height:220px;object-fit:contain;border-radius:4px;background:rgba(0,0,0,.12);"
+                    image.src = sources[0]
                     card.appendChild(image)
                 }
                 const prompt = document.createElement("div")
