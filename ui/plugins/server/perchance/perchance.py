@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 import asyncio
+import base64
 import concurrent.futures
 import json
 import math
@@ -17,9 +18,11 @@ import re
 import signal
 import threading
 import time
+from io import BytesIO
 
 from easydiffusion import app as easy_app
 from fastapi import HTTPException
+from PIL import Image, ImageOps
 
 
 ED_ROOT = Path(easy_app.ROOT_DIR)
@@ -86,6 +89,9 @@ PERCHANCE_GALLERY_IMAGE_PATTERN = re.compile(
 GALLERY_IMAGE_TIMEOUT_SECONDS = 45
 GALLERY_IMAGE_DOWNLOAD_ATTEMPTS = 3
 MAX_GALLERY_IMAGE_BYTES = 50 * 1024 * 1024
+GALLERY_PREVIEW_MAX_DIMENSION = 768
+MAX_GALLERY_PREVIEW_BYTES = 1024 * 1024
+MAX_GALLERY_SOURCE_PIXELS = 64 * 1024 * 1024
 GALLERY_LAUNCH_ATTEMPTS = 3
 GALLERY_TRANSIENT_ERROR_MARKERS = (
     "ns_error_unknown_host",
@@ -689,6 +695,67 @@ def _decorate_lazy_cache(item: dict) -> dict:
     return item
 
 
+def _gallery_preview_data_url(image_path: Path) -> str:
+    try:
+        with Image.open(image_path) as source:
+            if source.width * source.height > MAX_GALLERY_SOURCE_PIXELS:
+                raise ValueError("image dimensions exceed the gallery preview limit")
+            source.seek(0)
+            preview = ImageOps.exif_transpose(source)
+            preview.thumbnail(
+                (GALLERY_PREVIEW_MAX_DIMENSION, GALLERY_PREVIEW_MAX_DIMENSION),
+                Image.Resampling.LANCZOS,
+            )
+            if "A" in preview.getbands():
+                rgba = preview.convert("RGBA")
+                flattened = Image.new("RGB", rgba.size, "white")
+                flattened.paste(rgba, mask=rgba.getchannel("A"))
+                preview = flattened
+            elif preview.mode != "RGB":
+                preview = preview.convert("RGB")
+
+            encoded = BytesIO()
+            preview.save(encoded, format="JPEG", quality=82, optimize=True)
+            preview_bytes = encoded.getvalue()
+    except (Image.DecompressionBombError, OSError, ValueError) as error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not prepare a Perchance gallery preview: {error}",
+        ) from error
+
+    if not preview_bytes or len(preview_bytes) > MAX_GALLERY_PREVIEW_BYTES:
+        raise HTTPException(
+            status_code=502,
+            detail="Perchance gallery preview exceeded the embedded-image size limit.",
+        )
+    payload = base64.b64encode(preview_bytes).decode("ascii")
+    return f"data:image/jpeg;base64,{payload}"
+
+
+def _attach_gallery_preview(item: dict) -> dict:
+    try:
+        file_path = item.get("filePath")
+        if isinstance(file_path, str) and file_path:
+            image_path = Path(file_path).expanduser().resolve()
+        else:
+            filename = _gallery_image_filename(str(item.get("imageUrl", "")))
+            image_path = resolve_gallery_cache_file(filename)
+        item["preview_data_url"] = _gallery_preview_data_url(image_path)
+        item.pop("preview_error", None)
+    except HTTPException as error:
+        item.pop("preview_data_url", None)
+        item["preview_error"] = str(error.detail)
+    return item
+
+
+async def _attach_gallery_previews(entries: list[dict]) -> list[dict]:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(_attach_gallery_preview, item) for item in entries]
+        while any(not future.done() for future in futures):
+            await asyncio.sleep(0.05)
+        return [future.result() for future in futures]
+
+
 def _save_gallery_image(item: dict) -> dict:
     output_directory = _output_directory()
     target = output_directory / "perchance-gallery"
@@ -759,9 +826,10 @@ async def gallery_list(payload) -> dict:
     if not isinstance(entries, list) or not all(isinstance(item, dict) for item in entries):
         raise HTTPException(status_code=502, detail="Perchance returned an invalid gallery page.")
     if download:
-        parsed["entries"] = await _save_gallery_images(entries)
+        entries = await _save_gallery_images(entries)
     else:
-        parsed["entries"] = [_decorate_lazy_cache(item) for item in entries]
+        entries = [_decorate_lazy_cache(item) for item in entries]
+    parsed["entries"] = await _attach_gallery_previews(entries)
     parsed["channel"] = channel
     return parsed
 
@@ -791,8 +859,10 @@ async def gallery_get(payload) -> dict:
     parsed = _parse_json_object(result["stdout"], "gallery item")
     parsed["channel"] = channel
     if download:
-        return (await _save_gallery_images([parsed]))[0]
-    return _decorate_lazy_cache(parsed)
+        entries = await _save_gallery_images([parsed])
+    else:
+        entries = [_decorate_lazy_cache(parsed)]
+    return (await _attach_gallery_previews(entries))[0]
 
 
 def resolve_output_file(relative_path: str) -> Path:

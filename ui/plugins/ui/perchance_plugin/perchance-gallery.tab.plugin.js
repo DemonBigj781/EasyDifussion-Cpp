@@ -4,18 +4,27 @@
     const core = window.PerchancePluginCore
     if (!core || document.getElementById("tab-perchance-gallery")) return
 
-    function setRating(value) {
-        const select = core.element("gallery-content-filter")
-        const rating = String(value || "g").trim() || "g"
-        select.querySelectorAll("option[data-custom-rating]").forEach((option) => option.remove())
-        if (!Array.from(select.options).some((option) => option.value === rating)) {
-            const option = document.createElement("option")
-            option.value = rating
-            option.textContent = `${rating} (custom)`
-            option.dataset.customRating = "true"
-            select.appendChild(option)
+    async function loadGalleryImage(image, card, entry) {
+        const preview = typeof entry.preview_data_url === "string" ? entry.preview_data_url : ""
+        if (!preview.startsWith("data:image/jpeg;base64,")) {
+            throw new Error(entry.preview_error || "The server did not return an embedded gallery preview.")
         }
-        select.value = rating
+
+        if (typeof image.decode === "function") {
+            image.src = preview
+            await image.decode()
+        } else {
+            await new Promise((resolve, reject) => {
+                image.addEventListener("load", resolve, { once: true })
+                image.addEventListener("error", () => reject(new Error("The embedded preview could not be decoded.")), { once: true })
+                image.src = preview
+            })
+        }
+        if (!image.naturalWidth || !image.naturalHeight) {
+            throw new Error("The embedded preview decoded without dimensions.")
+        }
+        image.style.visibility = "visible"
+        card.removeAttribute("aria-busy")
     }
 
     function attach() {
@@ -26,9 +35,7 @@
         const fields = {
             id: core.element("gallery-id"),
             channel: core.element("gallery-channel"),
-            rating: core.element("gallery-content-filter"),
             limit: core.element("gallery-limit"),
-            cursor: core.element("gallery-cursor"),
             sort: core.element("gallery-sort"),
             range: core.element("gallery-time-range"),
             download: core.element("gallery-download"),
@@ -36,9 +43,7 @@
         }
         fields.id.value = settings.galleryId || ""
         fields.channel.value = settings.galleryChannel || "ai-text-to-image-generator"
-        setRating(settings.galleryContentFilter || "g")
         fields.limit.value = settings.galleryLimit || "20"
-        fields.cursor.value = settings.galleryCursor || ""
         fields.sort.value = settings.gallerySort || "recent"
         fields.range.value = settings.galleryTimeRange || ""
         fields.download.checked = Boolean(settings.galleryDownload)
@@ -48,9 +53,7 @@
             core.saveSettings({
                 galleryId: fields.id.value,
                 galleryChannel: fields.channel.value,
-                galleryContentFilter: fields.rating.value,
                 galleryLimit: fields.limit.value,
-                galleryCursor: fields.cursor.value,
                 gallerySort: fields.sort.value,
                 galleryTimeRange: fields.range.value,
                 galleryDownload: fields.download.checked,
@@ -67,9 +70,8 @@
             return {
                 gallery_id: fields.id.value.trim(),
                 channel: fields.channel.value.trim(),
-                content_filter: fields.rating.value,
+                content_filter: "none",
                 limit: fields.limit.value,
-                cursor: fields.cursor.value.trim(),
                 sort: fields.sort.value,
                 time_range: fields.range.value.trim(),
                 download: fields.download.checked,
@@ -77,37 +79,31 @@
             }
         }
 
-        function render(entries) {
+        async function render(entries) {
             const results = core.element("gallery-results")
             results.replaceChildren()
+            const imageLoads = []
             entries.forEach((entry) => {
                 const card = document.createElement("article")
                 card.style.cssText = "padding:8px;border:1px solid var(--border-color,rgba(127,127,127,.35));border-radius:6px;min-width:0;"
-                const imageUrl = entry.local_url || entry.imageUrl || ""
-                if (imageUrl) {
+                if (entry.local_url || entry.preview_data_url || entry.preview_error) {
                     const image = document.createElement("img")
                     image.alt = "Perchance gallery image"
                     image.loading = "eager"
                     image.decoding = "async"
-                    image.referrerPolicy = "no-referrer"
-                    const sources = [entry.local_url, entry.imageUrl]
-                        .filter((value, index, values) => (
-                            typeof value === "string" && value && values.indexOf(value) === index
-                        ))
-                    let sourceIndex = 0
-                    image.addEventListener("error", () => {
-                        sourceIndex += 1
-                        if (sourceIndex < sources.length) {
-                            image.src = sources[sourceIndex]
-                            return
-                        }
-                        image.alt = "Perchance gallery image could not be loaded"
-                        image.style.minHeight = "80px"
-                        core.setStatus("A Perchance gallery image could not be loaded from either the local cache or Perchance.")
-                    })
-                    image.style.cssText = "display:block;width:100%;height:220px;object-fit:contain;border-radius:4px;background:rgba(0,0,0,.12);"
-                    image.src = sources[0]
+                    image.style.cssText = "display:block;width:100%;height:220px;object-fit:contain;border-radius:4px;background:rgba(0,0,0,.12);visibility:hidden;"
+                    card.setAttribute("aria-busy", "true")
                     card.appendChild(image)
+                    imageLoads.push(loadGalleryImage(image, card, entry).then(
+                        () => null,
+                        (error) => {
+                            image.style.visibility = "visible"
+                            image.alt = "Perchance gallery preview could not be loaded"
+                            card.style.outline = "1px solid var(--accent-color, #c66)"
+                            card.removeAttribute("aria-busy")
+                            return error instanceof Error ? error : new Error(String(error))
+                        },
+                    ))
                 }
                 const prompt = document.createElement("div")
                 prompt.textContent = entry.prompt || "(No prompt returned)"
@@ -141,6 +137,7 @@
                 results.appendChild(card)
             })
             if (!entries.length) results.textContent = "No gallery entries returned."
+            return (await Promise.all(imageLoads)).filter(Boolean)
         }
 
         async function withBusy(message, callback) {
@@ -167,16 +164,18 @@
         }))
         core.element("gallery-list-button").addEventListener("click", () => withBusy("Loading Perchance gallery…", async () => {
             const data = await core.requestJson("/perchance/gallery/list", payload())
-            render(Array.isArray(data.entries) ? data.entries : [])
-            fields.cursor.value = data.nextCursor || ""
-            save()
-            core.setStatus(data.nextCursor ? "Gallery loaded; continuation cursor saved." : "Gallery loaded.")
+            const failures = await render(Array.isArray(data.entries) ? data.entries : [])
+            core.setStatus(failures.length
+                ? `Gallery loaded, but ${failures.length} embedded preview${failures.length === 1 ? "" : "s"} failed: ${failures[0].message}.`
+                : "Gallery loaded.")
         }))
         core.element("gallery-get-button").addEventListener("click", () => withBusy("Loading Perchance gallery image…", async () => {
             const request = payload()
             if (!request.gallery_id) throw new Error("Enter a gallery image ID or supported URL.")
-            render([await core.requestJson("/perchance/gallery/get", request)])
-            core.setStatus("Gallery image loaded.")
+            const failures = await render([await core.requestJson("/perchance/gallery/get", request)])
+            core.setStatus(failures.length
+                ? `Gallery entry loaded, but its embedded preview failed: ${failures[0].message}.`
+                : "Gallery image loaded.")
         }))
         core.initializePanel(host)
         core.requestJson("/perchance/status").then((data) => {

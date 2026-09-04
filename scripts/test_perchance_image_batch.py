@@ -1,12 +1,15 @@
 import pathlib
+import base64
 import json
 import os
 import sys
 import tempfile
 import unittest
+from io import BytesIO
 from unittest.mock import patch
 
 from fastapi import HTTPException
+from PIL import Image
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -118,11 +121,15 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
             }
             return {"stdout": json.dumps(page), "stderr": "", "returncode": 0}
 
-        with (
-            patch.object(perchance, "_run_perchance", side_effect=run_perchance),
-            patch.object(perchance, "get_settings", return_value={"channel": "ai-text-to-image-generator"}),
-        ):
-            result = await perchance.gallery_list({"download": False})
+        with tempfile.TemporaryDirectory() as directory:
+            cache = pathlib.Path(directory)
+            Image.new("RGB", (1200, 800), "navy").save(cache / f"{image_id}.jpeg")
+            with (
+                patch.object(perchance, "_gallery_cache_directory", return_value=cache),
+                patch.object(perchance, "_run_perchance", side_effect=run_perchance),
+                patch.object(perchance, "get_settings", return_value={"channel": "ai-text-to-image-generator"}),
+            ):
+                result = await perchance.gallery_list({"download": False})
 
         self.assertNotIn("--download", calls[0])
         self.assertNotIn("--output", calls[0])
@@ -130,6 +137,7 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
             result["entries"][0]["local_url"],
             f"/perchance/gallery/cache/{image_id}.jpeg",
         )
+        self.assertTrue(result["entries"][0]["preview_data_url"].startswith("data:image/jpeg;base64,"))
 
     async def test_gallery_retries_transient_frame_startup_failure(self):
         image_id = "d" * 64
@@ -148,12 +156,16 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
             {"stdout": json.dumps(page), "stderr": "", "returncode": 0},
         ])
 
-        with (
-            patch.object(perchance, "_run_perchance", run_perchance),
-            patch.object(perchance.asyncio, "sleep", unittest.mock.AsyncMock()),
-            patch.object(perchance, "get_settings", return_value={"channel": "ai-text-to-image-generator"}),
-        ):
-            result = await perchance.gallery_list({"download": False})
+        with tempfile.TemporaryDirectory() as directory:
+            cache = pathlib.Path(directory)
+            Image.new("RGB", (64, 64), "green").save(cache / f"{image_id}.jpeg")
+            with (
+                patch.object(perchance, "_gallery_cache_directory", return_value=cache),
+                patch.object(perchance, "_run_perchance", run_perchance),
+                patch.object(perchance.asyncio, "sleep", unittest.mock.AsyncMock()),
+                patch.object(perchance, "get_settings", return_value={"channel": "ai-text-to-image-generator"}),
+            ):
+                result = await perchance.gallery_list({"download": False})
 
         self.assertEqual(run_perchance.await_count, 2)
         self.assertEqual(result["entries"][0]["imageId"], image_id)
@@ -179,7 +191,7 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
             def download(_image_url, target):
                 self.assertEqual(target, output / "perchance-gallery")
                 image_path.parent.mkdir()
-                image_path.write_bytes(b"image")
+                Image.new("RGB", (80, 60), "purple").save(image_path)
                 return image_path
 
             with (
@@ -195,6 +207,19 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
                 result["entries"][0]["local_url"],
                 f"/perchance/file/perchance-gallery/{image_id}.jpeg",
             )
+            self.assertTrue(result["entries"][0]["preview_data_url"].startswith("data:image/jpeg;base64,"))
+
+    async def test_gallery_preview_is_resized_and_embedded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = pathlib.Path(directory) / "large.png"
+            Image.new("RGBA", (1800, 900), (255, 0, 0, 128)).save(source)
+
+            data_url = perchance._gallery_preview_data_url(source)
+            preview_bytes = base64.b64decode(data_url.split(",", 1)[1])
+            with Image.open(BytesIO(preview_bytes)) as preview:
+                self.assertEqual(preview.format, "JPEG")
+                self.assertLessEqual(max(preview.size), perchance.GALLERY_PREVIEW_MAX_DIMENSION)
+            self.assertLessEqual(len(preview_bytes), perchance.MAX_GALLERY_PREVIEW_BYTES)
 
     async def test_gallery_cache_resolution_rejects_traversal(self):
         with tempfile.TemporaryDirectory() as directory:
