@@ -11,10 +11,11 @@ endif()
 if (MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
     add_compile_definitions(_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
+    # /MP is MSVC-only: icx rejects it outright once offloading is enabled.
     add_compile_options(
-        $<$<COMPILE_LANGUAGE:C>:/MP>
+        $<$<AND:$<COMPILE_LANGUAGE:C>,$<C_COMPILER_ID:MSVC>>:/MP>
         $<$<COMPILE_LANGUAGE:C>:/utf-8>
-        $<$<COMPILE_LANGUAGE:CXX>:/MP>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:MSVC>>:/MP>
         $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
     )
 endif()
@@ -261,7 +262,7 @@ endif()
 message(STATUS "stable-diffusion.cpp version ${SDCPP_BUILD_VERSION}")
 
 if(NOT SDCPP_BUILD_COMMIT)
-    set(SDCPP_BUILD_COMMIT a5ae0fc)
+    set(SDCPP_BUILD_COMMIT 6b3edaa)
 endif()
 message(STATUS "stable-diffusion.cpp commit ${SDCPP_BUILD_COMMIT}")
 
@@ -312,7 +313,7 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 if (NOT SD_USE_SYSTEM_GGML)
     # see https://github.com/ggerganov/ggml/pull/682
-    add_definitions(-DGGML_MAX_NAME=128)
+    add_definitions(-DGGML_MAX_NAME=160)
 endif()
 
 # deps
@@ -331,7 +332,8 @@ endif()
 
 add_subdirectory(thirdparty)
 
-target_link_libraries(${SD_LIB} PUBLIC ggml zip)
+target_sources(${SD_LIB} PRIVATE $<TARGET_OBJECTS:zip>)
+target_link_libraries(${SD_LIB} PUBLIC ggml)
 target_include_directories(${SD_LIB} PUBLIC . src include)
 target_include_directories(${SD_LIB} PRIVATE src/core)
 target_include_directories(${SD_LIB} PUBLIC . thirdparty)
@@ -342,7 +344,58 @@ if (SD_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-set(SD_PUBLIC_HEADERS include/stable-diffusion.h)
-set_target_properties(${SD_LIB} PROPERTIES PUBLIC_HEADER "${SD_PUBLIC_HEADERS}")
 
-install(TARGETS ${SD_LIB} LIBRARY PUBLIC_HEADER)
+
+#
+# install
+#
+
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+
+set(SD_INSTALL_VERSION "${SDCPP_BUILD_VERSION}")
+set(SD_INSTALL_COMMIT  "${SDCPP_BUILD_COMMIT}")
+set(SD_SHARED_LIB      ${SD_BUILD_SHARED_LIBS})
+
+set(SD_INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Location of header  files")
+set(SD_LIB_INSTALL_DIR     ${CMAKE_INSTALL_LIBDIR}     CACHE PATH "Location of library files")
+set(SD_BIN_INSTALL_DIR     ${CMAKE_INSTALL_BINDIR}     CACHE PATH "Location of binary  files")
+
+set(SD_PUBLIC_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/stable-diffusion.h)
+
+set_target_properties(${SD_LIB}
+    PROPERTIES
+        PUBLIC_HEADER "${SD_PUBLIC_HEADERS}")
+
+
+install(TARGETS ${SD_LIB}
+        ARCHIVE
+        LIBRARY
+        RUNTIME
+        PUBLIC_HEADER)
+
+
+configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/stable-diffusion-config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/stable-diffusion-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stable-diffusion
+    PATH_VARS SD_INCLUDE_INSTALL_DIR
+              SD_LIB_INSTALL_DIR
+              SD_BIN_INSTALL_DIR )
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/stable-diffusion-version.cmake
+    VERSION ${SD_INSTALL_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/stable-diffusion-config.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/stable-diffusion-version.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stable-diffusion)
+
+configure_file(cmake/stable-diffusion.pc.in
+        "${CMAKE_CURRENT_BINARY_DIR}/stable-diffusion.pc"
+        @ONLY)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/stable-diffusion.pc"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

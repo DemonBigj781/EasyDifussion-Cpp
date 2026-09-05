@@ -450,7 +450,38 @@ static bool ggml_backend_cpu_device_supports_op(ggml_backend_dev_t dev, const st
                 op->type != GGML_TYPE_IQ1_S   &&
                 op->type != GGML_TYPE_IQ1_M; // missing type_traits.from_float
         case GGML_OP_MUL_MAT:
+            if (src0->type == GGML_TYPE_I8) {
+                const ggml_tensor * weight_scale = op->src[2];
+                const ggml_tensor * bias         = op->src[3];
+                const int convrot_group_size     = ggml_get_op_params_i32(op, 2);
+                const ggml_tensor * packed_src   = src1->src[0];
+                const int64_t packed_rows = packed_src != nullptr ? GGML_PAD(ggml_nrows(packed_src), 4) : 0;
+                const int64_t packed_scale_rows = packed_src != nullptr
+                    ? (ggml_nrows(packed_src) * (int64_t)sizeof(float) + src0->ne[0] - 1) / src0->ne[0]
+                    : 0;
+                const bool packed_input          = src1->type == GGML_TYPE_I8 &&
+                                                   src1->op == GGML_OP_QUANTIZE_I8_CONVROT &&
+                                                   packed_src != nullptr && src1->ne[0] == src0->ne[0] &&
+                                                   src1->ne[1] == packed_rows + packed_scale_rows;
+                return (src1->type == GGML_TYPE_F32 || packed_input) && op->type == GGML_TYPE_F32 &&
+                       src0->ne[2] == 1 && src0->ne[3] == 1 &&
+                       ggml_is_contiguous(src0) && ggml_is_contiguous(src1) && ggml_is_contiguous(op) &&
+                       (weight_scale == nullptr ||
+                        (weight_scale->type == GGML_TYPE_F32 && ggml_is_contiguous(weight_scale) &&
+                         ggml_nelements(weight_scale) == src0->ne[1])) &&
+                       (bias == nullptr ||
+                        (bias->type == GGML_TYPE_F32 && ggml_is_contiguous(bias) &&
+                         ggml_nelements(bias) == src0->ne[1])) &&
+                       (convrot_group_size == 0 ||
+                        (convrot_group_size <= 256 && src0->ne[0] % convrot_group_size == 0));
+            }
             return src1->type == GGML_TYPE_F32 || src1->type == ggml_get_type_traits_cpu(src0->type)->vec_dot_type;
+        case GGML_OP_QUANTIZE_I8_CONVROT: {
+            const int group_size = ggml_get_op_params_i32(op, 0);
+            return src0->type == GGML_TYPE_F32 && op->type == GGML_TYPE_I8 &&
+                   ggml_is_contiguous(src0) && ggml_is_contiguous(op) &&
+                   group_size > 0 && group_size <= 256 && src0->ne[0] % group_size == 0;
+        }
         case GGML_OP_SOFT_MAX_BACK: {
             if (op->src[0]->type != GGML_TYPE_F32 || op->src[1]->type != GGML_TYPE_F32) {
                 return false;
@@ -462,12 +493,15 @@ static bool ggml_backend_cpu_device_supports_op(ggml_backend_dev_t dev, const st
             return max_bias == 0.0f;
         }
         case GGML_OP_IM2COL_BACK:
-            return src0->type == GGML_TYPE_F32 && src1->type == GGML_TYPE_F32;
+            return src0->type == GGML_TYPE_F32 && (src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);
         case GGML_OP_GET_ROWS_BACK:
             return src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16;
         case GGML_OP_OUT_PROD:
-            return (src0->type == GGML_TYPE_F32 || (ggml_is_quantized(src0->type) && src0->ne[2] == src1->ne[2] && src0->ne[3] == src1->ne[3])) &&
+            return (src0->type == GGML_TYPE_F32 ||
+                    ((src0->type == GGML_TYPE_F16 || ggml_is_quantized(src0->type)) && src0->ne[2] == src1->ne[2] && src0->ne[3] == src1->ne[3])) &&
                 src1->type == GGML_TYPE_F32 && op->type == GGML_TYPE_F32;
+        case GGML_OP_CONV_2D:
+            return ggml_is_contiguous(op->src[0]);
         default:
             return true;
     }
@@ -593,6 +627,9 @@ static ggml_backend_feature * ggml_backend_cpu_get_features(ggml_backend_reg_t r
         }
         if (ggml_cpu_has_sme()) {
             features.push_back({ "SME", "1" });
+        }
+        if (ggml_cpu_has_sme2()) {
+            features.push_back({ "SME2", "1" });
         }
         if (ggml_cpu_has_riscv_v()) {
             features.push_back({ "RISCV_V", "1" });

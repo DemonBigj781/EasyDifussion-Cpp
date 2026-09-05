@@ -90,8 +90,12 @@ struct CommandLineArgs {
     std::string codeformer_models_path;
     std::string embeddings_dir;
     std::string controlnet_dir;
+    std::string control_net_sd1_path;
+    std::string control_net_sdxl_path;
     std::string text_encoder_dir;
     bool image_vae_on_cpu = false;
+    bool no_half = false;
+    bool no_half_vae = false;
     bool vae_tiling = false;
     std::string vae_tile_size;
     int vae_tiles = 32;
@@ -106,6 +110,7 @@ struct CommandLineArgs {
     std::string max_vram;
     bool stream_layers = false;
     bool cuda_malloc = false;
+    bool cuda_unified_memory = false;
     bool xformers_compat = false;
     bool control_net_cpu = false;
     bool image_clip_on_cpu = false;
@@ -137,8 +142,12 @@ void print_usage(const char* program_name) {
     std::cerr << "  --codeformer-models-path <path>    Codeformer models directory" << std::endl;
     std::cerr << "  --embeddings-dir <path>            Embeddings directory" << std::endl;
     std::cerr << "  --controlnet-dir <path>            ControlNet models directory" << std::endl;
+    std::cerr << "  --control-net-sd1-path <path>      Uni-ControlNet weights for automatic SD1.x routing" << std::endl;
+    std::cerr << "  --control-net-sdxl-path <path>     ControlNet Union weights for automatic SDXL routing" << std::endl;
     std::cerr << "  --text-encoder-dir <path>          Text encoder models directory" << std::endl;
     std::cerr << "  --image-vae-on-cpu                 Keep image-generation VAE on CPU (default: false)" << std::endl;
+    std::cerr << "  --no-half                          Force all model weights to F32 (high memory use)" << std::endl;
+    std::cerr << "  --no-half-vae                      Force VAE weights to F32" << std::endl;
     std::cerr << "  --vae-tiling                       Enable VAE tiling (default: false)" << std::endl;
     std::cerr << "  --vae-tile-size <size>             VAE tile size (in pixels), format [X]x[Y] (default: 256x256)"
               << std::endl;
@@ -158,6 +167,7 @@ void print_usage(const char* program_name) {
     std::cerr << "  --max-vram <GiB|assignments>       Graph VRAM budget, e.g. 6 or cuda=6,cpu=0" << std::endl;
     std::cerr << "  --stream-layers                   Stream model layers within the --max-vram budget" << std::endl;
     std::cerr << "  --cuda-malloc                     Use the flushable legacy cudaMalloc pool instead of CUDA VMM" << std::endl;
+    std::cerr << "  --cuda-unified-memory             Let CUDA spill allocations into system RAM (slow)" << std::endl;
     std::cerr << "  --control-net-cpu                  Keep ControlNet on CPU (default: false)" << std::endl;
     std::cerr << "  --image-clip-on-cpu                Keep image-generation text encoders on CPU (default: false)"
               << std::endl;
@@ -220,10 +230,18 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.embeddings_dir = argv[++i];
         } else if (arg == "--controlnet-dir" && i + 1 < argc) {
             args.controlnet_dir = argv[++i];
+        } else if (arg == "--control-net-sd1-path" && i + 1 < argc) {
+            args.control_net_sd1_path = argv[++i];
+        } else if (arg == "--control-net-sdxl-path" && i + 1 < argc) {
+            args.control_net_sdxl_path = argv[++i];
         } else if (arg == "--text-encoder-dir" && i + 1 < argc) {
             args.text_encoder_dir = argv[++i];
         } else if (arg == "--image-vae-on-cpu") {
             args.image_vae_on_cpu = true;
+        } else if (arg == "--no-half") {
+            args.no_half = true;
+        } else if (arg == "--no-half-vae") {
+            args.no_half_vae = true;
         } else if (arg == "--vae-tiling") {
             args.vae_tiling = true;
         } else if (arg == "--vae-tile-size" && i + 1 < argc) {
@@ -268,6 +286,8 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.stream_layers = true;
         } else if (arg == "--cuda-malloc") {
             args.cuda_malloc = true;
+        } else if (arg == "--cuda-unified-memory") {
+            args.cuda_unified_memory = true;
         } else if (arg == "--control-net-cpu") {
             args.control_net_cpu = true;
         } else if (arg == "--image-clip-on-cpu") {
@@ -308,6 +328,10 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
         std::cerr << "--vae-tiled-overlap must be between 0 and half of --vae-tiles" << std::endl;
         exit(1);
     }
+    if (args.control_net_sd1_path.empty() != args.control_net_sdxl_path.empty()) {
+        std::cerr << "--control-net-sd1-path and --control-net-sdxl-path must be set together" << std::endl;
+        exit(1);
+    }
     if (!args.convert_model.empty() && args.convert_output.empty()) {
         std::cerr << "--convert-output is required with --convert-model" << std::endl;
         exit(1);
@@ -329,6 +353,13 @@ int main(int argc, char* argv[]) {
         _putenv_s("GGML_CUDA_FORCE_MALLOC", "1");
 #else
         setenv("GGML_CUDA_FORCE_MALLOC", "1", 1);
+#endif
+    }
+    if (args.cuda_unified_memory) {
+#ifdef _WIN32
+        _putenv_s("GGML_CUDA_ENABLE_UNIFIED_MEMORY", "1");
+#else
+        setenv("GGML_CUDA_ENABLE_UNIFIED_MEMORY", "1", 1);
 #endif
     }
 
@@ -361,7 +392,15 @@ int main(int argc, char* argv[]) {
     if (args.cuda_malloc) {
         LOG_INFO("CUDA legacy malloc pool enabled (VMM scratch pool disabled)");
     }
+    if (args.cuda_unified_memory) {
+        LOG_WARNING("CUDA unified memory enabled: allocations may spill into system RAM and run much slower");
+    }
     if (args.xformers_compat) {
+#ifdef _WIN32
+        _putenv_s("SD_CUDA_XFORMERS", "1");
+#else
+        setenv("SD_CUDA_XFORMERS", "1", 1);
+#endif
         LOG_INFO("--xformers enabled native fused C++/CUDA memory-efficient attention");
     }
     if (args.sage_attention) {
@@ -419,6 +458,8 @@ int main(int argc, char* argv[]) {
         server_params.port = args.port;
         server_params.model_manager = model_manager;
         server_params.image_vae_on_cpu = args.image_vae_on_cpu;
+        server_params.no_half = args.no_half;
+        server_params.no_half_vae = args.no_half_vae;
         server_params.vae_tiling = args.vae_tiling;
         server_params.vae_tile_size = args.vae_tile_size;
         server_params.vae_tiles = args.vae_tiles;
@@ -433,6 +474,8 @@ int main(int argc, char* argv[]) {
         server_params.max_vram = args.max_vram;
         server_params.stream_layers = args.stream_layers;
         server_params.control_net_cpu = args.control_net_cpu;
+        server_params.control_net_sd1_path = args.control_net_sd1_path;
+        server_params.control_net_sdxl_path = args.control_net_sdxl_path;
         server_params.image_clip_on_cpu = args.image_clip_on_cpu;
         server_params.video_clip_on_cpu = args.video_clip_on_cpu;
         server_params.video_vae_on_cpu = args.video_vae_on_cpu;

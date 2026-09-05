@@ -1,4 +1,4 @@
-﻿#ifndef __SD_MODEL_DIFFUSION_CONTROL_HPP__
+#ifndef __SD_MODEL_DIFFUSION_CONTROL_HPP__
 #define __SD_MODEL_DIFFUSION_CONTROL_HPP__
 
 #include "model/common/block.hpp"
@@ -8,7 +8,7 @@
 // SDXL ControlNets contain deep transformer stacks and exceed the original
 // SD1.x-sized graph allocation. Keep enough headroom for full SDXL models and
 // weight-adapter graph expansion without paying the full UNet graph overhead.
-#define CONTROL_NET_GRAPH_SIZE 32768
+#define CONTROL_NET_GRAPH_SIZE MAX_GRAPH_SIZE
 
 // Xinsir's ControlNet Union adds a small CLIP-style transformer in front of
 // the otherwise standard SDXL ControlNet.  Keep the implementation local to
@@ -372,7 +372,6 @@ struct UniControlGlobalAdapter : public GGMLRunner {
         return restore_trailing_singleton_dims(sd::make_sd_tensor_from_ggml<float>(output_ggml), 3);
     }
 };
-
 /*
     =================================== ControlNet ===================================
     Reference: https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/cldm/cldm.py

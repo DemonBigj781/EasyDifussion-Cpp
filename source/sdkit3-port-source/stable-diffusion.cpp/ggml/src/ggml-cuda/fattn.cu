@@ -3,8 +3,8 @@
 #include "fattn-mma-f16.cuh"
 #include "fattn-tile.cuh"
 #include "fattn-vec.cuh"
-#include "fattn-wmma-f16.cuh"
 #include "sage/sage-attention-sm80.cuh"
+#include "../../../../../API.cpp/cuda/attention/xformers/xformers-attention.cuh"
 #include "fattn.cuh"
 
 template <int DKQ, int DV, int ncols2>
@@ -100,12 +100,12 @@ static void ggml_cuda_flash_attn_ext_mma_f16_switch_ncols2(ggml_backend_cuda_con
         return;
     }
 
-    if constexpr (DKQ <= 256) {
-        if (use_gqa_opt && gqa_ratio > 1) {
-            ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1<DKQ, DV, 2>(ctx, dst);
-            return;
-        }
+    if (use_gqa_opt && gqa_ratio > 1) {
+        ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1<DKQ, DV, 2>(ctx, dst);
+        return;
+    }
 
+    if constexpr (DKQ <= 256) {
         ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1<DKQ, DV, 1>(ctx, dst);
     } else {
         GGML_ABORT("fatal error");
@@ -331,13 +331,33 @@ static void ggml_cuda_flash_attn_ext_vec(ggml_backend_cuda_context & ctx, ggml_t
 
 // Best FlashAttention kernel for a specific GPU:
 enum best_fattn_kernel {
-    BEST_FATTN_KERNEL_NONE     =   0,
-    BEST_FATTN_KERNEL_TILE     = 200,
-    BEST_FATTN_KERNEL_VEC      = 100,
-    BEST_FATTN_KERNEL_WMMA_F16 = 300,
-    BEST_FATTN_KERNEL_MMA_F16  = 400,
-    BEST_FATTN_KERNEL_SAGE_SM80 = 500,
+    BEST_FATTN_KERNEL_NONE       =   0,
+    BEST_FATTN_KERNEL_VEC        = 100,
+    BEST_FATTN_KERNEL_TILE       = 200,
+    BEST_FATTN_KERNEL_MMA_F16    = 400,
+    BEST_FATTN_KERNEL_SAGE_SM80  = 500,
+    BEST_FATTN_KERNEL_XFORMERS   = 600,
 };
+
+static bool ggml_cuda_fattn_kv_type_supported(ggml_type type) {
+    switch (type) {
+        case GGML_TYPE_F32:
+        case GGML_TYPE_F16:
+            return true;
+        case GGML_TYPE_Q4_1:
+        case GGML_TYPE_Q5_0:
+        case GGML_TYPE_Q5_1:
+#ifndef GGML_CUDA_FA_ALL_QUANTS
+            return false;
+#endif // GGML_CUDA_FA_ALL_QUANTS
+        case GGML_TYPE_Q4_0:
+        case GGML_TYPE_Q8_0:
+        case GGML_TYPE_BF16:
+            return true;
+        default:
+            return false;
+    }
+}
 
 static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const ggml_tensor * dst) {
 #ifndef FLASH_ATTN_AVAILABLE
@@ -350,6 +370,15 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
     const ggml_tensor * K     = dst->src[1];
     const ggml_tensor * V     = dst->src[2];
     const ggml_tensor * mask  = dst->src[3];
+
+    // --xformers is process-global in the native server. Prefer its complete
+    // GGML_OP_FLASH_ATTN_EXT forward path when requested, then fall through to
+    // Sage/ggml FlashAttention whenever the tensor contract is unsupported.
+    const char * xformers_env = std::getenv("SD_CUDA_XFORMERS");
+    if (xformers_env != nullptr && xformers_env[0] == '1' &&
+        ggml_cuda_xformers_attn_supported(device, dst)) {
+        return BEST_FATTN_KERNEL_XFORMERS;
+    }
 
     if (ggml_flash_attn_ext_get_sage_attn(dst) && ggml_cuda_sage_attn_sm80_supported(device, dst)) {
         return BEST_FATTN_KERNEL_SAGE_SM80;
@@ -433,22 +462,8 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
     }
 #endif // GGML_CUDA_FA_ALL_QUANTS
 
-    switch (K->type) {
-        case GGML_TYPE_F32:
-        case GGML_TYPE_F16:
-            break;
-        case GGML_TYPE_Q4_1:
-        case GGML_TYPE_Q5_0:
-        case GGML_TYPE_Q5_1:
-#ifndef GGML_CUDA_FA_ALL_QUANTS
-            return BEST_FATTN_KERNEL_NONE;
-#endif // GGML_CUDA_FA_ALL_QUANTS
-        case GGML_TYPE_Q4_0:
-        case GGML_TYPE_Q8_0:
-        case GGML_TYPE_BF16:
-            break;
-        default:
-            return BEST_FATTN_KERNEL_NONE;
+    if (!ggml_cuda_fattn_kv_type_supported(K->type) || !ggml_cuda_fattn_kv_type_supported(V->type)) {
+        return BEST_FATTN_KERNEL_NONE;
     }
 
     if (mask && mask->ne[2] != 1) {
@@ -498,14 +513,6 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
             return BEST_FATTN_KERNEL_TILE; // On Volta tensor cores are only faster for sufficiently large matrices.
         }
         return BEST_FATTN_KERNEL_MMA_F16;
-    }
-
-    // Use the WMMA kernel if possible:
-    if (ggml_cuda_should_use_wmma_fattn(cc) && K->ne[1] % FATTN_KQ_STRIDE == 0 && Q->ne[0] != 40 && Q->ne[0] != 72 && Q->ne[0] != 192 && Q->ne[0] != 512 && Q->ne[0] != 576) {
-        if (can_use_vector_kernel && Q->ne[1] <= 2) {
-            return BEST_FATTN_KERNEL_VEC;
-        }
-        return BEST_FATTN_KERNEL_WMMA_F16;
     }
 
     // AMD MFMA needs a certain minimum batch size to outscale the tile kernel for large head sizes.
@@ -559,12 +566,12 @@ size_t ggml_cuda_flash_attn_ext_get_alloc_size(int device, const ggml_tensor * d
 
     switch (kernel) {
         case BEST_FATTN_KERNEL_TILE:
-        case BEST_FATTN_KERNEL_WMMA_F16:
         case BEST_FATTN_KERNEL_MMA_F16:
             need_f16_K = true;
             need_f16_V = true;
             break;
         case BEST_FATTN_KERNEL_SAGE_SM80:
+        case BEST_FATTN_KERNEL_XFORMERS:
             break;
         case BEST_FATTN_KERNEL_VEC:
             need_f16_K = K->type == GGML_TYPE_F32;
@@ -591,14 +598,14 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
         case BEST_FATTN_KERNEL_VEC:
             ggml_cuda_flash_attn_ext_vec(ctx, dst);
             break;
-        case BEST_FATTN_KERNEL_WMMA_F16:
-            ggml_cuda_flash_attn_ext_wmma_f16(ctx, dst);
-            break;
         case BEST_FATTN_KERNEL_MMA_F16:
             ggml_cuda_flash_attn_ext_mma_f16(ctx, dst);
             break;
         case BEST_FATTN_KERNEL_SAGE_SM80:
             ggml_cuda_sage_attn_sm80(ctx, dst);
+            break;
+        case BEST_FATTN_KERNEL_XFORMERS:
+            ggml_cuda_xformers_attn(ctx, dst);
             break;
     }
 }

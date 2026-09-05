@@ -103,6 +103,15 @@ if (CUDAToolkit_FOUND)
     list(APPEND GGML_HEADERS_CUDA "../../include/ggml-cuda.h")
 
     file(GLOB   GGML_SOURCES_CUDA "*.cu")
+    # The upstream WMMA dispatcher was retired in favor of the current MMA
+    # implementations. Keep the old source in this de-gitted snapshot for
+    # provenance, but do not pull it back into the build through the glob.
+    list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "fattn-wmma-f16\\.cu$")
+    # Keep the optional xFormers-compatible implementation in API.cpp while
+    # compiling it into the regular ggml CUDA backend. Runtime dispatch is
+    # gated by SD_CUDA_XFORMERS and falls back for unsupported tensor layouts.
+    list(APPEND GGML_SOURCES_CUDA
+        "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/cuda/attention/xformers/xformers-attention.cu")
     # SageAttention's SM80 source is kept in its own Apache-2.0 attributed
     # directory and uses a native ggml launcher (no PyTorch dependency).
     list(APPEND GGML_SOURCES_CUDA sage/sage-attention-sm80.cu)
@@ -131,6 +140,13 @@ if (CUDAToolkit_FOUND)
                              ${GGML_HEADERS_CUDA}
                              ${GGML_SOURCES_CUDA}
                             )
+
+    if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL "11.8")
+        target_compile_definitions(ggml-cuda PRIVATE GGML_CUDA_USE_CUBLASLT_FP8)
+        if (NOT GGML_STATIC OR WIN32)
+            target_link_libraries(ggml-cuda PRIVATE CUDA::cublasLt)
+        endif()
+    endif()
 
     add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${GGML_CUDA_PEER_MAX_BATCH_SIZE})
 

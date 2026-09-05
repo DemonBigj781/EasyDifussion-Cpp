@@ -126,9 +126,11 @@ static json make_img_gen_defaults_json(const SDGenerationParams& defaults, const
         {"strength", defaults.strength},
         {"seed", defaults.seed},
         {"batch_count", defaults.batch_count},
+        {"qwen_image_layers", defaults.qwen_image_layers},
         {"auto_resize_ref_image", defaults.auto_resize_ref_image},
         {"increase_ref_index", defaults.increase_ref_index},
         {"control_strength", defaults.control_strength},
+        {"ip_adapter_strength", defaults.ip_adapter_strength},
         {"sample_params", make_sample_params_json(defaults.sample_params, defaults.skip_layers)},
         {"hires", make_hires_json(defaults)},
         {"vae_tiling_params", make_vae_tiling_json(defaults.vae_tiling_params)},
@@ -172,6 +174,7 @@ static json make_img_gen_features_json() {
         {"init_image", true},
         {"mask_image", true},
         {"control_image", true},
+        {"ip_adapter_image", true},
         {"ref_images", true},
         {"lora", true},
         {"vae_tiling", true},
@@ -219,6 +222,9 @@ static json make_capabilities_json(ServerRuntime& runtime) {
 
     for (int i = 0; i < SCHEDULER_COUNT; ++i) {
         schedulers.push_back(sd_scheduler_name((scheduler_t)i));
+        if (i == DISCRETE_SCHEDULER) {
+            schedulers.push_back("normal");
+        }
     }
 
     {

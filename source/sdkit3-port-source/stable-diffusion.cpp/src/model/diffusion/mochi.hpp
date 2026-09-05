@@ -348,7 +348,7 @@ public:
             }
         }
         x = std::dynamic_pointer_cast<MochiFinalLayer>(blocks["final_layer"])->forward(ctx, x, c);
-        x = DiT::unpatchify(ctx->ggml_ctx, x, t, h, w, 1, 2, 2);
+        x = DiT::unpatchify_3d(ctx->ggml_ctx, x, t, h, w, 1, 2, 2);
 
         // genmo/mochi predicts z0-epsilon; the core FLOW denoiser consumes epsilon-z0.
         return ggml_neg(ctx->ggml_ctx, x);
