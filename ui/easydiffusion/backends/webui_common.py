@@ -4,7 +4,7 @@ from requests.exceptions import ConnectTimeout, ConnectionError, ReadTimeout
 from typing import Union, List
 from threading import local as Context
 from threading import local
-from threading import Thread
+from threading import Event, Thread
 import uuid
 import time
 from copy import deepcopy
@@ -463,15 +463,36 @@ def generate_images(
 
     stream_image_progress = webui_opts.get("live_previews_enable", False)
 
-    progress_thread = Thread(
-        target=image_progress_thread, args=(task_id, callback, stream_image_progress, num_outputs, num_inference_steps)
-    )
-    progress_thread.start()
+    progress_stop = Event()
+    progress_thread = None
+    if callback is not None:
+        progress_thread = Thread(
+            target=image_progress_thread,
+            args=(
+                task_id,
+                callback,
+                stream_image_progress,
+                num_outputs,
+                num_inference_steps,
+                progress_stop,
+            ),
+            daemon=True,
+        )
+        progress_thread.start()
 
     print(f"task id: {task_id}")
     print_request(operation_to_apply, cmd)
 
-    res = webui_post(f"/sdapi/v1/{operation_to_apply}", json=cmd)
+    try:
+        res = webui_post(f"/sdapi/v1/{operation_to_apply}", json=cmd)
+    finally:
+        if progress_thread is not None:
+            # The native task is marked complete before the blocking generation
+            # response returns, so normally the poller exits during this join.
+            # A backend crash/reload must not leave an orphan polling thread.
+            progress_thread.join(timeout=1.5)
+            progress_stop.set()
+            progress_thread.join(timeout=2.5)
     if res.status_code == 200:
         res = res.json()
     else:
@@ -759,7 +780,14 @@ def controlnet_filter(images, module="none", processor_res=512, threshold_a=64, 
     return filtered_images
 
 
-def image_progress_thread(task_id, callback, stream_image_progress, total_images, total_steps):
+def image_progress_thread(
+    task_id,
+    callback,
+    stream_image_progress,
+    total_images,
+    total_steps,
+    stop_event=None,
+):
     from PIL import Image
 
     last_preview_id = -1
@@ -768,54 +796,81 @@ def image_progress_thread(task_id, callback, stream_image_progress, total_images
 
     EMPTY_IMAGE = Image.new("RGB", (1, 1))
 
-    while True:
-        res = webui_post(
-            f"/internal/progress",
-            json={"id_task": task_id, "live_preview": stream_image_progress, "id_live_preview": last_preview_id},
-        )
-        if res.status_code == 200:
-            res = res.json()
-        elif res.status_code == 404:
-            time.sleep(0.5)
-            continue
-        else:
-            raise RuntimeError(f"Unexpected progress response. Status code: {res.status_code}. Res: {res.text}")
+    stop_event = stop_event or Event()
+    progress_url = f"http://{WEBUI_HOST}:{WEBUI_PORT}{WEBUI_API_PREFIX}/internal/progress"
 
-        last_preview_id = res["id_live_preview"]
+    # Reuse one connection for the lifetime of the render. Opening a new HTTP
+    # session for every poll can exhaust Crow's worker/keep-alive slots, which
+    # makes UI step updates stop even while native sampling continues.
+    with requests.Session() as progress_session:
+        while not stop_event.is_set():
+            try:
+                response = progress_session.post(
+                    progress_url,
+                    json={
+                        "id_task": task_id,
+                        "live_preview": stream_image_progress,
+                        "id_live_preview": last_preview_id,
+                    },
+                    timeout=(2, 2),
+                )
+            except (ConnectTimeout, ConnectionError, ReadTimeout):
+                if stop_event.wait(0.5):
+                    return
+                continue
 
-        if res["progress"] is not None:
-            backend_total_steps = int(res.get("total_steps") or 0)
-            if backend_total_steps > 0:
-                reported_total_steps = backend_total_steps
-            backend_step = res.get("current_step")
-            if backend_step is None:
-                step_num = int(round(res["progress"] * reported_total_steps))
+            if response.status_code == 200:
+                res = response.json()
+            elif response.status_code == 404:
+                if stop_event.wait(0.5):
+                    return
+                continue
             else:
-                step_num = int(backend_step)
-            step_num = max(0, min(reported_total_steps, step_num))
+                log.warning(
+                    "Unexpected native progress response %s: %s",
+                    response.status_code,
+                    response.text,
+                )
+                if stop_event.wait(0.5):
+                    return
+                continue
 
-            if res["live_preview"]:
-                img = res["live_preview"]
-                img = base64_str_to_img(img)
-                images = [EMPTY_IMAGE] * total_images
-                images[0] = img
-            else:
-                images = None
+            last_preview_id = res["id_live_preview"]
 
-            # The progress endpoint is polled more often than many samplers
-            # advance. Do not flood Easy Diffusion with duplicate JSON events,
-            # but keep a new live preview even when the step did not change.
-            if step_num != last_step or images is not None:
-                callback(images, step_num)
-                last_step = step_num
+            if res["progress"] is not None:
+                backend_total_steps = int(res.get("total_steps") or 0)
+                if backend_total_steps > 0:
+                    reported_total_steps = backend_total_steps
+                backend_step = res.get("current_step")
+                if backend_step is None:
+                    step_num = int(round(res["progress"] * reported_total_steps))
+                else:
+                    step_num = int(backend_step)
+                step_num = max(0, min(reported_total_steps, step_num))
 
-        if res["completed"] == True:
-            if last_step < reported_total_steps:
-                callback(None, reported_total_steps)
-            print("Complete!")
-            break
+                if res["live_preview"]:
+                    img = res["live_preview"]
+                    img = base64_str_to_img(img)
+                    images = [EMPTY_IMAGE] * total_images
+                    images[0] = img
+                else:
+                    images = None
 
-        time.sleep(0.5)
+                # The progress endpoint is polled more often than many samplers
+                # advance. Do not flood Easy Diffusion with duplicate JSON events,
+                # but keep a new live preview even when the step did not change.
+                if step_num != last_step or images is not None:
+                    callback(images, step_num)
+                    last_step = step_num
+
+            if res["completed"] == True:
+                if last_step < reported_total_steps:
+                    callback(None, reported_total_steps)
+                print("Complete!")
+                return
+
+            if stop_event.wait(0.5):
+                return
 
 
 def webui_get(uri, *args, **kwargs):

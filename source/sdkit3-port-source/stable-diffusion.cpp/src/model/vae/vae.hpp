@@ -103,12 +103,20 @@ protected:
         }
     }
 
-    static inline void scale_tensor_to_0_1(sd::Tensor<float>* tensor) {
+    static inline bool scale_tensor_to_0_1(sd::Tensor<float>* tensor) {
         GGML_ASSERT(tensor != nullptr);
         for (int64_t i = 0; i < tensor->numel(); ++i) {
-            float value  = ((*tensor)[i] + 1.0f) * 0.5f;
+            float value = ((*tensor)[i] + 1.0f) * 0.5f;
+            // std::min(1.0f, NaN) evaluates to 1.0f with the usual comparator,
+            // which used to turn a failed VAE decode into a solid white image.
+            // Preserve failure here so decode_first_stage can try tiled decode
+            // and the caller can fall back to a CPU VAE when necessary.
+            if (!std::isfinite(value)) {
+                return false;
+            }
             (*tensor)[i] = std::max(0.0f, std::min(1.0f, value));
         }
+        return true;
     }
 
     sd::Tensor<float> tiled_compute(const sd::Tensor<float>& input,
@@ -323,8 +331,9 @@ public:
             }
             return {};
         }
-        if (scale_input) {
-            scale_tensor_to_0_1(&output);
+        if (scale_input && !scale_tensor_to_0_1(&output)) {
+            LOG_ERROR("VAE decode produced non-finite pixels");
+            return {};
         }
         int64_t t1 = ggml_time_ms();
         LOG_DEBUG("computing vae decode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
