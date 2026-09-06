@@ -1,5 +1,11 @@
 const PLUGIN_API_VERSION = "1.0"
 
+const firstLoadTabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+if (firstLoadTabContainer) {
+    firstLoadTabContainer.dataset.firstLoadPending = "true"
+    firstLoadTabContainer.style.visibility = "hidden"
+}
+
 const PLUGIN_CATALOG = 'https://raw.githubusercontent.com/easydiffusion/easydiffusion-plugins/main/plugins.json'
 const PLUGIN_CATALOG_GITHUB = 'https://github.com/easydiffusion/easydiffusion-plugins/blob/main/plugins.json'
 
@@ -137,6 +143,18 @@ const FIRST_LOAD_OPTIONAL_TAB_PLUGIN_IDS = new Set([
     "perchance-gallery",
     "storyteller",
 ])
+
+const FIRST_LOAD_TAB_ORDER = [
+    "main",
+    "settings",
+    "plugin",
+    "merge",
+    "image-editor-page",
+    "perchance",
+    "perchance-gallery",
+    "civitai",
+    "gallery",
+]
 
 // Local legacy plugins are installed with the application but remain opt-in.
 // Most of them predate a plugin lifecycle API, so enabling is live while
@@ -358,16 +376,84 @@ function createLocalPluginManagerTab() {
     })
 }
 
+function expectedFirstLoadTabIds() {
+    const expected = FIRST_LOAD_TAB_ORDER.filter((id) => (
+        id !== "perchance-gallery" || enabledOptionalUIPluginIds.has("perchance-gallery")
+    ))
+    if (enabledOptionalUIPluginIds.has("storyteller")) expected.push("storyteller")
+    return expected
+}
+
+function stabilizeFirstLoadTabOrder() {
+    const tabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+    const contentWrapper = document.getElementById("tab-content-wrapper")
+    if (!tabContainer || !contentWrapper) return
+
+    const knownTabs = new Set(FIRST_LOAD_TAB_ORDER.map((id) => `tab-${id}`))
+    const knownContents = new Set(FIRST_LOAD_TAB_ORDER.map((id) => `tab-content-${id}`))
+    const extraTabs = Array.from(tabContainer.children).filter((tab) => !knownTabs.has(tab.id))
+    const extraContents = Array.from(contentWrapper.children).filter((content) => !knownContents.has(content.id))
+    FIRST_LOAD_TAB_ORDER.forEach((id) => {
+        const tab = document.getElementById(`tab-${id}`)
+        const content = document.getElementById(`tab-content-${id}`)
+        if (tab) tabContainer.appendChild(tab)
+        if (content) contentWrapper.appendChild(content)
+    })
+    extraTabs.forEach((tab) => tabContainer.appendChild(tab))
+    extraContents.forEach((content) => contentWrapper.appendChild(content))
+}
+
+function waitForFirstLoadTabs(timeoutMs = 10_000) {
+    const tabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+    const expected = expectedFirstLoadTabIds()
+    if (!tabContainer) return Promise.resolve()
+
+    return new Promise((resolve) => {
+        let settled = false
+        let observer
+        let timeout
+        const finish = () => {
+            if (settled) return
+            settled = true
+            observer?.disconnect()
+            clearTimeout(timeout)
+            stabilizeFirstLoadTabOrder()
+            resolve()
+        }
+        const check = () => {
+            const ready = expected.every((id) => document.getElementById(`tab-${id}`))
+            const editorTab = document.getElementById("tab-image-editor-page")
+            if (ready && editorTab?.dataset.swappedWithGallery === "true") finish()
+        }
+        observer = new MutationObserver(check)
+        observer.observe(tabContainer, { childList: true })
+        timeout = setTimeout(finish, timeoutMs)
+        check()
+    })
+}
+
+function revealFirstLoadTabs() {
+    const tabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+    if (!tabContainer) return
+    delete tabContainer.dataset.firstLoadPending
+    tabContainer.style.removeProperty("visibility")
+}
+
 async function loadFirstLoadUITabs() {
-    for (const plugin of REQUIRED_UI_PLUGINS) {
-        if (FIRST_LOAD_TAB_PLUGINS.has(plugin)) {
-            await loadScript(plugin)
+    try {
+        for (const plugin of REQUIRED_UI_PLUGINS) {
+            if (FIRST_LOAD_TAB_PLUGINS.has(plugin)) {
+                await loadScript(plugin)
+            }
         }
-    }
-    for (const plugin of OPTIONAL_UI_PLUGINS) {
-        if (FIRST_LOAD_OPTIONAL_TAB_PLUGIN_IDS.has(plugin.id) && enabledOptionalUIPluginIds.has(plugin.id)) {
-            await loadOptionalUIPlugin(plugin)
+        for (const plugin of OPTIONAL_UI_PLUGINS) {
+            if (FIRST_LOAD_OPTIONAL_TAB_PLUGIN_IDS.has(plugin.id) && enabledOptionalUIPluginIds.has(plugin.id)) {
+                await loadOptionalUIPlugin(plugin)
+            }
         }
+        await waitForFirstLoadTabs()
+    } finally {
+        revealFirstLoadTabs()
     }
 }
 

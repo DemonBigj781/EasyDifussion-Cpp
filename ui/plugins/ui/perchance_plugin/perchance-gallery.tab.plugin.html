@@ -5,6 +5,17 @@
         <a data-perchance-release hidden target="_blank" rel="noopener" style="font-size:11px;"></a>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;align-items:end;">
+        <label style="font-size:12px;grid-column:1 / -1;">Saved gallery preset
+            <span style="display:flex;gap:6px;align-items:stretch;">
+                <select id="perchance-generator-gallery-preset" style="display:block;min-width:0;flex:1 1 auto;width:100%;">
+                    <option value="">Custom settings</option>
+                </select>
+                <button id="perchance-generator-gallery-delete-preset-button" type="button" class="tertiaryButton" disabled>Delete</button>
+            </span>
+        </label>
+        <label style="font-size:12px;">Preset name
+            <input id="perchance-generator-gallery-preset-name" type="text" maxlength="80" spellcheck="false" style="display:block;width:100%;" placeholder="Name this ID + channel">
+        </label>
         <label style="font-size:12px;">Gallery image ID or URL
             <input id="perchance-generator-gallery-id" type="text" spellcheck="false" style="display:block;width:100%;" placeholder="Image ID or supported URL">
         </label>
@@ -22,7 +33,15 @@
             </select>
         </label>
         <label style="font-size:12px;">Time range
-            <input id="perchance-generator-gallery-time-range" type="text" placeholder="CLI default" style="display:block;width:100%;">
+            <select id="perchance-generator-gallery-time-range" style="display:block;width:100%;">
+                <option value="">AppImage default</option>
+                <option value="1-day">Past 24 hours</option>
+                <option value="3-day">Past 3 days</option>
+                <option value="1-week">Past week</option>
+                <option value="1-month">Past month</option>
+                <option value="1-year">Past year</option>
+                <option value="all-time">All time</option>
+            </select>
         </label>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:12px;">
@@ -30,7 +49,7 @@
         <label><input id="perchance-generator-gallery-visible" type="checkbox"> Show browser</label>
     </div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
-        <button id="perchance-generator-gallery-save-button" class="secondaryButton" data-perchance-action>Save ID + Channel</button>
+        <button id="perchance-generator-gallery-save-button" type="button" class="secondaryButton">Save Preset</button>
         <button id="perchance-generator-gallery-list-button" class="primaryButton" data-perchance-action>List Gallery</button>
         <button id="perchance-generator-gallery-get-button" class="primaryButton" data-perchance-action>Get Image</button>
     </div>

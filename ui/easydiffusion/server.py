@@ -609,8 +609,11 @@ def ping_internal(session_id: str = None):
     response = {"status": str(task_manager.current_state)}
 
     if session_id:
-        session = task_manager.get_cached_session(session_id, update_ttl=True)
-        response["tasks"] = {id(t): t.status for t in session.tasks}
+        # Merely opening or reloading the UI must not allocate a server-side
+        # session that remains cached until TASK_TTL. Sessions are created when
+        # the client actually queues work.
+        session = task_manager.get_cached_session(session_id, update_ttl=True, create=False)
+        response["tasks"] = {id(t): t.status for t in session.tasks} if session else {}
 
     response["devices"] = task_manager.get_devices()
     response["packages_installed"] = package_manager.get_installed_packages()

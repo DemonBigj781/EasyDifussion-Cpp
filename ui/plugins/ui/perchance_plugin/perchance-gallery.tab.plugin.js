@@ -28,11 +28,13 @@
     }
 
     function attach() {
-        const host = core.ensureTab("perchance-gallery", "Perchance Gallery", "fa-images")
+        const host = core.ensureTab("perchance-gallery", "Perchance Gallery", "fa-globe")
         if (!host) return false
         host.innerHTML = window.loadRequiredPluginHTML("/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.html")
         const settings = core.loadSettings()
         const fields = {
+            preset: core.element("gallery-preset"),
+            presetName: core.element("gallery-preset-name"),
             id: core.element("gallery-id"),
             channel: core.element("gallery-channel"),
             limit: core.element("gallery-limit"),
@@ -41,6 +43,20 @@
             download: core.element("gallery-download"),
             visible: core.element("gallery-visible"),
         }
+        let presets = Array.isArray(settings.galleryPresets)
+            ? settings.galleryPresets.filter((preset) => (
+                preset &&
+                typeof preset.id === "string" &&
+                typeof preset.name === "string" &&
+                typeof preset.galleryId === "string" &&
+                typeof preset.channel === "string"
+            )).map((preset) => ({
+                id: preset.id,
+                name: preset.name.slice(0, 80),
+                galleryId: preset.galleryId,
+                channel: preset.channel,
+            }))
+            : []
         fields.id.value = settings.galleryId || ""
         fields.channel.value = settings.galleryChannel || "ai-text-to-image-generator"
         fields.limit.value = settings.galleryLimit || "20"
@@ -49,8 +65,40 @@
         fields.download.checked = Boolean(settings.galleryDownload)
         fields.visible.checked = Boolean(settings.galleryVisible)
 
+        const deletePresetButton = core.element("gallery-delete-preset-button")
+
+        function selectedPreset() {
+            return presets.find((preset) => preset.id === fields.preset.value)
+        }
+
+        function renderPresets(selectedId = "") {
+            const customOption = document.createElement("option")
+            customOption.value = ""
+            customOption.textContent = "Custom settings"
+            fields.preset.replaceChildren(customOption)
+            presets.forEach((preset) => {
+                const option = document.createElement("option")
+                option.value = preset.id
+                option.textContent = preset.name
+                fields.preset.appendChild(option)
+            })
+            fields.preset.value = presets.some((preset) => preset.id === selectedId) ? selectedId : ""
+            deletePresetButton.disabled = !fields.preset.value
+        }
+
+        renderPresets(settings.galleryPresetId || "")
+        const initialPreset = selectedPreset()
+        fields.presetName.value = initialPreset?.name || settings.galleryPresetName || ""
+        if (initialPreset) {
+            fields.id.value = initialPreset.galleryId
+            fields.channel.value = initialPreset.channel
+        }
+
         function save() {
             core.saveSettings({
+                galleryPresetId: fields.preset.value,
+                galleryPresetName: fields.presetName.value,
+                galleryPresets: presets,
                 galleryId: fields.id.value,
                 galleryChannel: fields.channel.value,
                 galleryLimit: fields.limit.value,
@@ -60,9 +108,51 @@
                 galleryVisible: fields.visible.checked,
             })
         }
-        Object.values(fields).forEach((field) => {
+
+        function detachChangedPreset() {
+            const preset = selectedPreset()
+            if (preset && (
+                preset.galleryId !== fields.id.value ||
+                preset.channel !== fields.channel.value
+            )) {
+                fields.preset.value = ""
+                fields.presetName.value = ""
+                deletePresetButton.disabled = true
+            }
+            save()
+        }
+
+        ;[fields.id, fields.channel].forEach((field) => {
+            field.addEventListener("input", detachChangedPreset)
+            field.addEventListener("change", detachChangedPreset)
+        })
+        ;[fields.presetName, fields.limit, fields.sort, fields.range, fields.download, fields.visible].forEach((field) => {
             field.addEventListener("input", save)
             field.addEventListener("change", save)
+        })
+
+        fields.preset.addEventListener("change", () => {
+            const preset = selectedPreset()
+            if (preset) {
+                fields.presetName.value = preset.name
+                fields.id.value = preset.galleryId
+                fields.channel.value = preset.channel
+            } else {
+                fields.presetName.value = ""
+            }
+            deletePresetButton.disabled = !preset
+            save()
+        })
+
+        deletePresetButton.addEventListener("click", () => {
+            const preset = selectedPreset()
+            if (!preset) return
+            if (!window.confirm(`Delete gallery preset "${preset.name}"?`)) return
+            presets = presets.filter((candidate) => candidate.id !== preset.id)
+            fields.presetName.value = ""
+            renderPresets()
+            save()
+            core.setStatus(`Gallery preset "${preset.name}" deleted.`)
         })
 
         function payload() {
@@ -129,7 +219,7 @@
                     selectId.textContent = "Select ID"
                     selectId.addEventListener("click", () => {
                         fields.id.value = entry.imageId
-                        save()
+                        detachChangedPreset()
                     })
                     actions.appendChild(selectId)
                 }
@@ -152,16 +242,63 @@
                 buttons.forEach((button) => { button.disabled = false })
             }
         }
-        core.element("gallery-save-button").addEventListener("click", () => withBusy("Saving Perchance gallery settings…", async () => {
-            const data = await core.requestJson("/perchance/settings", {
-                gallery_id: fields.id.value.trim(),
-                channel: fields.channel.value.trim(),
-            })
-            fields.id.value = data.gallery_id || ""
-            fields.channel.value = data.channel || "ai-text-to-image-generator"
+        core.element("gallery-save-button").addEventListener("click", async (event) => {
+            const name = fields.presetName.value.trim()
+            const channel = fields.channel.value.trim()
+            if (!name) {
+                core.setStatus("Enter a name for this gallery preset.")
+                fields.presetName.focus()
+                return
+            }
+            if (!channel) {
+                core.setStatus("Enter a generator channel before saving the preset.")
+                fields.channel.focus()
+                return
+            }
+
+            let index = presets.findIndex((preset) => preset.id === fields.preset.value)
+            if (index < 0) {
+                index = presets.findIndex((preset) => preset.name.toLocaleLowerCase() === name.toLocaleLowerCase())
+            }
+            const presetId = index >= 0
+                ? presets[index].id
+                : `gallery-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+            const preset = {
+                id: presetId,
+                name,
+                galleryId: fields.id.value.trim(),
+                channel,
+            }
+            if (index >= 0) presets[index] = preset
+            else presets.push(preset)
+            fields.presetName.value = name
+            renderPresets(presetId)
             save()
-            core.setStatus("Perchance gallery ID and channel saved.")
-        }))
+
+            const button = event.currentTarget
+            button.disabled = true
+            core.setStatus(`Gallery preset "${name}" saved in this browser.`)
+            try {
+                const data = await core.requestJson("/perchance/settings", {
+                    gallery_id: preset.galleryId,
+                    channel: preset.channel,
+                })
+                fields.id.value = data.gallery_id || ""
+                fields.channel.value = data.channel || "ai-text-to-image-generator"
+                const savedIndex = presets.findIndex((candidate) => candidate.id === presetId)
+                presets[savedIndex] = {
+                    ...preset,
+                    galleryId: fields.id.value,
+                    channel: fields.channel.value,
+                }
+                save()
+                core.setStatus(`Gallery preset "${name}" saved and selected.`)
+            } catch (error) {
+                core.setStatus(`Gallery preset "${name}" was saved in this browser. Server settings were not updated: ${error.message}`)
+            } finally {
+                button.disabled = false
+            }
+        })
         core.element("gallery-list-button").addEventListener("click", () => withBusy("Loading Perchance gallery…", async () => {
             const data = await core.requestJson("/perchance/gallery/list", payload())
             const failures = await render(Array.isArray(data.entries) ? data.entries : [])
@@ -179,7 +316,7 @@
         }))
         core.initializePanel(host)
         core.requestJson("/perchance/status").then((data) => {
-            if (data.settings) {
+            if (data.settings && !selectedPreset()) {
                 fields.id.value = data.settings.gallery_id || fields.id.value
                 fields.channel.value = data.settings.channel || fields.channel.value
                 save()
