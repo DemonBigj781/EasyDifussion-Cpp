@@ -1324,8 +1324,8 @@ input::file-selector-button {
         box-sizing: border-box;
         background: linear-gradient(
             to bottom,
-            transparent 35px,
-            color-mix(in srgb, var(--background-color4) 80%, var(--background-color1)) 35px
+            color-mix(in srgb, var(--background-color4) 75%, var(--background-color1)) 0 35px,
+            color-mix(in srgb, var(--background-color4) 35%, var(--background-color1)) 35px
         );
         overflow: visible;
     }
