@@ -1,8 +1,8 @@
 # CUDA native-call inventory for xFormers
 
-Status: raw inventory. Do not derive normalized translation names from this file yet.
+Status: native inventory for the implemented CUDA paths. This is not the Common ABI.
 
-Purpose: record CUDA-native execution, memory, synchronization, datatype, math, launch, validation, and error primitives that may be required by an xFormers-compatible implementation. This file describes CUDA as CUDA; it does not define the future common translation vocabulary.
+Purpose: record CUDA-native execution, memory, synchronization, datatype, math, launch, validation, and error primitives used by xFormers-compatible implementations. This file describes CUDA as CUDA; the implemented backend-neutral contract lives in `../common/xformers.hpp`.
 
 ## Execution and compilation model
 
@@ -294,8 +294,13 @@ The full QK score matrix is not materialized.
 
 ## Current repository symbols to preserve in later comparison
 
+- `cuda/definition/gpu/xformers.hpp`
+- `cuda::definition::gpu::validate_*`
+- `cuda::definition::gpu::capabilities()`
+- the Common `Translation::forward` callback registered by `cuda/translation/gpu/forward.cu`
 - `ggml_cuda_xformers_attn_supported(...)`
 - `ggml_cuda_xformers_attn(...)`
+- `ggml_cuda_xformers_attn_launch_count()` (runtime-test observation only)
 - `xformers_forward_params`
 - `xformers_load<T>(...)`
 - `xformers_mea_forward_kernel(...)`
@@ -307,6 +312,11 @@ The full QK score matrix is not materialized.
 - `xformers_launch(...)`
 - `xformers_launch_v(...)`
 - `xformers_launch_kv(...)`
+
+The Common callback and `xformers_*` helpers form the sole CUDA backend
+implementation. The `ggml_cuda_*` functions are application-adapter entry
+points that translate `GGML_OP_FLASH_ATTN_EXT` into the Common request and
+observe launch counts for tests; they do not define a second capability set.
 
 ## Inventory gaps to fill from future CUDA implementations
 

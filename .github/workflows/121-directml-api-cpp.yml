@@ -3,7 +3,8 @@ name: '121 - DirectML API.cpp'
 "on":
   workflow_dispatch:
     inputs:
-      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Test, Vast AI']}
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
+      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Compile Test Code', 'Test, Vast AI']}
       vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
       vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
 
@@ -23,7 +24,13 @@ jobs:
           nuget install Microsoft.AI.DirectML -Version 1.15.4 -OutputDirectory $packageRoot -NonInteractive
           $header = Get-ChildItem $packageRoot -Recurse -File -Filter 'DirectML.h' | Select-Object -First 1
           if (-not $header) { throw 'Microsoft.AI.DirectML 1.15.4 did not contain DirectML.h' }
+          $library = Get-ChildItem $packageRoot -Recurse -File -Filter 'DirectML.lib' | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+          if (-not $library) { throw 'Microsoft.AI.DirectML 1.15.4 did not contain an x64 DirectML.lib' }
+          $runtime = Get-ChildItem $packageRoot -Recurse -File -Filter 'DirectML.dll' | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+          if (-not $runtime) { throw 'Microsoft.AI.DirectML 1.15.4 did not contain an x64 DirectML.dll' }
           "DIRECTML_INCLUDE=$($header.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "DIRECTML_LIBRARY_DIR=$($library.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "DIRECTML_RUNTIME=$($runtime.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Compile DirectML detect route
         shell: pwsh
         run: |
@@ -37,6 +44,26 @@ jobs:
           & cl @flags /c '/Fobuild/121/detect-directml-translation-gpu.obj' 'source/API.cpp/features/detect/directml/translation/gpu/detect.cpp'; if ($LASTEXITCODE -ne 0) { throw 'DirectML translation compilation failed' }
           & cl @flags /c '/Fobuild/121/directml-handler.obj' 'source/API.cpp/library/src/directml_handler.cpp'; if ($LASTEXITCODE -ne 0) { throw 'DirectML Library handler compilation failed' }
           Write-Host '[121] DirectML detect definition, translation, Common, and Library sources compiled successfully'
+      - name: Compile DirectML Detect test application
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $flags = @('/nologo', '/std:c++17', '/EHsc', '/W4', '/DEDCPP_DETECT_DIRECTML=1', '/Isource\API.cpp', '/Isource\API.cpp\library\include', "/I$env:DIRECTML_INCLUDE")
+          & cl @flags /c '/Fobuild/121/detect-directml-test.obj' 'source/API.test/Detect/directml/detect.cpp'
+          if ($LASTEXITCODE -ne 0) { throw 'DirectML Detect test source compilation failed' }
+          $objects = @(
+            'build/121/detect-directml-test.obj',
+            'build/121/detect-common.obj',
+            'build/121/detect-directml-definition-gpu.obj',
+            'build/121/detect-directml-translation-gpu.obj',
+            'build/121/directml-handler.obj'
+          )
+          & cl /nologo @objects '/Febuild/121/detect-directml-test.exe' /link "/LIBPATH:$env:DIRECTML_LIBRARY_DIR" DirectML.lib d3d12.lib dxgi.lib
+          if ($LASTEXITCODE -ne 0) { throw 'DirectML Detect test compilation or link failed' }
+          Copy-Item $env:DIRECTML_RUNTIME 'build/121/DirectML.dll'
+          if (-not (Test-Path 'build/121/detect-directml-test.exe')) { throw 'DirectML Detect test executable was not produced' }
+          Write-Host '[121] DirectML Detect test compiled and linked; runtime requires a Windows DirectML device'
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
@@ -45,7 +72,7 @@ jobs:
   vast-test:
     if: ${{ inputs.mode == 'Test, Vast AI' }}
     needs: build
-    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    uses: ./.github/workflows/@@@-vast-ai-runtime-test.yaml
     with:
       approval: ${{ inputs.vast_approval }}
       offer_id: ${{ inputs.vast_offer_id }}

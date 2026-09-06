@@ -1,0 +1,262 @@
+name: '@@@ - Vast AI Runtime Test'
+
+"on":
+  workflow_call:
+    inputs:
+      approval:
+        description: 'Must be exactly APPROVE before any paid Vast.ai work can start'
+        required: true
+        type: string
+      offer_id:
+        description: 'Explicit Vast.ai offer ID selected by the human approving the paid test'
+        required: true
+        type: string
+      backend:
+        description: 'Backend/API target name'
+        required: true
+        type: string
+      artifact_name:
+        description: 'GitHub-built artifact to package into the Vast test image'
+        required: true
+        type: string
+      base_image:
+        description: 'Exact GHCR toolchain image used for the GitHub build'
+        required: true
+        type: string
+      test_command:
+        description: 'Runtime test command; must not compile or link on Vast'
+        required: false
+        default: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q .'
+        type: string
+    secrets:
+      VASTAI_KEY:
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  approval-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require explicit paid-test permission
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.approval }}" != 'APPROVE' ]]; then
+            echo 'Vast.ai test was requested without explicit APPROVE permission.' >&2
+            echo 'No Vast.ai API call was made and no Vast.ai credit was spent.' >&2
+            exit 1
+          fi
+          if ! [[ "${{ inputs.offer_id }}" =~ ^[0-9]+$ ]]; then
+            echo 'A numeric Vast.ai offer ID is required. No instance was created.' >&2
+            exit 1
+          fi
+          if [[ -z "${{ inputs.base_image }}" ]]; then
+            echo 'This target does not yet have a container image suitable for Vast.ai.' >&2
+            echo 'No Vast.ai API call was made.' >&2
+            exit 1
+          fi
+
+  package-and-test:
+    needs: approval-gate
+    runs-on: ubuntu-24.04
+    env:
+      TEST_IMAGE_REPOSITORY: ghcr.io/demonbigj781/easydifussion-cpp-vast-test
+      TEST_IMAGE_TAG: ${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}
+      BASE_IMAGE: ${{ inputs.base_image }}
+    steps:
+      - name: Download GitHub-compiled API artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: vast-build
+
+      - name: Restore executable permissions in downloaded test artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          find vast-build -maxdepth 1 -type f \
+            \( -name '*-test' -o -name 'xformers-*-gen' \) \
+            -exec chmod 0755 {} +
+
+      - name: Build immutable Vast test image on GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_IMAGE="${TEST_IMAGE_REPOSITORY}:${TEST_IMAGE_TAG}"
+          echo "TEST_IMAGE=$TEST_IMAGE" >> "$GITHUB_ENV"
+          {
+            printf 'FROM %s\n' "$BASE_IMAGE"
+            cat <<'EOF'
+          COPY vast-build/ /opt/edcpp-test/build/
+          RUN find /opt/edcpp-test/build -maxdepth 1 -type f \( -name '*-test' -o -name 'xformers-*-gen' \) -exec chmod 0755 {} +
+          LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
+          LABEL edcpp.vast-test.commit="${{ github.sha }}"
+          LABEL edcpp.vast-test.backend="${{ inputs.backend }}"
+          EOF
+          } > Dockerfile.vast-test
+          echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker pull "$BASE_IMAGE"
+          docker build --pull=false \
+            -f Dockerfile.vast-test \
+            -t "$TEST_IMAGE" .
+          for attempt in 1 2 3; do
+            if docker push "$TEST_IMAGE"; then
+              exit 0
+            fi
+            echo "GHCR push failed (attempt $attempt/3); retrying after clearing builder state" >&2
+            docker builder prune -af || true
+            sleep $((attempt * 5))
+          done
+          echo 'GHCR push failed after 3 attempts.' >&2
+          exit 1
+
+      - name: Install Vast.ai CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-input vastai
+
+      - name: Generate one-run SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          key_path="$RUNNER_TEMP/vast_edcpp_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          ssh-keygen -q -t rsa -b 3072 -N '' -f "$key_path"
+          chmod 600 "$key_path"
+          echo "SSH_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+
+      - name: Create approved Vast.ai instance
+        id: create
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(vastai create instance '${{ inputs.offer_id }}' \
+            --image "$TEST_IMAGE" \
+            --disk 10 \
+            --ssh \
+            --direct \
+            --label 'edcpp-${{ inputs.backend }}-${{ github.run_id }}' \
+            --api-key "$VASTAI_KEY" \
+            --raw)"
+          printf '%s\n' "$result"
+          instance_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("new_contract", ""))' <<<"$result")"
+          if ! [[ "$instance_id" =~ ^[0-9]+$ ]]; then
+            echo 'Vast.ai did not return a valid instance ID.' >&2
+            exit 1
+          fi
+          echo "instance_id=$instance_id" >> "$GITHUB_OUTPUT"
+
+      - name: Attach one-run SSH key through Vast.ai
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_key="$(cat "${SSH_KEY_PATH}.pub")"
+          vastai attach ssh "$INSTANCE_ID" "$public_key" --api-key "$VASTAI_KEY" --raw
+
+      - name: Wait for Vast.ai container
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            status_json="$(vastai show instance "$INSTANCE_ID" --api-key "$VASTAI_KEY" --raw)"
+            status="$(python3 -c 'import json,sys; d=json.load(sys.stdin); d=d.get("instances", d); print(d.get("actual_status") or "")' <<<"$status_json")"
+            echo "Vast.ai instance status: ${status:-unknown}"
+            case "$status" in
+              running) exit 0 ;;
+              exited|offline) echo "Instance entered terminal status: $status" >&2; exit 1 ;;
+            esac
+            sleep 5
+          done
+          echo 'Timed out waiting for Vast.ai instance to become running.' >&2
+          exit 1
+
+      - name: Resolve Vast.ai SSH endpoint
+        id: ssh
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh_uri="$(vastai ssh-url "$INSTANCE_ID" --api-key "$VASTAI_KEY")"
+          if [[ ! "$ssh_uri" =~ ^ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
+            echo "Unexpected Vast.ai SSH endpoint: $ssh_uri" >&2
+            exit 1
+          fi
+          echo "user=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "host=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+          echo "port=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Vast.ai SSH service
+        env:
+          SSH_USER: ${{ steps.ssh.outputs.user }}
+          SSH_HOST: ${{ steps.ssh.outputs.host }}
+          SSH_PORT: ${{ steps.ssh.outputs.port }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if ssh \
+              -i "$SSH_KEY_PATH" \
+              -p "$SSH_PORT" \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=5 \
+              "$SSH_USER@$SSH_HOST" \
+              'echo edcpp-ssh-ready' >/tmp/edcpp-ssh-ready.out 2>/tmp/edcpp-ssh-ready.err; then
+              cat /tmp/edcpp-ssh-ready.out
+              exit 0
+            fi
+            echo "SSH not ready yet (attempt $attempt/60): $(tail -n 1 /tmp/edcpp-ssh-ready.err 2>/dev/null || true)"
+            sleep 5
+          done
+          echo 'Timed out waiting for Vast.ai SSH service.' >&2
+          exit 1
+
+      - name: Run runtime test on Vast.ai without compiling
+        env:
+          SSH_USER: ${{ steps.ssh.outputs.user }}
+          SSH_HOST: ${{ steps.ssh.outputs.host }}
+          SSH_PORT: ${{ steps.ssh.outputs.port }}
+          TEST_COMMAND: ${{ inputs.test_command }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh \
+            -i "$SSH_KEY_PATH" \
+            -p "$SSH_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=20 \
+            "$SSH_USER@$SSH_HOST" \
+            "$TEST_COMMAND"
+
+      - name: Destroy Vast.ai instance
+        if: ${{ always() && steps.create.outputs.instance_id != '' }}
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set +e
+          echo "Destroying Vast.ai instance $INSTANCE_ID"
+          vastai destroy instance "$INSTANCE_ID" -y --api-key "$VASTAI_KEY" --raw
+          destroy_rc=$?
+          if [[ $destroy_rc -ne 0 ]]; then
+            echo "WARNING: Vast.ai destroy command failed with exit code $destroy_rc" >&2
+          fi
+          rm -f "$SSH_KEY_PATH" "${SSH_KEY_PATH}.pub"
+          exit 0

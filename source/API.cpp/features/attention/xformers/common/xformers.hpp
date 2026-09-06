@@ -2,6 +2,7 @@
 
 #include "common/api.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -21,6 +22,10 @@ struct Tensor4D {
     std::int64_t heads = 0;
     std::int64_t tokens = 0;
     std::int64_t head_dim = 0;
+    DType dtype = DType::f32;
+    // Byte strides in head_dim, token, head, batch order. All-zero means
+    // contiguous storage.
+    std::array<std::size_t, 4> byte_strides{};
 };
 
 struct MutableTensor4D {
@@ -29,26 +34,42 @@ struct MutableTensor4D {
     std::int64_t heads = 0;
     std::int64_t tokens = 0;
     std::int64_t head_dim = 0;
+    DType dtype = DType::f32;
+    std::array<std::size_t, 4> byte_strides{};
 };
 
 struct MaskView {
-    const float* data = nullptr;
+    const void* data = nullptr;
     std::int64_t batch = 1;
     std::int64_t heads = 1;
     std::int64_t query_tokens = 1;
     std::int64_t key_tokens = 1;
+    DType dtype = DType::f32;
+    // Byte strides in key-token, query-token, head, batch order.
+    std::array<std::size_t, 4> byte_strides{};
 };
 
 struct AlibiConfig {
     bool enabled = false;
     const float* slopes = nullptr;
     std::int64_t slope_count = 0;
+    // GGML-style mask slope. When positive, the translation scales mask
+    // values per head instead of consuming an explicit slopes buffer.
+    float max_bias = 0.0f;
 };
 
 struct AttentionSinkConfig {
     bool enabled = false;
     const float* values = nullptr;
     std::int64_t value_count = 0;
+};
+
+struct ExecutionContext {
+    // Backend translations interpret this opaque handle. CUDA uses it as a
+    // cudaStream_t; Common never exposes that native type.
+    void* stream = nullptr;
+    bool synchronize = true;
+    int device_index = -1;
 };
 
 struct AttentionRequest {
@@ -63,6 +84,7 @@ struct AttentionRequest {
     MaskView mask{};
     AlibiConfig alibi{};
     AttentionSinkConfig sinks{};
+    ExecutionContext execution{};
 };
 
 struct Capabilities {

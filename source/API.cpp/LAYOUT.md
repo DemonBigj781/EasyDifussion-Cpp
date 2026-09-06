@@ -2,16 +2,21 @@
 
 ## Purpose
 
-`source/API.cpp` is the backend-normalization and library boundary for Easy Diffusion. Backend-native APIs are described as definitions, adapted by backend translations, unified through feature common code, and exposed by the compiled Library.
+`source/API.cpp` is the backend-normalization and Common library boundary
+for Easy Diffusion. Backend-native APIs are described by definitions, adapted
+by translations, and exposed only through feature Common code.
 
 ```text
-backend API -> backend translation -> backend common -> Library -> Easy Diffusion
+Easy Diffusion <-> feature Common exported API <-> backend translation <-> backend definition <-> native runtime/device
 ```
+
+Results return through the reverse path. A definition-to-translation-to-Common
+diagram elsewhere describes ownership/normalization, not runtime call direction.
 
 For CUDA, the concrete flow is:
 
 ```text
-cuda/definition/gpu -> cuda/translation/gpu -> common -> Library -> Easy Diffusion
+Easy Diffusion <-> Common <-> cuda/translation/gpu <-> cuda/definition/gpu <-> CUDA
 ```
 
 ## Root layout
@@ -31,6 +36,8 @@ source/API.cpp/
 │   │   └── model/
 │   ├── detect/
 │   ├── fuse/
+│   ├── ggml/                      # future-only scaffold
+│   ├── gguf/                      # future-only scaffold
 │   ├── gpu-zram/
 │   ├── load/
 │   │   ├── clip/
@@ -46,6 +53,7 @@ source/API.cpp/
 │   ├── overflow/
 │   ├── ram/
 │   ├── read/
+│   ├── reserve/                   # future-only scaffold
 │   ├── split/
 │   ├── swap/
 │   ├── unload/
@@ -61,28 +69,17 @@ source/API.cpp/
 │   ├── vram/
 │   ├── write/
 │   └── zram/
-└── library/                       # exported Library surface
+└── library/                       # packaging for the exported Common surface
     ├── include/api/
-    ├── src/
-    └── backends/                  # backend overview/compatibility notes
-        ├── cpu/
-        ├── cuda/
-        ├── directml/
-        ├── mesa/
-        ├── oneapi/
-        ├── opencl/
-        ├── opengl/
-        ├── openvino/
-        ├── rocm/
-        └── vulkan/
+    └── src/
 ```
 
 `cmake/` and `Makefile` stay directly under `source/API.cpp`. Backend implementation directories, public include trees, and Library sources must not be reintroduced at the API.cpp root.
 
 ## Canonical feature layout
 
-Every top-level feature family must use the same definition, translation,
-Common, and Library route. Families with concrete subtypes, such as attention,
+Every top-level feature family must use the same definition, translation, and
+Common route. Families with concrete subtypes, such as attention,
 cache, convert, load, and unload, apply the route to each subtype. A family
 without subtypes applies it directly at the family root.
 
@@ -138,15 +135,18 @@ that its native API can represent honestly.
 
 ## Top-level operation families
 
-The full `features/` family set is `attention`, `cache`, `convert`, `detect`,
-`fuse`, `gpu-zram`, `load`, `memory`, `overflow`, `ram`, `read`, `split`,
-`swap`, `unload`, `vram`, `write`, and `zram`.
+The current `features/` directory set is `attention`, `cache`, `convert`,
+`detect`, `fuse`, `ggml`, `gguf`, `gpu-zram`, `load`, `memory`, `overflow`,
+`ram`, `read`, `reserve`, `split`, `swap`, `unload`, `vram`, `write`, and
+`zram`.
 
 `convert/` is divided by conversion target or source domain. `load/` and
 `unload/` are divided by the component whose lifetime they control. The
 remaining operation families are reserved normalization boundaries until their
 method contracts are audited. An empty directory or `.gitkeep` records intended
 ownership only; it does not advertise implementation or backend support.
+`ggml`, `gguf`, and `reserve` are explicitly future-only scaffolds and must
+remain outside current feature work until their contracts are approved.
 
 `memory/` represents unified-memory hardware such as an APU, where CPU RAM and
 GPU-visible memory are views of the same physical pool. Its accounting must not
@@ -213,13 +213,20 @@ Production CUDA attention sources therefore live in:
 
 ### Common
 
-`common/[method].cpp` unifies translated backends into one feature behavior. Common owns normalized validation, capability selection, fallback policy, shared sequencing, error normalization, and results. It must not expose CUDA, HIP, SYCL, Vulkan, CPU-runtime, or NPU-native objects to callers.
+`common/[method].cpp` is the all-in-one library middleman. It is the only
+feature layer allowed to communicate with the application. Common owns
+normalized validation, capability selection, backend dispatch, fallback policy,
+shared sequencing, error normalization, and results. It must not expose CUDA,
+HIP, SYCL, Vulkan, CPU-runtime, or NPU-native objects to callers.
 
 `features/attention/common/` contains contracts shared by multiple attention types.
 
-### Library
+### Export packaging
 
-`library/include/api/` and `library/src/` expose the compiled API.cpp Library. Easy Diffusion calls the Library; it does not call backend definitions or translations directly.
+`library/include/api/` and `library/src/` may package compatibility
+or ABI-facing declarations for the exported Common library. They are not a
+separate routing layer and may call only Common. Backend definitions and
+translations may never include or call them.
 
 ## Current feature families
 
@@ -235,8 +242,9 @@ implements only the methods it needs. Their normalized method inventories are:
   `threshold`, `pool`, `expand`, and `select`;
 - Split: `plan`, `split`, `qkt`, `mask`, `softmax`, `av`, `merge`, and `forward`.
 
-`features/cache/` contains concrete cache types. Their normalized method
-inventories are:
+The planned cache types are EasyCache and TeaCache. `features/cache/` is
+currently only a scaffold; the following method inventories are design targets,
+not current source or support claims:
 
 - EasyCache: `support`, `validate`, `reset`, `init`, `enabled`, `sigma`,
   `begin_step`, `active`, `skipped`, `has_cache`, `store`, `apply`, `before`,
@@ -248,15 +256,15 @@ inventories are:
 Compute-backend detection uses the single normalized `detect` method. Native
 routes exist for CPU, CUDA, ROCm, oneAPI, OpenCL, OpenVINO, OpenGL, Vulkan,
 Mesa, and DirectML. Native probing lives in each definition, translations map
-results into the Common contract, Common enforces and combines result
-invariants, and the Library exposes one handler per backend. OpenGL and Mesa are
+results into the Common contract, and Common enforces and combines result
+invariants behind one `detect(Backend)` entry point. OpenGL and Mesa are
 explicitly context-bound. Missing portable free-memory queries remain unknown
 rather than being inferred, and DirectML does not count shared system memory as
 dedicated VRAM.
 
 Model lifecycle currently uses the load and unload methods. The validated CPU
 route copies model bytes into owned host storage; the validated CUDA route
-copies them into owned device storage. Both return the same Library resource
+copies them into owned device storage. Both return the same Common resource
 contract, and unload clears that resource only after its owning backend
 releases it. This byte-lifecycle contract does not claim model parsing, tensor
 construction, or support for the still-empty clip, clip-vision, condition,
@@ -264,11 +272,11 @@ image, latent, mask, UNet, or VAE component routes.
 
 These filenames describe normalized semantic methods, not mandatory separate
 kernel launches or a claim that an empty scaffold is implemented. Each cache
-type must reproduce the same definition, translation, common, and
-Library-facing flow.
+type must reproduce the same definition, translation, and Common-facing flow.
 
-See `TodoGrid.md` for the backend/feature coverage matrix. A matrix cell is not
-supported merely because its empty directory scaffold exists.
+See `TODO_GRID.md` for the backend/feature coverage matrix and
+`LAYOUT_AUDIT.md` for the audited active/future/compatibility map. A matrix cell
+is not supported merely because its empty directory scaffold exists.
 
 ## Placement rules
 
@@ -278,26 +286,39 @@ supported merely because its empty directory scaffold exists.
 4. Put only normalized cross-backend behavior in feature `common/`.
 5. Do not place method source files directly in a backend, `definition`, or `translation` directory.
 6. Keep prototype code out of production CMake targets.
-7. A file is not runtime-supported until CMake selects it and tests validate its backend/device.
-8. Retain planned empty branches with `.gitkeep` until real source or documentation replaces them.
-9. Keep public headers and Library implementation under `library/`.
+7. A file is not runtime-supported until an explicit build target selects it and tests validate its backend/device.
+8. Do not pre-create a complete backend/device matrix for a future feature.
+   Keep its root README until a contract establishes the branches it needs.
+9. Packaging under `library/` is Common-only and contains no backend
+   implementation or compatibility backend tree.
 
 ## Migration notes
 
 - `features/attention/split_attention/` became `features/attention/split/`.
-- Root `cpu`, `cuda`, `oneapi`, `rocm`, and `vulkan` directories moved into feature/backend layers or Library backend notes.
+- Root `cpu`, `cuda`, `oneapi`, `rocm`, and `vulkan`
+  directories moved into feature/backend layers. The unused
+  `library/backends/` documentation/compatibility tree was removed.
 - Root `include/api` and `src` moved to `library/include/api` and `library/src`.
 - CUDA attention implementation ownership moved from `API.cpp/cuda/attention/*` to each feature's `cuda/translation/gpu`.
-- Legacy stable-diffusion GGML CUDA locations are compatibility shims only.
+- The stable-diffusion GGML xFormers adapter converts GGML tensors to the
+  Common request and never calls the CUDA translation directly. Remaining
+  direct Flash/Sage source shims are routing debt, not a permitted pattern.
+- The old materialized xFormers CUDA stage files moved from
+  `cuda/translation/gpu/{qkt,mask,softmax,av}.cu` to `prototype/cuda-*.cu` after
+  fused `forward.cu` replaced them as the registered Common translation.
+- `source/API.test/Feature/Attention/Xformers/Cpu/Main.cpp` was replaced by the
+  Common cycle test under `source/API.test/MultiTest/xformers/cycle/`.
+- `TODO_GRID.md` replaced the earlier mixed-case grid and is the authoritative implementation
+  and validation ledger.
 
 ## Adding a backend implementation
 
 1. Document the backend API in `definition/[device-type]/[method].cpp`.
 2. Implement its adapter in `translation/[device-type]/[method].cpp`.
 3. Compare translations and extend feature `common/` only for genuinely shared behavior.
-4. Wire the translation and common source explicitly into the Library build.
+4. Register the translation with Common and wire both into the build.
 5. Test compile-time selection, runtime capability checks, numerical behavior, and fallback behavior.
-6. Expose only the common Library contract to Easy Diffusion.
+6. Expose only Common to Easy Diffusion.
 
 ## Validation and GitHub Actions
 
@@ -305,7 +326,7 @@ GitHub Actions supplies cross-backend compiler and toolchain coverage only.
 Its compiler workflows can establish source selection, compilation, and linking
 for the represented targets. Runtime capability,
 numerical correctness, fallback behavior, memory behavior, and performance need
-separate validation on real devices. A TodoGrid backend cell remains blank until
-the complete source route is wired, its applicable compiler workflow passes,
-and required runtime validation is recorded. Workflow existence alone is not
-evidence of support.
+separate validation on real devices. A `TODO_GRID.md` backend cell
+remains blank until the complete source route is wired, its applicable compiler
+workflow passes, and required runtime validation is recorded. Workflow
+existence alone is not evidence of support.

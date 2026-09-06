@@ -1,9 +1,9 @@
 # xFormers
 
 ## Status
-**Implemented — ggml-native CUDA forward path.**
+**Source implemented — toolkit/runtime validation not recorded for this snapshot.**
 
-The API.cpp implementation provides fused, memory-efficient inference attention without a PyTorch/ATen dependency. It supports F32, F16, and BF16 Q/K/V tensors; independent K/V dimensions; broadcasted GQA/MQA heads and batches; additive F16 masks with ALiBi; logit soft-capping; and attention sinks. Unsupported inputs report false so ggml can select its normal fallback.
+The production route converts GGML tensors in the stable-diffusion.cpp application adapter, enters the backend-neutral Common contract, and dispatches to the registered fused CUDA translation and definition. It supports strided F32, F16, and BF16 Q/K/V, F32 output, broadcasted heads and batches, supported additive-mask dtypes, ALiBi, logit soft-cap, and attention sinks. Unsupported requests return false so the application can select its fallback.
 
 ## Validation
 The source and build wiring are complete. Compilation and runtime comparison against the CPU reference remain required in the selected GitHub Actions CUDA environment.

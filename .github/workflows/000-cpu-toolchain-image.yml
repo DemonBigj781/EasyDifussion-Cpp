@@ -3,6 +3,7 @@ name: '000 - CPU Toolchain Image'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       ubuntu_version:
         description: 'Ubuntu base version'
         required: true

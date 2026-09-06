@@ -3,7 +3,8 @@ name: '021 - ROCm API.cpp'
 "on":
   workflow_dispatch:
     inputs:
-      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Test, Vast AI']}
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
+      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Compile Test Code', 'Test, Vast AI']}
       vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
       vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
 
@@ -37,6 +38,22 @@ jobs:
           "$compiler" "${flags[@]}" -c source/API.cpp/features/detect/rocm/translation/gpu/detect.cpp -o build/021/detect-rocm-translation-gpu.o
           "$compiler" "${flags[@]}" -c source/API.cpp/library/src/rocm_handler.cpp -o build/021/rocm-handler.o
           echo '[021] ROCm detect definition, translation, Common, and Library sources compiled successfully'
+      - name: Compile ROCm Detect test application
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          compiler=/opt/rocm/bin/hipcc
+          flags=(-std=c++17 -Wall -Wextra -Wpedantic -DEDCPP_DETECT_ROCM=1 -Isource/API.cpp -Isource/API.cpp/library/include -I/opt/rocm/include)
+          "$compiler" "${flags[@]}" \
+            source/API.test/Detect/rocm/detect.cpp \
+            source/API.cpp/features/detect/common/detect.cpp \
+            source/API.cpp/features/detect/rocm/definition/gpu/detect.cpp \
+            source/API.cpp/features/detect/rocm/translation/gpu/detect.cpp \
+            source/API.cpp/library/src/rocm_handler.cpp \
+            -o build/021/detect-rocm-test
+          test -x build/021/detect-rocm-test
+          echo '[021] ROCm Detect test compiled and linked; runtime deferred to an approved unavailable-local-runtime test'
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
@@ -45,12 +62,12 @@ jobs:
   vast-test:
     if: ${{ inputs.mode == 'Test, Vast AI' }}
     needs: build
-    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    uses: ./.github/workflows/@@@-vast-ai-runtime-test.yaml
     with:
       approval: ${{ inputs.vast_approval }}
       offer_id: ${{ inputs.vast_offer_id }}
       backend: rocm
       artifact_name: vast-api-021-${{ github.run_id }}
       base_image: ghcr.io/demonbigj781/easydifussion-cpp-rocm-toolchain:theory
-      test_command: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q . && (rocminfo || /opt/rocm/bin/rocminfo)'
+      test_command: '/opt/edcpp-test/build/detect-rocm-test'
     secrets: inherit

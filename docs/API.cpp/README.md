@@ -38,7 +38,15 @@ Every attention and cache page should record:
 
 ## Attention inventory
 
-The common optimized-attention API currently identifies FlashAttention, SageAttention, and xFormers. A fourth requested attention implementation is still to be identified and added to the shared API; its documentation pages should be created once its exact implementation name is confirmed from the code/design work.
+The API.cpp feature layout identifies FlashAttention, Flex Attention,
+SageAttention, Split Attention, and xFormers. Presence in that inventory is not
+a support claim; consult `source/API.cpp/TODO_GRID.md`, the feature
+README, and the selected build target for backend status.
+
+CUDA version pages are validation snapshots, not independent implementations.
+The stable-diffusion.cpp xFormers adapter converts GGML tensors into the same
+Common contract used by the standalone tests. Toolkit/version claims must not
+be copied to another CUDA or JetPack page without testing there.
 
 ## Cache inventory
 

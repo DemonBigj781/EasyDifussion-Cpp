@@ -4,23 +4,18 @@
 
 The `translation/` folder is the normalization boundary between backend-native APIs and the xFormers Common layer.
 
-The intended direction is:
+Runtime calls use this direction:
 
 ```text
-backend-native call / intrinsic / kernel semantic
-        |
-        v
-[backend]/translation/[device]/...
-        |
-        v
-one normalized xFormers call vocabulary
-        |
-        v
-xformers/common
-        |
-        v
 Library / application
+        -> xformers/common
+        -> [backend]/translation/[device]/...
+        -> backend definition / native operation
 ```
+
+The reverse conceptual direction—from native semantics through translation to a
+normalized vocabulary—describes how the interface is designed. It must not be
+read as permission for backend code to call upward into Common or the Library.
 
 Common must not need to know whether a normalized operation came from CUDA, HIP/ROCm, SYCL, OpenCL, CPU C++, or another backend.
 
@@ -274,19 +269,20 @@ conformance-tested
 
 ## Current xFormers direction
 
-The current CUDA translation already contains many native CUDA operations that should be extracted conceptually into this normalized map. CPU already demonstrates the logical staged operation. ROCm and oneAPI translations are still largely placeholders, making this comparison work the correct prerequisite before implementing them.
+Common now exposes an implemented normalized request and two execution plans: the CPU translation supplies the staged callbacks, while the CUDA translation supplies only `forward` and internally performs one fused online-softmax launch. CUDA definition files own its dtype, shape, feature, architecture, and launch-limit rules. The CUDA translation owns Common-to-native request conversion, CUDA pointer validation, launch, synchronization, and error conversion. Common neither includes CUDA headers nor inspects CUDA streams or pointers.
 
-The next development task should therefore be:
+The native-operation table above remains design vocabulary rather than a requirement that every translation wrap individual intrinsics. It is useful when a later ROCm or oneAPI implementation needs to compare execution primitives, but the implemented Common ABI is the request/capability/callback contract in `common/xformers.hpp`.
+
+The next cross-backend task is therefore:
 
 ```text
-for every native operation used by CUDA xFormers
+for every native operation required by a new backend implementation
     identify normalized semantic call
-    document AMD/HIP equivalent
-    document oneAPI/SYCL equivalent
+    compare its backend-native equivalent
     document CPU equivalent
     record meaningful semantic differences
 then
     implement translation wrappers/adapters per backend
 ```
 
-Only after those translations exist should Common depend on the normalized calls.
+ROCm and oneAPI translations remain placeholders. They must implement the existing Common request semantics and advertise only the callbacks and features they actually provide; Common must not gain backend-specific branches for them.

@@ -2,6 +2,7 @@ name: '040 - OpenCL Toolchain Image'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       opencl_version:
         description: 'OpenCL API target'
         required: true

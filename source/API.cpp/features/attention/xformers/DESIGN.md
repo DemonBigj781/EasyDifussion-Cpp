@@ -2,13 +2,17 @@
 
 ## Status
 
-Design-only. Structure first, definitions second, common implementation last.
+Implemented for the normalized CPU and CUDA Common routes. ROCm, oneAPI, and other backend translations remain design/structure work.
 
 ## Goal
 
 Expose xFormers-compatible attention to the application through one common feature API while allowing each backend family and device class to use its own native calls, kernels, workarounds, layouts, or equivalent procedures.
 
-The application should eventually call only `common/`. Backend-native behavior is translated into normalized definitions first. Common is implemented only after those definitions are understood and compared.
+Feature callers use only `common/`. Backend-native behavior is represented by
+an exact backend definition and adapted through its translation. Standalone
+CPU/CUDA tests prove that boundary, and the stable-diffusion.cpp GGML
+application adapter has now exercised the same Common CUDA route during image
+generation.
 
 ## Canonical layout
 
@@ -104,11 +108,13 @@ SDK functions, or compatibility helpers, but must return normalized behavior to
 
 The application eventually calls only `common/`. Common owns backend selection, capability checks, normalized validation, shared sequencing, common preprocessing/postprocessing, fallback selection, error normalization, and result handling.
 
-Common should not contain backend-native CUDA, HIP, SYCL, or other device-specific calls. Those belong in definitions.
+Common should not contain backend-native CUDA, HIP, SYCL, or other
+device-specific calls. Native semantics belong in definitions and execution/
+SDK adaptation belongs in translations.
 
 ## Current structural method vocabulary
 
-These names are placeholders for normalized concepts and are not yet a frozen ABI:
+These names are the current normalized semantic concepts; the contract is implemented but is not yet a frozen external ABI:
 
 - `qkt.cpp` — Query × Key-transpose score generation;
 - `mask.cpp` — normalized mask/bias behavior;
@@ -120,23 +126,23 @@ Logical methods do not imply separate native kernel launches. A backend/device d
 
 ## Development procedure
 
-1. Create the complete folder and file skeleton.
-2. Do not implement Common yet.
-3. Analyze backend family + device class + method combinations independently.
-4. Fill `[backend]/definition/[device-class]/[method].cpp` with native API semantics and constraints.
-5. Implement `[backend]/translation/[device-class]/[method].cpp` against the normalized contract.
-6. Compare translated behavior across targets.
-7. Identify behavior that is genuinely common.
-8. Design and implement `common/[method].cpp` only after translation coverage is sufficient.
-9. Route the Library to Common only after Common is stable.
-10. Validate runtime behavior independently per backend/device target.
+For a new backend/device target:
+
+1. Analyze its real method and execution constraints independently.
+2. Fill `[backend]/definition/[device-class]/[method].cpp` with native semantics and constraints.
+3. Implement `[backend]/translation/[device-class]/[method].cpp` against the existing normalized contract.
+4. Advertise only capabilities the translation actually implements.
+5. Compare output behavior against the CPU staged reference within documented tolerances.
+6. Extend Common only when an observed backend requirement cannot be represented safely.
+7. Route application callers and any Library facade through Common after the translation is stable.
+8. Compile and runtime-test independently on the target backend/device.
 
 ## Constraints for AI/code agents
 
 - Do not modify existing in-progress attention implementations merely to satisfy this new tree unless explicitly assigned.
 - Do not treat CUDA or any other backend as the universal source model.
 - Do not flatten CPU/GPU/NPU targets when one backend family exposes multiple distinct definitions.
-- Do not implement Common while backend/device definitions are unknown.
+- Do not extend Common speculatively while a new backend/device definition is unknown.
 - Do not claim runtime validation from compile success alone.
 - Backend/device-specific workarounds belong in that exact definition path.
 - Preserve existing working or interrupted migration code unless a task explicitly targets it.

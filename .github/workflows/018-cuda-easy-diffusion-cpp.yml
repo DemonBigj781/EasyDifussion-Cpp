@@ -2,6 +2,7 @@ name: '018 - CUDA Easy Diffusion C++'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       action: {description: 'set current workflow action', required: true, default: 'complete', type: choice, options: ['complete', 'check']}
       cuda_version: {description: Preferred CUDA version, required: true, default: auto, type: choice, options: [auto, '13.2.2', '12.9.2', '12.8.1']}
       gpu_1: {description: CUDA GPU 1, required: true, default: rtx-3060, type: string}

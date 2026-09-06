@@ -3,7 +3,8 @@ name: '031 - oneAPI API.cpp'
 "on":
   workflow_dispatch:
     inputs:
-      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Test, Vast AI']}
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
+      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Compile Test Code', 'Test, Vast AI']}
       vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
       vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
 
@@ -40,8 +41,32 @@ jobs:
             icpx "${flags[@]}" -DEDCPP_DETECT_ONEAPI=1 -c "source/API.cpp/features/detect/oneapi/definition/${device}/detect.cpp" -o "build/031/detect-oneapi-definition-${device}.o"
             icpx "${flags[@]}" -c "source/API.cpp/features/detect/oneapi/translation/${device}/detect.cpp" -o "build/031/detect-oneapi-translation-${device}.o"
           done
+          icpx "${flags[@]}" -c source/API.cpp/features/detect/oneapi/translation/register.cpp -o build/031/detect-oneapi-register.o
           icpx "${flags[@]}" -c source/API.cpp/library/src/oneapi_handler.cpp -o build/031/oneapi-handler.o
           echo '[031] oneAPI detect definitions, translations, Common, and Library sources compiled successfully'
+      - name: Compile oneAPI Detect test application
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +u
+          source /opt/intel/oneapi/setvars.sh >/dev/null
+          set -u
+          flags=(-std=c++17 -Wall -Wextra -Wpedantic -fsycl -DEDCPP_DETECT_ONEAPI=1 -Isource/API.cpp -Isource/API.cpp/library/include)
+          icpx "${flags[@]}" \
+            source/API.test/Detect/oneapi/detect.cpp \
+            source/API.cpp/features/detect/common/detect.cpp \
+            source/API.cpp/features/detect/oneapi/definition/cpu/detect.cpp \
+            source/API.cpp/features/detect/oneapi/definition/gpu/detect.cpp \
+            source/API.cpp/features/detect/oneapi/definition/npu/detect.cpp \
+            source/API.cpp/features/detect/oneapi/translation/cpu/detect.cpp \
+            source/API.cpp/features/detect/oneapi/translation/gpu/detect.cpp \
+            source/API.cpp/features/detect/oneapi/translation/npu/detect.cpp \
+            source/API.cpp/features/detect/oneapi/translation/register.cpp \
+            source/API.cpp/library/src/oneapi_handler.cpp \
+            -o build/031/detect-oneapi-test
+          test -x build/031/detect-oneapi-test
+          echo '[031] oneAPI Detect test compiled and linked; runtime deferred to an approved unavailable-local-runtime test'
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
@@ -50,12 +75,12 @@ jobs:
   vast-test:
     if: ${{ inputs.mode == 'Test, Vast AI' }}
     needs: build
-    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    uses: ./.github/workflows/@@@-vast-ai-runtime-test.yaml
     with:
       approval: ${{ inputs.vast_approval }}
       offer_id: ${{ inputs.vast_offer_id }}
       backend: oneapi
       artifact_name: vast-api-031-${{ github.run_id }}
       base_image: ghcr.io/demonbigj781/easydifussion-cpp-oneapi-toolchain:theory
-      test_command: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q . && bash -lc "set +u; source /opt/intel/oneapi/setvars.sh >/dev/null; set -u; (sycl-ls || true); icpx --version"'
+      test_command: 'bash -lc "set +u; source /opt/intel/oneapi/setvars.sh >/dev/null; set -u; /opt/edcpp-test/build/detect-oneapi-test"'
     secrets: inherit

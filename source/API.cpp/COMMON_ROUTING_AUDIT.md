@@ -1,19 +1,27 @@
 # Common routing audit
 
-This document records the architectural expectation that every feature speaks one normalized Common language to the Library and application.
+This document records the 2026-09-05 re-audit after upstream Theory commit
+`066af7c` and the current layout changes. Every feature speaks one normalized
+Common language to the application.
+
+Directory status and superseded/future paths are tracked separately in
+`LAYOUT_AUDIT.md`.
 
 ## Required route
 
 ```text
 Application / Easy Diffusion
-    -> Library
     -> feature Common API
     -> backend translation
     -> backend definition
     -> native runtime/device
 ```
 
-Results return through the reverse route. The Library must never call a backend translation or definition directly.
+Results return through the reverse route. Only Common may communicate with the
+application. A backend communicates with Common through its translation and
+must never call the program directly. `library/` is optional export/ABI
+packaging around Common, not a routing layer; it must never call a backend
+translation or definition directly.
 
 ## Validation dimensions
 
@@ -30,29 +38,59 @@ Existing behavioral test results are retained when a routing defect is found. Fi
 
 ### Detect
 
-Feature-specific Common implementation exists. CPU and CUDA Library handlers now call the Common Detect entry point only. CPU/CUDA translations self-register with Common and remain responsible for reaching their backend definitions. This migration is coded but must be compiled and runtime-revalidated before Common-only routing is considered architecturally proven.
+All Library handlers call the Common Detect entry point only. Backend
+translations register behind Common and remain responsible for reaching their
+definitions. CPU, CUDA, OpenCL, OpenGL, Vulkan, and Mesa were rebuilt and
+runtime-tested; Vulkan combined results were also verified to have globally
+unique normalized indices. ROCm, oneAPI, OpenVINO, and DirectML remain
+source-audited only because their local toolchains/runtimes were unavailable.
 
 ### Load / model lifecycle
 
-Feature-specific Common implementation exists. CPU and CUDA Library model lifecycle handlers now call Common `load_model` only. CPU/CUDA model-load translations self-register with Common. The earlier behavioral proof remains valid, but the new Common-only route requires compile and runtime revalidation.
+CPU and CUDA Library model lifecycle handlers call Common `load_model` only,
+and their translations self-register behind Common. Both complete routes were
+rebuilt and runtime-tested.
 
 ### Unload / model lifecycle
 
-Feature-specific Common implementation exists. CPU and CUDA Library model lifecycle handlers now call Common `unload_model` only. Resource ownership selects the registered backend translation inside Common. The earlier behavioral proof remains valid, but the new Common-only route requires compile and runtime revalidation.
+CPU and CUDA Library model lifecycle handlers call Common `unload_model` only.
+Resource ownership selects the registered translation inside Common. Both
+routes, including mismatch and double-unload rejection, were rebuilt and
+runtime-tested.
 
 ### Overflow
 
-Feature-specific Common planning, normalization, and normalized resource contracts exist. Overflow is intentionally deferred because its policy and execution model are substantially more complex and only partially planned beyond the proven CPU/CUDA paths. Existing CPU/CUDA overflow runtime and stress-test results remain behavioral evidence; no Common-routing refactor is claimed here yet.
+Common now owns Overflow planning, normalization, and registered allocation and
+release dispatch. CPU tests passed. CUDA tests passed on an RTX 3060, including
+forced Managed Memory fallback and a bounded real `cudaMalloc` OOM followed by
+GPU access, CPU verification, and release. Non-CUDA backend overflow remains
+unimplemented.
 
 ### xFormers
 
-The root Common API already knows the `xformers_attention` operation/capability, but the feature-specific xFormers Common method files were originally structural placeholders. xFormers must establish its authoritative Common contract and route Library calls through it before backend implementations are considered integrated.
+The Common contract owns normalized tensor metadata, dtypes/strides,
+capabilities, validation, staged execution, fused-forward execution, and
+translation registration. CPU registers staged F32 execution. CUDA registers
+one fused callback supporting F32/F16/BF16 Q/K/V, F32 output, byte strides,
+mask broadcasting/dtypes, head and batch broadcasting, ALiBi, soft-cap,
+attention sinks, and an opaque CUDA stream.
+
+The standalone cycle tests call Common exclusively and pass 32 custom model
+load/forward/unload cycles; CUDA also passes Compute Sanitizer with zero
+errors. The stable-diffusion.cpp GGML application adapter now converts into
+that same Common request. A 512x512 one-step generation completed with 20
+native CUDA xFormers launches. There is no separate production GGML-native
+xFormers backend route.
 
 ### FlashAttention
 
 The feature Common API owns a backend-neutral tensor, parameter, execution, capability, validation, and result contract. The CPU translation maps that contract to the existing GGML `FLASH_ATTN_EXT` compatibility definition; GGML tensor and compute objects do not cross the feature Common boundary. Workflow `001` compiles the route and runs a native-boundary smoke test covering registration, normalized validation, capability reporting, translation, and exactly one native dispatch.
 
-This is not yet Common-only architectural completion. No Library handler calls the FlashAttention Common entry point, and the smoke test substitutes the native GGML operation to validate the route without claiming numerical or performance proof. The current CPU translation intentionally accepts only single-thread execution until ownership of backend-native thread-pool scheduling is normalized.
+This is Common-routed build/smoke evidence, not numerical or end-to-end proof.
+The smoke test substitutes the native GGML operation, and no Easy Diffusion
+workflow currently enters this Common route. The current CPU translation also
+accepts only single-thread execution until backend-native thread-pool
+scheduling is normalized.
 
 ## Development expectation
 
@@ -65,9 +103,15 @@ For new or unfinished features:
 5. Connect Library only to Common.
 6. Compile the route.
 7. Runtime-test backend behavior.
-8. End-to-end test Library -> Common -> translation -> definition -> native execution and the normalized return route.
+8. End-to-end test application -> Common -> translation -> definition -> native execution and the normalized return route.
 9. Claim architectural completion only after the Common-only route and required feature behavior are thoroughly accounted for.
 
 ## Enforcement target
 
 A future source/CI audit should fail when a file under `source/API.cpp/library/` includes a path containing `/translation/` or `/definition/`. Equivalent direct backend dependencies should also be rejected during review even if expressed through an alias or wrapper.
+
+The current `library/` source audit finds no translation/definition includes.
+The removed `library/backends/` tree should remain absent. Remaining attention
+routing debt is in the CUDA Flash/Sage GGML-native compatibility paths, not in
+Library handlers. Reserved Mesa/OpenGL/Vulkan lifecycle, Overflow, and
+xFormers test paths have no implementation behind them.

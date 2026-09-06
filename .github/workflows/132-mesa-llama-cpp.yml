@@ -1,6 +1,8 @@
 name: '132 - Mesa llama.cpp [RESERVED]'
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
 permissions:
   contents: read
 jobs:

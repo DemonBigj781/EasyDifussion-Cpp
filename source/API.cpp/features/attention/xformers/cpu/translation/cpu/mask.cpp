@@ -21,6 +21,7 @@ std::size_t mask_index(const MaskView& m, std::int64_t b, std::int64_t h,
 
 bool apply_mask_and_bias(const AttentionRequest& request, ScoreBuffer& scores) {
     const float neg_inf = -std::numeric_limits<float>::infinity();
+    const auto* mask_data = static_cast<const float*>(request.mask.data);
     for (std::int64_t b = 0; b < scores.batch; ++b) {
         for (std::int64_t h = 0; h < scores.heads; ++h) {
             const float alibi_slope = request.alibi.enabled ? request.alibi.slopes[h] : 0.0f;
@@ -34,8 +35,8 @@ bool apply_mask_and_bias(const AttentionRequest& request, ScoreBuffer& scores) {
                         value = neg_inf;
                         continue;
                     }
-                    if (request.mask.data) {
-                        value += request.mask.data[mask_index(request.mask, b, h, q, k)];
+                    if (mask_data) {
+                        value += mask_data[mask_index(request.mask, b, h, q, k)];
                     }
                     if (request.alibi.enabled) {
                         value += alibi_slope * static_cast<float>(k - q);

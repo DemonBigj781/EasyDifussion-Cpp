@@ -3,12 +3,13 @@ name: '011 - CUDA API.cpp'
 "on":
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       mode:
         description: 'Build mode'
         required: true
         default: 'compile'
         type: choice
-        options: ['compile', 'Test, Vast AI']
+        options: ['compile', 'Compile Test Code', 'Test, Vast AI']
       vast_approval:
         description: 'Paid Vast.ai test permission: type APPROVE'
         required: false
@@ -66,30 +67,69 @@ jobs:
           c++ "${flags[@]}" -c source/API.cpp/library/src/cuda_model_lifecycle.cpp -o build/011/cuda-model-lifecycle.o
           c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/plan.cpp -o build/011/overflow-plan-common.o
           c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/normalize.cpp -o build/011/overflow-normalize-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/overflow/common/dispatch.cpp -o build/011/overflow-dispatch-common.o
           c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 -c source/API.cpp/features/overflow/cuda/definition/gpu/allocate.cpp -o build/011/overflow-allocate-cuda-definition-gpu.o
           c++ "${flags[@]}" -DEDCPP_OVERFLOW_CUDA=1 -c source/API.cpp/features/overflow/cuda/definition/gpu/release.cpp -o build/011/overflow-release-cuda-definition-gpu.o
           c++ "${flags[@]}" -c source/API.cpp/features/overflow/cuda/translation/gpu/allocate.cpp -o build/011/overflow-allocate-cuda-translation-gpu.o
           c++ "${flags[@]}" -c source/API.cpp/features/overflow/cuda/translation/gpu/release.cpp -o build/011/overflow-release-cuda-translation-gpu.o
           c++ "${flags[@]}" -c source/API.cpp/library/src/overflow.cpp -o build/011/overflow-library-common.o
           c++ "${flags[@]}" -c source/API.cpp/library/src/cuda_overflow.cpp -o build/011/cuda-overflow.o
-          echo '[011] CUDA detect, model lifecycle, and Overflow routes compiled successfully'
+          for unit in qkt mask softmax av forward; do
+            c++ "${flags[@]}" -c "source/API.cpp/features/attention/xformers/common/${unit}.cpp" -o "build/011/xformers-common-${unit}.o"
+            c++ "${flags[@]}" -c "source/API.cpp/features/attention/xformers/cuda/definition/gpu/${unit}.cpp" -o "build/011/xformers-cuda-definition-${unit}.o"
+          done
+          nvcc -std=c++17 -Isource/API.cpp \
+            -c source/API.cpp/features/attention/xformers/cuda/translation/gpu/forward.cu \
+            -o build/011/xformers-cuda-translation-forward.o
+          echo '[011] CUDA detect, model lifecycle, Overflow, and Common xFormers routes compiled successfully'
+      - name: Compile CUDA test applications
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C source/API.test \
+            BUILD_DIR="$GITHUB_WORKSPACE/build/011" \
+            cuda load-cuda unload-cuda overflow-cuda \
+            xformers-cuda xformers-cuda-gen
+          install -m 0644 \
+            source/API.test/MODELS/lifecycle-model.fixture \
+            build/011/lifecycle-model.fixture
+          test -x build/011/xformers-load-unload-cuda-test
+          test -x build/011/xformers-cuda-gen
+          test -x build/011/detect-cuda
+          test -x build/011/load-cuda
+          test -x build/011/unload-cuda
+          test -x build/011/overflow-cuda
+          echo '[011] CUDA Detect, lifecycle, Overflow, xFormers cycle, and generation tests compiled and linked; not executed on GitHub'
+      - name: Stage minimal CUDA runtime artifact
+        if: ${{ inputs.mode == 'Test, Vast AI' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/011-vast
+          install -m 0755 \
+            build/011/xformers-load-unload-cuda-test \
+            build/011-vast/xformers-load-unload-cuda-test
+          install -m 0644 \
+            build/011/lifecycle-model.fixture \
+            build/011-vast/lifecycle-model.fixture
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
         with:
           name: vast-api-011-${{ github.run_id }}
-          path: build/011
+          path: build/011-vast
           if-no-files-found: error
 
   vast-test:
     if: ${{ inputs.mode == 'Test, Vast AI' }}
     needs: build
-    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    uses: ./.github/workflows/@@@-vast-ai-runtime-test.yaml
     with:
       approval: ${{ inputs.vast_approval }}
       offer_id: ${{ inputs.vast_offer_id }}
       backend: cuda
       artifact_name: vast-api-011-${{ github.run_id }}
       base_image: ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:theory
-      test_command: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q . && nvidia-smi'
+      test_command: '/opt/edcpp-test/build/xformers-load-unload-cuda-test /opt/edcpp-test/build/lifecycle-model.fixture'
     secrets: inherit

@@ -1,6 +1,8 @@
 name: '042 - OpenCL llama.cpp [RESERVED]'
 on:
   workflow_dispatch:
+    inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
 permissions: {contents: read}
 jobs:
   reserved:

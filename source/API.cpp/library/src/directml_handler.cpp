@@ -1,12 +1,10 @@
 #include "api/directml_handler.hpp"
 #include "features/detect/common/detect.hpp"
-#include "features/detect/directml/translation/gpu/detect.hpp"
 #include <utility>
 namespace easyapi {
 namespace {
 edcpp::api::detect::Result detect_directml() {
-    return edcpp::api::detect::normalize(
-        edcpp::api::detect::directml::translation::gpu::detect());
+    return edcpp::api::detect::detect(edcpp::api::Backend::directml);
 }
 } // namespace
 const char* DirectmlHandler::name() const noexcept { return "directml"; }

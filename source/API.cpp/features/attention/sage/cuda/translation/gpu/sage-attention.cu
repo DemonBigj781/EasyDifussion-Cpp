@@ -1,6 +1,5 @@
 #include "sage-attention.cuh"
 #include "../../../../flash/cuda/translation/gpu/fattn.cuh"
-#include "../../../../xformers/cuda/translation/gpu/xformers-attention.cuh"
 
 #if defined(GGML_USE_HIP) || defined(GGML_USE_MUSA)
 
@@ -32,27 +31,6 @@ void ggml_sage_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
 }
 
 #endif
-
-bool ggml_xformers_attn_supported(int device, const ggml_tensor * dst) {
-#if defined(GGML_USE_HIP) || defined(GGML_USE_MUSA)
-    GGML_UNUSED(device);
-    GGML_UNUSED(dst);
-    return false;
-#else
-    return ggml_cuda_xformers_attn_supported(device, dst);
-#endif
-}
-
-void ggml_xformers_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
-#if defined(GGML_USE_HIP) || defined(GGML_USE_MUSA)
-    GGML_UNUSED(ctx);
-    GGML_UNUSED(dst);
-    GGML_ABORT("xFormers attention is not available for this target");
-#else
-    GGML_ASSERT(ggml_xformers_attn_supported(ctx.device, dst));
-    ggml_cuda_xformers_attn(ctx, dst);
-#endif
-}
 
 // FlashAttention retention is an API-compatibility contract, not an automatic
 // optimization choice. The actual CUDA/HIP kernels remain in fattn.cu; this
@@ -92,7 +70,9 @@ bool ggml_attention_impl_supported(ggml_attention_impl impl, int device, const g
         case GGML_ATTN_IMPL_SAGE:
             return ggml_sage_attn_supported(device, dst);
         case GGML_ATTN_IMPL_XFORMERS:
-            return ggml_xformers_attn_supported(device, dst);
+            // xFormers is selected by the GGML application adapter, which
+            // calls the feature Common API. It is not a Sage backend route.
+            return false;
         case GGML_ATTN_IMPL_NONE:
         default:
             return false;

@@ -1,13 +1,11 @@
 #include "api/opengl_handler.hpp"
 #include "features/detect/common/detect.hpp"
-#include "features/detect/opengl/translation/gpu/detect.hpp"
 #include <utility>
 
 namespace easyapi {
 namespace {
 edcpp::api::detect::Result detect_opengl() {
-    return edcpp::api::detect::normalize(
-        edcpp::api::detect::opengl::translation::gpu::detect());
+    return edcpp::api::detect::detect(edcpp::api::Backend::opengl);
 }
 } // namespace
 const char* OpenglHandler::name() const noexcept { return "opengl"; }

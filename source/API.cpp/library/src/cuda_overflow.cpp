@@ -1,8 +1,6 @@
 #include "api/overflow.hpp"
 
 #include "features/overflow/common/overflow.hpp"
-#include "features/overflow/cuda/translation/gpu/allocate.hpp"
-#include "features/overflow/cuda/translation/gpu/release.hpp"
 
 #include <cstdint>
 #include <utility>
@@ -66,8 +64,8 @@ OverflowResult CudaOverflowHandler::allocate(const OverflowRequest& request) con
     internal_request.force_overflow = request.force_overflow;
     internal_request.host_reserve = static_cast<std::uint64_t>(request.host_reserve);
 
-    auto internal = edcpp::api::overflow::normalize(
-        edcpp::api::overflow::cuda::translation::gpu::allocate(internal_request));
+    auto internal = edcpp::api::overflow::allocate(
+        edcpp::api::Backend::cuda, internal_request);
     OverflowResult result;
     result.success = internal.allocated;
     result.overflowed = internal.overflowed;
@@ -89,9 +87,7 @@ OverflowReleaseResult CudaOverflowHandler::release(OverflowResource& resource) c
     }
 
     auto internal_resource = cuda_to_internal(resource);
-    auto internal = edcpp::api::overflow::normalize(
-        edcpp::api::overflow::cuda::translation::gpu::release(internal_resource),
-        internal_resource);
+    auto internal = edcpp::api::overflow::release(internal_resource);
     result.success = internal.released;
     result.diagnostic = std::move(internal.diagnostic);
     if (internal.released) {

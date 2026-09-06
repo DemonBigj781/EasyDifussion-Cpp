@@ -2,6 +2,7 @@ name: '019 - CUDA Complete Compile [RESERVED]'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       mode: {description: Mode, required: true, default: check, type: choice, options: [check, compile]}
 permissions: {contents: read}
 jobs:

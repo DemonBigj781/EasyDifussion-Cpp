@@ -41,4 +41,7 @@ Result detect() {
     return result;
 }
 
+[[maybe_unused]] const bool registered =
+    edcpp::api::detect::register_translation(Backend::rocm, &detect);
+
 } // namespace edcpp::api::detect::rocm::translation::gpu

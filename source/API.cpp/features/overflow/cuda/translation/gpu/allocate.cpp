@@ -1,4 +1,5 @@
 #include "allocate.hpp"
+#include "release.hpp"
 
 #include "features/overflow/cuda/definition/gpu/allocate.hpp"
 
@@ -138,5 +139,19 @@ Result allocate(const Request& request) {
         : failures;
     return result;
 }
+
+namespace {
+
+const Translation cuda_translation = {
+    Backend::cuda,
+    "cuda",
+    &allocate,
+    &release,
+};
+
+[[maybe_unused]] const bool registered =
+    register_translation(&cuda_translation);
+
+} // namespace
 
 } // namespace edcpp::api::overflow::cuda::translation::gpu

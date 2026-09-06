@@ -13,8 +13,7 @@ The required downward execution route is:
 
 ```text
 Easy Diffusion / application
-    -> Library
-    -> feature Common API
+    -> feature Common exported API
     -> backend translation
     -> backend definition
     -> native backend/runtime/device
@@ -26,20 +25,15 @@ The normalized result returns through the reverse route:
 native backend/runtime/device
     -> backend definition
     -> backend translation
-    -> feature Common API
-    -> Library
+    -> feature Common exported API
     -> Easy Diffusion / application
 ```
 
-The Library must not include or call a backend definition or backend translation
-directly. Backend-specific selection, translation, native objects, kernels, SDK
-calls, and workarounds remain below Common. Common owns the normalized request
-and result language used by the Library.
-
-Existing tested routes that currently call a translation directly from Library
-retain their behavioral test history, but they are not considered architecturally
-unified until that direct dependency is removed and the same behavior is proven
-through the Common-only route.
+`library/` may package the Common ABI, but it is not a runtime routing layer and
+must not include or call a backend definition or translation directly.
+Backend-specific selection, native objects, kernels, SDK calls, and workarounds
+remain below Common. Common owns the normalized request and result language
+used by both the application and any Library facade.
 
 ## Files
 

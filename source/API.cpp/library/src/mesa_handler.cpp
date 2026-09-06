@@ -1,16 +1,10 @@
 #include "api/mesa_handler.hpp"
 #include "features/detect/common/detect.hpp"
-#include "features/detect/mesa/translation/detect.hpp"
 #include <utility>
-#include <vector>
 namespace easyapi {
 namespace {
 edcpp::api::detect::Result detect_mesa() {
-    std::vector<edcpp::api::detect::Result> parts;
-    parts.push_back(edcpp::api::detect::mesa::translation::cpu::detect());
-    parts.push_back(edcpp::api::detect::mesa::translation::gpu::detect());
-    return edcpp::api::detect::combine(
-        edcpp::api::Backend::mesa, "mesa", std::move(parts));
+    return edcpp::api::detect::detect(edcpp::api::Backend::mesa);
 }
 } // namespace
 const char* MesaHandler::name() const noexcept { return "mesa"; }

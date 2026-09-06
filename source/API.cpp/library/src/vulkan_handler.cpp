@@ -1,17 +1,11 @@
 #include "api/vulkan_handler.hpp"
 #include "features/detect/common/detect.hpp"
-#include "features/detect/vulkan/translation/detect.hpp"
 #include <utility>
-#include <vector>
 
 namespace easyapi {
 namespace {
 edcpp::api::detect::Result detect_vulkan() {
-    std::vector<edcpp::api::detect::Result> parts;
-    parts.push_back(edcpp::api::detect::vulkan::translation::cpu::detect());
-    parts.push_back(edcpp::api::detect::vulkan::translation::gpu::detect());
-    return edcpp::api::detect::combine(
-        edcpp::api::Backend::vulkan, "vulkan", std::move(parts));
+    return edcpp::api::detect::detect(edcpp::api::Backend::vulkan);
 }
 } // namespace
 const char* VulkanHandler::name() const noexcept { return "vulkan"; }

@@ -2,6 +2,7 @@ name: '970 - Steam Deck LCD (Aerith / Bazzite / ROCm)'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       mode:
         description: Mode
         required: true

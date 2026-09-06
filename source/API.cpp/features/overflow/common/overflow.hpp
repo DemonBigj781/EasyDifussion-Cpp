@@ -61,6 +61,16 @@ struct ReleaseResult {
     std::string diagnostic;
 };
 
+using AllocateFn = Result (*)(const Request&);
+using ReleaseFn = ReleaseResult (*)(const Resource&) noexcept;
+
+struct Translation {
+    Backend backend = Backend::none;
+    const char* name = "unknown";
+    AllocateFn allocate = nullptr;
+    ReleaseFn release = nullptr;
+};
+
 struct SecondaryDevice {
     Backend backend = Backend::none;
     int device_index = -1;
@@ -97,6 +107,10 @@ struct Candidate {
 };
 
 std::vector<Candidate> plan(const PlanInput& input, std::uint64_t size);
+bool register_translation(const Translation* translation) noexcept;
+const Translation* translation_for(Backend backend) noexcept;
+Result allocate(Backend backend, const Request& request);
+ReleaseResult release(Resource& resource);
 Result normalize(Result result);
 ReleaseResult normalize(ReleaseResult result, const Resource& resource);
 const char* tier_name(Tier tier) noexcept;

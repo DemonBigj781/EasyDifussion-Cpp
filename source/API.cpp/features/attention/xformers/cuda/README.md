@@ -1,8 +1,20 @@
-# CUDA xFormers methods
+# CUDA xFormers backend
 
-Structural placeholder for feature-first xFormers CUDA method implementations.
+The CUDA backend implements the normalized Common xFormers contract for NVIDIA GPUs.
 
-Canonical GPU method path: `API.cpp/features/attention/xformers/cuda/definition/gpu/[method].cpp`.
-CUDA-to-common adapters and production kernels live under `cuda/translation/gpu/`.
+`definition/gpu/` owns the CUDA request representation, capability declaration, and stage-by-stage validation rules. `translation/gpu/forward.cu` converts a Common `AttentionRequest` to that representation, verifies the active device and pointer address spaces, launches the fused kernel, converts CUDA errors to a Common result, and self-registers the CUDA translation.
 
-Do not migrate, replace, or modify the existing CUDA attention/API implementation as part of creating this structure. Method files should be added only when their common contract is defined.
+The Common route supports strided device or managed-memory F32/F16/BF16
+Q/K/V tensors and F32 output, additive F32/F16/BF16 masks, causal masking,
+explicit or maximum-bias ALiBi, soft-cap, attention sinks, GQA/MQA, and head/
+batch broadcasting. Value dimensions are limited to 512. Unsupported layouts
+and pageable host tensor pointers are rejected. NVIDIA Pascal or newer is
+required.
+
+The request carries an opaque execution stream and synchronization policy.
+CUDA translation alone interprets that handle as a CUDA stream; Common never
+includes CUDA types.
+
+The stable-diffusion.cpp `ggml-cuda/xformers-attention.*` source converts GGML
+tensors into this Common request. The former direct GGML implementation is
+retained only under `prototype/legacy-ggml-adapter.*`.

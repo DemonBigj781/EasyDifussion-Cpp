@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
-      mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, regression, compile-and-regression, 'Test, Vast AI']}
+      mode: {description: Mode, required: true, default: compile, type: choice, options: [compile, 'Compile Test Code', regression, compile-and-regression, 'Test, Vast AI']}
       vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
       vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
 permissions: {contents: read, packages: write}
@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail; set +u; source /opt/intel/oneapi/setvars.sh >/dev/null; set -u; export PATH=/opt/rocm/bin:/usr/local/cuda/bin:$PATH
-          mode='${{ inputs.mode }}'; if [[ "$mode" == 'Test, Vast AI' ]]; then mode=compile; fi
+          mode='${{ inputs.mode }}'; if [[ "$mode" == 'Compile Test Code' || "$mode" == 'Test, Vast AI' ]]; then mode=compile; fi
           python ci/scripts/build_backend.py --backend cpu --mode "$mode" --target-json '{"devices":[],"cuda":[],"cuda_version":"12.8.1","oneapi":[],"rocm":[],"portable":[]}'
       - name: Compile complete API.cpp source tree
         shell: bash
@@ -34,6 +34,19 @@ jobs:
           [ "${#sources[@]}" -gt 0 ] || { echo 'No C++ translation units found under source/API.cpp' >&2; exit 1; }
           mkdir -p /tmp/api-cpp-objects; i=0
           for src in "${sources[@]}"; do c++ -std=c++17 -Wall -Wextra -Wpedantic -c "$src" -o "/tmp/api-cpp-objects/unit-${i}.o" -Isource/API.cpp -Isource/sdkit3-port-source/include -Isource/sdkit3-port-source/stable-diffusion.cpp/include -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include -I/usr/local/cuda/include -I/opt/rocm/include; i=$((i+1)); done
+      - name: Compile portable API test applications
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C source/API.test \
+            BUILD_DIR="$GITHUB_WORKSPACE/build/991" \
+            cpu load-cpu unload-cpu overflow-cpu xformers-cpu
+          test -x build/991/detect-cpu
+          test -x build/991/load-cpu
+          test -x build/991/unload-cpu
+          test -x build/991/overflow-cpu
+          test -x build/991/xformers-load-unload-cpu-test
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
@@ -62,7 +75,7 @@ jobs:
   vast-test:
     if: ${{ inputs.platform == 'linux' && inputs.mode == 'Test, Vast AI' }}
     needs: linux
-    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    uses: ./.github/workflows/@@@-vast-ai-runtime-test.yaml
     with:
       approval: ${{ inputs.vast_approval }}
       offer_id: ${{ inputs.vast_offer_id }}

@@ -10,14 +10,14 @@ point-in-time total/free-memory snapshot. Detection must not retain a native
 runtime object, allocate model memory, or silently select a device for later
 work.
 
-The route is:
+The runtime call route is:
 
 ```text
-[backend]/definition/[device-type]/detect.cpp
-    -> [backend]/translation/[device-type]/detect.cpp
+Easy Diffusion / optional Library handler
     -> common/detect.cpp
-    -> Library backend handler
-    -> Easy Diffusion
+    -> [backend]/translation/[device-type]/detect.cpp
+    -> [backend]/definition/[device-type]/detect.cpp
+    -> native runtime/device
 ```
 
 Source routes now exist for CPU, CUDA, ROCm, oneAPI, OpenCL, OpenVINO, OpenGL,
@@ -36,5 +36,7 @@ Backend constraints are preserved instead of replaced with guessed values:
 - DirectML reports dedicated adapter memory only, avoiding double-counting
   system RAM on integrated hardware.
 
-TodoGrid support cells remain blank until the applicable compiler workflow has
-passed and separate runtime-device validation is recorded.
+The canonical `source/API.cpp/TODO_GRID.md` records source, build, and runtime
+maturity separately. CPU, CUDA, OpenCL, OpenGL, Vulkan, and Mesa currently have
+local runtime evidence; other backends must not advance from source-only status
+until their applicable compiler and runtime validation succeeds.

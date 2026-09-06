@@ -23,4 +23,6 @@ Result detect() {
     }
     return result;
 }
+[[maybe_unused]] const bool registered =
+    edcpp::api::detect::register_translation(Backend::directml, &detect);
 } // namespace edcpp::api::detect::directml::translation::gpu

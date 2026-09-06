@@ -65,7 +65,10 @@ Result combine(Backend backend, std::string backend_name, std::vector<Result> pa
             if (!combined.diagnostic.empty()) combined.diagnostic += "; ";
             combined.diagnostic += part.diagnostic;
         }
-        for (auto& device : part.devices) combined.devices.push_back(std::move(device));
+        for (auto& device : part.devices) {
+            device.index = static_cast<std::uint32_t>(combined.devices.size());
+            combined.devices.push_back(std::move(device));
+        }
     }
     return normalize(std::move(combined));
 }

@@ -1,8 +1,6 @@
 #include "api/overflow.hpp"
 
 #include "features/overflow/common/overflow.hpp"
-#include "features/overflow/cpu/translation/cpu/allocate.hpp"
-#include "features/overflow/cpu/translation/cpu/release.hpp"
 
 #include <cstdint>
 #include <utility>
@@ -63,8 +61,8 @@ OverflowResult CpuOverflowHandler::allocate(const OverflowRequest& request) cons
     internal_request.size = static_cast<std::uint64_t>(request.size);
     internal_request.host_reserve = static_cast<std::uint64_t>(request.host_reserve);
 
-    auto internal = edcpp::api::overflow::normalize(
-        edcpp::api::overflow::cpu::translation::cpu::allocate(internal_request));
+    auto internal = edcpp::api::overflow::allocate(
+        edcpp::api::Backend::cpu, internal_request);
     OverflowResult result;
     result.success = internal.allocated;
     result.overflowed = internal.overflowed;
@@ -84,9 +82,7 @@ OverflowReleaseResult CpuOverflowHandler::release(OverflowResource& resource) co
     }
 
     auto internal_resource = to_internal(resource);
-    auto internal = edcpp::api::overflow::normalize(
-        edcpp::api::overflow::cpu::translation::cpu::release(internal_resource),
-        internal_resource);
+    auto internal = edcpp::api::overflow::release(internal_resource);
     result.success = internal.released;
     result.diagnostic = std::move(internal.diagnostic);
     if (internal.released) {

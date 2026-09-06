@@ -1,4 +1,5 @@
 #include "allocate.hpp"
+#include "release.hpp"
 
 #include "features/overflow/cpu/definition/cpu/allocate.hpp"
 
@@ -21,5 +22,19 @@ Result allocate(const Request& request) {
     result.diagnostic = std::move(native.diagnostic);
     return result;
 }
+
+namespace {
+
+const Translation cpu_translation = {
+    Backend::cpu,
+    "cpu",
+    &allocate,
+    &release,
+};
+
+[[maybe_unused]] const bool registered =
+    register_translation(&cpu_translation);
+
+} // namespace
 
 } // namespace edcpp::api::overflow::cpu::translation::cpu

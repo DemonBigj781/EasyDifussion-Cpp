@@ -11,12 +11,6 @@
 bool ggml_sage_attn_supported(int device, const ggml_tensor * dst);
 void ggml_sage_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
-// xFormers common API. CUDA delegates to the ggml-native implementation in the
-// sibling xformers directory. Other backends return false so callers safely
-// fall back without changing the high-level dispatcher.
-bool ggml_xformers_attn_supported(int device, const ggml_tensor * dst);
-void ggml_xformers_attn(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
-
 // FlashAttention is compatibility-only. It is not part of automatic optimized
 // attention selection and should only be requested by an API that explicitly
 // requires FlashAttention-compatible behavior. CPU uses the adapter declared in

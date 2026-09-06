@@ -1,21 +1,14 @@
 #include "api/oneapi_handler.hpp"
 
 #include "features/detect/common/detect.hpp"
-#include "features/detect/oneapi/translation/detect.hpp"
 
 #include <utility>
-#include <vector>
 
 namespace easyapi {
 namespace {
 
 edcpp::api::detect::Result detect_oneapi() {
-    std::vector<edcpp::api::detect::Result> parts;
-    parts.push_back(edcpp::api::detect::oneapi::translation::cpu::detect());
-    parts.push_back(edcpp::api::detect::oneapi::translation::gpu::detect());
-    parts.push_back(edcpp::api::detect::oneapi::translation::npu::detect());
-    return edcpp::api::detect::combine(
-        edcpp::api::Backend::oneapi, "oneapi", std::move(parts));
+    return edcpp::api::detect::detect(edcpp::api::Backend::oneapi);
 }
 
 } // namespace

@@ -1,6 +1,8 @@
 #include "features/attention/xformers/common/xformers.hpp"
 
+#include <array>
 #include <cmath>
+#include <cstddef>
 
 namespace edcpp::api::attention::xformers::cpu::translation {
 
@@ -19,8 +21,19 @@ bool broadcast_dim(std::int64_t value, std::int64_t expected) {
 }
 
 ValidationResult validate(const AttentionRequest& request) {
-    if (request.dtype != DType::f32) {
+    if (request.dtype != DType::f32 ||
+        request.q.dtype != DType::f32 ||
+        request.k.dtype != DType::f32 ||
+        request.v.dtype != DType::f32 ||
+        request.out.dtype != DType::f32) {
         return invalid("CPU xFormers currently supports F32 only");
+    }
+    const auto contiguous = [](const auto& tensor) {
+        return tensor.byte_strides == std::array<std::size_t, 4>{};
+    };
+    if (!contiguous(request.q) || !contiguous(request.k) ||
+        !contiguous(request.v) || !contiguous(request.out)) {
+        return invalid("CPU xFormers currently requires contiguous tensors");
     }
     if (request.q.data == nullptr || request.k.data == nullptr || request.v.data == nullptr ||
         request.out.data == nullptr) {
@@ -54,7 +67,9 @@ ValidationResult validate(const AttentionRequest& request) {
         return invalid("CPU xFormers softcap must be finite and non-negative");
     }
     if (request.mask.data != nullptr &&
-        (!broadcast_dim(request.mask.batch, request.q.batch) ||
+        (request.mask.dtype != DType::f32 ||
+         request.mask.byte_strides != std::array<std::size_t, 4>{} ||
+         !broadcast_dim(request.mask.batch, request.q.batch) ||
          !broadcast_dim(request.mask.heads, request.q.heads) ||
          !broadcast_dim(request.mask.query_tokens, request.q.tokens) ||
          !broadcast_dim(request.mask.key_tokens, request.k.tokens))) {
@@ -63,6 +78,9 @@ ValidationResult validate(const AttentionRequest& request) {
     if (request.alibi.enabled &&
         (request.alibi.slopes == nullptr || request.alibi.slope_count < request.q.heads)) {
         return invalid("CPU xFormers ALiBi requires one slope per Q head");
+    }
+    if (request.alibi.max_bias != 0.0f) {
+        return invalid("CPU xFormers does not support GGML max-bias mask scaling");
     }
     if (request.sinks.enabled) {
         return invalid("CPU xFormers attention sinks are not implemented yet");

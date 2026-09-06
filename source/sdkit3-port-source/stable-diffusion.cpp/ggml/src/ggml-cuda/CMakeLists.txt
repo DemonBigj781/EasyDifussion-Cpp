@@ -107,17 +107,25 @@ if (CUDAToolkit_FOUND)
     set(GGML_API_CUDA_FLASH_DIR "${GGML_API_ATTENTION_DIR}/flash/cuda/translation/gpu")
     set(GGML_API_CUDA_SAGE_DIR "${GGML_API_ATTENTION_DIR}/sage/cuda/translation/gpu")
     set(GGML_API_CUDA_XFORMERS_DIR "${GGML_API_ATTENTION_DIR}/xformers/cuda/translation/gpu")
+    set(GGML_API_XFORMERS_COMMON_DIR "${GGML_API_ATTENTION_DIR}/xformers/common")
+    set(GGML_API_CUDA_XFORMERS_DEFINITION_DIR "${GGML_API_ATTENTION_DIR}/xformers/cuda/definition/gpu")
 
     # Compile canonical API.cpp attention sources directly. The legacy .cu
     # files remain compatibility shims for downstream source-tree consumers.
-    list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch|xformers-attention)\\.cu$")
+    list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch)\\.cu$")
     list(APPEND GGML_SOURCES_CUDA
         "${GGML_API_CUDA_FLASH_DIR}/fattn.cu"
         "${GGML_API_CUDA_FLASH_DIR}/fattn-tile.cu"
         "${GGML_API_CUDA_FLASH_DIR}/fattn-wmma-f16.cu"
         "${GGML_API_CUDA_SAGE_DIR}/sage-attention.cu"
         "${GGML_API_CUDA_SAGE_DIR}/sage-attention-sm80.cu"
-        "${GGML_API_CUDA_XFORMERS_DIR}/xformers-attention.cu"
+        "${GGML_API_XFORMERS_COMMON_DIR}/forward.cpp"
+        "${GGML_API_CUDA_XFORMERS_DEFINITION_DIR}/qkt.cpp"
+        "${GGML_API_CUDA_XFORMERS_DEFINITION_DIR}/mask.cpp"
+        "${GGML_API_CUDA_XFORMERS_DEFINITION_DIR}/softmax.cpp"
+        "${GGML_API_CUDA_XFORMERS_DEFINITION_DIR}/av.cpp"
+        "${GGML_API_CUDA_XFORMERS_DEFINITION_DIR}/forward.cpp"
+        "${GGML_API_CUDA_XFORMERS_DIR}/forward.cu"
     )
     file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-tile*.cu")
     list(APPEND GGML_SOURCES_CUDA ${SRCS})
@@ -144,6 +152,20 @@ if (CUDAToolkit_FOUND)
                              ${GGML_HEADERS_CUDA}
                              ${GGML_SOURCES_CUDA}
                             )
+    if(NOT BUILD_SHARED_LIBS)
+        if(MSVC)
+            target_link_options(
+                ggml-cuda INTERFACE
+                "/INCLUDE:edcpp_xformers_cuda_translation_link_anchor")
+        elseif(UNIX)
+            target_link_options(
+                ggml-cuda INTERFACE
+                "LINKER:--undefined=edcpp_xformers_cuda_translation_link_anchor")
+        endif()
+    endif()
+    target_include_directories(
+        ggml-cuda PRIVATE
+        "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp")
 
     add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${GGML_CUDA_PEER_MAX_BATCH_SIZE})
 

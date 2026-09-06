@@ -64,14 +64,12 @@ file(GLOB   GGML_SOURCES_ROCM "../ggml-cuda/*.cu")
 set(GGML_API_ATTENTION_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/features/attention")
 set(GGML_API_CUDA_FLASH_DIR "${GGML_API_ATTENTION_DIR}/flash/cuda/translation/gpu")
 set(GGML_API_CUDA_SAGE_DIR "${GGML_API_ATTENTION_DIR}/sage/cuda/translation/gpu")
-set(GGML_API_CUDA_XFORMERS_DIR "${GGML_API_ATTENTION_DIR}/xformers/cuda/translation/gpu")
-list(FILTER GGML_SOURCES_ROCM EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch|xformers-attention)\\.cu$")
+list(FILTER GGML_SOURCES_ROCM EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch)\\.cu$")
 list(APPEND GGML_SOURCES_ROCM
     "${GGML_API_CUDA_FLASH_DIR}/fattn.cu"
     "${GGML_API_CUDA_FLASH_DIR}/fattn-tile.cu"
     "${GGML_API_CUDA_FLASH_DIR}/fattn-wmma-f16.cu"
     "${GGML_API_CUDA_SAGE_DIR}/sage-attention.cu"
-    "${GGML_API_CUDA_XFORMERS_DIR}/xformers-attention.cu"
 )
 file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-tile*.cu")
 list(APPEND GGML_SOURCES_ROCM ${SRCS})

@@ -1,21 +1,14 @@
 #include "api/opencl_handler.hpp"
 
 #include "features/detect/common/detect.hpp"
-#include "features/detect/opencl/translation/detect.hpp"
 
 #include <utility>
-#include <vector>
 
 namespace easyapi {
 namespace {
 
 edcpp::api::detect::Result detect_opencl() {
-    std::vector<edcpp::api::detect::Result> parts;
-    parts.push_back(edcpp::api::detect::opencl::translation::cpu::detect());
-    parts.push_back(edcpp::api::detect::opencl::translation::gpu::detect());
-    parts.push_back(edcpp::api::detect::opencl::translation::npu::detect());
-    return edcpp::api::detect::combine(
-        edcpp::api::Backend::opencl, "opencl", std::move(parts));
+    return edcpp::api::detect::detect(edcpp::api::Backend::opencl);
 }
 
 } // namespace

@@ -2,6 +2,7 @@ name: '030 - oneAPI Toolchain Image'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       oneapi_version:
         description: 'oneAPI release prefix or latest (for example 2025.2, 2026.1)'
         required: true

@@ -1,19 +1,20 @@
 # CPU — xFormers attention
 
 ## Status
-Not implemented.
+Implemented as the Common semantic/reference path.
 
 ## Current architecture
-The shared xFormers attention ABI currently exists as a backend-neutral contract for future optimized implementations, but the present execution function is tied to the CUDA/HIP backend context and the support probe returns false.
+The CPU translation self-registers with the backend-neutral xFormers Common contract. Its `forward` callback performs the explicit `QKT -> mask -> softmax -> AV` stages and materializes a temporary F32 score buffer.
 
-## CPU relationship
-There is no CPU xFormers-style kernel or CPU adapter in the current tree.
+## Supported contract
+The current path supports F32 Q/K/V/output, additive F32 masks with broadcasting, causal masking, explicit ALiBi slopes, logit soft-cap, GQA, MQA, and equal Q/K/V batch counts. F16, BF16, and attention sinks are rejected during Common validation.
 
-## Fallback
-CPU execution uses the normal supported attention implementation.
+This is a correctness-oriented execution plan, not a claim that CPU must reproduce the CUDA fused-kernel mechanics.
 
-## Required work
-A CPU implementation would need a CPU-specific execution path, capability rules, numerical tests, and a demonstrated reason to expose it as xFormers-compatible rather than using the existing CPU attention kernels.
+## Routing
+Standalone tests call `edcpp::api::attention::xformers::forward()` and reach
+the CPU translation only through Common registration. Any future exported
+Library facade must call that same Common entry point.
 
 ## Validation
-No CPU xFormers implementation is currently available to validate.
+The exact `source/API.test/build/xformers-load-unload-cpu-test` program passes analytical output, masks, ALiBi, soft-cap, GQA/MQA, invalid-request cases, and 32 custom Common model load/forward/unload cycles.

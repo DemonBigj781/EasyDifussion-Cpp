@@ -2,6 +2,7 @@ name: '038 - oneAPI Easy Diffusion C++'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       action: {description: 'set current workflow action', required: true, default: 'complete', type: choice, options: ['complete', 'check']}
       targets: {description: 'Comma-separated catalog GPU IDs', required: true, default: arc-a770, type: string}
 permissions: {contents: read}

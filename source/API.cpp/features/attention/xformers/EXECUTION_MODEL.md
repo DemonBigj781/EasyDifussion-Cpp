@@ -53,7 +53,7 @@ These are **semantic stages**, not mandatory kernel boundaries.
 
 ### Native/general CPU
 
-Current implementation status: **working translation-level reference path; runtime validation still separate**.
+Current implementation status: **working staged Common translation; runtime conformance tested**.
 
 The CPU translation currently implements the logical stages directly and materializes the complete score matrix:
 
@@ -79,9 +79,15 @@ The CPU path demonstrates the operation's meaning, not the only legal execution 
 
 ### CUDA / NVIDIA GPU
 
-Current implementation status: **substantial native translation exists; runtime validation remains required**.
+Current implementation status: **one working fused Common translation,
+runtime-conformance tested and exercised by stable-diffusion.cpp image
+generation on NVIDIA**.
 
-CUDA does not need to execute the five logical stages as five independent kernels. The current `xformers-attention.cu` implementation performs a fused memory-efficient attention loop.
+CUDA does not execute the five logical stages as five independent kernels.
+`cuda/translation/gpu/forward.cu` performs the fused memory-efficient
+attention loop. The stable-diffusion.cpp `xformers-attention.*` files are an
+application adapter that builds the same Common request; they do not contain a
+second backend implementation.
 
 Conceptually, each CUDA work row performs:
 
@@ -107,18 +113,22 @@ normalize accumulated V by final softmax denominator
 write output
 ```
 
-Important CUDA details currently represented by the implementation:
+The Common CUDA contract currently represents:
 
-- NVIDIA Pascal-or-newer capability check;
-- F32, F16, and BF16 Q/K/V support in the current path;
-- F32 output;
-- grouped/multi-query head mapping through divisible head counts;
-- batch broadcasting through divisible batch counts;
-- optional F16 mask;
+- one registered `FORWARD_FUSED` callback and no advertised materialized QKT stage;
+- F32, F16, and BF16 strided device/managed-memory Q/K/V and F32 output;
+- additive F32/F16/BF16 masks with token/head/batch broadcasting;
+- causal masking, explicit ALiBi slopes or maximum-bias ALiBi, and soft-cap;
+- divisible Q/K/V batch broadcasting;
+- divisible GQA/MQA K/V head mapping;
 - optional F32 attention sinks;
-- scale, maximum bias, and logit softcap parameters;
-- online softmax, avoiding a full materialized score matrix;
-- one fused forward path may satisfy `qkt`, `mask`, `softmax`, and `av` semantics together.
+- value dimensions through 512;
+- Pascal-or-newer NVIDIA capability and CUDA pointer validation; and
+- an opaque caller-provided CUDA stream with requested synchronization.
+
+The kernel uses online softmax and does not materialize the score matrix. One
+fused forward therefore satisfies `qkt`, `mask`, `softmax`, and `av` semantics
+together.
 
 Therefore CUDA proves why Common cannot require a backend to expose separate physical kernels for each logical method.
 
@@ -256,7 +266,7 @@ A future `hybrid` kind can be added only if a real backend requires a mixture su
 The desired direction is:
 
 ```text
-Application / Library
+Application / optional Library facade
         |
         v
 xformers/common
@@ -284,7 +294,7 @@ The reverse result path is:
 native result/status
   -> backend translation
   -> normalized Common result
-  -> Library/Application
+  -> optional Library facade/Application
 ```
 
 Backend-native objects must not leak above translation.
@@ -409,7 +419,7 @@ same normalized request
 compare output shape, validity, semantics, and numeric tolerance
 ```
 
-This is what Vast.ai runtime testing should eventually validate after the backend code is compiled on GitHub.
+This is what local hardware tests and explicitly approved Vast.ai runs validate after the backend code is compiled. The current CPU and CUDA Common executables exercise analytical outputs and rejection behavior; CUDA has also been checked under Compute Sanitizer memcheck.
 
 Compile success alone is not conformance.
 
@@ -417,15 +427,14 @@ Compile success alone is not conformance.
 
 ## Development order
 
-1. Record the actual execution behavior of every existing implementation.
-2. Keep CPU staged execution and CUDA fused execution as the first two concrete models.
-3. Define the smallest normalized request and execution-plan structures capable of describing both.
-4. Implement ROCm and oneAPI translations by describing their real execution behavior rather than copying CUDA.
-5. Add Common plan interpretation only after at least two distinct backend strategies can be represented.
-6. Route Library/application calls to Common.
-7. Compile the relevant feature code in GitHub CI.
-8. After explicit approval, run the GitHub-built container/artifact on Vast.ai hardware.
-9. Compare runtime behavior against the normalized contract.
+1. Preserve CPU staged execution and CUDA fused execution as the first two concrete models.
+2. Implement ROCm and oneAPI translations from their real execution behavior rather than copying CUDA.
+3. Advertise only implemented backend capabilities and reject unsupported requests before launch.
+4. Extend the normalized request only when a real target requires it.
+5. Route application calls and any Library facade to Common.
+6. Compile the relevant feature code and standalone programs in GitHub CI.
+7. After explicit approval, run the GitHub-built artifact on Vast.ai hardware.
+8. Compare runtime behavior against the CPU/reference contract.
 
 ---
 
@@ -433,8 +442,8 @@ Compile success alone is not conformance.
 
 | Backend family | Device class | Definition | Translation | Observed execution strategy | Runtime validation |
 | --- | --- | --- | --- | --- | --- |
-| CPU | CPU | incomplete/skeletal | implemented staged path | materialized `QKT -> mask -> softmax -> AV` | not established here |
-| CUDA | GPU | incomplete/skeletal | substantial implementation | fused streaming attention with online softmax | still required |
+| CPU | CPU | contract encoded by translation validation | registered staged path | materialized `QKT -> mask -> softmax -> AV` | Common conformance and 32-cycle test passed |
+| CUDA | GPU | implemented request/capability validation | one registered fused Common path; GGML application adapter enters it | fused streaming attention with online softmax | Common conformance, 32-cycle, generation, and memcheck passed on RTX 3060 / CUDA 12.4 |
 | ROCm | GPU | skeletal | placeholder | not yet determined | not tested |
 | ROCm | CPU | skeletal | placeholder | not yet determined | not tested |
 | ROCm | NPU | reserved | placeholder | not yet determined | not tested |

@@ -2,6 +2,7 @@ name: '020 - ROCm Toolchain Image'
 on:
   workflow_dispatch:
     inputs:
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
       rocm_version:
         description: 'Exact ROCm version (6.0.x through 7.x)'
         required: true

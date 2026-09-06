@@ -1,7 +1,6 @@
 #include "api/rocm_handler.hpp"
 
 #include "features/detect/common/detect.hpp"
-#include "features/detect/rocm/translation/gpu/detect.hpp"
 
 #include <utility>
 
@@ -9,8 +8,7 @@ namespace easyapi {
 namespace {
 
 edcpp::api::detect::Result detect_rocm() {
-    return edcpp::api::detect::normalize(
-        edcpp::api::detect::rocm::translation::gpu::detect());
+    return edcpp::api::detect::detect(edcpp::api::Backend::rocm);
 }
 
 } // namespace

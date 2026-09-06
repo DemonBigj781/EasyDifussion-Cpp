@@ -3,7 +3,8 @@ name: '101 - Vulkan API.cpp'
 "on":
   workflow_dispatch:
     inputs:
-      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Test, Vast AI']}
+      platform: {description: Platform, required: true, default: linux, type: choice, options: [linux, windows]}
+      mode: {description: 'Build mode', required: true, default: 'compile', type: choice, options: ['compile', 'Compile Test Code', 'Test, Vast AI']}
       vast_approval: {description: 'Paid Vast.ai test permission: type APPROVE', required: false, default: '', type: string}
       vast_offer_id: {description: 'Vast.ai offer ID to rent only when Test, Vast AI is selected', required: false, default: '', type: string}
 
@@ -34,8 +35,18 @@ jobs:
             c++ "${flags[@]}" -DEDCPP_DETECT_VULKAN=1 -c "source/API.cpp/features/detect/vulkan/definition/${device}/detect.cpp" -o "build/101/detect-vulkan-definition-${device}.o"
             c++ "${flags[@]}" -c "source/API.cpp/features/detect/vulkan/translation/${device}/detect.cpp" -o "build/101/detect-vulkan-translation-${device}.o"
           done
+          c++ "${flags[@]}" -c source/API.cpp/features/detect/vulkan/translation/register.cpp -o build/101/detect-vulkan-register.o
           c++ "${flags[@]}" -c source/API.cpp/library/src/vulkan_handler.cpp -o build/101/vulkan-handler.o
           echo '[101] Vulkan detect definitions, translations, Common, and Library sources compiled successfully'
+      - name: Compile Vulkan Detect test application
+        if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C source/API.test BUILD_DIR="$GITHUB_WORKSPACE/build/101" vulkan
+          mv build/101/detect-vulkan build/101/detect-vulkan-test
+          test -x build/101/detect-vulkan-test
+          echo '[101] Vulkan Detect test compiled and linked; runtime deferred unless no local Vulkan runtime is available'
       - name: Preserve GitHub-compiled artifact for approved Vast.ai test
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         uses: actions/upload-artifact@v4
@@ -44,11 +55,12 @@ jobs:
   vast-test:
     if: ${{ inputs.mode == 'Test, Vast AI' }}
     needs: build
-    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    uses: ./.github/workflows/@@@-vast-ai-runtime-test.yaml
     with:
       approval: ${{ inputs.vast_approval }}
       offer_id: ${{ inputs.vast_offer_id }}
       backend: vulkan
       artifact_name: vast-api-101-${{ github.run_id }}
       base_image: ''
+      test_command: '/opt/edcpp-test/build/detect-vulkan-test'
     secrets: inherit
