@@ -116,6 +116,28 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/perchance_plugin/perchance.plugin.js",
 ]
 
+// These modules own top-level navigation tabs and are safe to initialize
+// before the model inventory is available. Loading just this subset early
+// keeps every first-load tab visible while model-dependent plugins retain
+// their existing post-getModels() initialization order.
+const FIRST_LOAD_TAB_PLUGINS = new Set([
+    "/plugins/core/main_plugin/main.tab.plugin.js",
+    "/plugins/core/ui_plugin/settings.tab.plugin.js",
+    "/plugins/core/loader_plugin/plugins.tab.plugin.js",
+    "/plugins/core/files_plugin/online-model-browser.plugin.js",
+    "/plugins/core/draw_plugin/editor-page.plugin.js",
+    "/plugins/core/files_plugin/model-tools.plugin.js",
+    "/plugins/core/gallery_plugin/gallery.tab.plugin.js",
+    "/plugins/core/perchance_plugin/perchance.plugin.js",
+])
+
+const FIRST_LOAD_OPTIONAL_TAB_PLUGIN_IDS = new Set([
+    "perchance-image",
+    "perchance-text",
+    "perchance-gallery",
+    "storyteller",
+])
+
 // Local legacy plugins are installed with the application but remain opt-in.
 // Most of them predate a plugin lifecycle API, so enabling is live while
 // disabling takes effect on the next page load.
@@ -334,6 +356,19 @@ function createLocalPluginManagerTab() {
     document.addEventListener("tabClick", (event) => {
         if (event.detail?.name === "plugin") filter.focus()
     })
+}
+
+async function loadFirstLoadUITabs() {
+    for (const plugin of REQUIRED_UI_PLUGINS) {
+        if (FIRST_LOAD_TAB_PLUGINS.has(plugin)) {
+            await loadScript(plugin)
+        }
+    }
+    for (const plugin of OPTIONAL_UI_PLUGINS) {
+        if (FIRST_LOAD_OPTIONAL_TAB_PLUGIN_IDS.has(plugin.id) && enabledOptionalUIPluginIds.has(plugin.id)) {
+            await loadOptionalUIPlugin(plugin)
+        }
+    }
 }
 
 async function loadRequiredUIPlugins() {

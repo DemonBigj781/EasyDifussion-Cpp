@@ -1307,6 +1307,43 @@ input::file-selector-button {
     #container {
         margin: 0px;
     }
+    #top-nav {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    #top-nav #tab-container {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        justify-content: space-evenly;
+        gap: 0 8px;
+        padding: 0 6px;
+        box-sizing: border-box;
+        background: linear-gradient(
+            to bottom,
+            transparent 35px,
+            color-mix(in srgb, var(--background-color4) 80%, var(--background-color1)) 35px
+        );
+        overflow: visible;
+    }
+    #top-nav .tab {
+        flex: 0 0 52px;
+        width: 52px;
+        min-width: 52px;
+        max-width: 52px;
+        margin-left: 0;
+        padding: 8px 12px;
+        border-radius: 0;
+        box-sizing: border-box;
+        text-align: center;
+        overflow: hidden;
+    }
+    #top-nav .tab .icon {
+        margin-right: 0 !important;
+    }
     .flex-container {
         flex-direction: column;
     }
@@ -1339,6 +1376,24 @@ input::file-selector-button {
     }
     .tab-content-inner {
         margin: 0px;
+    }
+    #tab-content-wrapper > .tab-content {
+        padding-top: 0;
+    }
+    #image-modifiers-moved-note,
+    #initial-text,
+    #footer-spacer,
+    #footer {
+        display: none;
+    }
+    #editor h4.collapsible > small {
+        display: none;
+    }
+    #initial-image-settings > h4.collapsible > .help-btn {
+        display: none;
+    }
+    #prompt-toolbar-left label[for="prompt"] > .help-btn {
+        display: none;
     }
     #top-nav .tab {
         font-size: 0;

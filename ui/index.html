@@ -170,7 +170,7 @@
                 </div>
             </div>
 
-            <label><small><b>Note:</b> The Image Modifiers section has moved to the <code>+ Image Modifiers</code> button at the top, just above the Prompt textbox.</small></label>
+            <label id="image-modifiers-moved-note"><small><b>Note:</b> The Image Modifiers section has moved to the <code>+ Image Modifiers</code> button at the top, just above the Prompt textbox.</small></label>
         </div>
 
         <div id="preview" class="col-free">
@@ -537,6 +537,7 @@
 <script>
 async function init() {
     await initSettings()
+    await loadFirstLoadUITabs()
     await getModels(false)
     await loadRequiredUIPlugins()
     await getAppConfig()

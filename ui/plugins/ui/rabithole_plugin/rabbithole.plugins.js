@@ -350,6 +350,19 @@ style.textContent = `
 		}
 	}
 	@media screen and (max-width:700px){
+		/* Let wrapped mobile tabs add to the header's real height. A sticky
+		   header stays visible like the desktop fixed header while remaining in
+		   normal flow, so the editor begins after every overflow row. */
+		#top-nav {
+			position:sticky;
+			top:0;
+			width:100%;
+			box-sizing:border-box;
+		}
+		#tab-content-wrapper,
+		.minimalUI #tab-content-wrapper {
+			margin-top:0;
+		}
 		#editor {
 			width: revert;
 			position: revert;
