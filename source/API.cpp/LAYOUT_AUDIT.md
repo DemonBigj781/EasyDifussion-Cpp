@@ -2,7 +2,7 @@
 
 This audit is the status map for `source/API.cpp`. It prevents an empty scaffold,
 an old compatibility path, or a design document from being mistaken for the
-current implementation. It records repository state as audited on 2026-09-05.
+current implementation. It records repository state as audited on 2026-09-06.
 
 ## How to resolve conflicting signals
 
@@ -10,7 +10,7 @@ Use these sources for different questions:
 
 1. `LAYOUT.md` and this audit define intended ownership and placement.
 2. Explicit CMake/Make source lists define what is compiled.
-3. Runtime tests and `TODO_GRID.md` define what has actually been validated.
+3. Runtime tests and `IMPLEMENTATION_STATUS.md` define what has actually been validated.
 4. Feature README/design documents define contracts and known limitations.
 5. Files under `docs/todo/` and files whose status says plan/design describe
    future work; they never prove that source exists.
@@ -40,12 +40,14 @@ accidental dependency.
 | `features/load/` and `features/unload/` | Canonical partial | Common and `model/` CPU/CUDA byte-lifecycle routes are active. Other component directories are deferred placeholders, not parsers or graph loaders. |
 | `features/overflow/` | Canonical active | Common owns planning and registered allocation/release dispatch. CPU/CUDA allocation behavior is runtime-tested; other backends remain unimplemented. |
 | `features/attention/xformers/` | Canonical active for CPU/CUDA | CPU staged and CUDA fused translations share one Common contract. The stable-diffusion.cpp application adapter now reaches that same Common route. |
-| `features/attention/{flash,sage}/cuda/translation/gpu/` | Canonical active compatibility paths | Selected by stable-diffusion.cpp's GGML CUDA build. They are not evidence of a Common API route. |
+| `features/attention/flash/` | Canonical active for CPU/CUDA | CPU maps Common to the GGML native boundary. CUDA has a separate fused Common translation with local runtime proof; the optimized GGML `fattn` files remain an application compatibility path. |
+| `features/attention/sage/cuda/translation/gpu/` | Canonical active compatibility path | Selected by stable-diffusion.cpp's GGML CUDA build. It is not evidence of a Common API route. |
 | `features/attention/{flex,split}/` and unimplemented backend branches | Canonical partial or deferred | Their design/location is reserved; support must be established from build and runtime evidence per backend. |
 | `features/cache/`, `features/convert/`, `features/fuse/`, `features/gpu-zram/`, `features/memory/`, `features/ram/`, `features/read/`, `features/split/`, `features/swap/`, `features/vram/`, `features/write/`, `features/zram/` | Deferred scaffold | Empty or `.gitkeep`-only ownership markers. They are not active features. Top-level `split/` remains distinct from the Split Attention algorithm. |
-| `features/ggml/`, `features/gguf/`, `features/reserve/` | Deferred scaffold | Explicitly reserved for later development. They have no build references and must not be pulled into the current xFormers work. |
+| `features/ggml/`, `features/gguf/`, `features/reserve/` | Deferred scaffold | Explicitly reserved for later development. They have no build references and must not be pulled into current attention work. |
 | `library/` | Canonical active | Public export/ABI packaging around Common. It contains no backend implementation tree and may call only Common. |
-| `IMPLEMENTATION_STATUS.md` | Superseded compatibility pointer | Retained so old links remain understandable. It is not a second ledger; current status belongs only in `TODO_GRID.md`. |
+| `IMPLEMENTATION_STATUS.md` | Canonical active | Authoritative implementation and validation ledger. |
+| `TODO_GRID.md` | Superseded compatibility pointer | Retained as a legacy planning grid; do not use it for current support claims. |
 | `source/API.test/build/` and other build trees | Generated | Ignore when searching for canonical sources or build references. |
 
 ## xFormers ownership map
@@ -71,12 +73,29 @@ stable-diffusion.cpp adapter both enter the same Common dispatch and registered
 CUDA translation. The successful generator therefore proves application
 integration as well as the Common route.
 
+## FlashAttention ownership map
+
+| Path | Status | Role |
+| --- | --- | --- |
+| `features/attention/flash/common/` | Canonical active | Backend-neutral tensors, parameters, execution context, capabilities, validation, registry, and forward dispatch. |
+| `features/attention/flash/cpu/` | Canonical active | Registered Common translation and GGML CPU compatibility definition; build/native-boundary smoke evidence only. |
+| `features/attention/flash/cuda/definition/gpu/` | Canonical active | CUDA-native capability, shape, dtype, stride, and launch-bound contract. |
+| `features/attention/flash/cuda/translation/gpu/forward.cu` | Canonical active | Registered fused online-softmax Common translation for F32/F16/BF16 input and F32 output. |
+| `features/attention/flash/cuda/translation/gpu/fattn*.{cu,cuh}` and `template-instances/` | Compatibility | Optimized GGML implementation selected by stable-diffusion.cpp; it does not establish Common routing. |
+| `source/API.test/Feature/Attention/Flash/Cuda/Main.cu` | Canonical active test | Common-only numerical and validation test with RTX 3060 runtime and Compute Sanitizer evidence. |
+| `source/API.test/MultiTest/flash/` | Deferred | Cycle and generation directories remain unwired; there is no Flash end-to-end claim. |
+
+The normalized CUDA `forward.cu` route and GGML `fattn` compatibility path are
+deliberately distinct. The runtime test proves Common CUDA behavior, while an
+application-to-Common adapter remains future routing work.
+
 ## Test-tree audit
 
 The CPU/CUDA xFormers cycle sources and CPU/CUDA generator sources are active.
 Detect has active backend-specific tests for CPU, CUDA, ROCm, oneAPI, OpenCL,
 OpenVINO, OpenGL, Vulkan, Mesa, and DirectML; compiler/runtime evidence still
-varies by `TODO_GRID.md` status.
+varies by `IMPLEMENTATION_STATUS.md` status. The CUDA FlashAttention feature
+test is active and calls Common exclusively.
 
 The empty `Load/{mesa,opengl,vulkan}`, `Unload/{mesa,opengl,vulkan}`, and
 `Overflow/{mesa,opengl}` directories are placement reservations only. The
@@ -100,7 +119,7 @@ rename or interpret them as support without confirming the intended contract.
   It must not take over Overflow's fallback selection or migration policy.
 
 Promotion requires a scoped contract, named methods, build wiring, tests, and a
-status update in this audit and `TODO_GRID.md`. Adding a source file
+status update in this audit and `IMPLEMENTATION_STATUS.md`. Adding a source file
 or removing a `.gitkeep` alone is insufficient.
 
 ## Memory-plan ownership
@@ -129,15 +148,16 @@ obsolete.
 - old `API.cpp/cuda/attention/*` ownership -> each attention feature's
   `cuda/translation/gpu/` directory.
 - stable-diffusion.cpp `ggml/src/ggml-cuda/xformers-attention.*` is the live
-  application-to-Common adapter. Flash/Sage GGML-native sources remain routing
-  debt until their Common migrations are complete.
+  application-to-Common adapter. Flash has a standalone Common CUDA route, but
+  its GGML `fattn` application path and the Sage GGML-native sources remain
+  routing debt until their Common migrations are complete.
 
 Do not remove a compatibility shim until every external include/build reference
 has migrated. Do not add new implementation to a shim.
 
 ## Checklist for later sessions
 
-1. Read `README.md`, `LAYOUT.md`, this audit, `TODO_GRID.md`, and
+1. Read `README.md`, `LAYOUT.md`, this audit, `IMPLEMENTATION_STATUS.md`, and
    `COMMON_ROUTING_AUDIT.md` before moving or implementing a feature.
 2. Search source build files while excluding generated build directories.
 3. Classify the path using the status vocabulary above.

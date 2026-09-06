@@ -1,7 +1,7 @@
 # Common routing audit
 
-This document records the 2026-09-05 re-audit after upstream Theory commit
-`066af7c` and the current layout changes. Every feature speaks one normalized
+This document records the 2026-09-06 re-audit after upstream Theory commit
+`76ce3ff` and the current layout changes. Every feature speaks one normalized
 Common language to the application.
 
 Directory status and superseded/future paths are tracked separately in
@@ -86,11 +86,22 @@ xFormers backend route.
 
 The feature Common API owns a backend-neutral tensor, parameter, execution, capability, validation, and result contract. The CPU translation maps that contract to the existing GGML `FLASH_ATTN_EXT` compatibility definition; GGML tensor and compute objects do not cross the feature Common boundary. Workflow `001` compiles the route and runs a native-boundary smoke test covering registration, normalized validation, capability reporting, translation, and exactly one native dispatch.
 
-This is Common-routed build/smoke evidence, not numerical or end-to-end proof.
-The smoke test substitutes the native GGML operation, and no Easy Diffusion
-workflow currently enters this Common route. The current CPU translation also
-accepts only single-thread execution until backend-native thread-pool
-scheduling is normalized.
+CUDA has its own definition and registered `forward.cu` translation behind the
+same Common contract. It uses fused online softmax without materializing the QK
+matrix and supports F32/F16/BF16 inputs, F32 output, additive masks,
+GGML-style max-bias/ALiBi mask scaling, logit soft-capping, grouped-query
+attention, byte strides, and an opaque CUDA stream. A Common-only numerical
+test passed on an RTX 3060 (`sm_86`, driver 580.94.18, CUDA 12.4), including
+Compute Sanitizer memcheck with zero errors.
+
+CPU remains Common-routed build/native-boundary smoke evidence rather than
+numerical proof. CUDA is runtime-proven but not end-to-end: the optimized
+stable-diffusion.cpp GGML `fattn` path remains a separate compatibility route
+and no Easy Diffusion workflow enters Flash Common yet. The CPU translation
+also accepts only single-thread execution until backend-native thread-pool
+scheduling is normalized. The CUDA Common route requires Pascal or newer; the
+Nouveau-driven Kepler K2000 is neither a CUDA runtime device nor eligible for
+that route.
 
 ## Development expectation
 
@@ -112,6 +123,7 @@ A future source/CI audit should fail when a file under `source/API.cpp/library/`
 
 The current `library/` source audit finds no translation/definition includes.
 The removed `library/backends/` tree should remain absent. Remaining attention
-routing debt is in the CUDA Flash/Sage GGML-native compatibility paths, not in
-Library handlers. Reserved Mesa/OpenGL/Vulkan lifecycle, Overflow, and
+routing debt is in the Flash/Sage GGML-native application compatibility paths,
+not in Library handlers. Flash's separate CUDA Common translation does not by
+itself retire that debt. Reserved Mesa/OpenGL/Vulkan lifecycle, Overflow, and
 xFormers test paths have no implementation behind them.

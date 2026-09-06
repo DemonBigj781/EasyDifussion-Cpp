@@ -25,4 +25,4 @@ that creates a Common request; it does not call the CUDA translation directly.
 Direct Flash/Sage GGML compatibility paths remain routing debt.
 
 Backend implementation and validation maturity is tracked in
-[TODO_GRID.md](TODO_GRID.md).
+[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).

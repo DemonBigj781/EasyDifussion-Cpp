@@ -274,7 +274,7 @@ These filenames describe normalized semantic methods, not mandatory separate
 kernel launches or a claim that an empty scaffold is implemented. Each cache
 type must reproduce the same definition, translation, and Common-facing flow.
 
-See `TODO_GRID.md` for the backend/feature coverage matrix and
+See `IMPLEMENTATION_STATUS.md` for the backend/feature coverage matrix and
 `LAYOUT_AUDIT.md` for the audited active/future/compatibility map. A matrix cell
 is not supported merely because its empty directory scaffold exists.
 
@@ -308,8 +308,8 @@ is not supported merely because its empty directory scaffold exists.
   fused `forward.cu` replaced them as the registered Common translation.
 - `source/API.test/Feature/Attention/Xformers/Cpu/Main.cpp` was replaced by the
   Common cycle test under `source/API.test/MultiTest/xformers/cycle/`.
-- `TODO_GRID.md` replaced the earlier mixed-case grid and is the authoritative implementation
-  and validation ledger.
+- `IMPLEMENTATION_STATUS.md` is the authoritative implementation and
+  validation ledger. `TODO_GRID.md` is retained as a legacy planning grid.
 
 ## Adding a backend implementation
 
@@ -326,7 +326,7 @@ GitHub Actions supplies cross-backend compiler and toolchain coverage only.
 Its compiler workflows can establish source selection, compilation, and linking
 for the represented targets. Runtime capability,
 numerical correctness, fallback behavior, memory behavior, and performance need
-separate validation on real devices. A `TODO_GRID.md` backend cell
+separate validation on real devices. An `IMPLEMENTATION_STATUS.md` backend cell
 remains blank until the complete source route is wired, its applicable compiler
 workflow passes, and required runtime validation is recorded. Workflow
 existence alone is not evidence of support.

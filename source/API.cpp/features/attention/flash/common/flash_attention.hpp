@@ -37,14 +37,23 @@ struct ExecutionContext {
     void* workspace = nullptr;
     std::size_t workspace_size = 0;
     bool reference = false;
+    // Backend translations interpret this opaque handle. CUDA uses it as a
+    // cudaStream_t; Common never exposes that native type.
+    void* stream = nullptr;
+    bool synchronize = true;
+    int device_index = -1;
 };
 
 struct Request {
     Tensor4D query{};
     Tensor4D key{};
     Tensor4D value{};
-    Tensor4D mask{}; // Optional when data is null.
+    // Optional when data is null. For a mask, head_dim is the K-token axis and
+    // tokens is the Q-token axis; head and batch axes may broadcast.
+    Tensor4D mask{};
     MutableTensor4D output{};
+    // Exact multiplier applied to Q*K scores. Zero intentionally produces
+    // uniform unmasked scores; it is not an automatic 1/sqrt(head_dim) mode.
     float scale = 1.0f;
     float max_bias = 0.0f;
     float logit_softcap = 0.0f;

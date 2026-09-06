@@ -143,15 +143,20 @@ XFORMERS_CUDA_CYCLE_SOURCES := \
 	MultiTest/xformers/cycle/xformers-load-unload-cuda-test.cpp \
 	$(XFORMERS_CUDA_RUNTIME_SOURCES) \
 	$(CUDA_MODEL_SOURCES)
+FLASH_CUDA_SOURCES := \
+	Feature/Attention/Flash/Cuda/Main.cu \
+	$(API_ROOT)/features/attention/flash/common/flash_attention.cpp \
+	$(API_ROOT)/features/attention/flash/cuda/definition/gpu/flash_attention_cuda.cpp \
+	$(API_ROOT)/features/attention/flash/cuda/translation/gpu/forward.cu
 
 .PHONY: all cpu cuda opencl vulkan opengl mesa \
 	load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda \
-	xformers-cpu xformers-cuda xformers-cpu-gen xformers-cuda-gen \
+	xformers-cpu xformers-cuda xformers-cpu-gen xformers-cuda-gen flash-cuda \
 	run-cpu run-cuda run-opencl run-vulkan run-opengl run-mesa \
 	run-load-cpu run-load-cuda \
 	run-unload-cpu run-unload-cuda run-overflow-cpu run-overflow-cuda \
-	run-overflow-cuda-stress run-xformers-cpu run-xformers-cuda \
-	check check-xformers clean
+	run-overflow-cuda-stress run-xformers-cpu run-xformers-cuda run-flash-cuda \
+	check check-xformers check-flash clean
 
 all: cpu cuda load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda
 
@@ -182,6 +187,8 @@ overflow-cuda: $(BUILD_DIR)/overflow-cuda
 xformers-cpu: $(BUILD_DIR)/xformers-load-unload-cpu-test
 
 xformers-cuda: $(BUILD_DIR)/xformers-load-unload-cuda-test
+
+flash-cuda: $(BUILD_DIR)/flash-attention-cuda-test
 
 xformers-cpu-gen: $(XFORMERS_IMAGE_SOURCES)
 	$(CMAKE) -S $(XFORMERS_IMAGE_DIR) \
@@ -246,10 +253,15 @@ run-xformers-cpu: xformers-cpu
 run-xformers-cuda: xformers-cuda
 	$(BUILD_DIR)/xformers-load-unload-cuda-test
 
+run-flash-cuda: flash-cuda
+	$(BUILD_DIR)/flash-attention-cuda-test
+
 check: run-cpu run-cuda run-load-cpu run-load-cuda \
 	run-unload-cpu run-unload-cuda run-overflow-cpu run-overflow-cuda
 
 check-xformers: run-xformers-cpu run-xformers-cuda
+
+check-flash: run-flash-cuda
 
 $(BUILD_DIR)/detect-cpu: $(CPU_SOURCES)
 	@mkdir -p $(dir $@)
@@ -311,6 +323,10 @@ $(BUILD_DIR)/xformers-load-unload-cpu-test: $(XFORMERS_CPU_CYCLE_SOURCES)
 $(BUILD_DIR)/xformers-load-unload-cuda-test: $(XFORMERS_CUDA_CYCLE_SOURCES)
 	@mkdir -p $(dir $@)
 	$(NVCC) -O2 -std=c++17 $(CUDA_CPPFLAGS) $(INCLUDES) $^ -o $@
+
+$(BUILD_DIR)/flash-attention-cuda-test: $(FLASH_CUDA_SOURCES)
+	@mkdir -p $(dir $@)
+	$(NVCC) -O2 -std=c++17 $(INCLUDES) $^ -o $@
 
 clean:
 	$(RM) -r $(BUILD_DIR)

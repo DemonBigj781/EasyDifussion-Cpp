@@ -1,13 +1,12 @@
-# Superseded API.cpp implementation-status snapshot
+# API.cpp implementation and validation status
 
-This file is retained only so old links do not lose their context. The
-authoritative implementation and validation ledger is `TODO_GRID.md`.
+This is the authoritative implementation and validation ledger.
 Directory presence, a placeholder, a design document, or a compiler workflow
 does not establish backend support. See `LAYOUT_AUDIT.md` before interpreting
 a path.
 
-Do not update the tables below independently. They are a historical snapshot;
-all current support changes belong in `TODO_GRID.md`.
+`TODO_GRID.md` is retained as a legacy planning grid and must not be used for
+current support or validation claims.
 
 ## Status legend
 
@@ -93,7 +92,7 @@ contiguous 32 GB allocation. CPU/CUDA Library handlers now route through Common.
 | xFormers `av` | `R` | `N/A` |  |  |  |
 | xFormers `forward` | `R` | `E` |  |  |  |
 | Sage Attention |  |  |  |  |  |
-| FlashAttention | `B` |  |  |  |  |
+| FlashAttention | `B` | `R` |  |  |  |
 | Flex Attention |  |  |  |  |  |
 | Split Attention |  |  |  |  |  |
 
@@ -104,6 +103,17 @@ The CUDA path additionally records an RTX 3060 Compute Sanitizer memcheck.
 Stable-diffusion.cpp now translates GGML tensors into the same Common request;
 a 512x512 one-step generation completed through it with 20 native CUDA
 xFormers launches. There is no separate production GGML xFormers backend path.
+
+FlashAttention CUDA registers a separate fused `forward` translation behind
+the normalized Common contract. The online-softmax kernel supports F32, F16,
+and BF16 Q/K/V inputs, F32 output, additive masks, GGML-style max-bias/ALiBi
+mask scaling, logit soft-capping, grouped-query attention, byte strides, and an
+opaque CUDA stream. An RTX 3060 (`sm_86`, driver 580.94.18, CUDA 12.4) passed
+deterministic numerical tests and Compute Sanitizer memcheck with zero errors.
+This is runtime evidence, not end-to-end evidence: stable-diffusion.cpp still
+uses the separate optimized GGML `fattn` compatibility path and does not enter
+the Flash Common route. The Nouveau Quadro K2000 is not a CUDA device and its
+Kepler `sm_30` architecture is below the Common route's Pascal minimum.
 
 The planned normalized method inventories are:
 
