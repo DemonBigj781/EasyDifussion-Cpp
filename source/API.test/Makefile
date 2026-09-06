@@ -143,19 +143,27 @@ XFORMERS_CUDA_CYCLE_SOURCES := \
 	MultiTest/xformers/cycle/xformers-load-unload-cuda-test.cpp \
 	$(XFORMERS_CUDA_RUNTIME_SOURCES) \
 	$(CUDA_MODEL_SOURCES)
-FLASH_CUDA_SOURCES := \
-	Feature/Attention/Flash/Cuda/Main.cu \
+FLASH_CUDA_RUNTIME_SOURCES := \
 	$(API_ROOT)/features/attention/flash/common/flash_attention.cpp \
 	$(API_ROOT)/features/attention/flash/cuda/definition/gpu/flash_attention_cuda.cpp \
 	$(API_ROOT)/features/attention/flash/cuda/translation/gpu/forward.cu
+FLASH_CUDA_SOURCES := \
+	Feature/Attention/Flash/Cuda/Main.cu \
+	$(FLASH_CUDA_RUNTIME_SOURCES)
+FLASH_CUDA_ROUNDTRIP_SOURCES := \
+	MultiTest/flash/cycle/flash-api-roundtrip-cuda-test.cu \
+	$(FLASH_CUDA_RUNTIME_SOURCES) \
+	$(CUDA_MODEL_SOURCES)
 
 .PHONY: all cpu cuda opencl vulkan opengl mesa \
 	load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda \
-	xformers-cpu xformers-cuda xformers-cpu-gen xformers-cuda-gen flash-cuda \
+	xformers-cpu xformers-cuda xformers-cpu-gen xformers-cuda-gen \
+	flash-cuda flash-cuda-roundtrip \
 	run-cpu run-cuda run-opencl run-vulkan run-opengl run-mesa \
 	run-load-cpu run-load-cuda \
 	run-unload-cpu run-unload-cuda run-overflow-cpu run-overflow-cuda \
-	run-overflow-cuda-stress run-xformers-cpu run-xformers-cuda run-flash-cuda \
+	run-overflow-cuda-stress run-xformers-cpu run-xformers-cuda \
+	run-flash-cuda run-flash-cuda-roundtrip \
 	check check-xformers check-flash clean
 
 all: cpu cuda load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda
@@ -189,6 +197,8 @@ xformers-cpu: $(BUILD_DIR)/xformers-load-unload-cpu-test
 xformers-cuda: $(BUILD_DIR)/xformers-load-unload-cuda-test
 
 flash-cuda: $(BUILD_DIR)/flash-attention-cuda-test
+
+flash-cuda-roundtrip: $(BUILD_DIR)/flash-api-roundtrip-cuda-test
 
 xformers-cpu-gen: $(XFORMERS_IMAGE_SOURCES)
 	$(CMAKE) -S $(XFORMERS_IMAGE_DIR) \
@@ -255,6 +265,9 @@ run-xformers-cuda: xformers-cuda
 
 run-flash-cuda: flash-cuda
 	$(BUILD_DIR)/flash-attention-cuda-test
+
+run-flash-cuda-roundtrip: flash-cuda-roundtrip
+	$(BUILD_DIR)/flash-api-roundtrip-cuda-test
 
 check: run-cpu run-cuda run-load-cpu run-load-cuda \
 	run-unload-cpu run-unload-cuda run-overflow-cpu run-overflow-cuda
@@ -327,6 +340,10 @@ $(BUILD_DIR)/xformers-load-unload-cuda-test: $(XFORMERS_CUDA_CYCLE_SOURCES)
 $(BUILD_DIR)/flash-attention-cuda-test: $(FLASH_CUDA_SOURCES)
 	@mkdir -p $(dir $@)
 	$(NVCC) -O2 -std=c++17 $(INCLUDES) $^ -o $@
+
+$(BUILD_DIR)/flash-api-roundtrip-cuda-test: $(FLASH_CUDA_ROUNDTRIP_SOURCES)
+	@mkdir -p $(dir $@)
+	$(NVCC) -O2 -std=c++17 $(CUDA_CPPFLAGS) $(INCLUDES) $^ -o $@
 
 clean:
 	$(RM) -r $(BUILD_DIR)

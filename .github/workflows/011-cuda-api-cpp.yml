@@ -99,18 +99,20 @@ jobs:
           make -C source/API.test \
             BUILD_DIR="$GITHUB_WORKSPACE/build/011" \
             cuda load-cuda unload-cuda overflow-cuda \
-            xformers-cuda xformers-cuda-gen flash-cuda
+            xformers-cuda xformers-cuda-gen \
+            flash-cuda flash-cuda-roundtrip
           install -m 0644 \
             source/API.test/MODELS/lifecycle-model.fixture \
             build/011/lifecycle-model.fixture
           test -x build/011/xformers-load-unload-cuda-test
           test -x build/011/xformers-cuda-gen
           test -x build/011/flash-attention-cuda-test
+          test -x build/011/flash-api-roundtrip-cuda-test
           test -x build/011/detect-cuda
           test -x build/011/load-cuda
           test -x build/011/unload-cuda
           test -x build/011/overflow-cuda
-          echo '[011] CUDA Detect, lifecycle, Overflow, xFormers cycle/generation, and FlashAttention tests compiled and linked; not executed on GitHub'
+          echo '[011] CUDA Detect, lifecycle, Overflow, xFormers cycle/generation, and FlashAttention feature/roundtrip tests compiled and linked; not executed on GitHub'
       - name: Stage minimal CUDA runtime artifact
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         shell: bash
@@ -123,6 +125,9 @@ jobs:
           install -m 0755 \
             build/011/flash-attention-cuda-test \
             build/011-vast/flash-attention-cuda-test
+          install -m 0755 \
+            build/011/flash-api-roundtrip-cuda-test \
+            build/011-vast/flash-api-roundtrip-cuda-test
           install -m 0644 \
             build/011/lifecycle-model.fixture \
             build/011-vast/lifecycle-model.fixture
@@ -144,5 +149,5 @@ jobs:
       backend: cuda
       artifact_name: vast-api-011-${{ github.run_id }}
       base_image: ghcr.io/demonbigj781/easydifussion-cpp-cuda-toolchain:theory
-      test_command: '/opt/edcpp-test/build/xformers-load-unload-cuda-test /opt/edcpp-test/build/lifecycle-model.fixture && /opt/edcpp-test/build/flash-attention-cuda-test'
+      test_command: '/opt/edcpp-test/build/xformers-load-unload-cuda-test /opt/edcpp-test/build/lifecycle-model.fixture && /opt/edcpp-test/build/flash-attention-cuda-test && /opt/edcpp-test/build/flash-api-roundtrip-cuda-test /opt/edcpp-test/build/lifecycle-model.fixture'
     secrets: inherit

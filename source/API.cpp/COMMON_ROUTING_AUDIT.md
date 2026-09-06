@@ -1,7 +1,7 @@
 # Common routing audit
 
 This document records the 2026-09-06 re-audit after upstream Theory commit
-`76ce3ff` and the current layout changes. Every feature speaks one normalized
+`14c4542` and the current layout changes. Every feature speaks one normalized
 Common language to the application.
 
 Directory status and superseded/future paths are tracked separately in
@@ -93,6 +93,12 @@ GGML-style max-bias/ALiBi mask scaling, logit soft-capping, grouped-query
 attention, byte strides, and an opaque CUDA stream. A Common-only numerical
 test passed on an RTX 3060 (`sm_86`, driver 580.94.18, CUDA 12.4), including
 Compute Sanitizer memcheck with zero errors.
+
+The CUDA Flash roundtrip MultiTest then completed 32 cycles in which model
+bytes entered through Common load and returned unchanged, Flash input entered
+Common and its result returned numerically correct, and the model resource
+exited through Common unload. This proves repeated API roundtrip behavior; it
+does not substitute for image-generation integration.
 
 CPU remains Common-routed build/native-boundary smoke evidence rather than
 numerical proof. CUDA is runtime-proven but not end-to-end: the optimized

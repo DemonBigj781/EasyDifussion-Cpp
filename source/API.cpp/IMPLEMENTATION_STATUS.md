@@ -110,6 +110,8 @@ and BF16 Q/K/V inputs, F32 output, additive masks, GGML-style max-bias/ALiBi
 mask scaling, logit soft-capping, grouped-query attention, byte strides, and an
 opaque CUDA stream. An RTX 3060 (`sm_86`, driver 580.94.18, CUDA 12.4) passed
 deterministic numerical tests and Compute Sanitizer memcheck with zero errors.
+The Flash MultiTest also completed 32 model-byte load/return, Flash
+forward/result, and model-unload API roundtrips through Common.
 This is runtime evidence, not end-to-end evidence: stable-diffusion.cpp still
 uses the separate optimized GGML `fattn` compatibility path and does not enter
 the Flash Common route. The Nouveau Quadro K2000 is not a CUDA device and its

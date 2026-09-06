@@ -24,6 +24,11 @@ The current CUDA Common route supports:
 It has numerical runtime and Compute Sanitizer memcheck evidence on an RTX 3060
 (`sm_86`, driver 580.94.18, CUDA 12.4).
 
+`source/API.test/MultiTest/flash/cycle/flash-api-roundtrip-cuda-test.cu`
+additionally completes 32 Common model-load, device-byte return, Flash forward,
+result-return, and Common model-unload cycles. It is an API roundtrip test, not
+an image-generation end-to-end claim.
+
 ## Compatibility paths
 
 The CPU translation maps the normalized request to the existing GGML

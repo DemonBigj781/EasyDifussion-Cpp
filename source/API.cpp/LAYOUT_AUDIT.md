@@ -83,7 +83,8 @@ integration as well as the Common route.
 | `features/attention/flash/cuda/translation/gpu/forward.cu` | Canonical active | Registered fused online-softmax Common translation for F32/F16/BF16 input and F32 output. |
 | `features/attention/flash/cuda/translation/gpu/fattn*.{cu,cuh}` and `template-instances/` | Compatibility | Optimized GGML implementation selected by stable-diffusion.cpp; it does not establish Common routing. |
 | `source/API.test/Feature/Attention/Flash/Cuda/Main.cu` | Canonical active test | Common-only numerical and validation test with RTX 3060 runtime and Compute Sanitizer evidence. |
-| `source/API.test/MultiTest/flash/` | Deferred | Cycle and generation directories remain unwired; there is no Flash end-to-end claim. |
+| `source/API.test/MultiTest/flash/cycle/` | Canonical active test | CUDA model-byte and Flash-result API roundtrip test covering 32 Common load/forward/unload cycles. |
+| `source/API.test/MultiTest/flash/generate-image/` | Deferred | No application adapter or image-generation target exists; there is no Flash end-to-end claim. |
 
 The normalized CUDA `forward.cu` route and GGML `fattn` compatibility path are
 deliberately distinct. The runtime test proves Common CUDA behavior, while an
@@ -95,13 +96,13 @@ The CPU/CUDA xFormers cycle sources and CPU/CUDA generator sources are active.
 Detect has active backend-specific tests for CPU, CUDA, ROCm, oneAPI, OpenCL,
 OpenVINO, OpenGL, Vulkan, Mesa, and DirectML; compiler/runtime evidence still
 varies by `IMPLEMENTATION_STATUS.md` status. The CUDA FlashAttention feature
-test is active and calls Common exclusively.
+and roundtrip tests are active and call Common exclusively.
 
 The empty `Load/{mesa,opengl,vulkan}`, `Unload/{mesa,opengl,vulkan}`, and
 `Overflow/{mesa,opengl}` directories are placement reservations only. The
-empty `MultiTest/{flash,flex,sage,split}/{cycle,generate-image}` directories
-and xFormers Mesa/OpenGL/Vulkan placeholder sources are likewise not wired
-tests. The xFormers cycle `CMakeLists.txt`, shared header, and the exact
+Flash image-generation directory and `MultiTest/{flex,sage,split}` directories
+remain unwired. The xFormers Mesa/OpenGL/Vulkan placeholder sources are also
+not wired tests. The xFormers cycle `CMakeLists.txt`, shared header, and the exact
 `xformers-load-unload-test .cpp` filename remain unwired scaffolding; do not
 rename or interpret them as support without confirming the intended contract.
 
