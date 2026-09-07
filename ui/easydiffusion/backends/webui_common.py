@@ -1,10 +1,12 @@
+import base64
+import binascii
 import os
 import requests
 from requests.exceptions import ConnectTimeout, ConnectionError, ReadTimeout
 from typing import Union, List
 from threading import local as Context
 from threading import local
-from threading import Thread
+from threading import Event, Lock, Thread
 import uuid
 import time
 from copy import deepcopy
@@ -46,6 +48,9 @@ MODELS_TO_OVERRIDE = {
 }
 
 backend_process = None
+_backend_process_lock = Lock()
+_backend_process_generation = 0
+_backend_shutdown_requested = False
 
 webui_opts: dict = None
 
@@ -55,6 +60,39 @@ curr_models = {
     "vae": None,
     "text-encoder": None,
 }
+
+
+def normalize_base64_image(image, field_name="image"):
+    """Return a validated, unprefixed base64 image for backend JSON APIs."""
+    if isinstance(image, Image.Image):
+        image = img_to_base64_str(image)
+    if not isinstance(image, str):
+        raise ValueError(f"{field_name} must be a base64 image string")
+
+    value = image.strip()
+    if value[:5].lower() == "data:":
+        header, separator, value = value.partition(",")
+        if not separator or ";base64" not in header.lower():
+            raise ValueError(f"{field_name} must use a base64 data URI")
+
+    # Browsers and drag/drop helpers can introduce line wrapping. Normalize it
+    # once at the API boundary instead of relying on every native decoder to
+    # accept a slightly different base64 dialect.
+    value = "".join(value.split())
+    if not value:
+        raise ValueError(f"{field_name} is empty")
+    if len(value) % 4 == 1:
+        raise ValueError(f"{field_name} has invalid base64 length")
+    value += "=" * ((-len(value)) % 4)
+
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise ValueError(f"{field_name} contains invalid base64 data") from error
+    if not decoded:
+        raise ValueError(f"{field_name} decoded to an empty image")
+
+    return base64.b64encode(decoded).decode("ascii")
 
 
 def set_options(context, **kwargs):
@@ -256,10 +294,10 @@ def generate_images(
     }
 
     if init_image:
-        cmd["init_images"] = [init_image]
+        cmd["init_images"] = [normalize_base64_image(init_image, "initial image")]
         cmd["denoising_strength"] = prompt_strength
     if init_image_mask:
-        cmd["mask"] = init_image_mask if isinstance(init_image_mask, str) else img_to_base64_str(init_image_mask)
+        cmd["mask"] = normalize_base64_image(init_image_mask, "initial image mask")
         cmd["include_init_images"] = True
         cmd["inpainting_fill"] = 1
         cmd["initial_noise_multiplier"] = 1
@@ -268,7 +306,8 @@ def generate_images(
         cmd["resize_mode"] = 1
         cmd["mask_blur"] = 4
     if ref_images:
-        cmd["ref_images"] = ref_images if isinstance(ref_images, list) else [ref_images]
+        images = ref_images if isinstance(ref_images, list) else [ref_images]
+        cmd["ref_images"] = [normalize_base64_image(image, "reference image") for image in images]
 
     if control_net_lllite_image and control_net_lllite_model:
         if not USE_SDKIT3_API:
@@ -276,7 +315,7 @@ def generate_images(
         lllite_path = resolve_model_to_use(control_net_lllite_model, "controlnet-lllite")
         cmd["controlnet_lllite"] = {
             "model_path": lllite_path,
-            "image": control_net_lllite_image,
+            "image": normalize_base64_image(control_net_lllite_image, "ControlNet-LLLite image"),
             "strength": float(control_net_lllite_strength),
             "start_percent": float(control_net_lllite_start_percent),
             "end_percent": float(control_net_lllite_end_percent),
@@ -293,7 +332,7 @@ def generate_images(
         cmd["ip_adapter"] = {
             "model_path": resolve_model_to_use(ip_adapter_model, "ip-adapter"),
             "clip_vision_path": resolve_model_to_use(ip_adapter_clip_vision, "clip-vision"),
-            "image": ip_adapter_image,
+            "image": normalize_base64_image(ip_adapter_image, "IP-Adapter image"),
             "strength": float(ip_adapter_strength),
             "start_percent": min(raw_start, raw_end),
             "end_percent": max(raw_start, raw_end),
@@ -446,7 +485,7 @@ def generate_images(
             "controlnet": {
                 "args": [
                     {
-                        "image": control_image,
+                        "image": normalize_base64_image(control_image, "ControlNet image"),
                         "weight": control_alpha,
                         "module": controlnet_filter or "none",
                         "model": controlnet_model,
@@ -463,15 +502,36 @@ def generate_images(
 
     stream_image_progress = webui_opts.get("live_previews_enable", False)
 
-    progress_thread = Thread(
-        target=image_progress_thread, args=(task_id, callback, stream_image_progress, num_outputs, num_inference_steps)
-    )
-    progress_thread.start()
+    progress_stop = Event()
+    progress_thread = None
+    if callback is not None:
+        progress_thread = Thread(
+            target=image_progress_thread,
+            args=(
+                task_id,
+                callback,
+                stream_image_progress,
+                num_outputs,
+                num_inference_steps,
+                progress_stop,
+            ),
+            daemon=True,
+        )
+        progress_thread.start()
 
     print(f"task id: {task_id}")
     print_request(operation_to_apply, cmd)
 
-    res = webui_post(f"/sdapi/v1/{operation_to_apply}", json=cmd)
+    try:
+        res = webui_post(f"/sdapi/v1/{operation_to_apply}", json=cmd)
+    finally:
+        if progress_thread is not None:
+            # The native task is marked complete before the blocking generation
+            # response returns, so normally the poller exits during this join.
+            # A backend crash/reload must not leave an orphan polling thread.
+            progress_thread.join(timeout=1.5)
+            progress_stop.set()
+            progress_thread.join(timeout=2.5)
     if res.status_code == 200:
         res = res.json()
     else:
@@ -483,10 +543,6 @@ def generate_images(
         raise Exception(
             f"HTTP Status {res.status_code}. The engine failed while generating this image. Please check the logs in the command-line window for more details."
         )
-
-    import json
-
-    print(json.loads(res["info"])["infotexts"])
 
     images = res["images"]
     if output_type == "pil":
@@ -759,7 +815,14 @@ def controlnet_filter(images, module="none", processor_res=512, threshold_a=64, 
     return filtered_images
 
 
-def image_progress_thread(task_id, callback, stream_image_progress, total_images, total_steps):
+def image_progress_thread(
+    task_id,
+    callback,
+    stream_image_progress,
+    total_images,
+    total_steps,
+    stop_event=None,
+):
     from PIL import Image
 
     last_preview_id = -1
@@ -768,54 +831,81 @@ def image_progress_thread(task_id, callback, stream_image_progress, total_images
 
     EMPTY_IMAGE = Image.new("RGB", (1, 1))
 
-    while True:
-        res = webui_post(
-            f"/internal/progress",
-            json={"id_task": task_id, "live_preview": stream_image_progress, "id_live_preview": last_preview_id},
-        )
-        if res.status_code == 200:
-            res = res.json()
-        elif res.status_code == 404:
-            time.sleep(0.5)
-            continue
-        else:
-            raise RuntimeError(f"Unexpected progress response. Status code: {res.status_code}. Res: {res.text}")
+    stop_event = stop_event or Event()
+    progress_url = f"http://{WEBUI_HOST}:{WEBUI_PORT}{WEBUI_API_PREFIX}/internal/progress"
 
-        last_preview_id = res["id_live_preview"]
+    # Reuse one connection for the lifetime of the render. Opening a new HTTP
+    # session for every poll can exhaust Crow's worker/keep-alive slots, which
+    # makes UI step updates stop even while native sampling continues.
+    with requests.Session() as progress_session:
+        while not stop_event.is_set():
+            try:
+                response = progress_session.post(
+                    progress_url,
+                    json={
+                        "id_task": task_id,
+                        "live_preview": stream_image_progress,
+                        "id_live_preview": last_preview_id,
+                    },
+                    timeout=(2, 2),
+                )
+            except (ConnectTimeout, ConnectionError, ReadTimeout):
+                if stop_event.wait(0.5):
+                    return
+                continue
 
-        if res["progress"] is not None:
-            backend_total_steps = int(res.get("total_steps") or 0)
-            if backend_total_steps > 0:
-                reported_total_steps = backend_total_steps
-            backend_step = res.get("current_step")
-            if backend_step is None:
-                step_num = int(round(res["progress"] * reported_total_steps))
+            if response.status_code == 200:
+                res = response.json()
+            elif response.status_code == 404:
+                if stop_event.wait(0.5):
+                    return
+                continue
             else:
-                step_num = int(backend_step)
-            step_num = max(0, min(reported_total_steps, step_num))
+                log.warning(
+                    "Unexpected native progress response %s: %s",
+                    response.status_code,
+                    response.text,
+                )
+                if stop_event.wait(0.5):
+                    return
+                continue
 
-            if res["live_preview"]:
-                img = res["live_preview"]
-                img = base64_str_to_img(img)
-                images = [EMPTY_IMAGE] * total_images
-                images[0] = img
-            else:
-                images = None
+            last_preview_id = res["id_live_preview"]
 
-            # The progress endpoint is polled more often than many samplers
-            # advance. Do not flood Easy Diffusion with duplicate JSON events,
-            # but keep a new live preview even when the step did not change.
-            if step_num != last_step or images is not None:
-                callback(images, step_num)
-                last_step = step_num
+            if res["progress"] is not None:
+                backend_total_steps = int(res.get("total_steps") or 0)
+                if backend_total_steps > 0:
+                    reported_total_steps = backend_total_steps
+                backend_step = res.get("current_step")
+                if backend_step is None:
+                    step_num = int(round(res["progress"] * reported_total_steps))
+                else:
+                    step_num = int(backend_step)
+                step_num = max(0, min(reported_total_steps, step_num))
 
-        if res["completed"] == True:
-            if last_step < reported_total_steps:
-                callback(None, reported_total_steps)
-            print("Complete!")
-            break
+                if res["live_preview"]:
+                    img = res["live_preview"]
+                    img = base64_str_to_img(img)
+                    images = [EMPTY_IMAGE] * total_images
+                    images[0] = img
+                else:
+                    images = None
 
-        time.sleep(0.5)
+                # The progress endpoint is polled more often than many samplers
+                # advance. Do not flood Easy Diffusion with duplicate JSON events,
+                # but keep a new live preview even when the step did not change.
+                if step_num != last_step or images is not None:
+                    callback(images, step_num)
+                    last_step = step_num
+
+            if res["completed"] == True:
+                if last_step < reported_total_steps:
+                    callback(None, reported_total_steps)
+                print("Complete!")
+                return
+
+            if stop_event.wait(0.5):
+                return
 
 
 def webui_get(uri, *args, **kwargs):
@@ -839,7 +929,9 @@ def print_request(operation_to_apply, args):
     if controlnet_args:
         controlnet_args[0]["image"] = "control_image"
 
-    print(f"operation: {operation_to_apply}, args: {args}")
+    # Prompts remain in the request sent to the backend, but never print that
+    # payload. Image metadata is still returned and embedded by the save path.
+    log.debug("operation: %s, request fields: %s", operation_to_apply, sorted(args.keys()))
 
 
 def auto1111_hash(file_path):
@@ -1036,6 +1128,7 @@ def create_context():
 
 def do_start_backend(was_still_installing, run_fn):
     global WEBUI_HOST, WEBUI_PORT
+    global _backend_process_generation, _backend_shutdown_requested
 
     config = getConfig()
     backend_config = config.get("backend_config") or {}
@@ -1043,23 +1136,47 @@ def do_start_backend(was_still_installing, run_fn):
     WEBUI_HOST = backend_config.get("host", "localhost")
     WEBUI_PORT = backend_config.get("port", "7860")
 
-    def restart_if_webui_dies_after_starting():
+    def process_is_current(process, generation):
+        with _backend_process_lock:
+            return (
+                not _backend_shutdown_requested
+                and generation == _backend_process_generation
+                and backend_process is process
+            )
+
+    def launch_backend():
+        global _backend_process_generation, _backend_shutdown_requested
+        with _backend_process_lock:
+            _backend_process_generation += 1
+            generation = _backend_process_generation
+            _backend_shutdown_requested = False
+        Thread(target=target, args=(generation,), daemon=True).start()
+
+    def restart_if_webui_dies_after_starting(process, generation):
         has_started = False
 
         while True:
-            if backend_process is None:
+            if not process_is_current(process, generation):
                 return
 
             # Check if the process is actually dead
-            return_code = backend_process.poll()
+            return_code = process.poll()
 
             if return_code is not None:
                 # Process has terminated
                 if has_started:
                     print(f"######################## Backend process died with code {return_code}. Restarting...")
-                    stop_backend()
-                    backend_thread = Thread(target=target)
-                    backend_thread.start()
+                    # Retire this exact generation before launching another.
+                    # A manual stop/reload invalidates the generation first,
+                    # so it can never race this automatic recovery path.
+                    with _backend_process_lock:
+                        if (
+                            generation != _backend_process_generation
+                            or backend_process is not process
+                            or _backend_shutdown_requested
+                        ):
+                            return
+                    launch_backend()
                     break
                 else:
                     # Process died before starting successfully
@@ -1091,33 +1208,53 @@ def do_start_backend(was_still_installing, run_fn):
 
             time.sleep(1)
 
-    def target():
+    def target(generation):
         global backend_process
 
-        backend_process = run_fn()
+        process = run_fn()
+        with _backend_process_lock:
+            if generation != _backend_process_generation or _backend_shutdown_requested:
+                try:
+                    process.terminate()
+                except Exception:
+                    pass
+                return
+            backend_process = process
 
         # atexit.register isn't 100% reliable, that's why we also use `forge_monitor_parent_process.patch`
         # which causes Forge to kill itself if the parent pid passed to it is no longer valid.
-        atexit.register(backend_process.terminate)
+        atexit.register(process.terminate)
 
-        restart_if_dead_thread = Thread(target=restart_if_webui_dies_after_starting)
+        restart_if_dead_thread = Thread(
+            target=restart_if_webui_dies_after_starting,
+            args=(process, generation),
+            daemon=True,
+        )
         restart_if_dead_thread.start()
 
-        backend_process.wait()
+        process.wait()
+        with _backend_process_lock:
+            if generation == _backend_process_generation and backend_process is process:
+                backend_process = None
 
-    backend_thread = Thread(target=target)
-    backend_thread.start()
+    launch_backend()
 
 
 def stop_backend():
-    global backend_process
+    global backend_process, _backend_process_generation, _backend_shutdown_requested
 
-    if backend_process:
+    with _backend_process_lock:
+        _backend_shutdown_requested = True
+        _backend_process_generation += 1
         process = backend_process
+        backend_process = None
+
+    if process:
         try:
             kill(process.pid)
             process.wait(timeout=10)
-        except:
-            pass
-
-    backend_process = None
+        except Exception:
+            try:
+                process.terminate()
+            except Exception:
+                pass

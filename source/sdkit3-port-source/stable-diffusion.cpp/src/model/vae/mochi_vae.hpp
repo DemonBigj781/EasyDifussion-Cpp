@@ -314,7 +314,7 @@ struct MochiVAERunner : public VAE {
         }
         auto get_graph = [&]() { return build_graph(z); };
         return restore_trailing_singleton_dims(
-            GGMLRunner::compute<float>(get_graph, n_threads, false, false, false),
+            GGMLRunner::compute(get_graph, n_threads, false),
             z.dim());
     }
 };

@@ -1,5 +1,7 @@
 #include "flash_attention_cuda.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 
@@ -48,19 +50,53 @@ bool valid_tensor(const Tensor& tensor) noexcept {
         return false;
     }
 
-    std::size_t span = item_size;
+    std::array<std::size_t, 4> strides = tensor.byte_strides;
+    std::size_t contiguous_span = item_size;
     for (std::size_t axis = 0; axis < tensor.byte_strides.size(); ++axis) {
-        const std::size_t stride = tensor.byte_strides[axis] == 0
-            ? span
-            : tensor.byte_strides[axis];
-        if (stride < span || stride % item_size != 0) {
+        if (strides[axis] == 0) {
+            strides[axis] = contiguous_span;
+        }
+        if (strides[axis] % item_size != 0) {
             return false;
         }
         const auto dimension = static_cast<std::size_t>(dimensions[axis]);
-        if (dimension > std::numeric_limits<std::size_t>::max() / stride) {
+        if (dimension >
+            std::numeric_limits<std::size_t>::max() / contiguous_span) {
             return false;
         }
-        span = stride * dimension;
+        contiguous_span *= dimension;
+    }
+
+    struct AxisLayout {
+        std::size_t stride;
+        std::size_t dimension;
+    };
+    std::array<AxisLayout, 4> layout{};
+    for (std::size_t axis = 0; axis < layout.size(); ++axis) {
+        layout[axis] = {
+            strides[axis], static_cast<std::size_t>(dimensions[axis])};
+    }
+    std::sort(
+        layout.begin(), layout.end(),
+        [](const AxisLayout& left, const AxisLayout& right) {
+            return left.stride < right.stride;
+        });
+
+    std::size_t addressed_span = item_size;
+    for (const AxisLayout& axis : layout) {
+        if (axis.dimension <= 1) {
+            continue;
+        }
+        if (axis.stride < addressed_span) {
+            return false;
+        }
+        const std::size_t repetitions = axis.dimension - 1;
+        if (repetitions >
+            (std::numeric_limits<std::size_t>::max() - addressed_span) /
+                axis.stride) {
+            return false;
+        }
+        addressed_span += repetitions * axis.stride;
     }
     return true;
 }

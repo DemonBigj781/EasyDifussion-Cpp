@@ -75,13 +75,19 @@
         delete event.reqBody.use_controlnet_model
         event.reqBody.control_net_lllite_model = model.value
         event.reqBody.control_net_lllite_image = image
-        event.reqBody.control_image = image
         event.reqBody.control_net_lllite_strength = clamp(byId("lllite-strength").value, -10, 10, 1)
         event.reqBody.control_net_lllite_start_percent = Math.min(rawStart, rawEnd)
         event.reqBody.control_net_lllite_end_percent = Math.max(rawStart, rawEnd)
         const filter = controller.sharedFilter()
-        if (filter) event.reqBody.control_filter_to_apply = filter
-        else delete event.reqBody.control_filter_to_apply
+        if (filter) {
+            // The generic field is only a temporary input to the shared
+            // preprocessor. task-manager moves the result to the LLLite field.
+            event.reqBody.control_image = image
+            event.reqBody.control_filter_to_apply = filter
+        } else {
+            delete event.reqBody.control_image
+            delete event.reqBody.control_filter_to_apply
+        }
         saveState()
     })
 })()

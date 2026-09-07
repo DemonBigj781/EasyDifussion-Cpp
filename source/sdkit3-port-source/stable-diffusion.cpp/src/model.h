@@ -36,21 +36,28 @@ enum SDVersion {
     VERSION_WAN2_2_I2V,
     VERSION_WAN2_2_TI2V,
     VERSION_MOCHI,
+    VERSION_LINGBOT_VIDEO,
     VERSION_QWEN_IMAGE,
+    VERSION_QWEN_IMAGE_LAYERED,
+    VERSION_HUNYUAN_VIDEO,
     VERSION_ANIMA,
     VERSION_FLUX2,
     VERSION_FLUX2_KLEIN,
     VERSION_LTXAV,
+    VERSION_MINIMAX_H3,
     VERSION_HIDREAM_O1,
     VERSION_Z_IMAGE,
     VERSION_BOOGU_IMAGE,
     VERSION_OVIS_IMAGE,
     VERSION_ERNIE_IMAGE,
     VERSION_LENS,
+    VERSION_MINIT2I,
     VERSION_LONGCAT,
     VERSION_PID,
     VERSION_IDEOGRAM4,
+    VERSION_SEFI_IMAGE,
     VERSION_KREA2,
+    VERSION_MAGE_FLOW,
     VERSION_ESRGAN,
     VERSION_COUNT,
 };
@@ -118,6 +125,10 @@ static inline bool sd_version_is_ltxav(SDVersion version) {
     return false;
 }
 
+static inline bool sd_version_is_minimax_h3(SDVersion version) {
+    return version == VERSION_MINIMAX_H3;
+}
+
 static inline bool sd_version_is_wan(SDVersion version) {
     if (version == VERSION_WAN2 || version == VERSION_WAN2_2_I2V || version == VERSION_WAN2_2_TI2V) {
         return true;
@@ -129,8 +140,22 @@ static inline bool sd_version_is_mochi(SDVersion version) {
     return version == VERSION_MOCHI;
 }
 
+static inline bool sd_version_is_lingbot_video(SDVersion version) {
+    if (version == VERSION_LINGBOT_VIDEO) {
+        return true;
+    }
+    return false;
+}
+
 static inline bool sd_version_is_qwen_image(SDVersion version) {
-    if (version == VERSION_QWEN_IMAGE) {
+    if (version == VERSION_QWEN_IMAGE || version == VERSION_QWEN_IMAGE_LAYERED) {
+        return true;
+    }
+    return false;
+}
+
+static inline bool sd_version_is_hunyuan_video(SDVersion version) {
+    if (version == VERSION_HUNYUAN_VIDEO) {
         return true;
     }
     return false;
@@ -178,6 +203,13 @@ static inline bool sd_version_is_lens(SDVersion version) {
     return false;
 }
 
+static inline bool sd_version_is_minit2i(SDVersion version) {
+    if (version == VERSION_MINIT2I) {
+        return true;
+    }
+    return false;
+}
+
 static inline bool sd_version_is_pid(SDVersion version) {
     if (version == VERSION_PID) {
         return true;
@@ -192,11 +224,22 @@ static inline bool sd_version_is_ideogram4(SDVersion version) {
     return false;
 }
 
+static inline bool sd_version_is_sefi_image(SDVersion version) {
+    if (version == VERSION_SEFI_IMAGE) {
+        return true;
+    }
+    return false;
+}
+
 static inline bool sd_version_is_krea2(SDVersion version) {
     if (version == VERSION_KREA2) {
         return true;
     }
     return false;
+}
+
+static inline bool sd_version_is_mage_flow(SDVersion version) {
+    return version == VERSION_MAGE_FLOW;
 }
 
 static inline bool sd_version_uses_flux_vae(SDVersion version) {
@@ -207,10 +250,21 @@ static inline bool sd_version_uses_flux_vae(SDVersion version) {
 }
 
 static inline bool sd_version_uses_flux2_vae(SDVersion version) {
-    if (sd_version_is_flux2(version) || sd_version_is_ernie_image(version) || sd_version_is_lens(version) || sd_version_is_ideogram4(version)) {
+    if (sd_version_is_flux2(version) || sd_version_is_ernie_image(version) || sd_version_is_lens(version) || sd_version_is_ideogram4(version) || sd_version_is_sefi_image(version)) {
         return true;
     }
     return false;
+}
+
+static inline bool sd_version_uses_wan_vae(SDVersion version) {
+    if (sd_version_is_wan(version) || sd_version_is_lingbot_video(version) || sd_version_is_qwen_image(version) || sd_version_is_krea2(version) || sd_version_is_anima(version)) {
+        return true;
+    }
+    return false;
+}
+
+static inline bool sd_version_uses_hunyuan_video_vae(SDVersion version) {
+    return sd_version_is_hunyuan_video(version);
 }
 
 static inline bool sd_version_is_inpaint(SDVersion version) {
@@ -228,20 +282,26 @@ static inline bool sd_version_is_dit(SDVersion version) {
     if (sd_version_is_flux(version) ||
         sd_version_is_flux2(version) ||
         sd_version_is_ltxav(version) ||
+        sd_version_is_minimax_h3(version) ||
         sd_version_is_sd3(version) ||
         sd_version_is_wan(version) ||
         sd_version_is_mochi(version) ||
+        sd_version_is_lingbot_video(version) ||
         sd_version_is_qwen_image(version) ||
+        sd_version_is_hunyuan_video(version) ||
         version == VERSION_HIDREAM_O1 ||
         sd_version_is_anima(version) ||
         sd_version_is_z_image(version) ||
         sd_version_is_boogu_image(version) ||
         sd_version_is_ernie_image(version) ||
         sd_version_is_lens(version) ||
+        sd_version_is_minit2i(version) ||
         sd_version_is_longcat(version) ||
         sd_version_is_pid(version) ||
         sd_version_is_ideogram4(version) ||
-        sd_version_is_krea2(version)) {
+        sd_version_is_sefi_image(version) ||
+        sd_version_is_krea2(version) ||
+        sd_version_is_mage_flow(version)) {
         return true;
     }
     return false;

@@ -1,325 +1,211 @@
 #ifndef __SD_MODEL_ADAPTER_IP_ADAPTER_HPP__
 #define __SD_MODEL_ADAPTER_IP_ADAPTER_HPP__
 
-#include <cinttypes>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "core/ggml_extend.hpp"
+#include "core/ggml_extend.h"
+#include "core/ggml_runner.h"
 #include "model/common/block.hpp"
-#include "model/te/clip.hpp"
+#include "model/common/ggml_block.hpp"
+#include "model_loader.h"
 
-// Native inference for the original IP-Adapter projection checkpoints.  The
-// adapter adds a second, independently normalized image cross-attention result
-// to each UNet text cross-attention block before the existing output
-// projection.  This deliberately does not concatenate image K/V with text
-// K/V: doing so changes the softmax normalization and is not IP-Adapter.
-class IPAdapterBlock : public GGMLBlock {
-public:
-    explicit IPAdapterBlock(const String2TensorStorage& tensor_storage_map,
-                            SDVersion version)
-        : version_(version) {
-        const auto proj_it = tensor_storage_map.find("image_proj.proj.weight");
-        const auto key_it  = tensor_storage_map.find("ip_adapter.1.to_k_ip.weight");
-        if (proj_it == tensor_storage_map.end() || key_it == tensor_storage_map.end()) {
-            LOG_ERROR("IP-Adapter: checkpoint is missing base image projection tensors");
-            return;
-        }
-        if (tensor_storage_map.find("image_proj.latents") != tensor_storage_map.end()) {
-            LOG_ERROR("IP-Adapter Plus requires the Perceiver projection path; use a base IP-Adapter checkpoint for now");
-            return;
+namespace IPAdapter {
+
+    struct ImageProjModel : public GGMLBlock {
+        int64_t num_tokens = 4;
+        int64_t ctx_dim    = 768;
+        int64_t clip_dim   = 1024;
+
+        ImageProjModel() {}
+        ImageProjModel(int64_t num_tokens, int64_t ctx_dim, int64_t clip_dim)
+            : num_tokens(num_tokens), ctx_dim(ctx_dim), clip_dim(clip_dim) {
+            blocks["proj"] = std::shared_ptr<GGMLBlock>(new Linear(clip_dim, num_tokens * ctx_dim, true));
+            blocks["norm"] = std::shared_ptr<GGMLBlock>(new LayerNorm(ctx_dim));
         }
 
-        clip_embedding_dim_ = proj_it->second.ne[0];
-        const int64_t projection_size = proj_it->second.ne[1];
-        cross_attention_dim_          = key_it->second.ne[0];
-        if (cross_attention_dim_ <= 0 || projection_size % cross_attention_dim_ != 0) {
-            LOG_ERROR("IP-Adapter: invalid projection shape [in=%" PRId64 ", out=%" PRId64 "] for context dim %" PRId64,
-                      clip_embedding_dim_, projection_size, cross_attention_dim_);
-            return;
+        ggml_tensor* forward(GGMLRunnerContext* ctx, ggml_tensor* image_embeds) {
+            auto proj = std::dynamic_pointer_cast<Linear>(blocks["proj"]);
+            auto norm = std::dynamic_pointer_cast<LayerNorm>(blocks["norm"]);
+
+            int64_t n = image_embeds->ne[1];
+            auto x    = proj->forward(ctx, image_embeds);
+            x         = ggml_reshape_3d(ctx->ggml_ctx, x, ctx_dim, num_tokens, n);
+            x         = norm->forward(ctx, x);
+            return x;
         }
-        token_count_ = static_cast<int>(projection_size / cross_attention_dim_);
-        if (token_count_ <= 0 || token_count_ > 64) {
-            LOG_ERROR("IP-Adapter: invalid image token count %d", token_count_);
-            return;
+    };
+
+    struct Resampler : public GGMLBlock {
+        int64_t dim         = 1280;
+        int64_t depth       = 4;
+        int64_t num_queries = 16;
+        int64_t embed_dim   = 1280;
+        int64_t output_dim  = 2048;
+        int64_t ff_inner    = 5120;
+        int64_t dim_head    = 64;
+        int64_t heads       = 20;
+
+        void init_params(ggml_context* ctx, const String2TensorStorage& tensor_storage_map = {}, const std::string prefix = "") override {
+            params["latents"] = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, dim, num_queries, 1);
         }
 
-        if (clip_embedding_dim_ == 1280) {
-            clip_version_ = OPEN_CLIP_VIT_BIGG_14;
-        } else if (clip_embedding_dim_ == 1024) {
-            clip_version_ = OPEN_CLIP_VIT_H_14;
-        } else {
-            LOG_ERROR("IP-Adapter: unsupported CLIP projection dimension %" PRId64,
-                      clip_embedding_dim_);
-            return;
-        }
-
-        blocks["image_proj.proj"] = std::make_shared<Linear>(clip_embedding_dim_, projection_size, true);
-        blocks["image_proj.norm"] = std::make_shared<LayerNorm>(cross_attention_dim_);
-
-        build_attention_layer_map();
-        for (const auto& [attention_prefix, layer_index] : attention_layer_indices_) {
-            const std::string block_prefix = "ip_adapter." + std::to_string(layer_index);
-            const auto k_it = tensor_storage_map.find(block_prefix + ".to_k_ip.weight");
-            const auto v_it = tensor_storage_map.find(block_prefix + ".to_v_ip.weight");
-            if (k_it == tensor_storage_map.end() || v_it == tensor_storage_map.end()) {
-                LOG_ERROR("IP-Adapter: missing K/V weights for layer %d (%s)",
-                          layer_index, attention_prefix.c_str());
-                blocks.clear();
-                attention_layer_indices_.clear();
-                return;
+        Resampler() {}
+        Resampler(int64_t dim, int64_t depth, int64_t num_queries, int64_t embed_dim, int64_t output_dim, int64_t ff_inner)
+            : dim(dim), depth(depth), num_queries(num_queries), embed_dim(embed_dim), output_dim(output_dim), ff_inner(ff_inner) {
+            heads              = dim / dim_head;
+            blocks["proj_in"]  = std::shared_ptr<GGMLBlock>(new Linear(embed_dim, dim, true));
+            blocks["proj_out"] = std::shared_ptr<GGMLBlock>(new Linear(dim, output_dim, true));
+            blocks["norm_out"] = std::shared_ptr<GGMLBlock>(new LayerNorm(output_dim));
+            for (int64_t i = 0; i < depth; i++) {
+                std::string p           = "layers." + std::to_string(i);
+                blocks[p + ".0.norm1"]  = std::shared_ptr<GGMLBlock>(new LayerNorm(dim));
+                blocks[p + ".0.norm2"]  = std::shared_ptr<GGMLBlock>(new LayerNorm(dim));
+                blocks[p + ".0.to_q"]   = std::shared_ptr<GGMLBlock>(new Linear(dim, dim, false));
+                blocks[p + ".0.to_kv"]  = std::shared_ptr<GGMLBlock>(new Linear(dim, dim * 2, false));
+                blocks[p + ".0.to_out"] = std::shared_ptr<GGMLBlock>(new Linear(dim, dim, false));
+                blocks[p + ".1.0"]      = std::shared_ptr<GGMLBlock>(new LayerNorm(dim));
+                blocks[p + ".1.1"]      = std::shared_ptr<GGMLBlock>(new Linear(dim, ff_inner, false));
+                blocks[p + ".1.3"]      = std::shared_ptr<GGMLBlock>(new Linear(ff_inner, dim, false));
             }
-            if (k_it->second.ne[0] != cross_attention_dim_ ||
-                v_it->second.ne[0] != cross_attention_dim_ ||
-                k_it->second.ne[1] != v_it->second.ne[1]) {
-                LOG_ERROR("IP-Adapter: incompatible K/V shape at layer %d", layer_index);
-                blocks.clear();
-                attention_layer_indices_.clear();
-                return;
+        }
+
+        ggml_tensor* forward(GGMLRunnerContext* ctx, ggml_tensor* image_embeds) {
+            int64_t N     = image_embeds->ne[2];
+            auto proj_in  = std::dynamic_pointer_cast<Linear>(blocks["proj_in"]);
+            auto proj_out = std::dynamic_pointer_cast<Linear>(blocks["proj_out"]);
+            auto norm_out = std::dynamic_pointer_cast<LayerNorm>(blocks["norm_out"]);
+
+            ggml_tensor* x       = proj_in->forward(ctx, image_embeds);
+            ggml_tensor* latents = params["latents"];
+            if (N > 1) {
+                latents = ggml_repeat(ctx->ggml_ctx, latents, ggml_new_tensor_3d(ctx->ggml_ctx, GGML_TYPE_F32, dim, num_queries, N));
             }
-            blocks[block_prefix + ".to_k_ip"] =
-                std::make_shared<Linear>(cross_attention_dim_, k_it->second.ne[1], false);
-            blocks[block_prefix + ".to_v_ip"] =
-                std::make_shared<Linear>(cross_attention_dim_, v_it->second.ne[1], false);
+
+            for (int64_t i = 0; i < depth; i++) {
+                std::string p = "layers." + std::to_string(i);
+                auto norm1    = std::dynamic_pointer_cast<LayerNorm>(blocks[p + ".0.norm1"]);
+                auto norm2    = std::dynamic_pointer_cast<LayerNorm>(blocks[p + ".0.norm2"]);
+                auto to_q     = std::dynamic_pointer_cast<Linear>(blocks[p + ".0.to_q"]);
+                auto to_kv    = std::dynamic_pointer_cast<Linear>(blocks[p + ".0.to_kv"]);
+                auto to_out   = std::dynamic_pointer_cast<Linear>(blocks[p + ".0.to_out"]);
+
+                ggml_tensor* xn    = norm1->forward(ctx, x);
+                ggml_tensor* ln    = norm2->forward(ctx, latents);
+                ggml_tensor* q     = to_q->forward(ctx, ln);
+                ggml_tensor* kv_in = ggml_concat(ctx->ggml_ctx, xn, ln, 1);
+                ggml_tensor* kv    = to_kv->forward(ctx, kv_in);
+                int64_t L          = kv->ne[1];
+                ggml_tensor* k     = ggml_cont(ctx->ggml_ctx, ggml_view_3d(ctx->ggml_ctx, kv, dim, L, N, kv->nb[1], kv->nb[2], 0));
+                ggml_tensor* v     = ggml_cont(ctx->ggml_ctx, ggml_view_3d(ctx->ggml_ctx, kv, dim, L, N, kv->nb[1], kv->nb[2], dim * kv->nb[0]));
+                ggml_tensor* attn  = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k, v, heads, nullptr, false, false);
+                attn               = to_out->forward(ctx, attn);
+                latents            = ggml_add(ctx->ggml_ctx, latents, attn);
+
+                auto ff_norm   = std::dynamic_pointer_cast<LayerNorm>(blocks[p + ".1.0"]);
+                auto ff_fc1    = std::dynamic_pointer_cast<Linear>(blocks[p + ".1.1"]);
+                auto ff_fc2    = std::dynamic_pointer_cast<Linear>(blocks[p + ".1.3"]);
+                ggml_tensor* h = ff_norm->forward(ctx, latents);
+                h              = ff_fc1->forward(ctx, h);
+                h              = ggml_gelu_erf(ctx->ggml_ctx, h);
+                h              = ff_fc2->forward(ctx, h);
+                latents        = ggml_add(ctx->ggml_ctx, latents, h);
+            }
+
+            latents = proj_out->forward(ctx, latents);
+            latents = norm_out->forward(ctx, latents);
+            return latents;
         }
+    };
 
-        valid_ = !attention_layer_indices_.empty();
-        if (valid_) {
-            LOG_INFO("IP-Adapter: initialized %zu UNet attention layers, %d image tokens, CLIP dim %" PRId64,
-                     attention_layer_indices_.size(), token_count_, clip_embedding_dim_);
-        }
-    }
+    struct IPAdapterRunner : public GGMLRunner {
+        ImageProjModel image_proj;
+        Resampler resampler;
+        bool is_plus       = false;
+        int64_t num_tokens = 4;
+        std::string prefix;
 
-    bool valid() const {
-        return valid_;
-    }
-
-    int token_count() const {
-        return token_count_;
-    }
-
-    int64_t cross_attention_dim() const {
-        return cross_attention_dim_;
-    }
-
-    int64_t clip_embedding_dim() const {
-        return clip_embedding_dim_;
-    }
-
-    CLIPVersion clip_version() const {
-        return clip_version_;
-    }
-
-    ggml_tensor* project(GGMLRunnerContext* ctx, ggml_tensor* clip_embedding) {
-        auto proj = std::dynamic_pointer_cast<Linear>(blocks["image_proj.proj"]);
-        auto norm = std::dynamic_pointer_cast<LayerNorm>(blocks["image_proj.norm"]);
-        ggml_tensor* tokens = proj->forward(ctx, clip_embedding);
-        const int64_t batch = ggml_nelements(tokens) /
-                              (cross_attention_dim_ * static_cast<int64_t>(token_count_));
-        tokens = ggml_reshape_3d(ctx->ggml_ctx,
-                                 tokens,
-                                 cross_attention_dim_,
-                                 token_count_,
-                                 batch);
-        return norm->forward(ctx, tokens);
-    }
-
-    ggml_tensor* forward_attention(GGMLRunnerContext* ctx,
-                                   const std::string& attention_prefix,
-                                   ggml_tensor* query,
-                                   ggml_tensor* image_context,
-                                   int64_t n_head,
-                                   float strength) {
-        const auto layer_it = attention_layer_indices_.find(attention_prefix);
-        if (layer_it == attention_layer_indices_.end() || image_context == nullptr || strength == 0.f) {
-            return nullptr;
-        }
-        const std::string block_prefix = "ip_adapter." + std::to_string(layer_it->second);
-        auto to_k = std::dynamic_pointer_cast<Linear>(blocks[block_prefix + ".to_k_ip"]);
-        auto to_v = std::dynamic_pointer_cast<Linear>(blocks[block_prefix + ".to_v_ip"]);
-        if (!to_k || !to_v) {
-            return nullptr;
-        }
-
-        ggml_tensor* key   = to_k->forward(ctx, image_context);
-        ggml_tensor* value = to_v->forward(ctx, image_context);
-        ggml_tensor* out   = ggml_ext_attention_ext(ctx->ggml_ctx,
-                                                  ctx->backend,
-                                                  query,
-                                                  key,
-                                                  value,
-                                                  n_head,
-                                                  nullptr,
-                                                  false,
-                                                  ctx->flash_attn_enabled);
-        return ggml_ext_scale(ctx->ggml_ctx, out, strength, true);
-    }
-
-private:
-    void add_layer(const std::string& prefix, int ordinal) {
-        attention_layer_indices_["model.diffusion_model." + prefix + ".attn2."] = ordinal * 2 + 1;
-    }
-
-    void build_attention_layer_map() {
-        int ordinal = 0;
-        if (sd_version_is_sdxl(version_)) {
-            for (int block_id : {4, 5, 7, 8}) {
-                const int depth = (block_id == 4 || block_id == 5) ? 2 : 10;
-                for (int transformer_index = 0; transformer_index < depth; ++transformer_index) {
-                    add_layer("input_blocks." + std::to_string(block_id) +
-                                  ".1.transformer_blocks." + std::to_string(transformer_index),
-                              ordinal++);
+        IPAdapterRunner(ggml_backend_t backend,
+                        const String2TensorStorage& tensor_storage_map,
+                        const std::string prefix,
+                        std::shared_ptr<RunnerWeightManager> weight_manager = nullptr)
+            : GGMLRunner(backend, weight_manager), prefix(prefix) {
+            is_plus = tensor_storage_map.find(prefix + ".image_proj.latents") != tensor_storage_map.end();
+            if (is_plus) {
+                int64_t dim         = 1280;
+                int64_t num_queries = 16;
+                int64_t embed_dim   = 1280;
+                int64_t output_dim  = 2048;
+                int64_t ff_inner    = 5120;
+                auto latents_iter   = tensor_storage_map.find(prefix + ".image_proj.latents");
+                if (latents_iter != tensor_storage_map.end()) {
+                    dim         = latents_iter->second.ne[0];
+                    num_queries = latents_iter->second.ne[1];
                 }
-            }
-            for (int block_id = 0; block_id < 6; ++block_id) {
-                const int depth = block_id < 3 ? 10 : 2;
-                for (int transformer_index = 0; transformer_index < depth; ++transformer_index) {
-                    add_layer("output_blocks." + std::to_string(block_id) +
-                                  ".1.transformer_blocks." + std::to_string(transformer_index),
-                              ordinal++);
+                auto proj_in_iter = tensor_storage_map.find(prefix + ".image_proj.proj_in.weight");
+                if (proj_in_iter != tensor_storage_map.end()) {
+                    embed_dim = proj_in_iter->second.ne[0];
                 }
-            }
-            for (int transformer_index = 0; transformer_index < 10; ++transformer_index) {
-                add_layer("middle_block.1.transformer_blocks." + std::to_string(transformer_index),
-                          ordinal++);
-            }
-        } else if (sd_version_is_sd1(version_)) {
-            for (int block_id : {1, 2, 4, 5, 7, 8}) {
-                add_layer("input_blocks." + std::to_string(block_id) + ".1.transformer_blocks.0",
-                          ordinal++);
-            }
-            for (int block_id = 3; block_id <= 11; ++block_id) {
-                add_layer("output_blocks." + std::to_string(block_id) + ".1.transformer_blocks.0",
-                          ordinal++);
-            }
-            add_layer("middle_block.1.transformer_blocks.0", ordinal++);
-        } else {
-            LOG_ERROR("IP-Adapter: only SD1.x and SDXL UNets are supported");
-        }
-    }
-
-    SDVersion version_                  = VERSION_COUNT;
-    int64_t clip_embedding_dim_         = 0;
-    int64_t cross_attention_dim_        = 0;
-    int token_count_                    = 0;
-    CLIPVersion clip_version_           = OPEN_CLIP_VIT_H_14;
-    bool valid_                         = false;
-    std::map<std::string, int> attention_layer_indices_;
-};
-
-class IPAdapterModel : public GGMLRunner {
-public:
-    IPAdapterModel(ggml_backend_t backend,
-                   const String2TensorStorage& tensor_storage_map,
-                   SDVersion version,
-                   std::shared_ptr<RunnerWeightManager> weight_manager = nullptr)
-        : GGMLRunner(backend, weight_manager),
-          adapter_(tensor_storage_map, version) {
-        if (adapter_.valid()) {
-            adapter_.init(params_ctx, tensor_storage_map);
-        }
-    }
-
-    std::string get_desc() override {
-        return "ip_adapter";
-    }
-
-    bool valid() const {
-        return adapter_.valid();
-    }
-
-    int token_count() const {
-        return adapter_.token_count();
-    }
-
-    int64_t cross_attention_dim() const {
-        return adapter_.cross_attention_dim();
-    }
-
-    CLIPVersion clip_version() const {
-        return adapter_.clip_version();
-    }
-
-    void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors) {
-        adapter_.get_param_tensors(tensors);
-    }
-
-    sd::Tensor<float> project(int n_threads, const sd::Tensor<float>& clip_embedding) {
-        auto get_graph = [&]() -> ggml_cgraph* {
-            ggml_cgraph* graph      = ggml_new_graph(compute_ctx);
-            ggml_tensor* embedding  = make_input(clip_embedding);
-            auto runner_ctx         = get_context();
-            ggml_tensor* projection = adapter_.project(&runner_ctx, embedding);
-            ggml_build_forward_expand(graph, projection);
-            return graph;
-        };
-        return take_or_empty(GGMLRunner::compute<float>(get_graph, n_threads, true, true, true));
-    }
-
-    ggml_tensor* forward_attention(GGMLRunnerContext* ctx,
-                                   const std::string& attention_prefix,
-                                   ggml_tensor* query,
-                                   ggml_tensor* image_context,
-                                   int64_t n_head,
-                                   float strength) {
-        return adapter_.forward_attention(ctx,
-                                          attention_prefix,
-                                          query,
-                                          image_context,
-                                          n_head,
-                                          strength);
-    }
-
-    // IP-Adapter attention layers are injected into the UNet graph, whose
-    // runner owns a different params context. Hold one explicit compute-backend
-    // reference for every adapter tensor while sampling so those external leaf
-    // tensors remain allocated and initialized for the whole denoising pass.
-    bool prepare_for_unet() {
-        if (prepared_for_unet_) {
-            return true;
-        }
-        auto manager = weight_manager.lock();
-        if (manager == nullptr) {
-            LOG_ERROR("IP-Adapter: weight manager is unavailable");
-            return false;
-        }
-        std::map<std::string, ggml_tensor*> tensors;
-        adapter_.get_param_tensors(tensors);
-        unet_param_tensors_.clear();
-        unet_param_tensors_.reserve(tensors.size());
-        for (const auto& [name, tensor] : tensors) {
-            (void)name;
-            if (tensor != nullptr) {
-                unet_param_tensors_.push_back(tensor);
+                auto proj_out_iter = tensor_storage_map.find(prefix + ".image_proj.proj_out.weight");
+                if (proj_out_iter != tensor_storage_map.end()) {
+                    output_dim = proj_out_iter->second.ne[1];
+                }
+                auto ff_iter = tensor_storage_map.find(prefix + ".image_proj.layers.0.1.1.weight");
+                if (ff_iter != tensor_storage_map.end()) {
+                    ff_inner = ff_iter->second.ne[1];
+                }
+                int64_t depth = 0;
+                while (tensor_storage_map.find(prefix + ".image_proj.layers." + std::to_string(depth) + ".0.to_q.weight") != tensor_storage_map.end()) {
+                    depth++;
+                }
+                num_tokens = num_queries;
+                resampler  = Resampler(dim, depth, num_queries, embed_dim, output_dim, ff_inner);
+                resampler.init(params_ctx, tensor_storage_map, prefix + ".image_proj");
+            } else {
+                int64_t ctx_dim  = 768;
+                int64_t clip_dim = 1024;
+                int64_t out_dim  = 3072;
+                auto norm_iter   = tensor_storage_map.find(prefix + ".image_proj.norm.weight");
+                if (norm_iter != tensor_storage_map.end()) {
+                    ctx_dim = norm_iter->second.ne[0];
+                }
+                auto proj_iter = tensor_storage_map.find(prefix + ".image_proj.proj.weight");
+                if (proj_iter != tensor_storage_map.end()) {
+                    clip_dim = proj_iter->second.ne[0];
+                    out_dim  = proj_iter->second.ne[1];
+                }
+                num_tokens = out_dim / ctx_dim;
+                image_proj = ImageProjModel(num_tokens, ctx_dim, clip_dim);
+                image_proj.init(params_ctx, tensor_storage_map, prefix + ".image_proj");
             }
         }
-        if (!manager->prepare_params(unet_param_tensors_)) {
-            LOG_ERROR("IP-Adapter: failed to prepare attention weights");
-            unet_param_tensors_.clear();
-            return false;
-        }
-        prepared_for_unet_ = true;
-        return true;
-    }
 
-    void release_from_unet() {
-        if (!prepared_for_unet_) {
-            return;
+        std::string get_desc() override {
+            return "ip_adapter";
         }
-        auto manager = weight_manager.lock();
-        if (manager != nullptr) {
-            manager->release_compute_backend_params(unet_param_tensors_);
-        }
-        unet_param_tensors_.clear();
-        prepared_for_unet_ = false;
-    }
 
-private:
-    IPAdapterBlock adapter_;
-    std::vector<ggml_tensor*> unet_param_tensors_;
-    bool prepared_for_unet_ = false;
-};
+        void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors, const std::string = "") {
+            if (is_plus) {
+                resampler.get_param_tensors(tensors, prefix + ".image_proj");
+            } else {
+                image_proj.get_param_tensors(tensors, prefix + ".image_proj");
+            }
+        }
+
+        ggml_cgraph* build_graph(const sd::Tensor<float>& image_embeds_tensor) {
+            ggml_cgraph* gf     = new_graph_custom(1024);
+            ggml_tensor* embeds = make_input(image_embeds_tensor);
+            auto runner_ctx     = get_context();
+            ggml_tensor* out    = is_plus ? resampler.forward(&runner_ctx, embeds) : image_proj.forward(&runner_ctx, embeds);
+            ggml_build_forward_expand(gf, out);
+            return gf;
+        }
+
+        sd::Tensor<float> compute(int n_threads, const sd::Tensor<float>& image_embeds) {
+            auto get_graph = [&]() -> ggml_cgraph* {
+                return build_graph(image_embeds);
+            };
+            return take_or_empty(GGMLRunner::compute(get_graph, n_threads, true));
+        }
+    };
+
+}  // namespace IPAdapter
 
 #endif  // __SD_MODEL_ADAPTER_IP_ADAPTER_HPP__

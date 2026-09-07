@@ -58,7 +58,9 @@ code {
     display: block;
     border: 2px solid var(--background-color2);
 }
-#negative_prompt {
+#negative_prompt,
+#hidden_positive_prompt,
+#hidden_negative_prompt {
     width: 100%;
     height: 50pt;
     font-size: 13px;
@@ -1090,7 +1092,9 @@ div.img-preview img {
     width: 93%;
 }
 
-#negative_prompt {
+#negative_prompt,
+#hidden_positive_prompt,
+#hidden_negative_prompt {
     width: 100%;
 }
 
@@ -1278,10 +1282,69 @@ input::file-selector-button {
     opacity: 0.75;
 }
 
+.model-directories-editor {
+    display: grid;
+    gap: 8px;
+    width: min(760px, 65vw);
+    min-width: min(520px, 65vw);
+}
+
+.model-directory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 7px 12px;
+}
+
+.model-directory-value {
+    display: grid;
+    grid-template-columns: minmax(115px, auto) minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+}
+
+.model-directory-value small {
+    display: block;
+    opacity: 0.7;
+}
+
+.model-directory-value textarea {
+    width: 100%;
+    min-height: 34px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
 @media (max-width: 760px) {
-    .native-backend-arguments-editor {
+    #system-settings-table > [data-setting-id="backend_commandline_args"],
+    #system-settings-table > [data-setting-id="directories"] {
+        flex-wrap: wrap;
+    }
+
+    #system-settings-table > [data-setting-id="backend_commandline_args"] > div:nth-child(2),
+    #system-settings-table > [data-setting-id="directories"] > div:nth-child(2) {
+        min-width: 0;
+    }
+
+    #system-settings-table > [data-setting-id="backend_commandline_args"] > div:nth-child(3),
+    #system-settings-table > [data-setting-id="directories"] > div:nth-child(3) {
+        box-sizing: border-box;
+        flex: 0 0 100%;
+        justify-content: stretch;
+        padding-top: 0;
+        text-align: left;
+        width: 100%;
+    }
+
+    .native-backend-arguments-editor,
+    .model-directories-editor {
         min-width: 0;
         width: 100%;
+    }
+
+    .native-backend-argument-grid,
+    .model-directory-grid,
+    .model-directory-value {
+        grid-template-columns: 1fr;
     }
 }
 .model-filter {
@@ -1306,6 +1369,44 @@ input::file-selector-button {
     }
     #container {
         margin: 0px;
+    }
+    #top-nav {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    #top-nav #tab-container {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        justify-content: space-evenly;
+        gap: 0 8px;
+        padding: 0 6px;
+        box-sizing: border-box;
+        background: linear-gradient(
+            to bottom,
+            color-mix(in srgb, var(--background-color4) 75%, var(--background-color1)) 0 35px,
+            color-mix(in srgb, var(--background-color4) 35%, var(--background-color1)) 35px
+        );
+        overflow: visible;
+    }
+    #top-nav .tab {
+        flex: 0 0 52px;
+        width: 52px;
+        min-width: 52px;
+        max-width: 52px;
+        margin-left: 0;
+        padding: 8px 12px;
+        border-radius: 0;
+        background: transparent;
+        box-sizing: border-box;
+        text-align: center;
+        overflow: hidden;
+    }
+    #top-nav .tab .icon {
+        margin-right: 0 !important;
     }
     .flex-container {
         flex-direction: column;
@@ -1339,6 +1440,23 @@ input::file-selector-button {
     }
     .tab-content-inner {
         margin: 0px;
+    }
+    #tab-content-wrapper > .tab-content {
+        padding-top: 0;
+    }
+    #initial-text,
+    #footer-spacer,
+    #footer {
+        display: none;
+    }
+    #editor h4.collapsible > small {
+        display: none;
+    }
+    #initial-image-settings > h4.collapsible > .help-btn {
+        display: none;
+    }
+    #prompt-toolbar-left label[for="prompt"] > .help-btn {
+        display: none;
     }
     #top-nav .tab {
         font-size: 0;
@@ -1975,6 +2093,84 @@ body.wait-pause {
 #embeddings-list button:hover {
     background: var(--accent-color);
     color: var(--button-text-color);
+}
+
+#embeddings-list .modifier-card.embedding-negative-selected {
+    border-color: #ff5c75;
+    box-shadow: 0 0 12px rgba(255, 92, 117, 0.8);
+}
+
+#embeddings-list .modifier-card.embedding-positive-selected {
+    border-color: #41d7b4;
+    box-shadow: 0 0 12px rgba(65, 215, 180, 0.75);
+}
+
+#embeddings-list .modifier-card.embedding-positive-selected .modifier-card-container {
+    background-color: rgba(8, 105, 88, 0.92);
+}
+
+#embeddings-list .modifier-card.embedding-positive-selected .modifier-card-label::after {
+    content: "positive selected";
+    display: block;
+    color: #d8fff6;
+    font-size: 0.65em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+#embeddings-list .modifier-card.embedding-negative-selected .modifier-card-container {
+    background-color: rgba(150, 20, 48, 0.9);
+}
+
+#embeddings-list .modifier-card.embedding-negative-selected .modifier-card-label::after {
+    content: "negative selected";
+    display: block;
+    color: #ffdce2;
+    font-size: 0.65em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+#embeddings-list .modifier-card.embedding-positive-selected.embedding-negative-selected {
+    border-color: #ffd166;
+    box-shadow: 0 0 12px rgba(255, 209, 102, 0.8);
+}
+
+#embeddings-list .modifier-card.embedding-positive-selected.embedding-negative-selected .modifier-card-label::after {
+    content: "positive + negative";
+    color: #fff1c2;
+}
+
+.embedding-settings-content {
+    display: grid;
+    gap: 8px;
+}
+
+.embedding-settings-content textarea {
+    box-sizing: border-box;
+    min-height: 54px;
+    resize: vertical;
+    width: 100%;
+}
+
+.embedding-settings-heading {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.embedding-set-row {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: minmax(70px, auto) minmax(120px, 1fr) auto auto;
+}
+
+@media (max-width: 760px) {
+    .embedding-set-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 #embeddings-list .collapsible {

@@ -1,7 +1,7 @@
 # Common routing audit
 
 This document records the 2026-09-06 re-audit after upstream Theory commit
-`14c4542` and the current layout changes. Every feature speaks one normalized
+`eabe44a` and the current layout changes. Every feature speaks one normalized
 Common language to the application.
 
 Directory status and superseded/future paths are tracked separately in
@@ -100,14 +100,19 @@ Common and its result returned numerically correct, and the model resource
 exited through Common unload. This proves repeated API roundtrip behavior; it
 does not substitute for image-generation integration.
 
+The stable-diffusion.cpp GGML application adapter now converts supported live
+Flash operations into the same Common request. A 512x512 one-step SD 1.5 image
+generation completed in 26.7 seconds with 40 normalized Common launches. Its
+launch counter makes a silent return to the optimized `fattn` fallback fail the
+integration test.
+
 CPU remains Common-routed build/native-boundary smoke evidence rather than
-numerical proof. CUDA is runtime-proven but not end-to-end: the optimized
-stable-diffusion.cpp GGML `fattn` path remains a separate compatibility route
-and no Easy Diffusion workflow enters Flash Common yet. The CPU translation
-also accepts only single-thread execution until backend-native thread-pool
-scheduling is normalized. The CUDA Common route requires Pascal or newer; the
-Nouveau-driven Kepler K2000 is neither a CUDA runtime device nor eligible for
-that route.
+numerical proof. CUDA now has end-to-end Common evidence, while the optimized
+GGML `fattn` implementation remains a separate compatibility fallback for
+unselected or unsupported Common operations. The CPU translation also accepts
+only single-thread execution until backend-native thread-pool scheduling is
+normalized. The CUDA Common route requires Pascal or newer; the Nouveau-driven
+Kepler K2000 is neither a CUDA runtime device nor eligible for that route.
 
 ## Development expectation
 
@@ -129,7 +134,8 @@ A future source/CI audit should fail when a file under `source/API.cpp/library/`
 
 The current `library/` source audit finds no translation/definition includes.
 The removed `library/backends/` tree should remain absent. Remaining attention
-routing debt is in the Flash/Sage GGML-native application compatibility paths,
-not in Library handlers. Flash's separate CUDA Common translation does not by
-itself retire that debt. Reserved Mesa/OpenGL/Vulkan lifecycle, Overflow, and
-xFormers test paths have no implementation behind them.
+routing debt is in Flash's retained GGML fallback and Sage's GGML-native
+forward launch, not in Library handlers. Sage capability selection now enters
+the registered Common `support` route before that launch. Reserved
+Mesa/OpenGL/Vulkan lifecycle, Overflow, and xFormers test paths have no
+implementation behind them.

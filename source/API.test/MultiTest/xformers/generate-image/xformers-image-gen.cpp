@@ -16,7 +16,7 @@
 #include <string_view>
 #include <thread>
 
-namespace api_test::xformers_image {
+namespace api_test::attention_image {
 namespace {
 
 struct Options {
@@ -43,7 +43,8 @@ using Context = std::unique_ptr<sd_ctx_t, ContextDeleter>;
 void print_usage(const char* executable, const BackendConfiguration& backend) {
     std::cerr
         << "usage: " << executable << " -m MODEL -p PROMPT [options]\n\n"
-        << "Generate one 512x512 PPM image with xFormers-compatible attention.\n"
+        << "Generate one 512x512 PPM image with "
+        << backend.attention_name << ".\n"
         << "Sampling is fixed to DDIM trailing with the Simple scheduler.\n\n"
         << "  -p TEXT   positive prompt (required)\n"
         << "  -n TEXT   negative prompt (default: empty)\n"
@@ -157,14 +158,6 @@ bool parse_options(
     return true;
 }
 
-bool enable_cuda_xformers() {
-#ifdef _WIN32
-    return _putenv_s("SD_CUDA_XFORMERS", "1") == 0;
-#else
-    return setenv("SD_CUDA_XFORMERS", "1", 1) == 0;
-#endif
-}
-
 bool write_ppm(const std::string& path, const sd_image_t& image) {
     if (image.data == nullptr || image.width == 0 || image.height == 0 ||
         image.channel == 0) {
@@ -195,8 +188,10 @@ bool write_ppm(const std::string& path, const sd_image_t& image) {
 
 int run(int argc, char** argv, const BackendConfiguration& backend) {
     if (backend.label == nullptr || backend.default_device == nullptr ||
-        backend.default_output == nullptr || backend.resolve_device == nullptr ||
-        (backend.enable_cuda_xformers && backend.xformers_launch_count == nullptr)) {
+        backend.default_output == nullptr || backend.attention_name == nullptr ||
+        backend.resolve_device == nullptr ||
+        (backend.enable_attention != nullptr &&
+         backend.attention_launch_count == nullptr)) {
         std::cerr << "invalid image-generator backend configuration\n";
         return EXIT_FAILURE;
     }
@@ -216,8 +211,8 @@ int run(int argc, char** argv, const BackendConfiguration& backend) {
         std::cerr << "device selection failed: " << device_error << '\n';
         return EXIT_FAILURE;
     }
-    if (backend.enable_cuda_xformers && !enable_cuda_xformers()) {
-        std::cerr << "failed to enable SD_CUDA_XFORMERS\n";
+    if (backend.enable_attention != nullptr && !backend.enable_attention()) {
+        std::cerr << "failed to select " << backend.attention_name << '\n';
         return EXIT_FAILURE;
     }
 
@@ -242,11 +237,11 @@ int run(int argc, char** argv, const BackendConfiguration& backend) {
               << "scheduler: simple\n"
               << "steps: " << options.steps << '\n'
               << "CFG: " << options.cfg << '\n';
-    if (backend.enable_cuda_xformers) {
-        std::cout << "CUDA xFormers selection: requested by SD_CUDA_XFORMERS=1; "
-                     "a native launch is required for this test to pass\n";
+    if (backend.attention_launch_count != nullptr) {
+        std::cout << "CUDA attention selection: " << backend.attention_name
+                  << "; a native launch is required for this test to pass\n";
     } else {
-        std::cout << "CPU memory-efficient attention requested\n";
+        std::cout << backend.attention_name << " requested\n";
     }
 
     const auto load_start = std::chrono::steady_clock::now();
@@ -274,9 +269,9 @@ int run(int argc, char** argv, const BackendConfiguration& backend) {
     generation.sample_params.sample_steps = options.steps;
     generation.sample_params.guidance.txt_cfg = options.cfg;
 
-    const std::uint64_t launches_before = backend.xformers_launch_count == nullptr
+    const std::uint64_t launches_before = backend.attention_launch_count == nullptr
         ? 0
-        : backend.xformers_launch_count();
+        : backend.attention_launch_count();
     const auto generation_start = std::chrono::steady_clock::now();
     sd_image_t* images = generate_image(context.get(), &generation);
     const auto generation_stop = std::chrono::steady_clock::now();
@@ -285,13 +280,14 @@ int run(int argc, char** argv, const BackendConfiguration& backend) {
         return EXIT_FAILURE;
     }
 
-    const std::uint64_t launches_after = backend.xformers_launch_count == nullptr
+    const std::uint64_t launches_after = backend.attention_launch_count == nullptr
         ? 0
-        : backend.xformers_launch_count();
-    if (backend.enable_cuda_xformers && launches_after <= launches_before) {
+        : backend.attention_launch_count();
+    if (backend.attention_launch_count != nullptr &&
+        launches_after <= launches_before) {
         free_sd_images(images, 1);
-        std::cerr << "CUDA generation completed without launching the native "
-                     "xFormers kernel\n";
+        std::cerr << "CUDA generation completed without launching "
+                  << backend.attention_name << '\n';
         return EXIT_FAILURE;
     }
 
@@ -310,11 +306,11 @@ int run(int argc, char** argv, const BackendConfiguration& backend) {
     std::cout << "image: " << options.output_path << '\n'
               << "model load: " << load_seconds << " s\n"
               << "generation: " << generation_seconds << " s\n";
-    if (backend.enable_cuda_xformers) {
-        std::cout << "native CUDA xFormers launches: "
+    if (backend.attention_launch_count != nullptr) {
+        std::cout << backend.attention_name << " launches: "
                   << (launches_after - launches_before) << '\n';
     }
     return EXIT_SUCCESS;
 }
 
-} // namespace api_test::xformers_image
+} // namespace api_test::attention_image

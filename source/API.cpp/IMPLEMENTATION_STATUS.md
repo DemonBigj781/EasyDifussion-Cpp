@@ -91,8 +91,10 @@ contiguous 32 GB allocation. CPU/CUDA Library handlers now route through Common.
 | xFormers `softmax` | `R` | `N/A` |  |  |  |
 | xFormers `av` | `R` | `N/A` |  |  |  |
 | xFormers `forward` | `R` | `E` |  |  |  |
-| Sage Attention |  |  |  |  |  |
-| FlashAttention | `B` | `R` |  |  |  |
+| Sage feature |  | `R` |  |  |  |
+| Sage `support` |  | `R` |  |  |  |
+| Sage `forward` |  | `R` |  |  |  |
+| FlashAttention | `B` | `E` |  |  |  |
 | Flex Attention |  |  |  |  |  |
 | Split Attention |  |  |  |  |  |
 
@@ -104,6 +106,21 @@ Stable-diffusion.cpp now translates GGML tensors into the same Common request;
 a 512x512 one-step generation completed through it with 20 native CUDA
 xFormers launches. There is no separate production GGML xFormers backend path.
 
+Sage CUDA now registers a normalized Common `support` translation and uses it
+from stable-diffusion.cpp's GGML selector. Its build-only test covers
+registration, SM86 acceptance, Hopper rejection, F32 Q/output with F16 K/V,
+head dimensions 64/128, grouped-query-compatible shapes, GGML output strides,
+and rejection of unsupported masks and dtypes. On an RTX 3060 (`sm_86`, driver
+580.94.18), a profiled one-step 256x256 SDXL Turbo generation completed and
+wrote a valid RGB PNG. Its Nsight Systems trace recorded 280 Sage key-mean
+launches, 280 F16 K quantization launches, 280 F32 Q quantization launches, 280
+INT8-QK/FP16-PV attention launches, and 280 output-conversion launches. The
+static-library registration anchor was exercised by this application build, so
+the live selector entered Common before the native launches. Sage therefore has
+CUDA runtime evidence, but remains below `E`: forward still calls the
+GGML-native SM80 compatibility kernel rather than a normalized Common `forward`
+request, and numerical parity plus Compute Sanitizer coverage remain open.
+
 FlashAttention CUDA registers a separate fused `forward` translation behind
 the normalized Common contract. The online-softmax kernel supports F32, F16,
 and BF16 Q/K/V inputs, F32 output, additive masks, GGML-style max-bias/ALiBi
@@ -112,10 +129,14 @@ opaque CUDA stream. An RTX 3060 (`sm_86`, driver 580.94.18, CUDA 12.4) passed
 deterministic numerical tests and Compute Sanitizer memcheck with zero errors.
 The Flash MultiTest also completed 32 model-byte load/return, Flash
 forward/result, and model-unload API roundtrips through Common.
-This is runtime evidence, not end-to-end evidence: stable-diffusion.cpp still
-uses the separate optimized GGML `fattn` compatibility path and does not enter
-the Flash Common route. The Nouveau Quadro K2000 is not a CUDA device and its
-Kepler `sm_30` architecture is below the Common route's Pascal minimum.
+Stable-diffusion.cpp now has a GGML application adapter selected by
+`SD_CUDA_FLASH_COMMON=1`. A 512x512 one-step SD 1.5 generation completed in
+26.7 seconds with 40 normalized Common Flash launches. The generator samples
+the adapter counter and fails if execution silently falls back. The optimized
+GGML `fattn` implementation remains available when Common is unselected or
+cannot represent an operation, so its remaining direct route is still routing
+debt rather than Common proof. The Nouveau Quadro K2000 is not a CUDA device
+and its Kepler `sm_30` architecture is below the Common route's Pascal minimum.
 
 The planned normalized method inventories are:
 

@@ -300,9 +300,13 @@ is not supported merely because its empty directory scaffold exists.
   `library/backends/` documentation/compatibility tree was removed.
 - Root `include/api` and `src` moved to `library/include/api` and `library/src`.
 - CUDA attention implementation ownership moved from `API.cpp/cuda/attention/*` to each feature's `cuda/translation/gpu`.
-- The stable-diffusion GGML xFormers adapter converts GGML tensors to the
-  Common request and never calls the CUDA translation directly. Remaining
-  direct Flash/Sage source shims are routing debt, not a permitted pattern.
+- The Theory-only `source/API.bridge/sdkit3-ggml` xFormers and Flash adapters
+  convert GGML tensors to their Common requests and never call CUDA
+  translations directly. Keeping them outside the moving sdkit3 snapshot makes
+  their API.cpp ownership explicit.
+- Sage GGML selection now goes through its normalized Common `support` route.
+  The selected forward launch is still the direct GGML-native SM80
+  compatibility path and remains routing debt, not a pattern for new adapters.
 - The old materialized xFormers CUDA stage files moved from
   `cuda/translation/gpu/{qkt,mask,softmax,av}.cu` to `prototype/cuda-*.cu` after
   fused `forward.cu` replaced them as the registered Common translation.

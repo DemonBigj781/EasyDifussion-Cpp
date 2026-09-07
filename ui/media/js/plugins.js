@@ -1,5 +1,11 @@
 const PLUGIN_API_VERSION = "1.0"
 
+const firstLoadTabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+if (firstLoadTabContainer) {
+    firstLoadTabContainer.dataset.firstLoadPending = "true"
+    firstLoadTabContainer.style.visibility = "hidden"
+}
+
 const PLUGIN_CATALOG = 'https://raw.githubusercontent.com/easydiffusion/easydiffusion-plugins/main/plugins.json'
 const PLUGIN_CATALOG_GITHUB = 'https://github.com/easydiffusion/easydiffusion-plugins/blob/main/plugins.json'
 
@@ -89,11 +95,15 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/controlnet_plugin/controlnet-lllite.plugin.js",
     "/plugins/core/controlnet_plugin/ip-adapter.plugin.js",
     "/plugins/core/video_plugin/native-video.plugin.js",
+    "/plugins/core/video_plugin/gif.js",
+    "/plugins/core/video_plugin/mads-gifs-cpp.plugin.js",
     "/plugins/core/image_plugin/native-image-tools.plugin.js",
     "/plugins/core/interpose_pugin/latent-interposer-encode.plugin.js",
     "/plugins/core/interpose_pugin/latent-interposer-decode.plugin.js",
     "/plugins/core/wdtagger_plugin/wd14-tagger.plugin.js",
     "/plugins/core/image_plugin/post-generation-tools.plugin.js",
+    "/plugins/core/image_plugin/ai-image-critic.plugin.js",
+    "/plugins/core/image_plugin/make-very-similar.plugin.js",
     "/plugins/core/outpaint_plugin/OutpaintIt.plugin.js",
     "/plugins/core/outpaint_plugin/outpaint-editor.plugin.js",
     "/plugins/core/localstorage_plugin/stig-localstorage.plugin.js",
@@ -116,6 +126,40 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/perchance_plugin/perchance.plugin.js",
 ]
 
+// These modules own top-level navigation tabs and are safe to initialize
+// before the model inventory is available. Loading just this subset early
+// keeps every first-load tab visible while model-dependent plugins retain
+// their existing post-getModels() initialization order.
+const FIRST_LOAD_TAB_PLUGINS = new Set([
+    "/plugins/core/main_plugin/main.tab.plugin.js",
+    "/plugins/core/ui_plugin/settings.tab.plugin.js",
+    "/plugins/core/loader_plugin/plugins.tab.plugin.js",
+    "/plugins/core/files_plugin/online-model-browser.plugin.js",
+    "/plugins/core/draw_plugin/editor-page.plugin.js",
+    "/plugins/core/files_plugin/model-tools.plugin.js",
+    "/plugins/core/gallery_plugin/gallery.tab.plugin.js",
+    "/plugins/core/perchance_plugin/perchance.plugin.js",
+])
+
+const FIRST_LOAD_OPTIONAL_TAB_PLUGIN_IDS = new Set([
+    "perchance-image",
+    "perchance-text",
+    "perchance-gallery",
+    "storyteller",
+])
+
+const FIRST_LOAD_TAB_ORDER = [
+    "main",
+    "settings",
+    "plugin",
+    "merge",
+    "image-editor-page",
+    "perchance",
+    "perchance-gallery",
+    "civitai",
+    "gallery",
+]
+
 // Local legacy plugins are installed with the application but remain opt-in.
 // Most of them predate a plugin lifecycle API, so enabling is live while
 // disabling takes effect on the next page load.
@@ -123,7 +167,6 @@ const OPTIONAL_UI_PLUGIN_STORAGE_KEY = "easy-diffusion-enabled-local-plugins-v1"
 const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY = "easy-diffusion-local-plugin-defaults-version"
 const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION = 2
 const OPTIONAL_UI_PLUGINS = Object.freeze([
-    { id: "cpp-gifs", name: "GIF output and GIF-to-GIF", path: "/plugins/core/video_plugin/mads-gifs-cpp.plugin.js", defaultEnabled: true, port: "native" },
     { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
     { id: "perchance-text", name: "Perchance text", path: "/plugins/core/perchance_plugin/perchance-text.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
     { id: "perchance-gallery", name: "Perchance gallery", path: "/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
@@ -334,6 +377,87 @@ function createLocalPluginManagerTab() {
     document.addEventListener("tabClick", (event) => {
         if (event.detail?.name === "plugin") filter.focus()
     })
+}
+
+function expectedFirstLoadTabIds() {
+    const expected = FIRST_LOAD_TAB_ORDER.filter((id) => (
+        id !== "perchance-gallery" || enabledOptionalUIPluginIds.has("perchance-gallery")
+    ))
+    if (enabledOptionalUIPluginIds.has("storyteller")) expected.push("storyteller")
+    return expected
+}
+
+function stabilizeFirstLoadTabOrder() {
+    const tabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+    const contentWrapper = document.getElementById("tab-content-wrapper")
+    if (!tabContainer || !contentWrapper) return
+
+    const knownTabs = new Set(FIRST_LOAD_TAB_ORDER.map((id) => `tab-${id}`))
+    const knownContents = new Set(FIRST_LOAD_TAB_ORDER.map((id) => `tab-content-${id}`))
+    const extraTabs = Array.from(tabContainer.children).filter((tab) => !knownTabs.has(tab.id))
+    const extraContents = Array.from(contentWrapper.children).filter((content) => !knownContents.has(content.id))
+    FIRST_LOAD_TAB_ORDER.forEach((id) => {
+        const tab = document.getElementById(`tab-${id}`)
+        const content = document.getElementById(`tab-content-${id}`)
+        if (tab) tabContainer.appendChild(tab)
+        if (content) contentWrapper.appendChild(content)
+    })
+    extraTabs.forEach((tab) => tabContainer.appendChild(tab))
+    extraContents.forEach((content) => contentWrapper.appendChild(content))
+}
+
+function waitForFirstLoadTabs(timeoutMs = 10_000) {
+    const tabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+    const expected = expectedFirstLoadTabIds()
+    if (!tabContainer) return Promise.resolve()
+
+    return new Promise((resolve) => {
+        let settled = false
+        let observer
+        let timeout
+        const finish = () => {
+            if (settled) return
+            settled = true
+            observer?.disconnect()
+            clearTimeout(timeout)
+            stabilizeFirstLoadTabOrder()
+            resolve()
+        }
+        const check = () => {
+            const ready = expected.every((id) => document.getElementById(`tab-${id}`))
+            const editorTab = document.getElementById("tab-image-editor-page")
+            if (ready && editorTab?.dataset.swappedWithGallery === "true") finish()
+        }
+        observer = new MutationObserver(check)
+        observer.observe(tabContainer, { childList: true })
+        timeout = setTimeout(finish, timeoutMs)
+        check()
+    })
+}
+
+function revealFirstLoadTabs() {
+    const tabContainer = document.getElementById("tab-container") || document.querySelector(".tab-container")
+    if (!tabContainer) return
+    delete tabContainer.dataset.firstLoadPending
+    tabContainer.style.removeProperty("visibility")
+}
+
+async function loadFirstLoadUITabs() {
+    try {
+        for (const plugin of REQUIRED_UI_PLUGINS) {
+            if (FIRST_LOAD_TAB_PLUGINS.has(plugin)) {
+                await loadScript(plugin)
+            }
+        }
+        for (const plugin of OPTIONAL_UI_PLUGINS) {
+            if (FIRST_LOAD_OPTIONAL_TAB_PLUGIN_IDS.has(plugin.id) && enabledOptionalUIPluginIds.has(plugin.id)) {
+                await loadOptionalUIPlugin(plugin)
+            }
+        }
+        await waitForFirstLoadTabs()
+    } finally {
+        revealFirstLoadTabs()
+    }
 }
 
 async function loadRequiredUIPlugins() {

@@ -241,6 +241,35 @@ int main() {
             },
             "Grouped-query heads map to the expected K/V groups");
 
+        DeviceBuffer<float> permuted_query{0.0f, 0.0f, 0.0f, 0.0f};
+        DeviceBuffer<float> permuted_key{0.0f, 0.0f, 0.0f, 0.0f};
+        DeviceBuffer<float> permuted_value{10.0f, 30.0f, 100.0f, 300.0f};
+        DeviceBuffer<float> permuted_output(4);
+        flash::Request permuted;
+        permuted.query = {
+            permuted_query.get(), flash::DType::f32, 1, 2, 2, 1, {}};
+        permuted.key = {
+            permuted_key.get(), flash::DType::f32, 1, 2, 2, 1, {}};
+        permuted.value = {
+            permuted_value.get(), flash::DType::f32, 1, 2, 2, 1, {}};
+        permuted.output = {
+            permuted_output.get(), flash::DType::f32, 1, 2, 2, 1,
+            {sizeof(float), 2 * sizeof(float), sizeof(float),
+             4 * sizeof(float)}};
+        permuted.scale = 1.0f;
+        ok &= check(
+            flash::forward(Backend::cuda, permuted).ok,
+            "CUDA FlashAttention accepts a non-overlapping GGML output permutation");
+        ok &= check_array(
+            permuted_output.copy_to_host(), {20.0f, 200.0f, 20.0f, 200.0f},
+            "Permuted GGML output strides preserve head/token addressing");
+        auto overlapping = permuted;
+        overlapping.output.byte_strides = {
+            sizeof(float), sizeof(float), sizeof(float), 4 * sizeof(float)};
+        ok &= check(
+            !flash::validate(Backend::cuda, overlapping).ok,
+            "CUDA validation rejects overlapping permuted output strides");
+
         DeviceBuffer<float> soft_query{2.0f, 0.0f};
         DeviceBuffer<float> soft_key{1.0f, 0.0f, 0.0f, 1.0f};
         DeviceBuffer<float> soft_value{4.0f, 8.0f};

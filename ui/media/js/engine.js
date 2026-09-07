@@ -217,10 +217,30 @@
     }
     Object.freeze(ServerStates)
 
-    let sessionId = Date.now()
-    let serverState = { status: ServerStates.unavailable, time: Date.now() }
+    const SESSION_STORAGE_KEY = "easy-diffusion-session-id"
 
-    async function healthCheck() {
+    function createSessionId() {
+        try {
+            const savedSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY)
+            if (savedSessionId) return savedSessionId
+
+            const newSessionId = typeof crypto?.randomUUID === "function"
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+            sessionStorage.setItem(SESSION_STORAGE_KEY, newSessionId)
+            return newSessionId
+        } catch (error) {
+            // Storage may be disabled in a hardened/private browser context.
+            return String(Date.now())
+        }
+    }
+
+    let sessionId = createSessionId()
+    let serverState = { status: ServerStates.unavailable, time: Date.now() }
+    let healthCheckPromise
+    let healthCheckAbortController
+
+    async function performHealthCheck(signal) {
         if (Date.now() < serverState.time + HEALTH_PING_INTERVAL / 2 && isServerAvailable()) {
             // Ping confirmed online less than half of HEALTH_PING_INTERVAL ago.
             return true
@@ -231,9 +251,9 @@
         try {
             let res = undefined
             if (typeof sessionId !== "undefined") {
-                res = await fetch("/ping?session_id=" + sessionId)
+                res = await fetch("/ping?session_id=" + encodeURIComponent(sessionId), { signal })
             } else {
-                res = await fetch("/ping")
+                res = await fetch("/ping", { signal })
             }
             serverState = await res.json()
             if (typeof serverState !== "object" || typeof serverState.status !== "string") {
@@ -267,11 +287,27 @@
             await eventSource.fireEvent(EVENT_PING, serverState)
             return true
         } catch (e) {
+            if (e?.name === "AbortError") return false
             console.error(e)
             serverState = { status: ServerStates.unavailable, time: Date.now() }
             setServerStatus("error", "offline")
         }
         return false
+    }
+
+    function healthCheck() {
+        // A slow or unavailable server must not create an ever-growing stack
+        // of fetches every HEALTH_PING_INTERVAL.
+        if (healthCheckPromise) return healthCheckPromise
+
+        const controller = typeof AbortController === "function" ? new AbortController() : undefined
+        healthCheckAbortController = controller
+        const request = performHealthCheck(controller?.signal).finally(() => {
+            if (healthCheckPromise === request) healthCheckPromise = undefined
+            if (healthCheckAbortController === controller) healthCheckAbortController = undefined
+        })
+        healthCheckPromise = request
+        return request
     }
 
     function isServerAvailable() {
@@ -772,6 +808,8 @@
         num_inference_steps: 50,
         guidance_scale: 7.5,
         negative_prompt: "",
+        hidden_positive_prompt: "",
+        hidden_negative_prompt: "",
 
         num_outputs: 1,
         stream_progress_updates: true,
@@ -784,6 +822,8 @@
     }
     const TASK_OPTIONAL = {
         device: "string",
+        hidden_positive_prompt: "string",
+        hidden_negative_prompt: "string",
         init_image: "string",
         mask: "string",
         save_to_disk_path: "string",
@@ -1385,6 +1425,11 @@
         return Promise.race(promises).finally(continueTasks)
     }
     let taskPromise = undefined
+    let healthCheckIntervalId
+    let taskCheckIntervalId
+    let pollingEnabled = false
+    const initEventHandlers = new Map()
+
     function startCheck() {
         if (taskPromise?.isPending) {
             return
@@ -1406,6 +1451,35 @@
         } while (taskPromise?.isResolved)
     }
 
+    function startPolling() {
+        if (!pollingEnabled) return
+        if (healthCheckIntervalId === undefined) {
+            healthCheckIntervalId = setInterval(healthCheck, HEALTH_PING_INTERVAL)
+        }
+        if (taskCheckIntervalId === undefined) {
+            taskCheckIntervalId = setInterval(startCheck, CONCURRENT_TASK_INTERVAL)
+        }
+    }
+
+    function stopPolling() {
+        if (healthCheckIntervalId !== undefined) clearInterval(healthCheckIntervalId)
+        if (taskCheckIntervalId !== undefined) clearInterval(taskCheckIntervalId)
+        healthCheckIntervalId = undefined
+        taskCheckIntervalId = undefined
+        healthCheckAbortController?.abort()
+    }
+
+    function setInitEventHandlers(events = {}) {
+        for (const key in events) {
+            if (!EVENTS_TYPES.includes(key)) throw new Error("Invalid event name.")
+            const previousHandler = initEventHandlers.get(key)
+            if (previousHandler === events[key]) continue
+            if (previousHandler) eventSource.removeEventListener(key, previousHandler)
+            eventSource.addEventListener(key, events[key])
+            initEventHandlers.set(key, events[key])
+        }
+    }
+
     const SD = {
         ChunkedStreamReader,
         ServerStates,
@@ -1417,14 +1491,14 @@
 
         Events: EVENTS_TYPES,
         init: async function (options = {}) {
-            if ("events" in options) {
-                for (const key in options.events) {
-                    eventSource.addEventListener(key, options.events[key])
-                }
-            }
+            if ("events" in options) setInitEventHandlers(options.events)
+            pollingEnabled = true
             await healthCheck()
-            setInterval(healthCheck, HEALTH_PING_INTERVAL)
-            setInterval(startCheck, CONCURRENT_TASK_INTERVAL)
+            startPolling()
+        },
+        shutdown: function () {
+            pollingEnabled = false
+            stopPolling()
         },
 
         /** Add a new event listener
@@ -1448,6 +1522,19 @@
         filter: (...args) => FilterTask.run(...args),
         waitUntil,
     }
+
+    window.addEventListener("pagehide", (event) => {
+        if (event.persisted) {
+            stopPolling()
+        } else {
+            SD.shutdown()
+        }
+    })
+    window.addEventListener("pageshow", (event) => {
+        if (!event.persisted || !pollingEnabled) return
+        startPolling()
+        healthCheck()
+    })
 
     Object.defineProperties(SD, {
         serverState: {

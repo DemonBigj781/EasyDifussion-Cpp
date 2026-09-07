@@ -15,6 +15,8 @@ struct ServerParams {
     int port = 8188;
     std::shared_ptr<ModelManager> model_manager;
     bool image_vae_on_cpu = false;
+    bool no_half = false;
+    bool no_half_vae = false;
     bool vae_tiling = false;
     std::string vae_tile_size;
     int vae_tiles = 32;
@@ -28,6 +30,8 @@ struct ServerParams {
     std::string max_vram;
     bool stream_layers = false;
     bool control_net_cpu = false;
+    std::string control_net_sd1_path;
+    std::string control_net_sdxl_path;
     bool image_clip_on_cpu = false;
     bool video_clip_on_cpu = false;
     bool video_vae_on_cpu = false;

@@ -1,18 +1,24 @@
 cmake_minimum_required(VERSION 3.16)
 project(sdkit)
 
+# Release bundles are copied directly into Easy Diffusion's backend directory.
+# Keep every shared-library lookup relative to that bundle instead of embedding
+# an absolute developer build path.
 if(UNIX AND NOT APPLE)
     set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 endif()
 
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Disable versioned sonames on platforms that support it
 set(CMAKE_PLATFORM_NO_VERSIONED_SONAME ON)
 
+# Option to build tools
 option(SDKIT_BUILD_TOOLS "Build sdkit tools" OFF)
 option(SDKIT_BUILD_NATIVE_VISION "Build the isolated LibTorch YOLO sidecar" OFF)
 option(SDKIT_BUILD_IMAGE_TOOLS "Build lightweight native image helpers" ON)
-option(SDKIT_OPENGL_BACKEND "Build the experimental OpenGL/GLSL backend scaffold" OFF)
 option(SDKIT_BUILD_LLAMA_RUNTIME
     "Build llama-server beside sdkit as an isolated GGML runtime" OFF)
 set(SDKIT_LLAMA_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp" CACHE PATH
@@ -22,70 +28,43 @@ set(SDKIT_LLAMA_BUILD_JOBS "4" CACHE STRING
 set(SDKIT_TORCH_CUDART "" CACHE FILEPATH
     "Optional libcudart used by the selected LibTorch distribution")
 
+# Define output directories for all build artifacts
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+# Set flags for shared library builds
 set(BUILD_SHARED_LIBS ON CACHE BOOL "Build ggml as a shared library")
 set(SD_BUILD_SHARED_LIBS ON CACHE BOOL "Build stable-diffusion as a shared library")
 set(SD_BUILD_SHARED_GGML_LIB ON CACHE BOOL "Build ggml as a separate shared library")
 
+# Enable /bigobj for MSVC to handle large object files (needed for debug builds)
 if(MSVC)
     add_compile_options($<$<CONFIG:Debug>:/bigobj>)
 endif()
 
-# IntelLLVM reports several diagnostics from the vendored stable-diffusion.cpp
-# and ggml SYCL sources that are benign for the oneAPI compile gate. Scope the
-# compatibility suppressions to IntelLLVM so GCC/Clang/CUDA/ROCm builds retain
-# their normal warning behavior. These can be removed incrementally as the
-# corresponding upstream sources are modernized.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
-    add_compile_options(
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>"
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-literal-operator>"
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-value>"
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-parameter>"
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-inconsistent-missing-override>"
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-absolute-value>"
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-#pragma-messages>"
-        "$<$<COMPILE_LANGUAGE:C>:-Wno-#pragma-messages>"
-    )
-endif()
-
+# Include stable-diffusion.cpp
 add_subdirectory(stable-diffusion.cpp)
 
+# Add the sdkit binary
 file(GLOB_RECURSE ED_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(sdkit ${ED_SRC})
 
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp)
 
-# GCC 13 diagnoses two intentional/third-party cases in the CPU compile gate:
-# ModelManager is deliberately hidden to avoid ELF interposition with the
-# unrelated stable-diffusion.cpp ModelManager, while stb_image_resize.h uses
-# legacy enum arithmetic. Keep those diagnostics scoped to the sdkit executable
-# rather than weakening ModelManager visibility or modifying vendored STB code.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(sdkit PRIVATE
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-attributes>"
-        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>"
-    )
-endif()
-
-if(SDKIT_OPENGL_BACKEND)
-    find_package(OpenGL REQUIRED)
-    target_compile_definitions(sdkit PRIVATE SDKIT_ENABLE_OPENGL_BACKEND=1)
-    target_link_libraries(sdkit PRIVATE OpenGL::GL)
-    message(STATUS "OpenGL/GLSL Theory backend scaffold enabled (compile/link only)")
-endif()
-
+# Suppress Unicode character warnings from Crow library headers on Windows
 if(MSVC)
     target_compile_options(sdkit PRIVATE /wd4566)
 endif()
 
+# Find Threads package for multithreading support
 find_package(Threads REQUIRED)
 
+# Set RPATH for Linux/Unix to find shared libraries in the same directory as the executable
 if(UNIX AND NOT APPLE)
     set_target_properties(sdkit PROPERTIES
         BUILD_RPATH "$ORIGIN"
@@ -94,6 +73,7 @@ if(UNIX AND NOT APPLE)
     )
 endif()
 
+# For macOS, use @executable_path
 if(APPLE)
     set_target_properties(sdkit PROPERTIES
         BUILD_RPATH "@executable_path"
@@ -122,45 +102,8 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
         -DGGML_METAL=${SD_METAL}
         -DGGML_VULKAN=${SD_VULKAN}
         -DGGML_SYCL=${SD_SYCL}
-        -DGGML_SYCL_F16=${GGML_SYCL_F16}
+        -DGGML_SYCL_F16=${SD_SYCL}
     )
-
-    if(SD_HIPBLAS)
-        if(GPU_TARGETS)
-            list(APPEND SDKIT_LLAMA_BACKEND_ARGS -DGPU_TARGETS=${GPU_TARGETS})
-        endif()
-        if(AMDGPU_TARGETS)
-            list(APPEND SDKIT_LLAMA_BACKEND_ARGS -DAMDGPU_TARGETS=${AMDGPU_TARGETS})
-        endif()
-        if(CMAKE_HIP_ARCHITECTURES)
-            list(APPEND SDKIT_LLAMA_BACKEND_ARGS
-                -DCMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES})
-        endif()
-    endif()
-
-    if(SD_SYCL)
-        list(APPEND SDKIT_LLAMA_BACKEND_ARGS
-            -DGGML_SYCL_TARGET=${GGML_SYCL_TARGET}
-            -DGGML_SYCL_DNN=${GGML_SYCL_DNN}
-            -DGGML_SYCL_SUPPORT_LEVEL_ZERO=${GGML_SYCL_SUPPORT_LEVEL_ZERO}
-        )
-        if(GGML_SYCL_DEVICE_ARCH)
-            list(APPEND SDKIT_LLAMA_BACKEND_ARGS
-                -DGGML_SYCL_DEVICE_ARCH=${GGML_SYCL_DEVICE_ARCH})
-        endif()
-    endif()
-
-    # Theory-only Intel CPU path: if the diffusion GGML tree is using BLAS,
-    # keep the isolated llama runtime on the same BLAS vendor policy. This is
-    # what lets oneAPI/Xeon builds use oneMKL consistently in both processes.
-    if(GGML_BLAS)
-        list(APPEND SDKIT_LLAMA_BACKEND_ARGS
-            -DGGML_BLAS=ON
-            -DGGML_BLAS_VENDOR=${GGML_BLAS_VENDOR}
-            -DGGML_NATIVE=${GGML_NATIVE}
-        )
-    endif()
-
     ExternalProject_Add(sdkit-llama-runtime
         SOURCE_DIR "${SDKIT_LLAMA_SOURCE_DIR}"
         BINARY_DIR "${SDKIT_LLAMA_BUILD_DIR}"
@@ -191,6 +134,10 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
             "$<TARGET_FILE_DIR:sdkit>"
         COMMENT "Bundling the isolated llama.cpp runtime with sdkit")
 
+    # The upstream converters are Python programs and cannot be linked into
+    # stable-diffusion.cpp's C++ process. Ship them in the same native bundle,
+    # together with their local conversion modules, so the sdkit3 tool layer
+    # can launch them through Easy Diffusion's main Python 3.13 environment.
     set(SDKIT_LLAMA_CONVERTER_DIR "$<TARGET_FILE_DIR:sdkit>/llama-converters")
     add_custom_command(TARGET sdkit POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${SDKIT_LLAMA_CONVERTER_DIR}"
@@ -209,11 +156,15 @@ if(SDKIT_BUILD_LLAMA_RUNTIME)
         COMMENT "Bundling llama.cpp GGUF conversion tools with sdkit")
 endif()
 
+# Platform-specific libraries
 if(WIN32)
     target_link_libraries(sdkit PRIVATE ws2_32)
+    # Target Windows 7 and later (0x0601). This sets the _WIN32_WINNT macro
+    # for all targets processed by this CMakeLists.
     add_compile_definitions(_WIN32_WINNT=0x0601)
 endif()
 
+# Copy the necessary DLLs to the runtime output directory
 add_custom_command(TARGET sdkit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:stable-diffusion>
@@ -221,18 +172,51 @@ add_custom_command(TARGET sdkit POST_BUILD
         $<TARGET_FILE_DIR:sdkit>
 )
 
+# Build tools if enabled
 if(SDKIT_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
+# Ultralytics-compatible inference is a separate process so loading LibTorch
+# and detector weights never consumes the diffusion server's RAM. Models are
+# exported once to TorchScript; this executable contains only clean C++ image
+# preparation, YOLO decoding, and NMS code.
 if(SDKIT_BUILD_NATIVE_VISION)
     find_package(Torch REQUIRED)
+    # Python LibTorch wheels are built against the CUDA runtime bundled with
+    # the wheel.  Some systems also have an older /usr/lib CUDA runtime, which
+    # CMake may otherwise select and fail at link time on versioned symbols.
     if(SDKIT_TORCH_CUDART)
         if(NOT EXISTS "${SDKIT_TORCH_CUDART}")
             message(FATAL_ERROR "SDKIT_TORCH_CUDART does not exist: ${SDKIT_TORCH_CUDART}")
         endif()
-        set(TORCH_CUDART_LIBRARY "${SDKIT_TORCH_CUDART}" CACHE FILEPATH
-            "CUDA runtime used by TorchConfig" FORCE)
+        if(TARGET CUDA::cudart)
+            set_target_properties(CUDA::cudart PROPERTIES
+                IMPORTED_LOCATION "${SDKIT_TORCH_CUDART}"
+                IMPORTED_LOCATION_RELEASE "${SDKIT_TORCH_CUDART}")
+        endif()
     endif()
-    add_subdirectory(native_vision)
+    add_executable(sdkit-vision tools/native_vision.cpp)
+    target_include_directories(sdkit-vision PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
+    target_link_libraries(sdkit-vision PRIVATE ${TORCH_LIBRARIES})
+    if(SDKIT_TORCH_CUDART)
+        target_link_libraries(sdkit-vision PRIVATE "${SDKIT_TORCH_CUDART}")
+    endif()
+    if(UNIX AND NOT APPLE)
+        set_target_properties(sdkit-vision PROPERTIES
+            BUILD_RPATH_USE_ORIGIN TRUE
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+            INSTALL_RPATH_USE_LINK_PATH FALSE)
+    endif()
+endif()
+
+# Lightweight helpers intentionally have no LibTorch/OpenCV dependency.  The
+# text-mask process exits after each request and therefore cannot add to the
+# diffusion server's steady-state RAM use.
+if(SDKIT_BUILD_IMAGE_TOOLS)
+    add_executable(sdkit-image-tools tools/native_image_tools.cpp)
+    target_include_directories(sdkit-image-tools PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
 endif()

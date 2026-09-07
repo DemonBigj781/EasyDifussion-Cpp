@@ -1,9 +1,11 @@
-﻿#ifndef __SD_MODEL_VAE_VAE_HPP__
+#ifndef __SD_MODEL_VAE_VAE_HPP__
 #define __SD_MODEL_VAE_VAE_HPP__
 
 #include "core/tensor_ggml.hpp"
 #include "model/common/block.hpp"
+#include "model/vae/vae_tiling.hpp"
 #include "model_manager.h"
+#include "runtime/tiling.h"
 
 struct VAE : public GGMLRunner {
 protected:
@@ -14,6 +16,87 @@ protected:
                                        const sd::Tensor<float>& z,
                                        bool decode_graph) = 0;
 
+    virtual bool supports_temporal_tiling(VAETemporalDirection direction) const {
+        SD_UNUSED(direction);
+        return false;
+    }
+
+    virtual int get_default_temporal_tile_frames(VAETemporalDirection direction) const {
+        SD_UNUSED(direction);
+        return 4;
+    }
+
+    virtual int get_default_temporal_tile_overlap(VAETemporalDirection direction) const {
+        SD_UNUSED(direction);
+        return 1;
+    }
+
+    virtual int get_temporal_tile_output_scale(VAETemporalDirection direction) const {
+        SD_UNUSED(direction);
+        return 1;
+    }
+
+    virtual sd::Tensor<float> _compute_temporal_tiled(const int n_threads,
+                                                      const sd::Tensor<float>& input,
+                                                      VAETemporalDirection direction,
+                                                      const VAETemporalTilingConfig& config) {
+        if (direction != VAETemporalDirection::DECODE) {
+            return _compute(n_threads, input, false);
+        }
+
+        VAETemporalTilingConfig resolved_config = config;
+        const int output_scale                  = get_temporal_tile_output_scale(direction);
+        if (output_scale > 1 &&
+            resolved_config.overlap == 0 &&
+            input.shape()[2] > resolved_config.tile_frames) {
+            LOG_WARN("%s temporal decode requires at least one overlapping latent frame; using overlap=1",
+                     get_desc().c_str());
+            resolved_config.overlap = 1;
+        }
+
+        auto plan = make_vae_temporal_tile_plan(input.shape()[2], resolved_config);
+        LOG_VERBOSE("%s temporal tiling: tile_frames=%d, overlap=%d, total_frames=%lld, tiles=%d",
+                    get_desc().c_str(),
+                    plan.tile_frames,
+                    plan.overlap,
+                    (long long)input.shape()[2],
+                    (int)plan.tiles.size());
+        return process_vae_temporal_tiles_blended(
+            input,
+            plan,
+            output_scale,
+            [&](const sd::Tensor<float>& input_tile, const VAETemporalTile& tile) {
+                LOG_VERBOSE("%s temporal tile %d/%d: input frames [%lld, %lld)",
+                            get_desc().c_str(),
+                            tile.index + 1,
+                            (int)plan.tiles.size(),
+                            (long long)tile.start,
+                            (long long)tile.end);
+                return _compute(n_threads, input_tile, true);
+            });
+    }
+
+    sd::Tensor<float> compute_with_temporal_tiling(const int n_threads,
+                                                   const sd::Tensor<float>& input,
+                                                   VAETemporalDirection direction,
+                                                   const sd_tiling_params_t& tiling_params) {
+        if (!tiling_params.temporal_tiling || input.dim() != 5 || input.shape()[2] <= 1) {
+            return _compute(n_threads, input, direction == VAETemporalDirection::DECODE);
+        }
+        if (!supports_temporal_tiling(direction)) {
+            LOG_WARN("%s does not support temporal tiling for %s; processing the full temporal dimension",
+                     get_desc().c_str(),
+                     direction == VAETemporalDirection::DECODE ? "decode" : "encode");
+            return _compute(n_threads, input, direction == VAETemporalDirection::DECODE);
+        }
+
+        auto config = resolve_vae_temporal_tiling_config(
+            tiling_params,
+            get_default_temporal_tile_frames(direction),
+            get_default_temporal_tile_overlap(direction));
+        return _compute_temporal_tiled(n_threads, input, direction, config);
+    }
+
     static inline void scale_tensor_to_minus1_1(sd::Tensor<float>* tensor) {
         GGML_ASSERT(tensor != nullptr);
         for (int64_t i = 0; i < tensor->numel(); ++i) {
@@ -21,12 +104,35 @@ protected:
         }
     }
 
-    static inline void scale_tensor_to_0_1(sd::Tensor<float>* tensor) {
+    static inline bool scale_tensor_to_0_1(sd::Tensor<float>* tensor) {
         GGML_ASSERT(tensor != nullptr);
+        int64_t nan_count = 0;
+        int64_t inf_count = 0;
         for (int64_t i = 0; i < tensor->numel(); ++i) {
-            float value  = ((*tensor)[i] + 1.0f) * 0.5f;
+            float value = ((*tensor)[i] + 1.0f) * 0.5f;
+            // std::min(1.0f, NaN) evaluates to 1.0f with the usual comparator,
+            // which used to turn a failed VAE decode into a solid white image.
+            // Preserve failure here so decode_first_stage can try tiled decode
+            // and the caller can fall back to a CPU VAE when necessary.
+            if (std::isnan(value)) {
+                ++nan_count;
+                continue;
+            }
+            if (std::isinf(value)) {
+                ++inf_count;
+                continue;
+            }
             (*tensor)[i] = std::max(0.0f, std::min(1.0f, value));
         }
+        if (nan_count > 0 || inf_count > 0) {
+            LOG_ERROR("VAE decode produced non-finite pixels: nan_count=%lld inf_count=%lld total_count=%lld "
+                      "(possible precision failure or broken weights)",
+                      (long long)nan_count,
+                      (long long)inf_count,
+                      (long long)tensor->numel());
+            return false;
+        }
+        return true;
     }
 
     sd::Tensor<float> tiled_compute(const sd::Tensor<float>& input,
@@ -40,10 +146,15 @@ protected:
                                     bool circular_x,
                                     bool circular_y,
                                     bool decode_graph,
+                                    const sd_tiling_params_t& tiling_params,
                                     const char* error_message,
                                     bool silent = false) {
         auto on_processing = [&](const sd::Tensor<float>& input_tile) {
-            auto output_tile = _compute(n_threads, input_tile, decode_graph);
+            auto output_tile = compute_with_temporal_tiling(
+                n_threads,
+                input_tile,
+                decode_graph ? VAETemporalDirection::DECODE : VAETemporalDirection::ENCODE,
+                tiling_params);
             if (output_tile.empty()) {
                 if (execution_cancelled()) {
                     LOG_INFO("VAE tile processing cancelled");
@@ -78,17 +189,21 @@ public:
         int scale_factor = 8;
         if (version == VERSION_LTXAV) {
             scale_factor = 32;
-        } else if (version == VERSION_WAN2_2_TI2V) {
+        } else if (version == VERSION_WAN2_2_TI2V || sd_version_is_hunyuan_video(version) || sd_version_is_mage_flow(version) || sd_version_is_minimax_h3(version)) {
             scale_factor = 16;
         } else if (sd_version_uses_flux2_vae(version)) {
             scale_factor = 16;
-        } else if (version == VERSION_CHROMA_RADIANCE || version == VERSION_HIDREAM_O1) {
+        } else if (version == VERSION_CHROMA_RADIANCE || version == VERSION_HIDREAM_O1 || sd_version_is_minit2i(version)) {
             scale_factor = 1;
         }
         return scale_factor;
     }
 
     virtual int get_encoder_output_channels(int input_channels) = 0;
+
+    bool can_temporal_tile_decode() const {
+        return supports_temporal_tiling(VAETemporalDirection::DECODE);
+    }
 
     void get_tile_sizes(int& tile_size_x,
                         int& tile_size_y,
@@ -119,11 +234,11 @@ public:
         tile_size_y = get_tile_size(params.tile_size_y, params.rel_size_y, latent_y);
     }
 
-    sd::Tensor<float> encode(int n_threads,
-                             const sd::Tensor<float>& x,
-                             sd_tiling_params_t tiling_params,
-                             bool circular_x = false,
-                             bool circular_y = false) {
+    virtual sd::Tensor<float> encode(int n_threads,
+                                     const sd::Tensor<float>& x,
+                                     sd_tiling_params_t tiling_params,
+                                     bool circular_x = false,
+                                     bool circular_y = false) {
         int64_t t0              = ggml_time_ms();
         sd::Tensor<float> input = x;
         sd::Tensor<float> output;
@@ -137,8 +252,13 @@ public:
             int64_t H              = input.shape()[1] / scale_factor;
             float tile_overlap;
             int tile_size_x, tile_size_y;
-            get_tile_sizes(tile_size_x, tile_size_y, tile_overlap, tiling_params, W, H, 1.30539f);
-            LOG_DEBUG("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
+            // Image VAE encode is more sensitive to tile boundary context than decode.
+            // Keep the smaller legacy factor for video VAEs, but default image encode
+            // tiles to 64 latent pixels so a 512px SD image is encoded as one tile.
+            const float encode_tile_factor = sd_version_is_minimax_h3(version) ? 1.f : (sd_version_is_wan(version) || sd_version_is_hunyuan_video(version) || sd_version_is_ltxav(version)) ? 1.30539f
+                                                                                                                                                                                            : 2.0f;
+            get_tile_sizes(tile_size_x, tile_size_y, tile_overlap, tiling_params, W, H, encode_tile_factor);
+            LOG_VERBOSE("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
             output = tiled_compute(input,
                                    n_threads,
                                    static_cast<int>(W),
@@ -150,12 +270,16 @@ public:
                                    circular_x,
                                    circular_y,
                                    false,
+                                   tiling_params,
                                    "vae encode compute failed while processing a tile");
         } else {
-            output = _compute(n_threads, input, false);
+            output = compute_with_temporal_tiling(n_threads,
+                                                  input,
+                                                  VAETemporalDirection::ENCODE,
+                                                  tiling_params);
         }
 
-        free_compute_buffer();
+        runner_end();
 
         if (output.empty()) {
             if (execution_cancelled()) {
@@ -166,21 +290,20 @@ public:
             return {};
         }
         int64_t t1 = ggml_time_ms();
-        LOG_DEBUG("computing vae encode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
+        LOG_VERBOSE("computing vae encode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
         return std::move(output);
     }
 
-    sd::Tensor<float> decode(int n_threads,
-                             const sd::Tensor<float>& x,
-                             sd_tiling_params_t tiling_params,
-                             bool decode_video = false,
-                             bool circular_x   = false,
-                             bool circular_y   = false,
-                             bool silent       = false) {
+    virtual sd::Tensor<float> decode(int n_threads,
+                                     const sd::Tensor<float>& x,
+                                     sd_tiling_params_t tiling_params,
+                                     bool decode_video = false,
+                                     bool circular_x   = false,
+                                     bool circular_y   = false,
+                                     bool silent       = false) {
         int64_t t0              = ggml_time_ms();
         sd::Tensor<float> input = x;
         sd::Tensor<float> output;
-        set_tiling_params(tiling_params);
 
         if (tiling_params.enabled) {
             const int scale_factor = get_scale_factor();
@@ -190,7 +313,7 @@ public:
             int tile_size_x, tile_size_y;
             get_tile_sizes(tile_size_x, tile_size_y, tile_overlap, tiling_params, input.shape()[0], input.shape()[1]);
             if (!silent) {
-                LOG_DEBUG("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
+                LOG_VERBOSE("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
             }
             output = tiled_compute(
                 input,
@@ -204,13 +327,17 @@ public:
                 circular_x,
                 circular_y,
                 true,
+                tiling_params,
                 "vae decode compute failed while processing a tile",
                 silent);
         } else {
-            output = _compute(n_threads, input, true);
+            output = compute_with_temporal_tiling(n_threads,
+                                                  input,
+                                                  VAETemporalDirection::DECODE,
+                                                  tiling_params);
         }
 
-        free_compute_buffer();
+        runner_end();
 
         if (output.empty()) {
             if (execution_cancelled()) {
@@ -220,11 +347,11 @@ public:
             }
             return {};
         }
-        if (scale_input) {
-            scale_tensor_to_0_1(&output);
+        if (scale_input && !scale_tensor_to_0_1(&output)) {
+            return {};
         }
         int64_t t1 = ggml_time_ms();
-        LOG_DEBUG("computing vae decode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
+        LOG_VERBOSE("computing vae decode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
         return std::move(output);
     }
 
@@ -233,10 +360,6 @@ public:
     virtual sd::Tensor<float> vae_to_diffusion_latents(const sd::Tensor<float>& latents)                           = 0;
     virtual void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors)                                   = 0;
     virtual void set_conv2d_scale(float scale) { SD_UNUSED(scale); };
-    virtual void set_temporal_tiling_enabled(bool enabled) { SD_UNUSED(enabled); };
-    virtual void set_tiling_params(const sd_tiling_params_t& params) {
-        set_temporal_tiling_enabled(params.temporal_tiling);
-    };
 };
 
 struct FakeVAE : public VAE {

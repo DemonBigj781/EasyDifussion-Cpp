@@ -159,10 +159,15 @@ def start_backend():
 
     def run_fn():
         exe_name = "sdkit.exe" if OS_NAME == "Windows" else "sdkit"
+        executable = os.path.join(backend_dir, exe_name)
         common_cli_args = get_common_cli_args(return_string=False)
-        cmd = [os.path.join(backend_dir, exe_name)] + common_cli_args + user_args
+        cmd = [executable] + common_cli_args + user_args
 
-        log.info(f"starting: {cmd}")
+        binary_stat = os.stat(executable)
+        log.info(
+            f"starting: {cmd} (binary size={binary_stat.st_size}, "
+            f"mtime_ns={binary_stat.st_mtime_ns})"
+        )
 
         return run(cmd, cwd=backend_dir, wait=False, output_prefix="[sdkit3] ")
 

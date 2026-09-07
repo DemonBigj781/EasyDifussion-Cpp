@@ -20,9 +20,12 @@ For the directory contract and migration rules, see [LAYOUT.md](LAYOUT.md). For
 the audited distinction between active, compatibility, prototype, superseded,
 and future-only paths, see [LAYOUT_AUDIT.md](LAYOUT_AUDIT.md). Production CUDA
 attention is owned by the `cuda/translation/gpu` layer within the corresponding
-feature. The live stable-diffusion.cpp xFormers file is an application adapter
-that creates a Common request; it does not call the CUDA translation directly.
-Direct Flash/Sage GGML compatibility paths remain routing debt.
+feature. The Theory-only `source/API.bridge/sdkit3-ggml` xFormers and Flash
+adapter files create Common requests; they do not call CUDA translations
+directly. Flash retains an optimized GGML fallback for unselected or unsupported
+Common requests. Sage selection now uses a normalized Common `support` request,
+but its forward launch is still the GGML-native SM80 compatibility path and
+remains routing debt.
 
 Backend implementation and validation maturity is tracked in
 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).

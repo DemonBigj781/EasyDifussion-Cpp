@@ -402,14 +402,14 @@ function loadCustomModifiers() {
 function showModifierContainer() {
     document.addEventListener("mousedown", checkIfClickedOutsideDropdownElem)
 
-    modifierDropdown.dataset.active = true
+    if (modifierDropdown) modifierDropdown.dataset.active = true
     editorModifiersContainer.classList.add("active")
 }
 
 function hideModifierContainer() {
     document.removeEventListener("click", checkIfClickedOutsideDropdownElem)
 
-    modifierDropdown.dataset.active = false
+    if (modifierDropdown) modifierDropdown.dataset.active = false
     editorModifiersContainer.classList.remove("active")
 }
 
@@ -454,15 +454,17 @@ modifierSettingsDialog.addEventListener("keydown", function (e) {
     }
 })
 
-modifierDropdown.addEventListener("click", e => {
-    const targetElem = e.target
-    const isDropdownActive = targetElem.dataset.active == "true" ? true : false
+if (modifierDropdown) {
+    modifierDropdown.addEventListener("click", e => {
+        const targetElem = e.target
+        const isDropdownActive = targetElem.dataset.active == "true" ? true : false
 
-    if (!isDropdownActive)
-        showModifierContainer()
-    else
-        hideModifierContainer()
-})
+        if (!isDropdownActive)
+            showModifierContainer()
+        else
+            hideModifierContainer()
+    })
+}
 
 let collapsiblesBtnState = false
 
@@ -551,4 +553,3 @@ modifierSettingsCloseBtn.addEventListener("click", (e) => {
 
 modalDialogCloseOnBackdropClick(modifierSettingsDialog)
 makeDialogDraggable(modifierSettingsDialog)
-

@@ -79,7 +79,16 @@ sd_image_t ImageFilters::upscaleImage(const sd_image_t& input_image, int upscale
     }
 
     LOG_DEBUG("Upscaling image from %dx%d, factor %d", input_image.width, input_image.height, upscale_factor);
-    upscaled_image = upscale(upscaler_ctx_, input_image, upscale_factor);
+    sd_image_t* result_images = nullptr;
+    int result_count = 0;
+    if (upscale(upscaler_ctx_, input_image, upscale_factor, &result_images, &result_count) &&
+        result_images != nullptr && result_count > 0 && result_images[0].data != nullptr) {
+        // Transfer the first image out of the API-owned result array, then let
+        // the library release the container and any unexpected extra images.
+        upscaled_image = result_images[0];
+        result_images[0] = {0, 0, 0, nullptr};
+    }
+    free_sd_images(result_images, result_count);
 
     if (upscaled_image.data) {
         LOG_DEBUG("Upscaled to %dx%d", upscaled_image.width, upscaled_image.height);

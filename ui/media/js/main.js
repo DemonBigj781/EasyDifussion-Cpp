@@ -42,6 +42,16 @@ const taskConfigSetup = {
             label: "Negative Prompt",
             visible: ({ reqBody }) => reqBody?.negative_prompt !== undefined && reqBody?.negative_prompt.trim() !== "",
         },
+        hidden_positive_prompt: {
+            label: "Hidden Positive Embeddings",
+            visible: ({ reqBody }) =>
+                reqBody?.hidden_positive_prompt !== undefined && reqBody?.hidden_positive_prompt.trim() !== "",
+        },
+        hidden_negative_prompt: {
+            label: "Hidden Negative Embeddings",
+            visible: ({ reqBody }) =>
+                reqBody?.hidden_negative_prompt !== undefined && reqBody?.hidden_negative_prompt.trim() !== "",
+        },
         prompt_strength: 'Prompt Strength <small>(<abbr title="Common name in other UIs">Denoising Strength</abbr>)</small>',
         use_face_correction: "Fix Faces",
         upscale: {
@@ -84,6 +94,8 @@ let promptField = document.querySelector("#prompt")
 let promptsFromFileSelector = document.querySelector("#prompt_from_file")
 let promptsFromFileBtn = document.querySelector("#promptsFromFileBtn")
 let negativePromptField = document.querySelector("#negative_prompt")
+let hiddenPositivePromptField = document.querySelector("#hidden_positive_prompt")
+let hiddenNegativePromptField = document.querySelector("#hidden_negative_prompt")
 let numOutputsTotalField = document.querySelector("#num_outputs_total")
 let numOutputsParallelField = document.querySelector("#num_outputs_parallel")
 let numInferenceStepsField = document.querySelector("#num_inference_steps")
@@ -184,6 +196,11 @@ let embeddingsSearchBox = document.querySelector("#embeddings-search-box")
 let embeddingsList = document.querySelector("#embeddings-list")
 let embeddingsModeField = document.querySelector("#embeddings-mode")
 let embeddingsCardSizeSelector = document.querySelector("#embedding-card-size-selector")
+let embeddingSetSelect = document.querySelector("#embedding-set-select")
+let embeddingSetName = document.querySelector("#embedding-set-name")
+let embeddingSetSave = document.querySelector("#embedding-set-save")
+let embeddingSetLoad = document.querySelector("#embedding-set-load")
+let embeddingSetDelete = document.querySelector("#embedding-set-delete")
 let addEmbeddingsThumb = document.querySelector("#add-embeddings-thumb")
 let addEmbeddingsThumbInput = document.querySelector("#add-embeddings-thumb-input")
 
@@ -1492,6 +1509,8 @@ function getCurrentUserRequest() {
             seed,
             used_random_seed: randomSeedField.checked,
             negative_prompt: negativePromptField.value.trim(),
+            hidden_positive_prompt: hiddenPositivePromptField.value.trim(),
+            hidden_negative_prompt: hiddenNegativePromptField.value.trim(),
             num_outputs: numOutputsParallel,
             num_inference_steps: parseInt(numInferenceStepsField.value),
             guidance_scale: parseFloat(guidanceScaleField.value),
@@ -1646,7 +1665,9 @@ function getCurrentUserRequest() {
 function setEmbeddings(task) {
     let prompt = task.reqBody.prompt
     let negativePrompt = task.reqBody.negative_prompt
-    let overallPrompt = (prompt + " " + negativePrompt).toLowerCase()
+    let hiddenPositivePrompt = task.reqBody.hidden_positive_prompt || ""
+    let hiddenNegativePrompt = task.reqBody.hidden_negative_prompt || ""
+    let overallPrompt = (prompt + " " + hiddenPositivePrompt + " " + negativePrompt + " " + hiddenNegativePrompt).toLowerCase()
     overallPrompt = overallPrompt.replaceAll(/[^a-z0-9\-_\.]/g, " ") // only allow alpha-numeric, dots and hyphens
     overallPrompt = overallPrompt.split(" ")
 
@@ -1659,7 +1680,7 @@ function setEmbeddings(task) {
                 extract(e[1], path)
             } else {
                 let path = basePath === "" ? basePath + e : basePath + "/" + e
-                embeddings.push([e.toLowerCase().replace(" ", "_"), path])
+                embeddings.push([e.toLowerCase().replaceAll(" ", "_"), path])
             }
         })
     }
@@ -2939,6 +2960,98 @@ document.getElementById("toggle-tensorrt-install").addEventListener("click", fun
 
 /* Embeddings */
 
+const EMBEDDING_SETS_STORAGE_KEY = "easyDiffusionEmbeddingSetsV1"
+
+function parseEmbeddingField(value) {
+    return value
+        .split(",")
+        .map((token) => token.trim().replace(/,+\s*$/, ""))
+        .filter((token) => token !== "")
+}
+
+function formatEmbeddingField(tokens) {
+    return tokens.length === 0 ? "" : `${tokens.join(", ")},`
+}
+
+function readEmbeddingSets() {
+    try {
+        const value = JSON.parse(localStorage.getItem(EMBEDDING_SETS_STORAGE_KEY) || "{}")
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {}
+    } catch (error) {
+        console.warn("Could not read saved embedding sets", error)
+        return {}
+    }
+}
+
+function writeEmbeddingSets(sets) {
+    try {
+        localStorage.setItem(EMBEDDING_SETS_STORAGE_KEY, JSON.stringify(sets))
+        return true
+    } catch (error) {
+        console.error("Could not save embedding sets", error)
+        showToast("The browser blocked embedding-set storage.", 5000, true)
+        return false
+    }
+}
+
+function refreshEmbeddingSetOptions(selectedName = "") {
+    const sets = readEmbeddingSets()
+    embeddingSetSelect.replaceChildren(new Option("Choose a set...", ""))
+    Object.keys(sets)
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+        .forEach((name) => embeddingSetSelect.add(new Option(name, name)))
+    embeddingSetSelect.value = selectedName in sets ? selectedName : ""
+}
+
+function saveCurrentEmbeddingSet() {
+    const name = embeddingSetName.value.trim()
+    if (name === "") {
+        showToast("Enter a name for the embedding set.", 4000, true)
+        return
+    }
+
+    const sets = readEmbeddingSets()
+    sets[name] = {
+        positive: parseEmbeddingField(hiddenPositivePromptField.value),
+        negative: parseEmbeddingField(hiddenNegativePromptField.value),
+    }
+    if (!writeEmbeddingSets(sets)) return
+    refreshEmbeddingSetOptions(name)
+    showToast(`Saved embedding set: ${name}`)
+}
+
+function loadSelectedEmbeddingSet() {
+    const name = embeddingSetSelect.value
+    const selectedSet = readEmbeddingSets()[name]
+    if (!selectedSet) {
+        showToast("Choose an embedding set to load.", 4000, true)
+        return
+    }
+
+    hiddenPositivePromptField.value = formatEmbeddingField(Array.isArray(selectedSet.positive) ? selectedSet.positive : [])
+    hiddenNegativePromptField.value = formatEmbeddingField(Array.isArray(selectedSet.negative) ? selectedSet.negative : [])
+    hiddenPositivePromptField.dispatchEvent(new Event("input", { bubbles: true }))
+    hiddenNegativePromptField.dispatchEvent(new Event("input", { bubbles: true }))
+    embeddingSetName.value = name
+    showToast(`Loaded embedding set: ${name}`)
+}
+
+function deleteSelectedEmbeddingSet() {
+    const name = embeddingSetSelect.value
+    if (name === "") {
+        showToast("Choose an embedding set to delete.", 4000, true)
+        return
+    }
+    if (!confirm(`Delete embedding set "${name}"?`)) return
+
+    const sets = readEmbeddingSets()
+    delete sets[name]
+    if (!writeEmbeddingSets(sets)) return
+    refreshEmbeddingSetOptions()
+    if (embeddingSetName.value === name) embeddingSetName.value = ""
+    showToast(`Deleted embedding set: ${name}`)
+}
+
 addEmbeddingsThumb.addEventListener("click", (e) => addEmbeddingsThumbInput.click())
 addEmbeddingsThumbInput.addEventListener("change", loadThumbnailImageFromFile)
 
@@ -2969,6 +3082,19 @@ function loadThumbnailImageFromFile() {
 }
 
 function updateEmbeddingsList(filter = "") {
+    const selectedPositiveEmbeddings = new Set(
+        hiddenPositivePromptField.value
+            .split(",")
+            .map((token) => token.trim().toLowerCase())
+            .filter((token) => token !== "")
+    )
+    const selectedNegativeEmbeddings = new Set(
+        hiddenNegativePromptField.value
+            .split(",")
+            .map((token) => token.trim().toLowerCase())
+            .filter((token) => token !== "")
+    )
+
     function html(model, iconMap = {}, prefix = "", filter = "") {
         filter = filter.toLowerCase()
         let toplevel = document.createElement("div")
@@ -2987,6 +3113,8 @@ function updateEmbeddingsList(filter = "") {
                     button = createModifierCard(m, [img, img], true)
                     // }
                     button.dataset["embedding"] = m
+                    button.classList.toggle("embedding-positive-selected", selectedPositiveEmbeddings.has(token))
+                    button.classList.toggle("embedding-negative-selected", selectedNegativeEmbeddings.has(token))
                     button.addEventListener("click", onButtonClick)
                     toplevel.appendChild(button)
                 }
@@ -3020,23 +3148,26 @@ function updateEmbeddingsList(filter = "") {
 
         if (embeddingsModeField.value == "insert") {
             if (insertIntoNegative) {
-                insertAtCursor(negativePromptField, text)
+                insertAtCursor(hiddenNegativePromptField, text.replace(/,+\s*$/, "") + ",")
             } else {
-                insertAtCursor(promptField, text)
+                insertAtCursor(hiddenPositivePromptField, text.replace(/,+\s*$/, "") + ",")
             }
         } else {
             let pad = ""
             if (insertIntoNegative) {
-                if (!negativePromptField.value.endsWith(" ")) {
-                    pad = " "
-                }
-                negativePromptField.value += pad + text
+                const current = hiddenNegativePromptField.value.trimEnd()
+                const separator = current === "" || current.endsWith(",") ? "" : ","
+                hiddenNegativePromptField.value = `${current}${separator}${current === "" ? "" : " "}${text.replace(/,+\s*$/, "")}, `
             } else {
-                if (!promptField.value.endsWith(" ")) {
-                    pad = " "
-                }
-                promptField.value += pad + text
+                const current = hiddenPositivePromptField.value.trimEnd()
+                const separator = current === "" || current.endsWith(",") ? "" : ","
+                hiddenPositivePromptField.value = `${current}${separator}${current === "" ? "" : " "}${text.replace(/,+\s*$/, "")}, `
             }
+        }
+        if (insertIntoNegative) {
+            hiddenNegativePromptField.dispatchEvent(new Event("input", { bubbles: true }))
+        } else {
+            hiddenPositivePromptField.dispatchEvent(new Event("input", { bubbles: true }))
         }
     }
 
@@ -3121,6 +3252,32 @@ embeddingsDialogCloseBtn.addEventListener("click", (e) => {
 embeddingsSearchBox.addEventListener("input", (e) => {
     updateEmbeddingsList(embeddingsSearchBox.value)
 })
+
+hiddenNegativePromptField.addEventListener("input", () => {
+    if (embeddingsDialog.open) {
+        updateEmbeddingsList(embeddingsSearchBox.value)
+    }
+})
+
+hiddenPositivePromptField.addEventListener("input", () => {
+    if (embeddingsDialog.open) {
+        updateEmbeddingsList(embeddingsSearchBox.value)
+    }
+})
+
+embeddingSetSave.addEventListener("click", saveCurrentEmbeddingSet)
+embeddingSetLoad.addEventListener("click", loadSelectedEmbeddingSet)
+embeddingSetDelete.addEventListener("click", deleteSelectedEmbeddingSet)
+embeddingSetSelect.addEventListener("change", () => {
+    if (embeddingSetSelect.value !== "") loadSelectedEmbeddingSet()
+})
+embeddingSetName.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault()
+        saveCurrentEmbeddingSet()
+    }
+})
+refreshEmbeddingSetOptions()
 
 embeddingsCardSizeSelector.addEventListener("change", (e) => {
     resizeModifierCards(embeddingsCardSizeSelector.value)

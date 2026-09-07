@@ -1,3 +1,4 @@
+#include <cinttypes>
 #include "extensions/generation_extension.h"
 
 #include <algorithm>
@@ -56,7 +57,7 @@ tokenize_photomaker_trigger(FrozenCLIPEmbedderWithCustomWords& clip_conditioner,
                                           true);
     std::vector<bool> class_token_mask;
     for (int i = 0; i < tokens.size(); i++) {
-        class_token_mask.push_back(class_idx + 1 <= i && i < class_idx + 1 + trigger_token_count);
+        class_token_mask.push_back(class_idx >= 0 && class_idx + 1 <= i && i < class_idx + 1 + trigger_token_count);
     }
 
     return std::make_tuple(tokens, weights, class_token_mask);
@@ -175,9 +176,9 @@ struct PhotoMakerExtension : public GenerationExtension {
         ignore_tensors.insert("pmid.unet.");
     }
 
-    void runner_done() override {
+    void runner_end() override {
         if (pmid_model != nullptr) {
-            pmid_model->runner_done();
+            pmid_model->runner_end();
         }
     }
 

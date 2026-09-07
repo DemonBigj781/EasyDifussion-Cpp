@@ -4,7 +4,7 @@
 #include "fattn-tile.cuh"
 #include "fattn-vec.cuh"
 #include "fattn-wmma-f16.cuh"
-#include "../../../../sage/cuda/translation/gpu/sage-attention-sm80.cuh"
+#include "../../../../sage/cuda/translation/gpu/sage-attention.cuh"
 #include "fattn.cuh"
 
 template <int DKQ, int DV, int ncols2>
@@ -351,7 +351,7 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
     const ggml_tensor * V     = dst->src[2];
     const ggml_tensor * mask  = dst->src[3];
 
-    if (ggml_flash_attn_ext_get_sage_attn(dst) && ggml_cuda_sage_attn_sm80_supported(device, dst)) {
+    if (ggml_flash_attn_ext_get_sage_attn(dst) && ggml_sage_attn_supported(device, dst)) {
         return BEST_FATTN_KERNEL_SAGE_SM80;
     }
 
@@ -598,7 +598,7 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
             ggml_cuda_flash_attn_ext_mma_f16(ctx, dst);
             break;
         case BEST_FATTN_KERNEL_SAGE_SM80:
-            ggml_cuda_sage_attn_sm80(ctx, dst);
+            ggml_sage_attn(ctx, dst);
             break;
     }
 }

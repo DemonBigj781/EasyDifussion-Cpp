@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class GenerateImageRequest(BaseModel):
     prompt: str = ""
     negative_prompt: str = ""
+    hidden_positive_prompt: str = ""
+    hidden_negative_prompt: str = ""
 
     seed: int = 42
     width: int = 512

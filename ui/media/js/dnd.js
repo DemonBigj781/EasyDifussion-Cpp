@@ -55,6 +55,22 @@ const TASK_MAPPING = {
         readUI: () => negativePromptField.value,
         parse: (val) => val,
     },
+    hidden_positive_prompt: {
+        name: "Hidden Positive Embeddings",
+        setUI: (hidden_positive_prompt) => {
+            hiddenPositivePromptField.value = hidden_positive_prompt
+        },
+        readUI: () => hiddenPositivePromptField.value,
+        parse: (val) => val,
+    },
+    hidden_negative_prompt: {
+        name: "Hidden Negative Embeddings",
+        setUI: (hidden_negative_prompt) => {
+            hiddenNegativePromptField.value = hidden_negative_prompt
+        },
+        readUI: () => hiddenNegativePromptField.value,
+        parse: (val) => val,
+    },
     active_tags: {
         name: "Image Modifiers",
         setUI: (active_tags) => {
@@ -559,6 +575,12 @@ function restoreTaskToUI(task, fieldsToSkip) {
             TASK_MAPPING[key].setUI(task.reqBody[key])
         }
     }
+    if (!("hidden_positive_prompt" in task.reqBody) && !fieldsToSkip.includes("hidden_positive_prompt")) {
+        hiddenPositivePromptField.value = ""
+    }
+    if (!("hidden_negative_prompt" in task.reqBody) && !fieldsToSkip.includes("hidden_negative_prompt")) {
+        hiddenNegativePromptField.value = ""
+    }
 
     // properly reset fields not present in the task
     if (!("use_hypernetwork_model" in task.reqBody)) {
@@ -686,6 +708,8 @@ const TASK_TEXT_MAPPING = {
     sampler_name: "Sampler",
     scheduler_name: "Scheduler",
     negative_prompt: "Negative Prompt",
+    hidden_positive_prompt: "Hidden Positive Embeddings",
+    hidden_negative_prompt: "Hidden Negative Embeddings",
     use_stable_diffusion_model: "Stable Diffusion model",
     use_hypernetwork_model: "Hypernetwork model",
     hypernetwork_strength: "Hypernetwork Strength",

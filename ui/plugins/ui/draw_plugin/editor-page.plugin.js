@@ -253,23 +253,37 @@
             button.addEventListener("click", () => activate(button.dataset.editorMode))
         })
 
-        // Civitai is also loaded as a plugin and may finish after this page.
-        // Retry until both tab pairs exist so the requested ordering is stable.
-        const placeBesideCivitai = () => {
+        // Gallery or Civitai may finish loading after the editor. Restore the
+        // editor's stable position after Civitai, then swap the complete editor
+        // and Gallery tab pairs so each takes the other's settled slot.
+        const swapWithGallery = () => {
+            const galleryTab = document.getElementById("tab-gallery")
             const civitaiTab = document.getElementById("tab-civitai")
             const editorTab = document.getElementById("tab-image-editor-page")
+            const galleryContent = document.getElementById("tab-content-gallery")
             const civitaiContent = document.getElementById("tab-content-civitai")
             const editorContent = document.getElementById("tab-content-image-editor-page")
-            if (!civitaiTab || !editorTab || !civitaiContent || !editorContent) return false
+            if (!galleryTab || !civitaiTab || !editorTab || !galleryContent || !civitaiContent || !editorContent) return false
+            if (editorTab.dataset.swappedWithGallery === "true") return true
+
             civitaiTab.insertAdjacentElement("afterend", editorTab)
             civitaiContent.insertAdjacentElement("afterend", editorContent)
+            const tabMarker = document.createComment("editor-gallery-tab-swap")
+            const contentMarker = document.createComment("editor-gallery-content-swap")
+            galleryTab.before(tabMarker)
+            editorTab.before(galleryTab)
+            tabMarker.replaceWith(editorTab)
+            galleryContent.before(contentMarker)
+            editorContent.before(galleryContent)
+            contentMarker.replaceWith(editorContent)
+            editorTab.dataset.swappedWithGallery = "true"
             return true
         }
-        if (!placeBesideCivitai()) {
+        if (!swapWithGallery()) {
             let remainingAttempts = 100
             const placementTimer = setInterval(() => {
                 remainingAttempts -= 1
-                if (placeBesideCivitai() || remainingAttempts <= 0) clearInterval(placementTimer)
+                if (swapWithGallery() || remainingAttempts <= 0) clearInterval(placementTimer)
             }, 100)
         }
 

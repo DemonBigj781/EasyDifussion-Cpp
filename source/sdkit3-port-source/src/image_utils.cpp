@@ -1,5 +1,7 @@
 #include "image_utils.h"
 
+#include <cctype>
+#include <string>
 #include <vector>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -8,17 +10,92 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../stable-diffusion.cpp/thirdparty/stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
-#if defined(__clang__) || defined(__INTEL_LLVM_COMPILER)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-value"
-#pragma clang diagnostic ignored "-Wdeprecated-enum-enum-conversion"
-#endif
 #include "../stable-diffusion.cpp/thirdparty/stb_image_resize.h"
-#if defined(__clang__) || defined(__INTEL_LLVM_COMPILER)
-#pragma clang diagnostic pop
-#endif
 #include "base64.hpp"
 #include "logging.h"
+
+namespace {
+
+bool starts_with_data_uri(const std::string& value) {
+    static constexpr char prefix[] = "data:";
+    if (value.size() < sizeof(prefix) - 1) {
+        return false;
+    }
+    for (size_t index = 0; index < sizeof(prefix) - 1; ++index) {
+        if (std::tolower(static_cast<unsigned char>(value[index])) != prefix[index]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool normalizeBase64Image(const std::string& input, std::string& output) {
+    size_t begin = 0;
+    size_t end = input.size();
+    while (begin < end && std::isspace(static_cast<unsigned char>(input[begin]))) {
+        ++begin;
+    }
+    while (end > begin && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
+        --end;
+    }
+
+    std::string value = input.substr(begin, end - begin);
+    if (starts_with_data_uri(value)) {
+        const size_t comma = value.find(',');
+        if (comma == std::string::npos) {
+            LOG_ERROR("Invalid image data URI: missing payload separator");
+            return false;
+        }
+        std::string header = value.substr(0, comma);
+        for (char& character : header) {
+            character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
+        }
+        if (header.find(";base64") == std::string::npos) {
+            LOG_ERROR("Invalid image data URI: payload is not base64 encoded");
+            return false;
+        }
+        value.erase(0, comma + 1);
+    }
+
+    output.clear();
+    output.reserve(value.size() + 3);
+    bool saw_padding = false;
+    size_t padding = 0;
+    for (const unsigned char character : value) {
+        if (std::isspace(character)) {
+            continue;
+        }
+        if (character == '=') {
+            saw_padding = true;
+            ++padding;
+            output.push_back('=');
+            continue;
+        }
+        const bool alphabet =
+            (character >= 'A' && character <= 'Z') ||
+            (character >= 'a' && character <= 'z') ||
+            (character >= '0' && character <= '9') || character == '+' || character == '/';
+        if (!alphabet || saw_padding) {
+            LOG_ERROR("Invalid base64 image payload (length: %zu)", value.size());
+            return false;
+        }
+        output.push_back(static_cast<char>(character));
+    }
+
+    if (output.empty() || padding > 2 || output.size() % 4 == 1) {
+        LOG_ERROR("Invalid base64 image payload length: %zu", output.size());
+        return false;
+    }
+    if (padding == 0) {
+        output.append((4 - output.size() % 4) % 4, '=');
+    } else if (output.size() % 4 != 0) {
+        LOG_ERROR("Invalid padded base64 image payload length: %zu", output.size());
+        return false;
+    }
+    return true;
+}
+
+}  // namespace
 
 std::string imageToBase64(const sd_image_t& image) {
     if (!image.data || image.width == 0 || image.height == 0) {
@@ -56,15 +133,9 @@ sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
         return image;
     }
 
-    // Strip data URI prefix if present (e.g., "data:image/png;base64,")
-    std::string base64_clean = base64_data;
-    size_t comma_pos = base64_data.find(',');
-    if (comma_pos != std::string::npos) {
-        // Check if this looks like a data URI
-        if (base64_data.substr(0, 5) == "data:") {
-            base64_clean = base64_data.substr(comma_pos + 1);
-            LOG_DEBUG("Stripped data URI prefix, base64 length: %zu", base64_clean.length());
-        }
+    std::string base64_clean;
+    if (!normalizeBase64Image(base64_data, base64_clean)) {
+        return image;
     }
 
     // Decode base64

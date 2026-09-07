@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(xformers-image-test LANGUAGES C CXX)
+project(attention-image-test LANGUAGES C CXX)
 
 set(XFORMERS_IMAGE_BACKEND "CPU" CACHE STRING "CPU or CUDA")
 set_property(CACHE XFORMERS_IMAGE_BACKEND PROPERTY STRINGS CPU CUDA)
@@ -21,8 +21,8 @@ set(SD_WEBM OFF CACHE BOOL "" FORCE)
 if(XFORMERS_IMAGE_BACKEND STREQUAL "CUDA")
     set(SD_CUDA ON CACHE BOOL "" FORCE)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-        # The CUDA workflow configures without a visible GPU. The xFormers
-        # kernel itself supports Pascal, but the complete ggml-CUDA target also
+        # The CUDA workflow configures without a visible GPU. The Common
+        # attention kernels support Pascal, but the complete ggml-CUDA target also
         # compiles the SM80 SageAttention translation, whose CUDA primitives
         # cannot be compiled for pre-Ampere architectures. Emit SM80 PTX so the
         # standalone integration binary builds without device auto-detection
@@ -52,3 +52,19 @@ if(XFORMERS_IMAGE_BACKEND STREQUAL "CUDA")
 endif()
 set_target_properties("${target}" PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${XFORMERS_IMAGE_OUTPUT_DIR}")
+
+if(XFORMERS_IMAGE_BACKEND STREQUAL "CUDA")
+    set(FLASH_IMAGE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../flash/generate-image")
+    add_executable(flash-cuda-gen
+        xformers-image-gen.cpp
+        "${FLASH_IMAGE_DIR}/flash-cuda-gen.cpp")
+    target_compile_features(flash-cuda-gen PRIVATE cxx_std_17)
+    target_include_directories(flash-cuda-gen PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${SD_SOURCE_DIR}/include")
+    target_link_libraries(flash-cuda-gen PRIVATE
+        stable-diffusion CUDA::cudart)
+    set_target_properties(flash-cuda-gen PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${XFORMERS_IMAGE_OUTPUT_DIR}")
+endif()

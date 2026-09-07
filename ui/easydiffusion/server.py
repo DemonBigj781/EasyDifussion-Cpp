@@ -13,7 +13,7 @@ from typing import List, Union
 
 from easydiffusion import app, task_manager
 from easydiffusion.backend_args import parse_backend_commandline_args
-from ui.plugins.server import gallery, model_manager, package_manager, perchance
+from ui.plugins.server import ai_image_critic, gallery, model_manager, package_manager, perchance
 from ui.plugins.server.tasks import RenderTask, FilterTask, VideoTask
 from easydiffusion.types import (
     GenerateImageRequest,
@@ -31,9 +31,13 @@ from easydiffusion.types import (
 from ui.plugins.server.utils import log
 from ui.plugins.server.wd14_tagger import WD14TagRequest, tag_image
 from ui.plugins.server.native_image_tools import (
+    BackgroundRemovalRequest,
     NativeDetectionRequest,
+    ObjectRemovalRequest,
     TextMaskRequest,
     detect as native_detect,
+    remove_background as native_remove_background,
+    remove_object as native_remove_object,
     text_mask as native_text_mask,
 )
 from fastapi import FastAPI, HTTPException
@@ -80,10 +84,9 @@ class SetAppConfigRequest(BaseModel, extra=Extra.allow):
     ui_open_browser_on_start: bool = None
     listen_to_network: bool = None
     listen_port: int = None
-    use_v3_engine: bool = True
-    backend: str = "sdkit3"
     backend_platform: str = "auto"
     models_dir: str = None
+    directories: dict = None
     vram_usage_level: str = "balanced"
     backend_commandline_args: Union[List[str], str] = None
     reload_backend: bool = False
@@ -162,6 +165,14 @@ def init():
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"WD14 tagging failed: {exc}") from exc
 
+    @server_api.get("/ai-critic/models")
+    def ai_critic_models():
+        return JSONResponse(ai_image_critic.model_inventory(), headers=NOCACHE_HEADERS)
+
+    @server_api.post("/ai-critic/analyze")
+    def ai_critic_analyze(req: ai_image_critic.CriticAnalyzeRequest):
+        return JSONResponse(ai_image_critic.analyze(req), headers=NOCACHE_HEADERS)
+
     @server_api.post("/native-vision/detect")
     def detect_with_native_vision(req: NativeDetectionRequest):
         try:
@@ -183,6 +194,24 @@ def init():
             raise HTTPException(status_code=504, detail="Text-mask detection timed out") from exc
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Text-mask detection failed: {exc}") from exc
+
+    @server_api.post("/image-tools/remove-background")
+    def remove_image_background(req: BackgroundRemovalRequest):
+        try:
+            return JSONResponse(native_remove_background(req), headers=NOCACHE_HEADERS)
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Background removal failed: {exc}") from exc
+
+    @server_api.post("/image-tools/remove-object")
+    def remove_masked_object(req: ObjectRemovalRequest):
+        try:
+            return JSONResponse(native_remove_object(req), headers=NOCACHE_HEADERS)
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Object removal failed: {exc}") from exc
 
     from ui.plugins.server.tipo import GenerateRequest as TipoGenerateRequest
 
@@ -295,6 +324,13 @@ def init():
             headers={"Cache-Control": "private, max-age=60"},
         )
 
+    @server_api.get("/perchance/gallery/cache/{relative_path:path}")
+    def perchance_gallery_cache_file(relative_path: str):
+        return FileResponse(
+            perchance.resolve_gallery_cache_file(relative_path),
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
+
     @server_api.get("/files/health")
     def fileparser_health():
         from ui.plugins.server.file_parser import lora_dir
@@ -402,6 +438,7 @@ def init():
         from easydiffusion.tipo import shutdown as shutdown_tipo
 
         shutdown_tipo()
+        ai_image_critic.shutdown()
 
     @server_api.on_event("startup")
     def start_event():
@@ -413,8 +450,6 @@ def init():
 # API implementations
 def set_app_config_internal(req: SetAppConfigRequest):
     config = app.getConfig()
-    if req.backend != "sdkit3":
-        raise HTTPException(status_code=400, detail="This build only supports the native sdkit3 backend.")
     backend_commandline_args = None
     if req.backend_commandline_args is not None:
         try:
@@ -423,9 +458,6 @@ def set_app_config_internal(req: SetAppConfigRequest):
             raise HTTPException(status_code=400, detail=f"Invalid backend command-line arguments: {error}")
 
     if req.reload_backend:
-        selected_backend = req.backend or config.get("backend")
-        if selected_backend != "sdkit3":
-            raise HTTPException(status_code=400, detail="Live argument reload is supported by the sdkit3 backend.")
         with task_manager.manager_lock:
             backend_is_idle = (
                 task_manager.current_state == task_manager.ServerStates.Online
@@ -451,9 +483,12 @@ def set_app_config_internal(req: SetAppConfigRequest):
             config["net"] = {}
         config["net"]["listen_port"] = int(req.listen_port)
 
-    config["use_v3_engine"] = True
-    config["backend"] = "sdkit3"
     config["models_dir"] = req.models_dir
+    if req.directories is not None:
+        try:
+            config["directories"] = model_manager.normalize_directory_config(req.directories)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
     config["vram_usage_level"] = req.vram_usage_level
 
     config["backend_config"] = config.get("backend_config") or {}
@@ -509,6 +544,12 @@ def read_web_data_internal(key: str = None, **kwargs):
 
         if "models_dir" not in config:
             config["models_dir"] = app.MODELS_DIR
+
+        configured_directories = config.get("directories") or {}
+        config["directories"] = {
+            **model_manager.effective_directory_config(config["models_dir"]),
+            **configured_directories,
+        }
 
         commandline_args = (config.get("backend_config") or {}).get("COMMANDLINE_ARGS", [])
         if isinstance(commandline_args, (list, tuple)):
@@ -602,8 +643,11 @@ def ping_internal(session_id: str = None):
     response = {"status": str(task_manager.current_state)}
 
     if session_id:
-        session = task_manager.get_cached_session(session_id, update_ttl=True)
-        response["tasks"] = {id(t): t.status for t in session.tasks}
+        # Merely opening or reloading the UI must not allocate a server-side
+        # session that remains cached until TASK_TTL. Sessions are created when
+        # the client actually queues work.
+        session = task_manager.get_cached_session(session_id, update_ttl=True, create=False)
+        response["tasks"] = {id(t): t.status for t in session.tasks} if session else {}
 
     response["devices"] = task_manager.get_devices()
     response["packages_installed"] = package_manager.get_installed_packages()

@@ -325,11 +325,11 @@ def get_cached_task(task_id: str, update_ttl: bool = False):
     return task_cache.tryGet(task_id)
 
 
-def get_cached_session(session_id: str, update_ttl: bool = False):
+def get_cached_session(session_id: str, update_ttl: bool = False, create: bool = True):
     if update_ttl:
         session_cache.keep(session_id, TASK_TTL)
     session = session_cache.tryGet(session_id)
-    if not session:
+    if not session and create:
         session = SessionState(session_id)
         session_cache.put(session_id, session, TASK_TTL)
     return session

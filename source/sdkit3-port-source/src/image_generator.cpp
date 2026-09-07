@@ -34,6 +34,7 @@ struct CallbackData {
 
 static CallbackData g_callback_data;
 static std::mutex g_callback_mutex;
+static constexpr const char* AUTOMATIC_CONTROL_NET_MODEL = "__automatic_uni_union__";
 
 // Progress callback for stable-diffusion.cpp
 static void progress_callback(int step, int steps, float time, void* data) {
@@ -103,6 +104,8 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       video_generation_pending_(false),
       initialized_(false),
       image_vae_on_cpu_(server_params.image_vae_on_cpu),
+      no_half_(server_params.no_half),
+      no_half_vae_(server_params.no_half_vae),
       vae_tiling_(server_params.vae_tiling),
       vae_tile_size_(server_params.vae_tile_size),
       vae_tiles_(server_params.vae_tiles),
@@ -116,6 +119,8 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       max_vram_(server_params.max_vram),
       stream_layers_(server_params.stream_layers),
       control_net_cpu_(server_params.control_net_cpu),
+      control_net_sd1_path_(server_params.control_net_sd1_path),
+      control_net_sdxl_path_(server_params.control_net_sdxl_path),
       image_clip_on_cpu_(server_params.image_clip_on_cpu),
       video_clip_on_cpu_(server_params.video_clip_on_cpu),
       video_vae_on_cpu_(server_params.video_vae_on_cpu),
@@ -559,10 +564,14 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
 
     // Reference images for vision-based models (Qwen, etc.)
     std::vector<sd_image_t> ref_images_vec = createRefImages(params);
+    std::string ref_image_args;
     if (!ref_images_vec.empty()) {
         gen_params.ref_images = ref_images_vec.data();
         gen_params.ref_images_count = static_cast<int>(ref_images_vec.size());
-        gen_params.auto_resize_ref_image = params.auto_resize_ref_image;
+        if (!params.auto_resize_ref_image) {
+            ref_image_args = "resize_before_vae=0";
+            gen_params.ref_image_args = ref_image_args.c_str();
+        }
         LOG_INFO("Using %d reference image(s)", gen_params.ref_images_count);
     }
 
@@ -636,7 +645,9 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         active_generation_ctx_ = sd_ctx_;
         cancel_requested_ = false;
     }
-    sd_image_t* result = generate_image(sd_ctx_, &gen_params);
+    sd_image_t* result = nullptr;
+    int result_count = 0;
+    const bool generation_succeeded = generate_image(sd_ctx_, &gen_params, &result, &result_count);
     bool generation_cancelled = false;
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
@@ -672,7 +683,9 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         }
     }
 
-    if (!result) {
+    if (!generation_succeeded || !result || result_count <= 0) {
+        free_sd_images(result, result_count);
+
         // Clear callbacks
         {
             std::lock_guard<std::mutex> cb_lock(g_callback_mutex);
@@ -703,18 +716,13 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
 
     // Convert results to base64
     std::vector<std::string> result_images;
-    for (int i = 0; i < params.batch_count; i++) {
+    result_images.reserve(static_cast<size_t>(result_count));
+    for (int i = 0; i < result_count; i++) {
         std::string img_base64 = imageToBase64(result[i]);
         result_images.push_back(img_base64);
-
-        // Free the result image data
-        if (result[i].data) {
-            free(result[i].data);
-        }
     }
 
-    // Free result array
-    free(result);
+    free_sd_images(result, result_count);
 
     // Clear callbacks
     {
@@ -955,9 +963,22 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
         return false;
     }
 
-    // Get ControlNet model path if specified
+    // Automatic mode uses the configured SD1.x + SDXL pair instead of resolving
+    // a per-request model. The native loader selects the compatible weights only
+    // after identifying the base checkpoint family from its tensors.
     std::string controlnet_path_str;
-    if (!controlnet_model.empty()) {
+    const bool automatic_control_net_requested = controlnet_model == AUTOMATIC_CONTROL_NET_MODEL;
+    if (automatic_control_net_requested &&
+        (control_net_sd1_path_.empty() || control_net_sdxl_path_.empty())) {
+        LOG_ERROR("Automatic Uni / Union mode requires both ControlNet paths in System Settings");
+        return false;
+    }
+    const bool use_automatic_control_net = automatic_control_net_requested;
+    const std::string automatic_control_net_sd1_path =
+        use_automatic_control_net ? control_net_sd1_path_ : std::string();
+    const std::string automatic_control_net_sdxl_path =
+        use_automatic_control_net ? control_net_sdxl_path_ : std::string();
+    if (!controlnet_model.empty() && !automatic_control_net_requested) {
         ModelInfo controlnet_info = model_manager_->getModelByName(controlnet_model, ModelType::CONTROLNET);
         if (!controlnet_info.full_path.empty()) {
             controlnet_path_str = controlnet_info.full_path;
@@ -1055,6 +1076,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                         clip_vision_path_str != current_clip_vision_path_ ||
                         t5xxl_path_str != current_t5xxl_path_ ||
                         llm_path_str != current_llm_path_ || controlnet_path_str != current_controlnet_path_ ||
+                        automatic_control_net_sd1_path != current_control_net_sd1_path_ ||
+                        automatic_control_net_sdxl_path != current_control_net_sdxl_path_ ||
                         control_net_lllite_model_path != current_control_net_lllite_path_ ||
                         ip_adapter_model_path != current_ip_adapter_path_ ||
                         latent_interposer_model_path != current_latent_interposer_path_ ||
@@ -1099,6 +1122,23 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     sd_ctx_params_t params;
     sd_ctx_params_init(&params);
 
+    // Match the familiar WebUI precision controls while using the native
+    // stable-diffusion.cpp weight-type overrides. A global F32 override also
+    // includes the VAE, while the selective rule keeps all other components
+    // at the checkpoint's stored precision.
+    static constexpr const char* FULL_PRECISION_VAE_TENSOR_RULES =
+        "(^|\\.)vae\\.|first_stage_model=f32";
+    if (no_half_) {
+        params.wtype = SD_TYPE_F32;
+        LOG_WARNING("No-half model mode enabled: all model weights will be converted to F32 (high memory use)");
+        if (no_half_vae_) {
+            LOG_INFO("No-half VAE mode is also enabled; the global F32 model override already includes VAE weights");
+        }
+    } else if (no_half_vae_) {
+        params.tensor_type_rules = FULL_PRECISION_VAE_TENSOR_RULES;
+        LOG_INFO("No-half VAE mode enabled: VAE weights will be converted to F32");
+    }
+
     // Check if we have additional modules (VAE, CLIP, etc.)
     bool has_additional_modules =
         !clip_l_path_str.empty() || !clip_g_path_str.empty() || !t5xxl_path_str.empty() || !llm_path_str.empty();
@@ -1137,6 +1177,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.llm_path = llm_path_str.empty() ? nullptr : llm_path_str.c_str();
     params.taesd_path = nullptr;
     params.control_net_path = controlnet_path_str.empty() ? nullptr : controlnet_path_str.c_str();
+    params.control_net_sd1_path = automatic_control_net_sd1_path.empty() ? nullptr : automatic_control_net_sd1_path.c_str();
+    params.control_net_sdxl_path = automatic_control_net_sdxl_path.empty() ? nullptr : automatic_control_net_sdxl_path.c_str();
     params.control_net_lllite_path = control_net_lllite_model_path.empty() ? nullptr : control_net_lllite_model_path.c_str();
     params.latent_interposer_path = latent_interposer_model_path.empty() ? nullptr : latent_interposer_model_path.c_str();
     params.latent_interposer_encode_path = latent_interposer_encode_model_path.empty() ? nullptr : latent_interposer_encode_model_path.c_str();
@@ -1187,6 +1229,11 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (!controlnet_path_str.empty()) {
         LOG_INFO("Loading ControlNet model: %s", controlnet_path_str.c_str());
     }
+    if (use_automatic_control_net) {
+        LOG_INFO("Automatic ControlNet routing enabled (SD1.x: %s, SDXL: %s)",
+                 automatic_control_net_sd1_path.c_str(),
+                 automatic_control_net_sdxl_path.c_str());
+    }
     if (!control_net_lllite_model_path.empty()) {
         LOG_INFO("Loading ControlNet-LLLite model: %s", control_net_lllite_model_path.c_str());
     }
@@ -1216,7 +1263,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.rng_type = CUDA_RNG;
 
     // Apply CLI parameters for SD context
-    std::string backend, backend_params;
+    std::string backend, backend_params, model_args;
 
     if (offload_params_to_cpu) {
         prepend_backend_assignment(backend_params, "*=cpu");
@@ -1233,6 +1280,10 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
 
     params.backend = backend.c_str();
     params.params_backend = backend_params.c_str();
+    if (chroma_disable_dit_mask_) {
+        model_args = "chroma_use_dit_mask=0";
+        params.model_args = model_args.c_str();
+    }
     // CPU offload used to allocate a second, fully committed copy of the
     // checkpoint in host memory. A read-only mapping gives ggml the same
     // params-backend storage while letting the kernel reclaim clean model
@@ -1250,7 +1301,6 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.diffusion_sage_attn = sage_attention_;
     params.max_vram = effective_max_vram.empty() ? nullptr : effective_max_vram.c_str();
     params.stream_layers = use_stream_layers;
-    params.chroma_use_dit_mask = !chroma_disable_dit_mask_;
 
     if (use_cpu_vae) {
         const char* reason = native_video_request ? "native video"
@@ -1314,6 +1364,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     current_lora_model_dir_ = lora_dir_str;
     current_embeddings_dir_ = embeddings_dir_str;
     current_controlnet_path_ = controlnet_path_str;
+    current_control_net_sd1_path_ = automatic_control_net_sd1_path;
+    current_control_net_sdxl_path_ = automatic_control_net_sdxl_path;
     current_control_net_lllite_path_ = control_net_lllite_model_path;
     current_ip_adapter_path_ = ip_adapter_model_path;
     current_latent_interposer_path_ = latent_interposer_model_path;

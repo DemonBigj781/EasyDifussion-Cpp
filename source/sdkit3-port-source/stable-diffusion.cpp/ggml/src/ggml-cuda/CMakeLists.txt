@@ -104,21 +104,34 @@ if (CUDAToolkit_FOUND)
 
     file(GLOB   GGML_SOURCES_CUDA "*.cu")
     set(GGML_API_ATTENTION_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/features/attention")
+    set(GGML_API_FLASH_COMMON_DIR "${GGML_API_ATTENTION_DIR}/flash/common")
     set(GGML_API_CUDA_FLASH_DIR "${GGML_API_ATTENTION_DIR}/flash/cuda/translation/gpu")
+    set(GGML_API_CUDA_FLASH_DEFINITION_DIR "${GGML_API_ATTENTION_DIR}/flash/cuda/definition/gpu")
     set(GGML_API_CUDA_SAGE_DIR "${GGML_API_ATTENTION_DIR}/sage/cuda/translation/gpu")
+    set(GGML_API_SAGE_COMMON_DIR "${GGML_API_ATTENTION_DIR}/sage/common")
+    set(GGML_API_CUDA_SAGE_DEFINITION_DIR "${GGML_API_ATTENTION_DIR}/sage/cuda/definition/gpu")
     set(GGML_API_CUDA_XFORMERS_DIR "${GGML_API_ATTENTION_DIR}/xformers/cuda/translation/gpu")
     set(GGML_API_XFORMERS_COMMON_DIR "${GGML_API_ATTENTION_DIR}/xformers/common")
     set(GGML_API_CUDA_XFORMERS_DEFINITION_DIR "${GGML_API_ATTENTION_DIR}/xformers/cuda/definition/gpu")
+    set(GGML_API_BRIDGE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.bridge/sdkit3-ggml/ggml-cuda")
 
     # Compile canonical API.cpp attention sources directly. The legacy .cu
     # files remain compatibility shims for downstream source-tree consumers.
-    list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch)\\.cu$")
+    list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch|flash-attention|xformers-attention)\\.cu$")
     list(APPEND GGML_SOURCES_CUDA
+        "${GGML_API_BRIDGE_DIR}/flash-attention.cu"
+        "${GGML_API_BRIDGE_DIR}/xformers-attention.cu"
         "${GGML_API_CUDA_FLASH_DIR}/fattn.cu"
         "${GGML_API_CUDA_FLASH_DIR}/fattn-tile.cu"
         "${GGML_API_CUDA_FLASH_DIR}/fattn-wmma-f16.cu"
+        "${GGML_API_FLASH_COMMON_DIR}/flash_attention.cpp"
+        "${GGML_API_CUDA_FLASH_DEFINITION_DIR}/flash_attention_cuda.cpp"
+        "${GGML_API_CUDA_FLASH_DIR}/forward.cu"
         "${GGML_API_CUDA_SAGE_DIR}/sage-attention.cu"
         "${GGML_API_CUDA_SAGE_DIR}/sage-attention-sm80.cu"
+        "${GGML_API_SAGE_COMMON_DIR}/sage_attention.cpp"
+        "${GGML_API_CUDA_SAGE_DEFINITION_DIR}/sage_attention_cuda.cpp"
+        "${GGML_API_CUDA_SAGE_DIR}/support.cpp"
         "${GGML_API_XFORMERS_COMMON_DIR}/forward.cpp"
         "${GGML_API_CUDA_XFORMERS_DEFINITION_DIR}/qkt.cpp"
         "${GGML_API_CUDA_XFORMERS_DEFINITION_DIR}/mask.cpp"
@@ -156,16 +169,27 @@ if (CUDAToolkit_FOUND)
         if(MSVC)
             target_link_options(
                 ggml-cuda INTERFACE
-                "/INCLUDE:edcpp_xformers_cuda_translation_link_anchor")
+                "/INCLUDE:edcpp_xformers_cuda_translation_link_anchor"
+                "/INCLUDE:edcpp_flash_attention_cuda_translation_link_anchor")
         elseif(UNIX)
             target_link_options(
                 ggml-cuda INTERFACE
-                "LINKER:--undefined=edcpp_xformers_cuda_translation_link_anchor")
+                "LINKER:--undefined=edcpp_xformers_cuda_translation_link_anchor"
+                "LINKER:--undefined=edcpp_flash_attention_cuda_translation_link_anchor")
         endif()
     endif()
     target_include_directories(
         ggml-cuda PRIVATE
-        "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp")
+        "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}"
+        "${GGML_API_BRIDGE_DIR}")
+
+    if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL "11.8")
+        target_compile_definitions(ggml-cuda PRIVATE GGML_CUDA_USE_CUBLASLT_FP8)
+        if (NOT GGML_STATIC OR WIN32)
+            target_link_libraries(ggml-cuda PRIVATE CUDA::cublasLt)
+        endif()
+    endif()
 
     add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${GGML_CUDA_PEER_MAX_BATCH_SIZE})
 

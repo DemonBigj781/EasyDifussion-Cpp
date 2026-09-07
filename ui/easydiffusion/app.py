@@ -13,6 +13,7 @@ import warnings
 
 from easydiffusion import task_manager, backend_manager
 from easydiffusion.utils import log
+from easydiffusion.privacy_debug import install_privacy_debug_logger
 from rich.logging import RichHandler
 from rich.console import Console
 from rich.panel import Panel
@@ -23,15 +24,21 @@ for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 
 LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(threadName)s %(message)s"
+console_handler = RichHandler(markup=True, rich_tracebacks=False, show_time=False, show_level=False)
+console_handler.setLevel(logging.INFO)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format=LOG_FORMAT,
     datefmt="%X",
-    handlers=[RichHandler(markup=True, rich_tracebacks=False, show_time=False, show_level=False)],
+    handlers=[console_handler],
 )
 
 SD_UI_DIR = os.path.abspath(os.getenv("SD_UI_PATH") or os.path.join(os.getcwd(), "ui"))
 ROOT_DIR = os.path.abspath(os.getenv("SD_UI_ROOT") or os.path.dirname(SD_UI_DIR))
+DEBUG_LOG_PATH = install_privacy_debug_logger(
+    os.getenv("SD_UI_DEBUG_LOG") or os.path.join(ROOT_DIR, "logs", "easy-diffusion-debug.log"),
+    LOG_FORMAT,
+)
 # Retained for server status compatibility. The application no longer runs
 # inside a separate stable-diffusion working directory.
 SD_DIR = ROOT_DIR
@@ -61,7 +68,6 @@ APP_CONFIG_DEFAULTS = {
     "ui": {
         "open_browser_on_start": True,
     },
-    "backend": "sdkit3",
 }
 
 IMAGE_EXTENSIONS = [
@@ -127,11 +133,6 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
     if os.path.isfile(config_legacy_yaml):
         shutil.move(config_legacy_yaml, config_yaml_path)
 
-    def set_config_on_startup(config: dict):
-        if getConfig.__use_backend_on_startup is None:
-            getConfig.__use_backend_on_startup = "sdkit3"
-        config["config_on_startup"] = {"backend": getConfig.__use_backend_on_startup}
-
     if os.path.isfile(config_yaml_path):
         try:
             yaml = YAML()
@@ -148,17 +149,9 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
                 else:
                     config["net"]["listen_to_network"] = True
 
-            # This fork ships and supports one generation backend. Normalize
-            # older configuration files without rewriting them during reads.
-            config["backend"] = "sdkit3"
-            config["use_v3_engine"] = True
-
-            set_config_on_startup(config)
-
             return config
         except Exception as e:
             log.warn(traceback.format_exc())
-            set_config_on_startup(default_val)
             return default_val
     else:
         try:
@@ -179,18 +172,11 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
             return getConfig(default_val)
         except Exception as e:
             log.warn(traceback.format_exc())
-            set_config_on_startup(default_val)
             return default_val
-
-
-getConfig.__use_backend_on_startup = None
 
 
 def setConfig(config):
     global MODELS_DIR
-
-    config["backend"] = "sdkit3"
-    config["use_v3_engine"] = True
 
     try:  # config.yaml
         config_yaml_path = os.path.join(CONFIG_DIR, "..", "config.yaml")
@@ -209,9 +195,6 @@ def setConfig(config):
 
                 config = commented_config
         yaml.indent(mapping=2, sequence=4, offset=2)
-
-        if "config_on_startup" in config:
-            del config["config_on_startup"]
 
         try:
             f = open(config_yaml_path + ".tmp", "w", encoding="utf-8")
@@ -351,11 +334,10 @@ def open_browser():
             )
         )
     else:
-        backend_name = config["backend"]
         Console().print(
             Panel(
                 "\n"
-                + f"[white]Backend: {backend_name} is still installing..\n\n"
+                + "[white]The native backend is still installing..\n\n"
                 + "A new browser tab will open automatically after it finishes.\n"
                 + f"If it does not, please open your web browser and navigate to [bold yellow underline]http://localhost:{port}/\n",
                 title=f"Backend engine is installing",

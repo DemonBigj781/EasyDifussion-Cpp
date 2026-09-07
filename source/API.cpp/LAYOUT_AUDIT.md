@@ -40,8 +40,8 @@ accidental dependency.
 | `features/load/` and `features/unload/` | Canonical partial | Common and `model/` CPU/CUDA byte-lifecycle routes are active. Other component directories are deferred placeholders, not parsers or graph loaders. |
 | `features/overflow/` | Canonical active | Common owns planning and registered allocation/release dispatch. CPU/CUDA allocation behavior is runtime-tested; other backends remain unimplemented. |
 | `features/attention/xformers/` | Canonical active for CPU/CUDA | CPU staged and CUDA fused translations share one Common contract. The stable-diffusion.cpp application adapter now reaches that same Common route. |
-| `features/attention/flash/` | Canonical active for CPU/CUDA | CPU maps Common to the GGML native boundary. CUDA has a separate fused Common translation with local runtime proof; the optimized GGML `fattn` files remain an application compatibility path. |
-| `features/attention/sage/cuda/translation/gpu/` | Canonical active compatibility path | Selected by stable-diffusion.cpp's GGML CUDA build. It is not evidence of a Common API route. |
+| `features/attention/flash/` | Canonical active for CPU/CUDA | CPU maps Common to the GGML native boundary. CUDA has a fused Common translation, a stable-diffusion.cpp application adapter, and local end-to-end proof; optimized GGML `fattn` remains a fallback compatibility path. |
+| `features/attention/sage/` | Canonical partial for CUDA | Common owns the normalized `support` request and registered dispatch. The stable-diffusion.cpp GGML selector reaches that route, but forward still launches the direct GGML-native SM80 compatibility kernel. |
 | `features/attention/{flex,split}/` and unimplemented backend branches | Canonical partial or deferred | Their design/location is reserved; support must be established from build and runtime evidence per backend. |
 | `features/cache/`, `features/convert/`, `features/fuse/`, `features/gpu-zram/`, `features/memory/`, `features/ram/`, `features/read/`, `features/split/`, `features/swap/`, `features/vram/`, `features/write/`, `features/zram/` | Deferred scaffold | Empty or `.gitkeep`-only ownership markers. They are not active features. Top-level `split/` remains distinct from the Split Attention algorithm. |
 | `features/ggml/`, `features/gguf/`, `features/reserve/` | Deferred scaffold | Explicitly reserved for later development. They have no build references and must not be pulled into current attention work. |
@@ -58,7 +58,7 @@ accidental dependency.
 | `features/attention/xformers/cpu/translation/cpu/` | Canonical active | Registered staged F32 Common implementation. No separate CPU definition layer is implemented yet. |
 | `features/attention/xformers/cuda/definition/gpu/` | Canonical active | CUDA-native capability and request-validation contract. |
 | `features/attention/xformers/cuda/translation/gpu/forward.cu` | Canonical active | The only CUDA translation registered with Common; fused F32/F16/BF16 input execution with F32 output. |
-| `stable-diffusion.cpp/ggml/src/ggml-cuda/xformers-attention.{cu,cuh}` | Application adapter | Converts GGML tensors into the Common request and calls only Common. |
+| `source/API.bridge/sdkit3-ggml/ggml-cuda/xformers-attention.{cu,cuh}` | Application adapter | Converts GGML tensors into the Common request and calls only Common; stable-diffusion.cpp's CUDA build compiles this Theory-owned source. |
 | `features/attention/xformers/prototype/legacy-ggml-adapter.{cu,cuh}` | Prototype/reference | Superseded direct GGML/backend adapter, excluded from production builds. |
 | `features/attention/xformers/prototype/cuda-*.cu` | Prototype/reference | Superseded materialized-stage CUDA implementation moved out of the production translation directory. |
 | `features/attention/xformers/prototype/` | Prototype/reference | Excluded reference implementation. |
@@ -81,27 +81,30 @@ integration as well as the Common route.
 | `features/attention/flash/cpu/` | Canonical active | Registered Common translation and GGML CPU compatibility definition; build/native-boundary smoke evidence only. |
 | `features/attention/flash/cuda/definition/gpu/` | Canonical active | CUDA-native capability, shape, dtype, stride, and launch-bound contract. |
 | `features/attention/flash/cuda/translation/gpu/forward.cu` | Canonical active | Registered fused online-softmax Common translation for F32/F16/BF16 input and F32 output. |
-| `features/attention/flash/cuda/translation/gpu/fattn*.{cu,cuh}` and `template-instances/` | Compatibility | Optimized GGML implementation selected by stable-diffusion.cpp; it does not establish Common routing. |
+| `source/API.bridge/sdkit3-ggml/ggml-cuda/flash-attention.{cu,cuh}` | Application adapter | Converts supported GGML FlashAttention operations into Common requests and observes completed Common launches without calling a backend layer; stable-diffusion.cpp's CUDA build compiles this Theory-owned source. |
+| `features/attention/flash/cuda/translation/gpu/fattn*.{cu,cuh}` and `template-instances/` | Compatibility | Retained optimized GGML fallback for unselected or Common-unsupported operations; it does not establish Common routing. |
 | `source/API.test/Feature/Attention/Flash/Cuda/Main.cu` | Canonical active test | Common-only numerical and validation test with RTX 3060 runtime and Compute Sanitizer evidence. |
 | `source/API.test/MultiTest/flash/cycle/` | Canonical active test | CUDA model-byte and Flash-result API roundtrip test covering 32 Common load/forward/unload cycles. |
-| `source/API.test/MultiTest/flash/generate-image/` | Deferred | No application adapter or image-generation target exists; there is no Flash end-to-end claim. |
+| `source/API.test/MultiTest/flash/generate-image/` | Canonical active integration test | Real stable-diffusion.cpp generation through the GGML Flash adapter and normalized Common CUDA route. |
 
-The normalized CUDA `forward.cu` route and GGML `fattn` compatibility path are
-deliberately distinct. The runtime test proves Common CUDA behavior, while an
-application-to-Common adapter remains future routing work.
+The normalized CUDA `forward.cu` route and GGML `fattn` compatibility fallback
+remain deliberately distinct. The application adapter selects Common with
+`SD_CUDA_FLASH_COMMON=1`; a 512x512 one-step generator recorded 40 Common
+launches. The counter makes silent fallback a test failure.
 
 ## Test-tree audit
 
 The CPU/CUDA xFormers cycle sources and CPU/CUDA generator sources are active.
 Detect has active backend-specific tests for CPU, CUDA, ROCm, oneAPI, OpenCL,
 OpenVINO, OpenGL, Vulkan, Mesa, and DirectML; compiler/runtime evidence still
-varies by `IMPLEMENTATION_STATUS.md` status. The CUDA FlashAttention feature
-and roundtrip tests are active and call Common exclusively.
+varies by `IMPLEMENTATION_STATUS.md` status. The CUDA FlashAttention feature,
+roundtrip, and image-generation tests are active; the image test shares the
+stable-diffusion.cpp generator harness with xFormers.
 
 The empty `Load/{mesa,opengl,vulkan}`, `Unload/{mesa,opengl,vulkan}`, and
-`Overflow/{mesa,opengl}` directories are placement reservations only. The
-Flash image-generation directory and `MultiTest/{flex,sage,split}` directories
-remain unwired. The xFormers Mesa/OpenGL/Vulkan placeholder sources are also
+`Overflow/{mesa,opengl}` directories are placement reservations only.
+`MultiTest/{flex,sage,split}` directories remain unwired. The xFormers
+Mesa/OpenGL/Vulkan placeholder sources are also
 not wired tests. The xFormers cycle `CMakeLists.txt`, shared header, and the exact
 `xformers-load-unload-test .cpp` filename remain unwired scaffolding; do not
 rename or interpret them as support without confirming the intended contract.
@@ -148,10 +151,12 @@ obsolete.
   `library/src`.
 - old `API.cpp/cuda/attention/*` ownership -> each attention feature's
   `cuda/translation/gpu/` directory.
-- stable-diffusion.cpp `ggml/src/ggml-cuda/xformers-attention.*` is the live
-  application-to-Common adapter. Flash has a standalone Common CUDA route, but
-  its GGML `fattn` application path and the Sage GGML-native sources remain
-  routing debt until their Common migrations are complete.
+- `source/API.bridge/sdkit3-ggml/ggml-cuda/{xformers,flash}-attention.*` are
+  live application-to-Common adapters compiled by stable-diffusion.cpp's CUDA
+  build. Flash retains the optimized GGML `fattn` fallback for operations not
+  selected for or supported by Common. Sage selection uses Common `support`,
+  while its direct GGML-native forward launch remains routing debt until the
+  Common migration is complete.
 
 Do not remove a compatibility shim until every external include/build reference
 has migrated. Do not add new implementation to a shim.

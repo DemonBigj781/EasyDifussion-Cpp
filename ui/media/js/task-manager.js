@@ -71,6 +71,9 @@ async function onTaskStart(task) {
             task.reqBody.control_image = processedImage
             if (task.reqBody.control_net_lllite_model) {
                 task.reqBody.control_net_lllite_image = processedImage
+                // LLLite is an attention adapter, not a standard ControlNet.
+                // Keeping this field would accidentally activate both paths.
+                delete task.reqBody.control_image
             }
             task.reqBody.control_image_preprocessed = true
             // Older already-running backends do not know the flag above. The

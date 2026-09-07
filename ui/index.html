@@ -46,7 +46,7 @@
             <div id="server-status-color">●</div>
             <span id="server-status-msg">Stable Diffusion is starting..</span>
         </div>
-        <div id="tab-container" class="tab-container">
+        <div id="tab-container" class="tab-container" style="visibility:hidden;">
             <span id="tab-main" class="tab active">
                 <span><i class="fa fa-image icon"></i> Generate</span>
             </span>
@@ -72,19 +72,14 @@
                             <small>or</small>
                             <button id="promptsFromFileBtn" class="tertiaryButton smallButton">Load from a file</button>
                         </div>
-                        <div id="prompt-toolbar-right" class="toolbar-right">
-                            <button id="image-modifier-dropdown" class="tertiaryButton smallButton">+ Image Modifiers</button>
-                            <button id="embeddings-button" class="tertiaryButton smallButton gated-feature" data-feature-keys="backend_ed_diffusers backend_webui backend_sdkit3">+ Embedding</button>
-                        </div>
+                        <div id="prompt-toolbar-right" class="toolbar-right"></div>
                     </div>
                     <textarea id="prompt" class="col-free">a photograph of an astronaut riding a horse</textarea>
                     <input id="prompt_from_file" name="prompt_from_file" type="file" /> <!-- hidden -->
                     <label for="negative_prompt" id="negative_prompt_handle">
                         Negative Prompt
-                        <a href="https://github.com/easydiffusion/easydiffusion/wiki/Writing-prompts#negative-prompts" target="_blank"><i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip top">Click to learn more about Negative Prompts</span></i></a>
                         <small>(optional)</small>
                     </label>
-                    <button id="negative-embeddings-button" class="tertiaryButton smallButton gated-feature" data-feature-keys="backend_ed_diffusers backend_webui backend_sdkit3">+ Negative Embedding</button>
                     <div>
                         <textarea id="negative_prompt" name="negative_prompt" placeholder="list the things to remove from the image (e.g. fog, green)"></textarea>
                     </div>
@@ -170,7 +165,6 @@
                 </div>
             </div>
 
-            <label><small><b>Note:</b> The Image Modifiers section has moved to the <code>+ Image Modifiers</code> button at the top, just above the Prompt textbox.</small></label>
         </div>
 
         <div id="preview" class="col-free">
@@ -408,8 +402,8 @@
             <div id="embeddings-dialog-header-left" class="dialog-header-left">
                 <h4>Embeddings</h4>
                 <span>
-                    <span class="displayNone" id="positive-embedding-text"> Add embeddings to the prompt (click) or negative prompt (shift-click)</span>
-                    <span class="displayNone" id="negative-embedding-text"> Add embeddings to the negative prompt</span>
+                    <span class="displayNone" id="positive-embedding-text"> Add embeddings to the hidden positive field (click) or hidden negative field (shift-click)</span>
+                    <span class="displayNone" id="negative-embedding-text"> Add embeddings to the hidden negative prompt</span>
                 <span>
             </div>
             <div id="embeddings-dialog-header-right">
@@ -509,26 +503,25 @@
             <p>By using this software, you consent to the terms and conditions of the license.</p>
         </div>
         <input id="test_diffusers" type="checkbox" style="display: none" checked /> <!-- for backwards compatibility -->
-        <input id="use_v3_engine" type="checkbox" style="display: none" checked /> <!-- for backwards compatibility -->
     </div>
 </div>
 </body>
 <script src="/plugins/core/image_plugin/image-settings.plugin.js"></script>
 <script src="media/js/utils.js"></script>
     <script src="/plugins/core/image_plugin/image-loader.plugin.js"></script>
-<script src="/plugins/core/lora_plugin/lora-settings.plugin.js"></script>
+<script src="/plugins/core/lora_plugin/lora-settings.plugin.js?v=20260906-embeddings2"></script>
 <script src="/plugins/core/controlnet_plugin/controlnet.plugin.js"></script>
 <script src="/plugins/core/controlnet_plugin/controlnet-preprocessor.plugin.js"></script>
 <script src="media/js/engine.js"></script>
 <script src="media/js/parameters.js"></script>
 
-<script src="media/js/image-modifiers.js"></script>
+<script src="media/js/image-modifiers.js?v=20260906-embeddings2"></script>
 <script src="media/js/auto-save.js"></script>
 
 <script src="media/js/searchable-models.js"></script>
 <script src="media/js/multi-model-selector.js"></script>
 <script src="media/js/task-manager.js"></script>
-<script src="media/js/main.js"></script>
+<script src="media/js/main.js?v=20260906-embeddings3"></script>
 <script src="media/js/plugins.js"></script>
 <script src="media/js/themes.js"></script>
 <script src="media/js/dnd.js"></script>
@@ -537,6 +530,7 @@
 <script>
 async function init() {
     await initSettings()
+    await loadFirstLoadUITabs()
     await getModels(false)
     await loadRequiredUIPlugins()
     await getAppConfig()

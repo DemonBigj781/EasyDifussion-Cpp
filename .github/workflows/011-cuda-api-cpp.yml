@@ -90,7 +90,16 @@ jobs:
           nvcc -std=c++17 -Isource/API.cpp \
             -c source/API.cpp/features/attention/flash/cuda/translation/gpu/forward.cu \
             -o build/011/flash-attention-cuda-translation-forward.o
-          echo '[011] CUDA detect, model lifecycle, Overflow, Common xFormers, and Common FlashAttention routes compiled successfully'
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/attention/sage/common/sage_attention.cpp \
+            -o build/011/sage-attention-common.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/attention/sage/cuda/definition/gpu/sage_attention_cuda.cpp \
+            -o build/011/sage-attention-cuda-definition.o
+          c++ "${flags[@]}" \
+            -c source/API.cpp/features/attention/sage/cuda/translation/gpu/support.cpp \
+            -o build/011/sage-attention-cuda-support-translation.o
+          echo '[011] CUDA detect, model lifecycle, Overflow, Common xFormers, Common FlashAttention, and Sage support routes compiled successfully'
       - name: Compile CUDA test applications
         if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
         shell: bash
@@ -100,7 +109,8 @@ jobs:
             BUILD_DIR="$GITHUB_WORKSPACE/build/011" \
             cuda load-cuda unload-cuda overflow-cuda \
             xformers-cuda xformers-cuda-gen \
-            flash-cuda flash-cuda-roundtrip
+            flash-cuda flash-cuda-roundtrip flash-cuda-gen \
+            sage-cuda-support
           install -m 0644 \
             source/API.test/MODELS/lifecycle-model.fixture \
             build/011/lifecycle-model.fixture
@@ -108,11 +118,14 @@ jobs:
           test -x build/011/xformers-cuda-gen
           test -x build/011/flash-attention-cuda-test
           test -x build/011/flash-api-roundtrip-cuda-test
+          test -x build/011/flash-cuda-gen
+          test -x build/011/sage-cuda-support-test
+          build/011/sage-cuda-support-test
           test -x build/011/detect-cuda
           test -x build/011/load-cuda
           test -x build/011/unload-cuda
           test -x build/011/overflow-cuda
-          echo '[011] CUDA Detect, lifecycle, Overflow, xFormers cycle/generation, and FlashAttention feature/roundtrip tests compiled and linked; not executed on GitHub'
+          echo '[011] CUDA Detect, lifecycle, Overflow, xFormers cycle/generation, FlashAttention feature/roundtrip/generation, and Sage support tests compiled and linked; CPU-only Sage support contract executed on GitHub'
       - name: Stage minimal CUDA runtime artifact
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         shell: bash

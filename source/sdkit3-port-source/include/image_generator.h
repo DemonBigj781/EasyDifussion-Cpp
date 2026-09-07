@@ -205,6 +205,8 @@ class ImageGenerator {
     std::string current_lora_model_dir_;
     std::string current_embeddings_dir_;
     std::string current_controlnet_path_;
+    std::string current_control_net_sd1_path_;
+    std::string current_control_net_sdxl_path_;
     std::string current_control_net_lllite_path_;
     std::string current_ip_adapter_path_;
     std::string current_latent_interposer_path_;
@@ -225,6 +227,8 @@ class ImageGenerator {
 
     // SD context parameters from CLI
     bool image_vae_on_cpu_;
+    bool no_half_;
+    bool no_half_vae_;
     bool vae_tiling_;
     std::string vae_tile_size_;
     int vae_tiles_;
@@ -238,6 +242,8 @@ class ImageGenerator {
     std::string max_vram_;
     bool stream_layers_;
     bool control_net_cpu_;
+    std::string control_net_sd1_path_;
+    std::string control_net_sdxl_path_;
     bool image_clip_on_cpu_;
     bool video_clip_on_cpu_;
     bool video_vae_on_cpu_;

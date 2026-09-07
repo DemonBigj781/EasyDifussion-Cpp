@@ -6,6 +6,7 @@
 #include <array>
 #include <charconv>
 #include <cctype>
+#include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -125,16 +126,27 @@ std::uint64_t xformers_launch_count() {
     return ggml_cuda_xformers_attn_launch_count();
 }
 
+bool enable_xformers() {
+#ifdef _WIN32
+    return _putenv_s("SD_CUDA_FLASH_COMMON", "0") == 0 &&
+           _putenv_s("SD_CUDA_XFORMERS", "1") == 0;
+#else
+    return setenv("SD_CUDA_FLASH_COMMON", "0", 1) == 0 &&
+           setenv("SD_CUDA_XFORMERS", "1", 1) == 0;
+#endif
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
-    const api_test::xformers_image::BackendConfiguration backend{
+    const api_test::attention_image::BackendConfiguration backend{
         "CUDA",
         "0",
         "xformers-cuda-output.ppm",
-        true,
+        "normalized xFormers Common",
+        &enable_xformers,
         &xformers_launch_count,
         &resolve_cuda,
     };
-    return api_test::xformers_image::run(argc, argv, backend);
+    return api_test::attention_image::run(argc, argv, backend);
 }

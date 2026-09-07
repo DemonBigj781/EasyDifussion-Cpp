@@ -31,13 +31,14 @@ bool resolve_cpu(
 } // namespace
 
 int main(int argc, char** argv) {
-    const api_test::xformers_image::BackendConfiguration backend{
+    const api_test::attention_image::BackendConfiguration backend{
         "CPU",
         "cpu",
         "xformers-cpu-output.ppm",
-        false,
+        "reference memory-efficient attention",
+        nullptr,
         nullptr,
         &resolve_cpu,
     };
-    return api_test::xformers_image::run(argc, argv, backend);
+    return api_test::attention_image::run(argc, argv, backend);
 }

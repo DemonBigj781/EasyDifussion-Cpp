@@ -41,7 +41,7 @@ Example CUDA run:
   -o xformers-cuda-output.ppm
 ```
 
-The CUDA program enables `SD_CUDA_XFORMERS=1`, diffusion flash attention, and general flash attention before loading the model. It samples the native CUDA xFormers launch counter around generation and fails if no xFormers launch occurred, so an unsupported operation cannot silently fall back and still produce a passing test. The CPU program requests stable-diffusion.cpp's reference CPU memory-efficient attention path.
+The CUDA program enables `SD_CUDA_XFORMERS=1`, disables the Flash Common override, and enables diffusion/general flash attention before loading the model. It samples the native CUDA xFormers launch counter around generation and fails if no xFormers launch occurred, so an unsupported operation cannot silently fall back and still produce a passing test. The CPU program requests stable-diffusion.cpp's reference CPU memory-efficient attention path. Its argument, image-writing, and static stable-diffusion.cpp build harness is also shared by the sibling Flash generator.
 
 The sibling `cycle/` executables separately validate the project Common xFormers contract together with the custom Common model load/unload handlers. Image context loading remains owned by stable-diffusion.cpp because it parses and constructs model tensors rather than merely retaining an opaque byte copy.
 
