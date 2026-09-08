@@ -279,10 +279,36 @@ See `IMPLEMENTATION_STATUS.md` for the backend/feature coverage matrix and the
 active/future/compatibility map. A matrix cell
 is not supported merely because its empty directory scaffold exists.
 
-Primitive implementations use the specialized type-oriented layout
-`features/primitives/[backend]/[device]/[primitive_type].cpp`, with normalized
-contracts and registration in `features/primitives/common/`. This keeps support
-claims explicit for each backend, device class, and primitive data type.
+Primitive definitions use
+`features/primitives/[backend]/[device]/definition/[primitive_type].cpp`; their
+translations use
+`features/primitives/[backend]/[device]/translation/[primitive_type].cpp`, with
+normalized contracts and registration in `features/primitives/common/devices/`. This
+keeps support claims explicit for each backend, device class, and data type.
+
+Load definitions use
+`features/load/[backend]/definition/[device]/[tensor_type].cpp`; matching
+translations use
+`features/load/[backend]/translation/[device]/[tensor_type].cpp`.
+Both converge on `features/load/common/devices/`, whose public behavior is
+identical regardless of the originating backend or device.
+
+Unload definitions use
+`features/unload/[backend]/[device]/definition/[tensor_type].cpp`; matching
+translations use
+`features/unload/[backend]/[device]/translation/[tensor_type].cpp`.
+Both converge on `features/unload/common/devices/` and expose one normalized
+unload contract.
+
+Definitions are allowed to speak the native language of their own driver.
+Translations are the boundary adapters into Common. Code outside a definition
+must not exchange backend-native objects with another backend or device;
+cross-device communication always uses the normalized Common representation.
+Same-device operations also enter and leave through Common. Only unobserved
+work wholly inside one backend definition may remain native. The permitted
+communication route is `definition -> translation -> Common -> translation ->
+definition`; neither definitions nor translations communicate directly with a
+peer.
 
 ## Placement rules
 

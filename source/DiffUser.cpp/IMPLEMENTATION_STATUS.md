@@ -62,6 +62,9 @@ claim model parsing, tensor construction, or graph construction.
 
 Load validates and copies bytes into backend-owned storage. Unload releases
 through the owner and clears the normalized resource only after success.
+The Common registry is keyed by both backend and resource type so future tensor
+types cannot silently borrow the model route. Only the model entries are
+currently registered; blank rows remain unsupported.
 
 ## Overflow
 

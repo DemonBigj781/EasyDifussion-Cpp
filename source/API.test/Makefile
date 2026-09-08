@@ -64,21 +64,21 @@ MESA_SOURCES := \
 	$(API_ROOT)/features/detect/mesa/translation/register.cpp \
 	$(API_ROOT)/library/src/mesa_handler.cpp
 MODEL_COMMON_SOURCES := \
-	$(API_ROOT)/features/load/common/load.cpp \
-	$(API_ROOT)/features/unload/common/unload.cpp
+	$(API_ROOT)/features/load/common/devices/load.cpp \
+	$(API_ROOT)/features/unload/common/devices/unload.cpp
 CPU_MODEL_SOURCES := \
 	$(MODEL_COMMON_SOURCES) \
-	$(API_ROOT)/features/load/model/cpu/definition/cpu/load.cpp \
-	$(API_ROOT)/features/load/model/cpu/translation/cpu/load.cpp \
-	$(API_ROOT)/features/unload/model/cpu/definition/cpu/unload.cpp \
-	$(API_ROOT)/features/unload/model/cpu/translation/cpu/unload.cpp \
+	$(API_ROOT)/features/load/cpu/definition/cpu/model.cpp \
+	$(API_ROOT)/features/load/cpu/translation/cpu/model.cpp \
+	$(API_ROOT)/features/unload/cpu/cpu/definition/model.cpp \
+	$(API_ROOT)/features/unload/cpu/cpu/translation/model.cpp \
 	$(API_ROOT)/library/src/cpu_model_lifecycle.cpp
 CUDA_MODEL_SOURCES := \
 	$(MODEL_COMMON_SOURCES) \
-	$(API_ROOT)/features/load/model/cuda/definition/gpu/load.cpp \
-	$(API_ROOT)/features/load/model/cuda/translation/gpu/load.cpp \
-	$(API_ROOT)/features/unload/model/cuda/definition/gpu/unload.cpp \
-	$(API_ROOT)/features/unload/model/cuda/translation/gpu/unload.cpp \
+	$(API_ROOT)/features/load/cuda/definition/gpu/model.cpp \
+	$(API_ROOT)/features/load/cuda/translation/gpu/model.cpp \
+	$(API_ROOT)/features/unload/cuda/gpu/definition/model.cpp \
+	$(API_ROOT)/features/unload/cuda/gpu/translation/model.cpp \
 	$(API_ROOT)/library/src/cuda_model_lifecycle.cpp
 LOAD_CPU_SOURCES := Load/Cpu/load.cpp $(CPU_MODEL_SOURCES)
 LOAD_CUDA_SOURCES := Load/Cuda/load.cpp $(CUDA_MODEL_SOURCES)

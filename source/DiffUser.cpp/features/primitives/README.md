@@ -9,26 +9,28 @@ INFERENCE owns the model logic that combines them.
 
 ```text
 features/primitives/
-├── common/                         # normalized contracts and registry
+├── common/devices/                 # final normalized contracts and registry
 └── [backend]/
     └── [device]/
-        └── [primitive_type].cpp
+        ├── definition/[primitive_type].cpp
+        └── translation/[primitive_type].cpp
 ```
 
 Examples:
 
-- `cpu/cpu/strings.cpp`
-- `cpu/cpu/integer32.cpp`
-- `cuda/gpu/integer32.cpp`
-- `cuda/gpu/float16.cpp`
-- `oneapi/gpu/bfloat16.cpp`
-- `openvino/npu/integer8.cpp`
+- `cpu/cpu/definition/strings.cpp`
+- `cpu/cpu/translation/integer32.cpp`
+- `cuda/gpu/definition/integer32.cpp`
+- `cuda/gpu/translation/float16.cpp`
+- `oneapi/gpu/translation/bfloat16.cpp`
+- `openvino/npu/definition/integer8.cpp`
 
-Each backend/device/type source owns the native implementation and its
-registration with the Common primitive contract. A file may expose several
-operations for one data type, but it must advertise only operations that are
-actually implemented and tested. Unsupported combinations remain absent; an
-empty file or directory never counts as support.
+Each definition owns native behavior for one backend/device/type. Its matching
+translation adapts and registers that behavior with `common/devices`. Source
+backend and device differences are not visible to callers. A file may expose
+several operations for one data type, but it must advertise only operations
+that are actually implemented and tested. Unsupported combinations remain
+absent; an empty file or directory never counts as support.
 
 ## Primitive types
 

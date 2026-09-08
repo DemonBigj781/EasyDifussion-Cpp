@@ -17,11 +17,13 @@ postprocessing, and result delivery.
 The required implementation layout is:
 
 ```text
-source/DiffUser.cpp/features/primitives/[backend]/[device]/[primitive_type].cpp
+source/DiffUser.cpp/features/primitives/[backend]/[device]/definition/[primitive_type].cpp
+source/DiffUser.cpp/features/primitives/[backend]/[device]/translation/[primitive_type].cpp
 ```
 
-Normalized contracts and registration live in
-`source/DiffUser.cpp/features/primitives/common/`.
+Final normalized contracts and registration live in
+`source/DiffUser.cpp/features/primitives/common/devices/`. Callers see the same
+contract regardless of which backend/device definition supplied the work.
 
 ## Required primitive families
 
@@ -61,18 +63,18 @@ and routing. Floating types carry model tensors and numerical operations.
 
 | Backend/device | Required source path | Current status |
 | --- | --- | --- |
-| CPU/CPU | `cpu/cpu/[primitive_type].cpp` | absent |
-| CUDA/GPU | `cuda/gpu/[primitive_type].cpp` | absent |
-| ROCm/GPU | `rocm/gpu/[primitive_type].cpp` | absent |
-| oneAPI/CPU | `oneapi/cpu/[primitive_type].cpp` | absent |
-| oneAPI/GPU | `oneapi/gpu/[primitive_type].cpp` | absent |
-| oneAPI/NPU | `oneapi/npu/[primitive_type].cpp` | absent |
-| OpenCL CPU/GPU/NPU | `opencl/[device]/[primitive_type].cpp` | absent |
-| OpenVINO CPU/GPU/NPU | `openvino/[device]/[primitive_type].cpp` | absent |
-| Vulkan CPU/GPU | `vulkan/[device]/[primitive_type].cpp` | absent |
-| OpenGL/GPU | `opengl/gpu/[primitive_type].cpp` | absent |
-| Mesa CPU/GPU | `mesa/[device]/[primitive_type].cpp` | absent |
-| DirectML/GPU/NPU | `directml/[device]/[primitive_type].cpp` | absent |
+| CPU/CPU | `cpu/cpu/{definition,translation}/[primitive_type].cpp` | absent |
+| CUDA/GPU | `cuda/gpu/{definition,translation}/[primitive_type].cpp` | absent |
+| ROCm/GPU | `rocm/gpu/{definition,translation}/[primitive_type].cpp` | absent |
+| oneAPI/CPU | `oneapi/cpu/{definition,translation}/[primitive_type].cpp` | absent |
+| oneAPI/GPU | `oneapi/gpu/{definition,translation}/[primitive_type].cpp` | absent |
+| oneAPI/NPU | `oneapi/npu/{definition,translation}/[primitive_type].cpp` | absent |
+| OpenCL CPU/GPU/NPU | `opencl/[device]/{definition,translation}/[primitive_type].cpp` | absent |
+| OpenVINO CPU/GPU/NPU | `openvino/[device]/{definition,translation}/[primitive_type].cpp` | absent |
+| Vulkan CPU/GPU | `vulkan/[device]/{definition,translation}/[primitive_type].cpp` | absent |
+| OpenGL/GPU | `opengl/gpu/{definition,translation}/[primitive_type].cpp` | absent |
+| Mesa CPU/GPU | `mesa/[device]/{definition,translation}/[primitive_type].cpp` | absent |
+| DirectML/GPU/NPU | `directml/[device]/{definition,translation}/[primitive_type].cpp` | absent |
 
 ## Implementation order
 
@@ -85,6 +87,7 @@ and routing. Floating types carry model tensors and numerical operations.
 6. Indexing, embeddings, quantized, expert-routing, and specialized operations.
 7. Expand to the remaining backend/device matrix using the same contracts.
 
-Each step requires Common dispatch, the exact backend/device/type file, build
+Each step requires Common dispatch, the exact backend/device definition and
+translation files for the primitive type, build
 coverage, deterministic tests, and applicable GPU runtime evidence before its
 status advances.

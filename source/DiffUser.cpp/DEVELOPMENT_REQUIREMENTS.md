@@ -19,6 +19,27 @@ descriptions, placement, synchronization, and supported primitive operations.
 It must not contain model-family control flow, sampler policy, VAE algorithm
 policy, or result-delivery decisions.
 
+Common is the final normalization layer. It exposes the same operation and
+resource semantics regardless of which backend, device class, definition, or
+translation produced them. Callers must never select a different API because a
+resource originated on a different backend.
+
+Backend definitions may use their driver's native types and calling conventions
+internally. At every boundary outside that backend/device implementation, the
+translation must convert those native values to the Common contract. Backends
+and devices must not call one another's native interfaces directly: all
+cross-device coordination and all higher-level access use Common as their one
+shared language.
+
+The same rule applies when an operation begins and ends on the same device.
+Same-device placement is not permission for a caller to bypass Common. Native
+driver language exists only during unobserved work inside one definition. Any
+message entering or leaving that definition is translated: the route is
+`native -> translation -> Common -> translation -> native`, even for a
+self-targeted operation. There is no native-to-native device shortcut and no
+Common-to-Common translation hop; Common is the shared message contract, not a
+device implementation.
+
 ## Dependency direction
 
 `source/API.cpp` is a compatibility filesystem link to the canonical

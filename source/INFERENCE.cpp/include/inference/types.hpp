@@ -1,6 +1,6 @@
 #pragma once
 
-#include "features/load/common/load.hpp"
+#include "features/load/common/devices/load.hpp"
 
 #include <cstdint>
 #include <string>

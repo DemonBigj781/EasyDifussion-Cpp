@@ -1,7 +1,7 @@
 #include "api/model_lifecycle.hpp"
 
-#include "features/load/common/load.hpp"
-#include "features/unload/common/unload.hpp"
+#include "features/load/common/devices/load.hpp"
+#include "features/unload/common/devices/unload.hpp"
 
 #include <cstdint>
 #include <utility>
