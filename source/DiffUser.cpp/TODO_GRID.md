@@ -19,7 +19,7 @@ A cell may advance through the following states without implying that later stag
 
 Status is progressive: `I -> C -> B -> R -> E -> proven complete`. A later state includes the expectations of the earlier states, but a successful build or narrow runtime test must never be interpreted as proof that the implementation itself is complete. Likewise, an end-to-end happy-path result is not sufficient for `XXX` / `XXXX` unless the feature's intended behavior has been thoroughly accounted for.
 
-All cells that were already marked `XXX` / `XXXX` before this legend was introduced are intentionally preserved as proven-complete results; this change does not downgrade or reinterpret them. When a route changes after that proof, `COMMON_ROUTING_AUDIT.md` records any architectural revalidation still required; a historical proof mark does not waive a newer routing defect.
+All cells that were already marked `XXX` / `XXXX` before this legend was introduced are intentionally preserved as proven-complete results; this change does not downgrade or reinterpret them. When a route changes after that proof, the [dated Common-routing audit](../../Audit/2026-09-06/COMMON_ROUTING_AUDIT.md) records any architectural revalidation still required; a historical proof mark does not waive a newer routing defect.
 
 ## Detect
 

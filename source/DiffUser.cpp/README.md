@@ -21,7 +21,8 @@ Results return through the reverse path.
 
 For the directory contract and migration rules, see [LAYOUT.md](LAYOUT.md). For
 the audited distinction between active, compatibility, prototype, superseded,
-and future-only paths, see [LAYOUT_AUDIT.md](LAYOUT_AUDIT.md). Production CUDA
+and future-only paths, see the
+[dated layout audit](../../Audit/2026-09-06/LAYOUT_AUDIT.md). Production CUDA
 attention is owned by the `cuda/translation/gpu` layer within the corresponding
 feature. The Theory-only `source/API.bridge/sdkit3-ggml` xFormers and Flash
 adapter files create Common requests; they do not call CUDA translations

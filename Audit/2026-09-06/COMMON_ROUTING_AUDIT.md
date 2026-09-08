@@ -4,8 +4,8 @@ This document records the 2026-09-06 re-audit after upstream Theory commit
 `eabe44a` and the current layout changes. Every feature speaks one normalized
 Common language to the application.
 
-Directory status and superseded/future paths are tracked separately in
-`LAYOUT_AUDIT.md`.
+Directory status and superseded/future paths are tracked separately in the
+[layout audit](LAYOUT_AUDIT.md).
 
 ## Required route
 

@@ -163,8 +163,11 @@ has migrated. Do not add new implementation to a shim.
 
 ## Checklist for later sessions
 
-1. Read `README.md`, `LAYOUT.md`, this audit, `IMPLEMENTATION_STATUS.md`, and
-   `COMMON_ROUTING_AUDIT.md` before moving or implementing a feature.
+1. Read the DiffUser.cpp [README](../../source/DiffUser.cpp/README.md),
+   [layout contract](../../source/DiffUser.cpp/LAYOUT.md), this audit, the
+   [implementation ledger](../../source/DiffUser.cpp/IMPLEMENTATION_STATUS.md),
+   and the [Common-routing audit](COMMON_ROUTING_AUDIT.md) before moving or
+   implementing a feature.
 2. Search source build files while excluding generated build directories.
 3. Classify the path using the status vocabulary above.
 4. Preserve the single application -> Common -> translation -> definition route.

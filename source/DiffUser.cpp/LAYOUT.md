@@ -274,8 +274,9 @@ These filenames describe normalized semantic methods, not mandatory separate
 kernel launches or a claim that an empty scaffold is implemented. Each cache
 type must reproduce the same definition, translation, and Common-facing flow.
 
-See `IMPLEMENTATION_STATUS.md` for the backend/feature coverage matrix and
-`LAYOUT_AUDIT.md` for the audited active/future/compatibility map. A matrix cell
+See `IMPLEMENTATION_STATUS.md` for the backend/feature coverage matrix and the
+[dated layout audit](../../Audit/2026-09-06/LAYOUT_AUDIT.md) for the audited
+active/future/compatibility map. A matrix cell
 is not supported merely because its empty directory scaffold exists.
 
 ## Placement rules

@@ -2,7 +2,8 @@
 
 This is the authoritative implementation and validation ledger.
 Directory presence, a placeholder, a design document, or a compiler workflow
-does not establish backend support. See `LAYOUT_AUDIT.md` before interpreting
+does not establish backend support. See the
+[dated layout audit](../../Audit/2026-09-06/LAYOUT_AUDIT.md) before interpreting
 a path.
 
 `TODO_GRID.md` is retained as a legacy planning grid and must not be used for
@@ -152,8 +153,9 @@ The planned normalized method inventories are:
 Blank feature rows remain blank even where source or prototypes exist; build
 and runtime maturity must be established explicitly.
 
-Detailed CPU family and semantic coverage is recorded in
-`CPU_ATTENTION_AUDIT.md`. In particular, `R` for Flash records its current
+Detailed CPU family and semantic coverage is recorded in the
+[dated CPU attention audit](../../Audit/2026-09-08/CPU_ATTENTION_AUDIT.md). In
+particular, `R` for Flash records its current
 baseline runtime test, not complete validation of every advertised capability
 or a complete definition/translation ownership split.
 
@@ -194,5 +196,6 @@ Planned TeaCache methods: `support`, `configure`, `validate`, `init`, `enabled`,
 ## Deferred feature scaffolds
 
 `ggml`, `gguf`, and `reserve` are explicitly later-development directories.
-Other empty top-level families are classified in `LAYOUT_AUDIT.md`. They are not
-added to this ledger until a normalized method contract exists.
+Other empty top-level families are classified in the
+[dated layout audit](../../Audit/2026-09-06/LAYOUT_AUDIT.md). They are not added
+to this ledger until a normalized method contract exists.

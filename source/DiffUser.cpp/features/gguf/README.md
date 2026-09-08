@@ -10,4 +10,4 @@ The existing [native conversion plan](../../../../docs/native-hf-lora-gguf-plan.
 currently proposes the native converter under
 `source/sdkit3-port-source/src/conversion/`. Decide whether this feature will
 own format I/O, conversion orchestration, or another narrow contract before
-adding source. See [the layout audit](../../LAYOUT_AUDIT.md).
+adding source. See [the dated layout audit](../../../../Audit/2026-09-06/LAYOUT_AUDIT.md).

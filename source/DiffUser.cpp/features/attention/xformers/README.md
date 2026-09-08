@@ -35,4 +35,5 @@ do not establish xFormers support for those backends.
 
 The retired materialized CUDA stages now live as `prototype/cuda-*.cu`. They are
 not production translations and must not be added back to a build. See
-`../../../LAYOUT_AUDIT.md` for the full source-status map.
+[the dated layout audit](../../../../../Audit/2026-09-06/LAYOUT_AUDIT.md) for
+the full source-status map.

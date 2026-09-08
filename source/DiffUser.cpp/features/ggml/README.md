@@ -10,4 +10,4 @@ stable-diffusion.cpp attention compatibility adapters.
 Before implementation, reconcile its scope with the
 [shared-GGML plan](../../../../docs/todo/32-merge-llama-stable-diffusion.md),
 especially the shared-baseline, ABI, symbol, registry, and lifecycle decisions.
-See [the layout audit](../../LAYOUT_AUDIT.md).
+See [the dated layout audit](../../../../Audit/2026-09-06/LAYOUT_AUDIT.md).
