@@ -6,6 +6,11 @@ does not establish backend support. See the
 [dated layout audit](../../Audit/2026-09-06/LAYOUT_AUDIT.md) before interpreting
 a path.
 
+The [full Common contract re-audit](../../Audit/2026-09-08/FULL_COMMON_CONTRACT_REAUDIT.md)
+supersedes topology conclusions in the older audits. Existing runtime marks
+record behavioral history only where that re-audit identifies execution in the
+wrong layer; they must not be read as definition/translation/Common conformance.
+
 `TODO_GRID.md` is retained as a legacy planning grid and must not be used for
 current support or validation claims.
 
