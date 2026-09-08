@@ -6,9 +6,18 @@ DiffUser.cpp is a self-contained hardware unifier. It presents one API-owned con
 and one normalized set of tensor, memory, model-resource, and attention
 operations across supported hardware backends.
 
-DiffUser.cpp primarily manages and unifies resources. It may also implement inference
-operations, but those implementations must be owned by DiffUser.cpp and use its own
-context. It must never delegate inference to SDKIT3 or llama.cpp.
+DiffUser.cpp manages and unifies resources and backend compute primitives. It
+owns the administrative path: discovery, capability reporting, allocation,
+placement, transfer, model-resource load/unload, dispatch bookkeeping, and
+release. Model-family inference, sampling, VAE encode/decode semantics, and
+delivery of completed inference results belong to INFERENCE.cpp. Neither
+project delegates implementation to SDKIT3 or llama.cpp.
+
+The handoff rule is: DiffUser prepares the work; INFERENCE uses the prepared
+work. A prepared work package may expose Common-owned resource handles, tensor
+descriptions, placement, synchronization, and supported primitive operations.
+It must not contain model-family control flow, sampler policy, VAE algorithm
+policy, or result-delivery decisions.
 
 ## Dependency direction
 
@@ -39,6 +48,11 @@ feature migration must update that audit before implementation so missing
 contracts and GPU translations are discovered before a private substitute is
 introduced into INFERENCE.cpp.
 
+VAE encode/decode algorithms and their sequencing belong to INFERENCE.cpp.
+DiffUser owns only the normalized VAE model, image, latent, placement, transfer,
+and compute handlers required by that implementation, together with their
+backend definitions and translations.
+
 SDKIT3 and llama.cpp must not include, compile, link, dispatch, configure, or
 otherwise consume DiffUser.cpp. DiffUser.cpp must not consume either engine. They are
 research/reference options only until the project owner explicitly changes
@@ -51,8 +65,10 @@ integration test requires all three.
   capability record, request, result, and lifecycle contract it exposes.
 - Backend translations consume API-owned normalized requests and translate them
   directly to the selected driver interface.
-- Backend implementations must live inside DiffUser.cpp. Wrapping or importing an
-  inference engine's context or implementation does not satisfy this rule.
+- Backend resource and compute-primitive implementations must live inside
+  DiffUser.cpp. Model-level inference implementations must live inside
+  INFERENCE.cpp. Wrapping or importing another inference engine's context or
+  implementation does not satisfy either rule.
 - SDKIT3 is not a source donor. When an implementation already exists in
   DiffUser.cpp, API routes use the API-owned implementation. When it does not exist,
   the route remains unimplemented until it is independently developed against

@@ -21,9 +21,10 @@ must land before the inference implementation may call them.
 | sampler/scheduler portions of `src/stable-diffusion.cpp` | independently defined sampling loop |
 | generation portions of `include/stable-diffusion.h` | normalized image/video request and result contracts |
 | `src/extensions/generation_extension.h` | model-neutral generation extension points |
-| model-family orchestration under `src/model/` | graph sequencing without backend tensor ownership |
+| model-family orchestration under `src/model/` | model execution and graph sequencing without backend tensor ownership |
 | top-level SDKIT3 `image_generator.*` | request-to-plan and result-assembly behavior |
-| image preprocessing/postprocessing policy | operation ordering, dimensions, and metadata only |
+| image preprocessing/postprocessing and delivery | operation ordering, dimensions, pixels/frames, metadata, and completed results |
+| VAE encode/decode semantics | INFERENCE-owned shape, scaling, tiling, and execution policy |
 
 ## Exclude because DiffUser owns or will own it
 
@@ -76,3 +77,8 @@ input planning is deferred until those resource routes exist.
 6. Model-family orchestration and image/video result assembly.
 7. API.test composition tests that prove INFERENCE.cpp reaches hardware and
    resources only through DiffUser Common.
+
+VAE planning is now represented under `features/vae/common`. Execution remains
+blocked on DiffUser Common handlers for VAE, image, and latent resources plus
+the compute primitives and GPU translations required by the inference-owned
+encode/decode implementation.

@@ -20,6 +20,10 @@ translation does not pass this gate. Host-only inference policy, such as text
 pretokenization and BPE merge selection, stays in INFERENCE.cpp and requires no
 DiffUser operation.
 
+Ownership test: if an operation prepares resources or primitive capability for
+work, it belongs to DiffUser. If it consumes that prepared work to execute
+model logic or deliver the finished result, it belongs to INFERENCE.cpp.
+
 ## Current operation gaps
 
 | Inference need | Common contract | CPU route | GPU translation | Current decision |
@@ -29,13 +33,14 @@ DiffUser operation.
 | text-conditioning tensor/resource | no | no | no | block conditioning migration |
 | latent creation and ownership | no | no | no | block latent initialization execution |
 | deterministic noise fill | no | no | no | add before sampler execution |
-| model-family forward execution | no normalized model-operation contract | no | no | block denoising execution |
+| model-family forward execution | INFERENCE-owned; not a DiffUser operation | required primitives incomplete | required GPU primitive translations incomplete | implementation blocked, ownership retained by INFERENCE |
 | generic tensor operations needed by schedulers | only operation enum fragments | no complete route | no complete route | audit each scheduler before migration |
-| VAE encode | no | no | no | block image-to-image input |
-| VAE decode | no | no | no | block image generation output |
+| VAE encode semantics | INFERENCE plan exists; not a DiffUser operation | handler resources absent | handler GPU translations absent | execution blocked |
+| VAE decode semantics | INFERENCE plan exists; not a DiffUser operation | handler resources absent | handler GPU translations absent | execution blocked |
 | normalized image resource | no | no | no | raw image pointers forbidden |
 | normalized mask resource | no | no | no | raw mask pointers forbidden |
-| result readback/export | no | no | no | block pixel result assembly |
+| device-to-host result transfer | no | no | no | add administrative Common transfer handler |
+| result assembly and delivery | INFERENCE-owned; not a DiffUser operation | not applicable | not applicable | implement after transfer handler exists |
 | xFormers CPU attention | yes | runtime tested | CUDA route exists | usable only through its Common contract |
 | FlashAttention | yes | CPU baseline runtime tested | CUDA runtime tested | semantic test gaps remain |
 | Flex Attention | partial algorithm, no registered CPU contract | no | no | blocked |

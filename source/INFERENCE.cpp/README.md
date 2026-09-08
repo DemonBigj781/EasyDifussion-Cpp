@@ -6,8 +6,9 @@ split from the SDKIT3 design. SDKIT3 remains intact under
 is not linked or copied into this project.
 
 INFERENCE.cpp owns model-family sequencing, conditioning, tokenization,
-denoising schedules, sampler policy, guidance, generation state, and result
-assembly. It does not own hardware discovery, memory residency, model-resource
+denoising schedules, sampler policy, guidance, generation state, result
+assembly, and delivery of completed image/video results to its caller. It does
+not own hardware discovery, memory residency, model-resource
 load/unload, backend tensors, attention implementations, cache implementations,
 or driver calls. Those are DiffUser concerns, requested only through DiffUser
 Common contracts.
@@ -19,8 +20,9 @@ only when a feature genuinely has device-specific behavior.
 
 The initial build contains the independent request/execution-plan layer and a
 generic BPE tokenizer foundation. The tokenizer is not yet CLIP- or T5-complete.
-See [MIGRATION_MANIFEST.md](MIGRATION_MANIFEST.md) for the SDKIT3 disposition
-map and remaining migration order.
+The VAE feature owns validated encode/decode shape and tiling plans but not yet
+execution. See [MIGRATION_MANIFEST.md](MIGRATION_MANIFEST.md) for the SDKIT3
+disposition map and remaining migration order.
 
 ## Dependency rule
 
@@ -32,6 +34,11 @@ resource operation not represented by Common, its normalized contract is added
 to DiffUser Common and implemented through the applicable GPU definitions and
 translations before INFERENCE.cpp consumes it. Raw backend buffers are never a
 substitute for a missing Common resource contract.
+
+The formal handoff is “DiffUser prepares; INFERENCE uses.” INFERENCE receives
+only Common-prepared resources and operations, applies inference-owned model
+logic to them, and delivers the completed result without taking over backend
+allocation, placement, transfer, or cleanup.
 
 The active request is text-input generation only. Image and mask inputs are
 intentionally absent until DiffUser owns normalized image-resource contracts
