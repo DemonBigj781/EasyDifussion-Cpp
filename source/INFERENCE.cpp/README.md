@@ -9,19 +9,33 @@ INFERENCE.cpp owns model-family sequencing, conditioning, tokenization,
 denoising schedules, sampler policy, guidance, generation state, and result
 assembly. It does not own hardware discovery, memory residency, model-resource
 load/unload, backend tensors, attention implementations, cache implementations,
-or driver calls. Those are DiffUser concerns.
+or driver calls. Those are DiffUser concerns, requested only through DiffUser
+Common contracts.
 
-The initial build intentionally contains only the independent request and
-execution-plan layer. See [MIGRATION_MANIFEST.md](MIGRATION_MANIFEST.md) for the
-SDKIT3 disposition map and the order in which inference behavior will be
-reimplemented.
+Feature implementations follow the DiffUser organizational convention under
+`features/<feature>/common/`. Tokenization therefore begins under
+`features/token/common/`; device definition and translation layers are added
+only when a feature genuinely has device-specific behavior.
+
+The initial build contains the independent request/execution-plan layer and a
+generic BPE tokenizer foundation. The tokenizer is not yet CLIP- or T5-complete.
+See [MIGRATION_MANIFEST.md](MIGRATION_MANIFEST.md) for the SDKIT3 disposition
+map and remaining migration order.
 
 ## Dependency rule
 
-Production files under `include/` and `src/` may use only the C++ standard
-library. They must not include or link SDKIT3, stable-diffusion.cpp, GGML,
-llama.cpp, DiffUser.cpp, REST transport, or UI code. Composition belongs in a
-separate integration target, currently API.test.
+Production files may use the C++ standard library and DiffUser Common headers.
+They must not include a DiffUser definition, translation, backend handler, or
+driver surface, and must not include or link SDKIT3, stable-diffusion.cpp, GGML,
+llama.cpp, REST transport, or UI code. When inference requires a hardware or
+resource operation not represented by Common, its normalized contract is added
+to DiffUser Common and implemented through the applicable GPU definitions and
+translations before INFERENCE.cpp consumes it. Raw backend buffers are never a
+substitute for a missing Common resource contract.
+
+The active request is text-input generation only. Image and mask inputs are
+intentionally absent until DiffUser owns normalized image-resource contracts
+and the required GPU translations.
 
 ## Build
 

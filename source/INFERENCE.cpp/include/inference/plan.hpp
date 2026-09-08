@@ -10,7 +10,6 @@ namespace edcpp::inference {
 enum class Stage : std::uint8_t {
     tokenize,
     condition,
-    prepare_input,
     initialize_latent,
     denoise,
     decode,

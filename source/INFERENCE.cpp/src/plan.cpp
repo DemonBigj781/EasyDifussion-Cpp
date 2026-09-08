@@ -6,7 +6,8 @@
 namespace edcpp::inference {
 
 ValidationResult validate(const GenerationRequest& request) {
-    if (request.model == 0) return {false, "a model resource identifier is required"};
+    if (request.model == nullptr || !request.model->loaded())
+        return {false, "a loaded DiffUser Common model resource is required"};
     if (request.prompt.empty()) return {false, "a prompt is required"};
     if (request.width == 0 || request.height == 0) return {false, "dimensions must be non-zero"};
     if ((request.width % 8) != 0 || (request.height % 8) != 0)
@@ -31,7 +32,6 @@ ExecutionPlan make_plan(const GenerationRequest& request) {
     ExecutionPlan plan;
     plan.request = request;
     plan.stages = {Stage::tokenize, Stage::condition};
-    if (request.input != 0) plan.stages.push_back(Stage::prepare_input);
     plan.stages.push_back(Stage::initialize_latent);
     plan.stages.push_back(Stage::denoise);
     plan.stages.push_back(Stage::decode);

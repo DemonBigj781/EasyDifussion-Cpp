@@ -15,14 +15,29 @@ context. It must never delegate inference to SDKIT3 or llama.cpp.
 `source/API.cpp` is a compatibility filesystem link to the canonical
 `source/DiffUser.cpp` tree. It must never become a separate implementation.
 
-The only permitted in-repository consumer of DiffUser.cpp is `source/API.test`:
+The permitted in-repository consumers of DiffUser.cpp Common are
+`source/INFERENCE.cpp` and `source/API.test`:
 
 ```text
-API.test -> DiffUser.cpp -> platform and driver interfaces
+INFERENCE.cpp -> DiffUser Common -> translation -> definition -> driver
+API.test      -> DiffUser Common -> translation -> definition -> driver
 ```
 
 The reverse direction is forbidden. DiffUser.cpp must build and remain usable when
 `API.test`, SDKIT3, and llama.cpp are absent.
+
+INFERENCE.cpp must consume only Common/public contracts. It must not include a
+backend definition, translation, handler, or driver surface. If an inference
+operation lacks a required normalized Common contract, that contract is added
+to DiffUser.cpp before INFERENCE.cpp uses the operation. Every hardware-backed
+contract must also have definitions and translations for each backend claimed
+as supported, including the applicable GPU translations. A Common header alone
+does not establish a usable operation.
+
+The dated `Audit/` archive tracks INFERENCE.cpp-to-Common gaps. Each inference
+feature migration must update that audit before implementation so missing
+contracts and GPU translations are discovered before a private substitute is
+introduced into INFERENCE.cpp.
 
 SDKIT3 and llama.cpp must not include, compile, link, dispatch, configure, or
 otherwise consume DiffUser.cpp. DiffUser.cpp must not consume either engine. They are

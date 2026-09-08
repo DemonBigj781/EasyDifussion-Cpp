@@ -4,6 +4,11 @@ Audited against the preserved SDKIT3 snapshot on 2026-09-08. “Reimplement”
 means reproduce required behavior against INFERENCE.cpp-owned contracts; it
 does not authorize copying an engine-owned context or implementation.
 
+Before admitting a feature, update the
+[dated Common gap audit](../../Audit/2026-09-08/INFERENCE_COMMON_GAP_AUDIT.md).
+That audit determines which DiffUser Common contracts and backend translations
+must land before the inference implementation may call them.
+
 ## Reimplement in INFERENCE.cpp
 
 | SDKIT3 reference area | Intended INFERENCE.cpp ownership |
@@ -36,8 +41,14 @@ does not authorize copying an engine-owned context or implementation.
 | backend flags, device enumeration, offload, mmap, VRAM planning | hardware capability and resource management |
 | direct CUDA, HIP, SYCL, Vulkan, OpenCL, Metal, or other driver calls | backend definitions/translations |
 
-An excluded operation may appear in an inference plan as an abstract operation
-or resource identifier. Its backend data structure or implementation must not.
+An excluded operation may appear in an inference plan only through its DiffUser
+Common contract. Its backend definition, translation, data structure, or
+implementation must not.
+
+A new Common contract is not considered consumable merely because its header
+exists. DiffUser must also supply the applicable backend definitions,
+Common-to-backend translations, capability reporting, and tests. Image/mask
+input planning is deferred until those resource routes exist.
 
 ## Keep only as reference
 
@@ -54,10 +65,14 @@ or resource identifier. Its backend data structure or implementation must not.
 ## Implementation order
 
 1. Stable request/result and execution-plan contracts.
-2. Independent tokenizer layer with golden-vector tests.
+2. Independent tokenizer layer under `features/token/common/` with
+   golden-vector tests. **In progress:** the generic vocabulary/merge BPE
+   contract and deterministic unit tests exist;
+   CLIP byte encoding, model vocab loaders, T5 Unigram, and family-specific
+   golden vectors remain.
 3. Conditioning and guidance policy.
 4. Scheduler and sampler math using backend-neutral scalar/state contracts.
 5. Denoising loop expressed as abstract model operations and resource IDs.
 6. Model-family orchestration and image/video result assembly.
-7. API.test composition tests that supply DiffUser, without introducing a
-   production dependency in either direction.
+7. API.test composition tests that prove INFERENCE.cpp reaches hardware and
+   resources only through DiffUser Common.

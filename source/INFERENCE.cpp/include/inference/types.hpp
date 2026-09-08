@@ -1,11 +1,11 @@
 #pragma once
 
+#include "features/load/common/load.hpp"
+
 #include <cstdint>
 #include <string>
 
 namespace edcpp::inference {
-
-using ResourceId = std::uint64_t;
 
 enum class MediaKind : std::uint8_t { image, video };
 enum class Sampler : std::uint8_t { euler, euler_a, heun, dpm2, dpmpp_2m, lcm };
@@ -15,9 +15,7 @@ struct GenerationRequest {
     MediaKind media = MediaKind::image;
     std::string prompt{};
     std::string negative_prompt{};
-    ResourceId model = 0;
-    ResourceId input = 0;
-    ResourceId mask = 0;
+    const edcpp::api::load::Resource* model = nullptr;
     std::uint32_t width = 512;
     std::uint32_t height = 512;
     std::uint32_t steps = 20;
