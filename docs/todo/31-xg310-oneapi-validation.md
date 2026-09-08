@@ -6,6 +6,9 @@ Validate the H3C XG310 as a real Easy Diffusion oneAPI/SYCL compute target and s
 ## Hardware model
 Treat the board as multiple Intel SG1/Gen12 GPU devices with separate memory, not as one automatically unified 32 GB device. Device discovery must determine the actual runtime topology.
 
+## Cooling gate
+Do not run allocation, kernel, generation, stress, or thermal tests on the passively cooled board until forced airflow is fitted and verified. Toolchain work and CI compile validation may proceed without powering the board. The ordered T10 fan may be mechanically adapted to supply the required airflow.
+
 ## Implementation / test sequence
 1. Install a driver/oneAPI stack that enumerates the card reliably on the target Debian/Linux environment.
 2. Capture `sycl-ls`/equivalent device identifiers, PCI topology, driver versions, global memory per device, max allocation, USM capabilities, subgroups, FP16 support, and relevant extensions.

@@ -1,5 +1,12 @@
 # 08 — oneAPI / SYCL Support
 
+## Current status (2026-09-08)
+
+Incomplete on both Main and Theory. Main has plans, workflow scaffolding, and a
+vendored GGML-SYCL implementation. Theory additionally has Common-routed device
+detection. Neither branch currently has oneAPI model lifecycle or image
+generation. See `Audit/2026-09-08/ONEAPI_BACKEND_GAP_AUDIT.md`.
+
 ## Objective
 Make oneAPI/SYCL a first-class compute backend for the Easy Diffusion generation stack.
 
