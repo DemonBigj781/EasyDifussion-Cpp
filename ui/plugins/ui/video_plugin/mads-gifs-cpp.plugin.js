@@ -19,8 +19,9 @@
  */
 (function() { "use strict"
     const GITHUB_PAGE = "https://github.com/madrang/sd-ui-plugins"
-    const VERSION = "3.2.0";
+    const VERSION = "3.0.0";
     const ID_PREFIX = "easy-diffusion-cpp-gifs";
+    const GIF_SCRIPT = "/plugins/core/video_plugin/gif.js";
     const GIF_WORKER_SCRIPT = "/plugins/core/video_plugin/gif.worker.js";
     console.log('%s GIFs Version: %s', ID_PREFIX, VERSION);
 
@@ -80,33 +81,6 @@
         return canvas;
     }
 
-    function addFallbackMotionFrames(gif, outputCanvas, width, height) {
-        // Some backends cannot stream decoded denoising previews. A GIF with
-        // only the completed image is technically valid but visibly static,
-        // so create a small, seamless camera-motion loop from that image.
-        const sourceCanvas = createCanvas(width, height);
-        sourceCanvas.getContext("2d").drawImage(outputCanvas, 0, 0, width, height);
-        const outputCtx = outputCanvas.getContext("2d");
-        const motionFrameCount = 12;
-        for (let i = 0; i < motionFrameCount; i++) {
-            const phase = (Math.PI * 2 * i) / (motionFrameCount - 1);
-            const zoom = 1 + 0.04 * ((1 - Math.cos(phase)) / 2);
-            const drawWidth = width * zoom;
-            const drawHeight = height * zoom;
-            const panX = Math.sin(phase) * width * 0.006;
-            outputCtx.clearRect(0, 0, width, height);
-            outputCtx.drawImage(
-                sourceCanvas,
-                (width - drawWidth) / 2 + panX,
-                (height - drawHeight) / 2,
-                drawWidth,
-                drawHeight,
-            );
-            gif.addFrame(outputCtx, {copy: true, delay: 100});
-        }
-        return motionFrameCount;
-    }
-
     function blobToDataURL(blob) {
         return new Promise(function(resolve, reject) {
             const reader = new FileReader();
@@ -130,26 +104,9 @@
         if (gif.frames.length === 0) {
             return Promise.reject(new Error("No frames were generated for the GIF."));
         }
-        const stopWorkers = function() {
-            const workers = [...(gif.activeWorkers || []), ...(gif.freeWorkers || [])];
-            gif.activeWorkers = [];
-            gif.freeWorkers = [];
-            workers.forEach((worker) => worker.terminate());
-            gif.running = false;
-        };
         return new Promise(function(resolve, reject) {
-            gif.on("finished", (blob) => {
-                stopWorkers();
-                blobToDataURL(blob).then(resolve, reject);
-            });
-            gif.on("abort", () => {
-                stopWorkers();
-                reject(new DOMException("GIF encoding was cancelled.", "AbortError"));
-            });
-            gif.on("error", (error) => {
-                stopWorkers();
-                reject(error);
-            });
+            gif.on("finished", (blob) => blobToDataURL(blob).then(resolve, reject));
+            gif.on("abort", () => reject(new DOMException("GIF encoding was cancelled.", "AbortError")));
             try {
                 gif.render();
             } catch (error) {
@@ -211,46 +168,10 @@
         , restoreToPrevious: 3
     };
     Object.freeze(GIF_DISPOSAL_METHODS);
-
-    if (typeof window.GIF !== "function") {
-        const message = "Animated GIF support could not start because gif.js was not loaded.";
-        console.error(message);
-        if (typeof showToast === "function") showToast(message, 7000, true);
-        return;
-    }
-    if (!('OUTPUTS_FORMATS' in PLUGINS)) {
-        return;
-    }
-
-    function installSimpleGifUI() {
-        const outputField = document.getElementById("output_format");
-        const option = outputField?.querySelector('option[value="gif"]');
-        const outputSettingsTable = document.querySelector("#output-settings-entries table");
-        if (!outputField || !option || !outputSettingsTable) return;
-
-        option.textContent = "Animated GIF";
-        let helpRow = document.getElementById(`${ID_PREFIX}-help-row`);
-        if (!helpRow) {
-            helpRow = document.createElement("tr");
-            helpRow.id = `${ID_PREFIX}-help-row`;
-            helpRow.className = "pl-5 displayNone";
-            helpRow.innerHTML = `<td></td><td><small>Click <b>Make Image</b> normally. Live generation previews become the animation. If previews are unavailable, the finished image gets a subtle motion loop. GIF inputs are processed frame by frame.</small></td>`;
-            outputSettingsTable.appendChild(helpRow);
+    loadScript(GIF_SCRIPT).then(function() {
+        if (!('OUTPUTS_FORMATS' in PLUGINS)) {
+            return;
         }
-
-        const update = function() {
-            const selected = outputField.value === "gif";
-            helpRow.classList.toggle("displayNone", !selected);
-            if (selected) {
-                document.getElementById("output_quality_row")?.classList.add("displayNone");
-                document.getElementById("output_lossless_container")?.classList.add("displayNone");
-            }
-        };
-        outputField.addEventListener("change", update);
-        update();
-    }
-
-    if (!PLUGINS['OUTPUTS_FORMATS'].services.has("gif")) {
         PLUGINS['OUTPUTS_FORMATS'].register(function gif() {
             return (reqBody) => {
                 const renderRequest = Object.assign({}, reqBody, {
@@ -286,16 +207,11 @@
                         }
                         return await Promise.resolve(callback?.call(this, event));
                     }).then(async function(result) {
-                        const hasFinalImage = result?.output?.[0]?.data || result?.output?.[0]?.path;
-                        if (hasFinalImage) {
+                        if (frameCount === 0 && (result?.output?.[0]?.data || result?.output?.[0]?.path)) {
                             await copyImg(outputCtx, {
                                 data: result.output[0].data,
                                 url: result.output[0].path,
                             });
-                        }
-                        if (frameCount < 2 && (hasFinalImage || frameCount > 0)) {
-                            frameCount += addFallbackMotionFrames(gif, offscreenOutput, reqBody.width, reqBody.height);
-                        } else if (hasFinalImage) {
                             gif.addFrame(outputCtx, {copy: true, delay: 500});
                             frameCount++;
                         } else if (frameCount > 0) {
@@ -315,11 +231,153 @@
                 return instance;
             }
         });
-    }
-    installSimpleGifUI();
+        PLUGINS['OUTPUTS_FORMATS'].register(function stepAnim() {
+            const processImage = async function*(reqBody, callback, signal) {
+                console.log(`GIF - Starting ${reqBody.width}x${reqBody.height} gif render.`);
 
-    const GIF_HEADER = 'data:image/gif;base64,'
-    PLUGINS['TASK_CREATE'].push(function(event) {
+                const gif = createGif(reqBody.width, reqBody.height);
+                const offscreenOutput = createCanvas(reqBody.width, reqBody.height);
+                const outputCtx = offscreenOutput.getContext("2d");
+                outputCtx.clearRect(0, 0, reqBody.width, reqBody.height);
+                const renderFrames = [];
+
+                let delay = 250;
+                const advance_step = 0.088;
+                for (let num_inference_steps = 5;
+                    num_inference_steps <= reqBody.num_inference_steps;
+                    num_inference_steps += Math.max(1, Math.floor(num_inference_steps * advance_step))
+                ) {
+                    throwIfAborted(signal);
+                    console.log(`Gif.frame Starting Render ${num_inference_steps}/${reqBody.num_inference_steps}`);
+                    const result = yield SD.render(Object.assign({}, reqBody, {
+                        num_inference_steps
+                        , output_format: 'png'
+                    }), callback);
+                    console.log('Gif.frame Render response %o', result);
+
+                    const outputData = result?.output?.[0]?.data;
+                    if (!outputData) {
+                        throw new Error("Step animation render returned no image data.");
+                    }
+                    renderFrames.push(outputData);
+
+                    // Clear output buffer
+                    outputCtx.clearRect(0, 0, reqBody.width, reqBody.height);
+                    // Read back result.
+                    const img = yield copyImg(outputCtx, {data: outputData, width: reqBody.width, height: reqBody.height});
+                    // Add to gif renderer.
+                    gif.addFrame(outputCtx, {copy: true, delay});
+                    console.log('Added new frame %o to gif %o', img, gif);
+                }
+                // Reverse animation and add frames again.
+                renderFrames.reverse();
+                for(const imgData of renderFrames) {
+                    throwIfAborted(signal);
+                    // Clear output buffer
+                    outputCtx.clearRect(0, 0, reqBody.width, reqBody.height);
+                    // Read back result.
+                    const img = yield copyImg(outputCtx, {data: imgData, width: reqBody.width, height: reqBody.height});
+                    // Add to gif renderer.
+                    gif.addFrame(outputCtx, {copy: true, delay});
+                    console.log('Added new frame %o to gif %o', img, gif);
+                }
+
+                // Start final render
+                const gifDataUrl = await renderGif(gif);
+                return gifResult(gifDataUrl);
+            };
+            return (reqBody) => {
+                const controller = new AbortController();
+                return {
+                    abort: () => controller.abort()
+                    , enqueue: function(callback) {
+                        const process = processImage(reqBody, callback, controller.signal);
+                        return SD.Task.enqueue(process);
+                    }
+                };
+            }
+        });
+        PLUGINS['OUTPUTS_FORMATS'].register(function morph() {
+            const parsePrompt = function(text, params) {
+                for (const [argName, argValue] of Object.entries(params)) {
+                    text = text.replace(new RegExp(`{${argName}}`, "igm"), argValue.toFixed(3))
+                }
+                return text;
+            };
+            const processImage = async function*(reqBody, callback, signal) {
+                console.log(`GIF - Starting ${reqBody.width}x${reqBody.height} gif render.`);
+
+                const gif = createGif(reqBody.width, reqBody.height);
+                const offscreenOutput = createCanvas(reqBody.width, reqBody.height);
+                const outputCtx = offscreenOutput.getContext("2d");
+                outputCtx.clearRect(0, 0, reqBody.width, reqBody.height);
+                const renderFrames = [];
+
+                let delay = 99; // playback time per frame in milliseconds.
+                const advance_step = 2;
+                const rangeStart = 1;
+                const rangeEnd = 99;
+                for (let weight_step = 0; rangeStart + weight_step <= rangeEnd; weight_step += advance_step) {
+                    throwIfAborted(signal);
+                    let promptOptions;
+                    if (false) {
+                        const blendAlpha = (2.0 / (1.0 + Math.exp(-0.05 * weight_step))) - 1.0;
+                        promptOptions = { x: 100 * (1.0 - blendAlpha), y: 100 * blendAlpha };
+                    } else {
+                        promptOptions = { x: rangeEnd - weight_step, y: rangeStart + weight_step };
+                    }
+                    console.log(`Gif.frame Starting Render ${weight_step / advance_step}/${Math.floor((1 + rangeEnd - rangeStart) / advance_step)} using options %o`, promptOptions);
+                    const result = yield SD.render(Object.assign({}, reqBody, {
+                        prompt: parsePrompt(reqBody.prompt, promptOptions)
+                        , output_format: 'png'
+                    }), callback);
+                    console.log('Gif.frame Render response %o', result);
+
+                    const outputData = result?.output?.[0]?.data;
+                    if (!outputData) {
+                        throw new Error("Morph animation render returned no image data.");
+                    }
+                    renderFrames.push(outputData);
+
+                    // Clear output buffer
+                    outputCtx.clearRect(0, 0, reqBody.width, reqBody.height);
+                    // Read back result.
+                    const img = yield copyImg(outputCtx, {data: outputData, width: reqBody.width, height: reqBody.height});
+                    // Add to gif renderer.
+                    gif.addFrame(outputCtx, {copy: true, delay});
+                    console.log('Added new frame %o to gif %o', img, gif);
+                }
+                // Reverse animation and add frames again.
+                renderFrames.reverse();
+                for(const imgData of renderFrames) {
+                    throwIfAborted(signal);
+                    // Clear output buffer
+                    outputCtx.clearRect(0, 0, reqBody.width, reqBody.height);
+                    // Read back result.
+                    const img = yield copyImg(outputCtx, {data: imgData, width: reqBody.width, height: reqBody.height});
+                    // Add to gif renderer.
+                    gif.addFrame(outputCtx, {copy: true, delay});
+                    console.log('Added new frame %o to gif %o', img, gif);
+                }
+
+                // Start final render
+                const gifDataUrl = await renderGif(gif);
+                return gifResult(gifDataUrl);
+            };
+            return (reqBody) => {
+                const controller = new AbortController();
+                return {
+                    abort: () => controller.abort()
+                    , enqueue: function(callback) {
+                        const process = processImage(reqBody, callback, controller.signal);
+                        return SD.Task.enqueue(process);
+                    }
+                };
+            }
+        });
+
+        const GIF_HEADER = 'data:image/gif;base64,'
+        PLUGINS['TASK_CREATE'].push(function(event) {
             if (typeof event?.reqBody?.init_image !== 'string' || !event.reqBody.init_image.startsWith(GIF_HEADER)) {
                 return
             }
@@ -439,7 +497,8 @@
                 }
             };
             event.reqBody.output_format = 'gif';
-    })
+        })
+    }, (reason) => console.error(reason));
 
     // Register selftests when loaded by jasmine.
     if (typeof PLUGINS?.SELFTEST === 'object') {

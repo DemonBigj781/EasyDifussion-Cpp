@@ -37,13 +37,10 @@ const NATIVE_BACKEND_BOOLEAN_OPTIONS = [
     { flag: "--sage-attention", label: "SageAttention SM80", group: "performance" },
     { flag: "--xformers", label: "xFormers-compatible fused attention", group: "performance" },
     { flag: "--cuda-malloc", label: "Legacy cudaMalloc pool", group: "performance" },
-    { flag: "--cuda-unified-memory", label: "CUDA system-RAM fallback (slow)", group: "performance" },
     { flag: "--keep-model-loaded", label: "Keep model weights loaded", group: "performance" },
     { flag: "--offload-to-cpu", label: "Image/model parameter CPU offload", group: "image" },
     { flag: "--image-clip-on-cpu", label: "Image text encoder on CPU", group: "image" },
     { flag: "--image-vae-on-cpu", label: "Image VAE on CPU", group: "image" },
-    { flag: "--no-half", label: "No half model (F32, high memory)", group: "image" },
-    { flag: "--no-half-vae", label: "No half VAE (F32)", group: "image" },
     { flag: "--control-net-cpu", label: "ControlNet on CPU", group: "image" },
     { flag: "--vae-tiling", label: "VAE tiling", group: "image" },
     { flag: "--stream-layers", label: "Stream image/model layers", group: "image" },
@@ -58,96 +55,8 @@ const NATIVE_BACKEND_VALUE_OPTIONS = [
     { flag: "--vae-tiled-overlap", label: "VAE tile overlap", group: "image", type: "number", min: 0, step: 1, placeholder: 16 },
     { flag: "--vae-tile-size", label: "VAE pixel tile size", group: "image", type: "text", placeholder: "256x256" },
     { flag: "--max-vram", label: "Image/model VRAM budget", group: "image", type: "text", placeholder: "6 or cuda=6,cpu=0" },
-    { flag: "--control-net-sd1-path", label: "Uni-ControlNet weights (SD1.x)", group: "image", type: "text", placeholder: "Absolute checkpoint path" },
-    { flag: "--control-net-sdxl-path", label: "ControlNet Union weights (SDXL)", group: "image", type: "text", placeholder: "Absolute checkpoint path" },
     { flag: "--video-max-vram", label: "Video VRAM budget (GiB)", group: "video", type: "number", min: 0, step: 0.25, placeholder: 8 },
 ]
-
-const MODEL_DIRECTORY_OPTIONS = [
-    ["checkpoints", "Checkpoints"],
-    ["vae", "VAE"],
-    ["taesdvae", "TAESD VAE"],
-    ["hypernetwork", "Hypernetworks"],
-    ["gfpgan", "GFPGAN"],
-    ["realesrgan", "RealESRGAN"],
-    ["lora", "LoRA"],
-    ["codeformer", "CodeFormer"],
-    ["embeddings", "Embeddings"],
-    ["controlnet", "ControlNet"],
-    ["controlnet-union", "ControlNet Union"],
-    ["uni-controlnet", "Uni-ControlNet"],
-    ["controlnet-lite", "ControlNet-LITE backbone"],
-    ["controlnet-lllite", "ControlNet-LLLite"],
-    ["ip-adapter", "IP-Adapter"],
-    ["clip-vision", "CLIP Vision"],
-    ["latent-interposer", "Latent Interposer"],
-    ["furception-vae", "Furception VAE"],
-    ["wd14-tagger", "WD14 tagger"],
-    ["text-encoder", "Text encoders"],
-    ["video", "Video models"],
-    ["tipo", "TIPO"],
-]
-const MODEL_DIRECTORY_STORAGE_KEY = "easy-diffusion-model-directories-v1"
-
-function renderModelDirectoriesEditor() {
-    const fields = MODEL_DIRECTORY_OPTIONS.map(([key, label]) => `
-        <label class="model-directory-value" for="model-directory-${key}">
-            <span>${label}<small>${key}</small></span>
-            <textarea id="model-directory-${key}" data-model-directory-key="${key}" rows="1" spellcheck="false"></textarea>
-        </label>`).join("")
-    return `<div id="model-directories-editor" class="model-directories-editor">
-        <input id="directories" name="directories" type="hidden">
-        <small>One path per line. Relative paths are resolved below the Models Folder.</small>
-        <div class="model-directory-grid">${fields}</div>
-    </div>`
-}
-
-function browserModelDirectories() {
-    try {
-        const value = JSON.parse(localStorage.getItem(MODEL_DIRECTORY_STORAGE_KEY) || "{}")
-        return value && typeof value === "object" && !Array.isArray(value) ? value : {}
-    } catch (_) {
-        return {}
-    }
-}
-
-function directoryEditorValue(value) {
-    if (Array.isArray(value)) return value.join("\n")
-    return typeof value === "string" ? value : ""
-}
-
-function collectModelDirectories() {
-    const directories = {}
-    document.querySelectorAll("[data-model-directory-key]").forEach((input) => {
-        const paths = input.value.split(/\r?\n/).map((path) => path.trim()).filter(Boolean)
-        if (paths.length) directories[input.dataset.modelDirectoryKey] = paths.length === 1 ? paths[0] : paths
-    })
-    return directories
-}
-
-function applyModelDirectoryDefaults(configDirectories = {}) {
-    const browserDirectories = browserModelDirectories()
-    document.querySelectorAll("[data-model-directory-key]").forEach((input) => {
-        const key = input.dataset.modelDirectoryKey
-        const value = Object.prototype.hasOwnProperty.call(browserDirectories, key)
-            ? browserDirectories[key]
-            : configDirectories[key]
-        input.value = directoryEditorValue(value)
-    })
-}
-
-function initModelDirectoriesEditor() {
-    document.querySelectorAll("[data-model-directory-key]").forEach((input) => {
-        const saveBrowserValue = () => {
-            const directories = browserModelDirectories()
-            const paths = input.value.split(/\r?\n/).map((path) => path.trim()).filter(Boolean)
-            directories[input.dataset.modelDirectoryKey] = paths.length > 1 ? paths : (paths[0] || "")
-            localStorage.setItem(MODEL_DIRECTORY_STORAGE_KEY, JSON.stringify(directories))
-        }
-        input.addEventListener("input", saveBrowserValue)
-        input.addEventListener("change", saveBrowserValue)
-    })
-}
 
 function nativeBackendArgumentId(flag) {
     return `native-backend-arg-${flag.slice(2).replaceAll("-", "_")}`
@@ -284,15 +193,6 @@ var PARAMETERS = [
         render: (parameter) => {
             return `<input id="${parameter.id}" name="${parameter.id}" size="30">`
         },
-    },
-    {
-        id: "directories",
-        type: ParameterType.custom,
-        icon: "fa-folder-open",
-        label: "Model Directories",
-        note: "Per-family paths. Browser-saved values take priority; config.yaml supplies values that this browser has not defined.",
-        saveInAppConfig: true,
-        render: renderModelDirectoriesEditor,
     },
     {
         id: "block_nsfw",
@@ -606,7 +506,6 @@ function initParameters(parameters) {
 }
 
 initParameters(PARAMETERS)
-initModelDirectoriesEditor()
 
 function splitNativeBackendArguments(value) {
     const argumentsList = []
@@ -653,22 +552,12 @@ function quoteNativeBackendArgument(value) {
 function validateNativeBackendArgumentEditor() {
     const tiles = document.getElementById(nativeBackendArgumentId("--vae-tiles"))
     const overlap = document.getElementById(nativeBackendArgumentId("--vae-tiled-overlap"))
-    const controlNetSd1 = document.getElementById(nativeBackendArgumentId("--control-net-sd1-path"))
-    const controlNetSdxl = document.getElementById(nativeBackendArgumentId("--control-net-sdxl-path"))
-    if (!tiles || !overlap || !controlNetSd1 || !controlNetSdxl) return true
+    if (!tiles || !overlap) return true
     const tileValue = tiles.value === "" ? null : Number(tiles.value)
     const overlapValue = overlap.value === "" ? null : Number(overlap.value)
     const invalidOverlap = tileValue !== null && overlapValue !== null && overlapValue > tileValue / 2
     overlap.setCustomValidity(invalidOverlap ? "VAE tile overlap cannot exceed half the latent tile size." : "")
-    const incompleteControlNetPair = Boolean(controlNetSd1.value.trim()) !== Boolean(controlNetSdxl.value.trim())
-    const pairError = incompleteControlNetPair
-        ? "Set both the SD1.x Uni-ControlNet and SDXL ControlNet Union paths to enable automatic routing."
-        : ""
-    controlNetSd1.setCustomValidity(pairError)
-    controlNetSdxl.setCustomValidity(pairError)
-    return !invalidOverlap && !incompleteControlNetPair &&
-        tiles.checkValidity() && overlap.checkValidity() &&
-        controlNetSd1.checkValidity() && controlNetSdxl.checkValidity()
+    return !invalidOverlap && tiles.checkValidity() && overlap.checkValidity()
 }
 
 function initNativeBackendArgumentEditor() {
@@ -776,7 +665,7 @@ let listenToNetworkField = document.querySelector("#listen_to_network")
 let listenPortField = document.querySelector("#listen_port")
 let uiOpenBrowserOnStartField = document.querySelector("#ui_open_browser_on_start")
 let confirmDangerousActionsField = document.querySelector("#confirm_dangerous_actions")
-let testDiffusers = document.querySelector("#test_diffusers")
+let testDiffusers = document.querySelector("#use_v3_engine")
 let backendPlatformField = document.querySelector("#backend_platform")
 let profileNameField = document.querySelector("#profileName")
 let modelsDirField = document.querySelector("#models_dir")
@@ -844,7 +733,8 @@ async function getAppConfig() {
         modelsDirField.value = config.models_dir
 
         testDiffusers.checked = true
-        document.querySelector("#test_diffusers").checked = testDiffusers.checked
+        document.querySelector("#test_diffusers").checked = testDiffusers.checked // don't break plugins
+        document.querySelector("#use_v3_engine").checked = testDiffusers.checked // don't break plugins
 
         if (config.backend_config?.platform) {
             backendPlatformField.value = config.backend_config.platform
@@ -890,10 +780,6 @@ function applySettingsFromConfig(config) {
     Array.from(parametersTable.children).forEach((parameterRow) => {
         if (parameterRow.dataset.settingId in config && parameterRow.dataset.saveInAppConfig === "true") {
             const configValue = config[parameterRow.dataset.settingId]
-            if (parameterRow.dataset.settingId === "directories") {
-                applyModelDirectoryDefaults(configValue)
-                return
-            }
             const parameterElement =
                 document.getElementById(parameterRow.dataset.settingId) ||
                 parameterRow.querySelector("input") ||
@@ -1136,10 +1022,6 @@ saveSettingsBtn.addEventListener("click", function () {
 
     document.querySelectorAll("#system-settings [data-setting-id]").forEach((parameterRow) => {
         if (parameterRow.dataset.saveInAppConfig === "true") {
-            if (parameterRow.dataset.settingId === "directories") {
-                updateAppConfigRequest.directories = collectModelDirectories()
-                return
-            }
             const parameterElement =
                 document.getElementById(parameterRow.dataset.settingId) ||
                 parameterRow.querySelector("input") ||

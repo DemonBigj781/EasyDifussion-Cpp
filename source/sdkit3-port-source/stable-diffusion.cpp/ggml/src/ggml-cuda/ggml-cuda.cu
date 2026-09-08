@@ -25,8 +25,6 @@
 #include "ggml-cuda/diagmask.cuh"
 #include "ggml-cuda/diag.cuh"
 #include "ggml-cuda/fattn.cuh"
-#include "ggml-cuda/flash-attention.cuh"
-#include "ggml-cuda/xformers-attention.cuh"
 #include "ggml-cuda/fwht.cuh"
 #include "ggml-cuda/getrows.cuh"
 #include "ggml-cuda/im2col.cuh"
@@ -92,16 +90,6 @@
 #include <vector>
 
 static_assert(sizeof(half) == sizeof(ggml_fp16_t), "wrong fp16 size");
-
-static bool ggml_cuda_xformers_requested() {
-    const char * env = std::getenv("SD_CUDA_XFORMERS");
-    return env != nullptr && env[0] == '1';
-}
-
-static bool ggml_cuda_flash_common_requested() {
-    const char * env = std::getenv("SD_CUDA_FLASH_COMMON");
-    return env != nullptr && env[0] == '1';
-}
 
 #define GGML_LOG_WARN_ONCE(str) \
     { static std::once_flag warn_flag; std::call_once(warn_flag, []() { GGML_LOG_WARN(str); }); }
@@ -3041,15 +3029,7 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
             ggml_cuda_op_argsort(ctx, dst);
             break;
         case GGML_OP_FLASH_ATTN_EXT:
-            if (ggml_cuda_flash_common_requested() &&
-                ggml_cuda_flash_common_attn_supported(ctx.device, dst)) {
-                ggml_cuda_flash_common_attn(ctx, dst);
-            } else if (ggml_cuda_xformers_requested() &&
-                ggml_cuda_xformers_attn_supported(ctx.device, dst)) {
-                ggml_cuda_xformers_attn(ctx, dst);
-            } else {
-                ggml_cuda_flash_attn_ext(ctx, dst);
-            }
+            ggml_cuda_flash_attn_ext(ctx, dst);
             break;
         case GGML_OP_CROSS_ENTROPY_LOSS:
             ggml_cuda_cross_entropy_loss(ctx, dst);
@@ -5930,11 +5910,7 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                 op->src[2]->type == GGML_TYPE_F32 && op->src[3]->type == GGML_TYPE_F32 &&
                 op->type == GGML_TYPE_F32;
         case GGML_OP_FLASH_ATTN_EXT:
-            return (ggml_cuda_flash_common_requested() &&
-                    ggml_cuda_flash_common_attn_supported(dev_ctx->device, op)) ||
-                   (ggml_cuda_xformers_requested() &&
-                    ggml_cuda_xformers_attn_supported(dev_ctx->device, op)) ||
-                   ggml_cuda_flash_attn_ext_supported(dev_ctx->device, op);
+            return ggml_cuda_flash_attn_ext_supported(dev_ctx->device, op);
         case GGML_OP_CROSS_ENTROPY_LOSS:
         case GGML_OP_CROSS_ENTROPY_LOSS_BACK:
         case GGML_OP_OPT_STEP_ADAMW:

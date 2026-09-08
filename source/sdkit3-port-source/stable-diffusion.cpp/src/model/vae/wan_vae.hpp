@@ -4,8 +4,6 @@
 #include <map>
 #include <memory>
 #include <utility>
-#include "core/ggml_extend_backend.h"
-#include "core/ggml_tensor_utils.h"
 
 #include "model/common/block.hpp"
 #include "model/vae/vae.hpp"
@@ -1280,7 +1278,7 @@ namespace WAN {
                 }
             }
             if (is_2D) {
-                LOG_VERBOSE("USING 2D VAE");
+                LOG_DEBUG("USING 2D VAE");
             }
             ae = WanVAE(decode_only, version, is_2D);
             ae.init(params_ctx, tensor_storage_map, prefix);
@@ -1411,29 +1409,31 @@ namespace WAN {
             stateful_config.overlap                 = 0;
             auto plan                               = make_vae_temporal_tile_plan(input.shape()[2], stateful_config);
 
-            LOG_VERBOSE("Wan VAE stateful temporal tiling: tile_frames=%d, total latent frames=%lld, tiles=%d",
-                        plan.tile_frames,
-                        (long long)input.shape()[2],
-                        (int)plan.tiles.size());
+            LOG_DEBUG("Wan VAE stateful temporal tiling: tile_frames=%d, total latent frames=%lld, tiles=%d",
+                      plan.tile_frames,
+                      (long long)input.shape()[2],
+                      (int)plan.tiles.size());
 
             free_cache_ctx_and_buffer();
+            cache_tensor_map.clear();
             ae.clear_cache();
 
             auto output = process_vae_temporal_tiles(input, plan, [&](const sd::Tensor<float>& input_tile, const VAETemporalTile& tile) {
-                LOG_VERBOSE("Wan VAE temporal tile %d/%d: latent frames [%lld, %lld)",
-                            tile.index + 1,
-                            (int)plan.tiles.size(),
-                            (long long)tile.start,
-                            (long long)tile.end);
+                LOG_DEBUG("Wan VAE temporal tile %d/%d: latent frames [%lld, %lld)",
+                          tile.index + 1,
+                          (int)plan.tiles.size(),
+                          (long long)tile.start,
+                          (long long)tile.end);
                 auto get_graph = [&]() -> ggml_cgraph* {
                     return build_temporal_tile_graph(input_tile, static_cast<int>(tile.start));
                 };
                 return restore_trailing_singleton_dims(
-                    GGMLRunner::compute(get_graph, n_threads, false),
+                    GGMLRunner::compute<float>(get_graph, n_threads, true, true, true),
                     static_cast<size_t>(input.dim()));
             });
 
             free_cache_ctx_and_buffer();
+            cache_tensor_map.clear();
             ae.clear_cache();
             return output;
         }
@@ -1448,7 +1448,7 @@ namespace WAN {
             auto get_graph = [&]() -> ggml_cgraph* {
                 return build_graph(input.empty() ? z : input, decode_graph);
             };
-            auto result = restore_trailing_singleton_dims(GGMLRunner::compute(get_graph, n_threads, false),
+            auto result = restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, true, true, true),
                                                           input.empty() ? z.dim() : input.dim());
             if (!result.empty() && z.dim() == 4) {
                 result.squeeze_(2);
@@ -1481,7 +1481,7 @@ namespace WAN {
                 GGML_ASSERT(!out_opt.empty());
                 out = std::move(out_opt);
                 print_sd_tensor(out);
-                LOG_VERBOSE("decode test done in %ldms", t1 - t0);
+                LOG_DEBUG("decode test done in %ldms", t1 - t0);
             }
         };
 

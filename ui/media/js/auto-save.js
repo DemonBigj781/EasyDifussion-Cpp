@@ -28,8 +28,6 @@ const SETTINGS_IDS_LIST = [
     "output_quality",
     "output_lossless",
     "negative_prompt",
-    "hidden_positive_prompt",
-    "hidden_negative_prompt",
     "stream_image_progress",
     "use_face_correction",
     "gfpgan_model",
@@ -81,8 +79,6 @@ const SETTINGS_SECTIONS = [
     { id: "editor-inputs", name: "Prompt" },
     { id: "editor-settings", name: "Options" },
     { id: "lora-settings-panel", name: "LoRA Settings" },
-    { id: "positive-embeddings-settings-panel", name: "Positive Embeddings" },
-    { id: "negative-embeddings-settings-panel", name: "Negative Embeddings" },
     { id: "system-settings", name: "System Settings" },
     { id: "container", name: "Other" },
 ]

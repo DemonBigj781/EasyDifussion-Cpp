@@ -5,7 +5,6 @@
 #include "model/common/block.hpp"
 #include "model/vae/vae_tiling.hpp"
 #include "model_manager.h"
-#include "runtime/tiling.h"
 
 struct VAE : public GGMLRunner {
 protected:
@@ -55,23 +54,23 @@ protected:
         }
 
         auto plan = make_vae_temporal_tile_plan(input.shape()[2], resolved_config);
-        LOG_VERBOSE("%s temporal tiling: tile_frames=%d, overlap=%d, total_frames=%lld, tiles=%d",
-                    get_desc().c_str(),
-                    plan.tile_frames,
-                    plan.overlap,
-                    (long long)input.shape()[2],
-                    (int)plan.tiles.size());
+        LOG_DEBUG("%s temporal tiling: tile_frames=%d, overlap=%d, total_frames=%lld, tiles=%d",
+                  get_desc().c_str(),
+                  plan.tile_frames,
+                  plan.overlap,
+                  (long long)input.shape()[2],
+                  (int)plan.tiles.size());
         return process_vae_temporal_tiles_blended(
             input,
             plan,
             output_scale,
             [&](const sd::Tensor<float>& input_tile, const VAETemporalTile& tile) {
-                LOG_VERBOSE("%s temporal tile %d/%d: input frames [%lld, %lld)",
-                            get_desc().c_str(),
-                            tile.index + 1,
-                            (int)plan.tiles.size(),
-                            (long long)tile.start,
-                            (long long)tile.end);
+                LOG_DEBUG("%s temporal tile %d/%d: input frames [%lld, %lld)",
+                          get_desc().c_str(),
+                          tile.index + 1,
+                          (int)plan.tiles.size(),
+                          (long long)tile.start,
+                          (long long)tile.end);
                 return _compute(n_threads, input_tile, true);
             });
     }
@@ -106,31 +105,16 @@ protected:
 
     static inline bool scale_tensor_to_0_1(sd::Tensor<float>* tensor) {
         GGML_ASSERT(tensor != nullptr);
-        int64_t nan_count = 0;
-        int64_t inf_count = 0;
         for (int64_t i = 0; i < tensor->numel(); ++i) {
             float value = ((*tensor)[i] + 1.0f) * 0.5f;
             // std::min(1.0f, NaN) evaluates to 1.0f with the usual comparator,
             // which used to turn a failed VAE decode into a solid white image.
             // Preserve failure here so decode_first_stage can try tiled decode
             // and the caller can fall back to a CPU VAE when necessary.
-            if (std::isnan(value)) {
-                ++nan_count;
-                continue;
-            }
-            if (std::isinf(value)) {
-                ++inf_count;
-                continue;
+            if (!std::isfinite(value)) {
+                return false;
             }
             (*tensor)[i] = std::max(0.0f, std::min(1.0f, value));
-        }
-        if (nan_count > 0 || inf_count > 0) {
-            LOG_ERROR("VAE decode produced non-finite pixels: nan_count=%lld inf_count=%lld total_count=%lld "
-                      "(possible precision failure or broken weights)",
-                      (long long)nan_count,
-                      (long long)inf_count,
-                      (long long)tensor->numel());
-            return false;
         }
         return true;
     }
@@ -258,7 +242,7 @@ public:
             const float encode_tile_factor = sd_version_is_minimax_h3(version) ? 1.f : (sd_version_is_wan(version) || sd_version_is_hunyuan_video(version) || sd_version_is_ltxav(version)) ? 1.30539f
                                                                                                                                                                                             : 2.0f;
             get_tile_sizes(tile_size_x, tile_size_y, tile_overlap, tiling_params, W, H, encode_tile_factor);
-            LOG_VERBOSE("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
+            LOG_DEBUG("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
             output = tiled_compute(input,
                                    n_threads,
                                    static_cast<int>(W),
@@ -279,7 +263,7 @@ public:
                                                   tiling_params);
         }
 
-        runner_end();
+        runner_done();
 
         if (output.empty()) {
             if (execution_cancelled()) {
@@ -290,7 +274,7 @@ public:
             return {};
         }
         int64_t t1 = ggml_time_ms();
-        LOG_VERBOSE("computing vae encode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
+        LOG_DEBUG("computing vae encode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
         return std::move(output);
     }
 
@@ -313,7 +297,7 @@ public:
             int tile_size_x, tile_size_y;
             get_tile_sizes(tile_size_x, tile_size_y, tile_overlap, tiling_params, input.shape()[0], input.shape()[1]);
             if (!silent) {
-                LOG_VERBOSE("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
+                LOG_DEBUG("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
             }
             output = tiled_compute(
                 input,
@@ -337,7 +321,7 @@ public:
                                                   tiling_params);
         }
 
-        runner_end();
+        runner_done();
 
         if (output.empty()) {
             if (execution_cancelled()) {
@@ -348,10 +332,11 @@ public:
             return {};
         }
         if (scale_input && !scale_tensor_to_0_1(&output)) {
+            LOG_ERROR("VAE decode produced non-finite pixels");
             return {};
         }
         int64_t t1 = ggml_time_ms();
-        LOG_VERBOSE("computing vae decode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
+        LOG_DEBUG("computing vae decode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
         return std::move(output);
     }
 

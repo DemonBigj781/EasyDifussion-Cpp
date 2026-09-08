@@ -95,15 +95,11 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/controlnet_plugin/controlnet-lllite.plugin.js",
     "/plugins/core/controlnet_plugin/ip-adapter.plugin.js",
     "/plugins/core/video_plugin/native-video.plugin.js",
-    "/plugins/core/video_plugin/gif.js",
-    "/plugins/core/video_plugin/mads-gifs-cpp.plugin.js",
     "/plugins/core/image_plugin/native-image-tools.plugin.js",
     "/plugins/core/interpose_pugin/latent-interposer-encode.plugin.js",
     "/plugins/core/interpose_pugin/latent-interposer-decode.plugin.js",
     "/plugins/core/wdtagger_plugin/wd14-tagger.plugin.js",
     "/plugins/core/image_plugin/post-generation-tools.plugin.js",
-    "/plugins/core/image_plugin/ai-image-critic.plugin.js",
-    "/plugins/core/image_plugin/make-very-similar.plugin.js",
     "/plugins/core/outpaint_plugin/OutpaintIt.plugin.js",
     "/plugins/core/outpaint_plugin/outpaint-editor.plugin.js",
     "/plugins/core/localstorage_plugin/stig-localstorage.plugin.js",
@@ -167,6 +163,7 @@ const OPTIONAL_UI_PLUGIN_STORAGE_KEY = "easy-diffusion-enabled-local-plugins-v1"
 const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY = "easy-diffusion-local-plugin-defaults-version"
 const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION = 2
 const OPTIONAL_UI_PLUGINS = Object.freeze([
+    { id: "cpp-gifs", name: "GIF output and GIF-to-GIF", path: "/plugins/core/video_plugin/mads-gifs-cpp.plugin.js", defaultEnabled: true, port: "native" },
     { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
     { id: "perchance-text", name: "Perchance text", path: "/plugins/core/perchance_plugin/perchance-text.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
     { id: "perchance-gallery", name: "Perchance gallery", path: "/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },

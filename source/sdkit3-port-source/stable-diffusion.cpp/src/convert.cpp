@@ -13,6 +13,7 @@
 
 #include "core/util.h"
 #include "model_io/gguf_io.h"
+#include "model_io/safetensors_io.h"
 #include "model_io/streaming_writer.h"
 #include "model_loader.h"
 
@@ -326,24 +327,21 @@ static bool export_loaded_model(ModelLoader& model_loader,
                                 sd_type_t output_type,
                                 const char* tensor_type_rules,
                                 int n_threads) {
-    if (!ends_with(output_path, ".gguf")) {
-        LOG_ERROR("image-model conversion output must use the .gguf extension");
-        return false;
-    }
-    if (output_type == SD_TYPE_COUNT) {
-        output_type = SD_TYPE_Q4_1;
-        LOG_INFO("no output type supplied; defaulting image-model quantization to q4_1");
-    }
-
     ggml_type type             = sd_type_to_ggml_type(output_type);
+    bool output_is_safetensors = ends_with(output_path, ".safetensors");
     TensorTypeRules type_rules = parse_tensor_type_rules(tensor_type_rules);
 
     std::vector<TensorExportInfo> tensors;
     bool success = collect_tensors_for_export(model_loader, type, type_rules, tensors);
     std::string error;
     if (success) {
-        GGUFStreamingWriter writer;
-        success = write_model_file_streaming(model_loader, output_path, tensors, writer, n_threads, &error);
+        std::unique_ptr<StreamingModelWriter> writer;
+        if (output_is_safetensors) {
+            writer = std::make_unique<SafetensorsStreamingWriter>();
+        } else {
+            writer = std::make_unique<GGUFStreamingWriter>();
+        }
+        success = write_model_file_streaming(model_loader, output_path, tensors, *writer, n_threads, &error);
     }
 
     if (!success && !error.empty()) {
@@ -378,22 +376,6 @@ bool convert_with_components(const char* model_path,
 
     if (!loaded_any) {
         LOG_ERROR("no input model path provided for convert");
-        return false;
-    }
-
-    const SDVersion version = model_loader.get_sd_version();
-    const bool supported_family =
-        sd_version_is_sd1(version) ||
-        sd_version_is_sd2(version) ||
-        sd_version_is_sdxl(version) ||
-        version == VERSION_SD3 ||
-        version == VERSION_FLUX ||
-        version == VERSION_FLUX_FILL ||
-        version == VERSION_FLUX_CONTROLS ||
-        version == VERSION_ANIMA;
-    if (!supported_family) {
-        LOG_ERROR("unsupported or unrecognized image-model family; supported families are "
-                  "SD 1.x, SD 2.x, SDXL, SD3/3.5, Flux, and Anima");
         return false;
     }
 

@@ -239,26 +239,6 @@ void ArgOptions::print() const {
     }
 }
 
-void add_log_options(ArgOptions& options, sd_log_level_t& level) {
-    options.manual_options.push_back({"", "--log-level",
-                                      "minimum log level, one of [debug, verbose, info, warn, error] (default: info)",
-                                      [&level](int argc, const char** argv, int index) {
-                                          if (++index >= argc) {
-                                              return -1;
-                                          }
-                                          if (!parse_log_level(argv[index], level)) {
-                                              LOG_ERROR("invalid log level %s, must be one of [debug, verbose, info, warn, error]", argv[index]);
-                                              return -1;
-                                          }
-                                          return 1;
-                                      }});
-    options.manual_options.push_back({"-v", "--verbose", "equivalent to --log-level verbose",
-                                      [&level](int, const char**, int) {
-                                          level = SD_LOG_VERBOSE;
-                                          return 0;
-                                      }});
-}
-
 bool parse_options(int argc, const char** argv, const std::vector<ArgOptions>& options_list) {
     bool invalid_arg = false;
     std::string arg;
@@ -522,7 +502,7 @@ ArgOptions SDContextParams::get_options() {
          &rpc_servers},
         {"",
          "--max-vram",
-         "optional per-device budget in GiB for managed weights and runner buffers during automatic graph-cut execution. Accepts a single value or assignments by backend/device, e.g. 6 or cuda0=6,vulkan0=4. 0 uses live free VRAM without an explicit budget; a negative value reserves that much free VRAM",
+         "maximum VRAM budget in GiB for graph-cut segmented execution. Accepts a single value or assignments by backend/device, e.g. 6 or cuda0=6,vulkan0=4. 0 disables graph splitting; a negative value auto-detects free VRAM, sparing the specified value",
          0,
          &max_vram},
     };
@@ -537,17 +517,19 @@ ArgOptions SDContextParams::get_options() {
 
     options.bool_options = {
         {"",
-         "--disable-prefetch",
-         "disable asynchronous next-segment weight prefetch (defaults to false)",
-         true, &disable_prefetch},
-        {"",
-         "--disable-segmented-compute",
-         "force monolithic graph execution even when automatic graph cutting is needed (defaults to false)",
-         true, &disable_segmented_compute},
+         "--stream-layers",
+         "enable residency+prefetch streaming on top of --max-vram (no effect without --max-vram; defaults to false)",
+         true, &stream_layers},
         {"",
          "--eager-load",
          "load all params into the params backend at model-load time instead of lazily on first use (defaults to false)",
          true, &eager_load},
+        {"",
+         "--auto-fit",
+         "pick the diffusion/te/vae device placements automatically from the model size and the per-device "
+         "memory budgets (--max-vram; defaults to free memory minus a small margin). Overrides --backend and "
+         "--params-backend; may split modules across GPUs (--split-mode still selects layer or row)",
+         true, &auto_fit},
         {"",
          "--force-sdxl-vae-conv-scale",
          "force use of conv scale on sdxl vae",
@@ -581,10 +563,6 @@ ArgOptions SDContextParams::get_options() {
          "use flash attention in the diffusion model only",
          true, &diffusion_flash_attn},
         {"",
-         "--sage-attention",
-         "use Sage attention in the diffusion model when supported",
-         true, &diffusion_sage_attn},
-        {"",
          "--diffusion-conv-direct",
          "use ggml_conv2d_direct in the diffusion model",
          true, &diffusion_conv_direct},
@@ -592,23 +570,6 @@ ArgOptions SDContextParams::get_options() {
          "--vae-conv-direct",
          "use ggml_conv2d_direct in the vae model",
          true, &vae_conv_direct},
-    };
-
-    auto on_auto_fit_arg = [&](int argc, const char** argv, int index) {
-        if (++index >= argc) {
-            LOG_ERROR("--auto-fit requires 'on' or 'off'");
-            return -1;
-        }
-        const std::string arg = argv[index];
-        if (arg == "on") {
-            auto_fit = true;
-        } else if (arg == "off") {
-            auto_fit = false;
-        } else {
-            LOG_ERROR("invalid --auto-fit value '%s'; expected 'on' or 'off'", argv[index]);
-            return -1;
-        }
-        return 1;
     };
 
     auto on_type_arg = [&](int argc, const char** argv, int index) {
@@ -682,12 +643,6 @@ ArgOptions SDContextParams::get_options() {
     };
 
     options.manual_options = {
-        {"",
-         "--auto-fit",
-         "on|off (default: on). Use one GPU for diffusion/te/vae computation and place weights on that GPU, "
-         "RAM, another GPU, or disk in that order, according to available memory (--max-vram limits GPU budgets). "
-         "Disabled by explicit --backend or --params-backend; uses automatic graph segmentation when needed",
-         on_auto_fit_arg},
         {"",
          "--type",
          "weight type (examples: f32, f16, q4_0, q4_1, q5_0, q5_1, q8_0, q2_K, q3_K, q4_K). "
@@ -876,8 +831,7 @@ std::string SDContextParams::to_string() const {
         << "  sampler_rng_type: " << sd_rng_type_name(sampler_rng_type) << ",\n"
         << "  offload_params_to_cpu: " << (offload_params_to_cpu ? "true" : "false") << ",\n"
         << "  max_vram: \"" << max_vram << "\",\n"
-        << "  disable_prefetch: " << (disable_prefetch ? "true" : "false") << ",\n"
-        << "  disable_segmented_compute: " << (disable_segmented_compute ? "true" : "false") << ",\n"
+        << "  stream_layers: " << (stream_layers ? "true" : "false") << ",\n"
         << "  eager_load: " << (eager_load ? "true" : "false") << ",\n"
         << "  backend: \"" << backend << "\",\n"
         << "  params_backend: \"" << params_backend << "\",\n"
@@ -890,7 +844,6 @@ std::string SDContextParams::to_string() const {
         << "  vae_on_cpu: " << (vae_on_cpu ? "true" : "false") << ",\n"
         << "  flash_attn: " << (flash_attn ? "true" : "false") << ",\n"
         << "  diffusion_flash_attn: " << (diffusion_flash_attn ? "true" : "false") << ",\n"
-        << "  diffusion_sage_attn: " << (diffusion_sage_attn ? "true" : "false") << ",\n"
         << "  diffusion_conv_direct: " << (diffusion_conv_direct ? "true" : "false") << ",\n"
         << "  vae_conv_direct: " << (vae_conv_direct ? "true" : "false") << ",\n"
         << "  prediction: " << sd_prediction_name(prediction) << ",\n"
@@ -944,15 +897,13 @@ sd_ctx_params_t SDContextParams::to_sd_ctx_params_t(bool taesd_preview) {
     sd_ctx_params.enable_mmap                     = enable_mmap;
     sd_ctx_params.flash_attn                      = flash_attn;
     sd_ctx_params.diffusion_flash_attn            = diffusion_flash_attn;
-    sd_ctx_params.diffusion_sage_attn             = diffusion_sage_attn;
     sd_ctx_params.tae_preview_only                = taesd_preview;
     sd_ctx_params.diffusion_conv_direct           = diffusion_conv_direct;
     sd_ctx_params.vae_conv_direct                 = vae_conv_direct;
     sd_ctx_params.force_sdxl_vae_conv_scale       = force_sdxl_vae_conv_scale;
     sd_ctx_params.vae_format                      = str_to_vae_format(vae_format);
     sd_ctx_params.max_vram                        = max_vram.c_str();
-    sd_ctx_params.disable_prefetch                = disable_prefetch;
-    sd_ctx_params.disable_segmented_compute       = disable_segmented_compute;
+    sd_ctx_params.stream_layers                   = stream_layers;
     sd_ctx_params.eager_load                      = eager_load;
     sd_ctx_params.backend                         = effective_backend.c_str();
     sd_ctx_params.params_backend                  = effective_params_backend.c_str();

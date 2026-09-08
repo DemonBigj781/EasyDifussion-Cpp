@@ -431,7 +431,7 @@ struct MochiRunner : public DiffusionModelRunner {
         const auto text = trim_text(*params.context, tensor_or_empty(params.y));
         auto get_graph  = [&]() { return build_graph(*params.x, *params.timesteps, text); };
         return restore_trailing_singleton_dims(
-            GGMLRunner::compute(get_graph, n_threads, false),
+            GGMLRunner::compute<float>(get_graph, n_threads, false, false, false),
             params.x->dim());
     }
 };

@@ -1,8 +1,7 @@
 #include "upscaler.h"
-#include "core/ggml_extend_backend.h"
+#include "core/ggml_extend.hpp"
 #include "core/util.h"
 #include "model_loader.h"
-#include "runtime/tiling.h"
 #include "stable-diffusion.h"
 
 #include <cstdlib>
@@ -33,9 +32,16 @@ void UpscalerGGML::set_max_graph_vram_bytes(size_t max_vram_bytes) {
     }
 }
 
+void UpscalerGGML::set_stream_layers_enabled(bool enabled) {
+    stream_layers_enabled = enabled;
+    if (esrgan_upscaler) {
+        esrgan_upscaler->set_stream_layers_enabled(enabled);
+    }
+}
+
 bool UpscalerGGML::load_from_file(const std::string& esrgan_path,
                                   int n_threads) {
-    ggml_log_set(sd_ggml_log_callback, nullptr);
+    ggml_log_set(ggml_log_callback_default, nullptr);
 
     std::string error;
     if (!backend_manager.init(backend_spec.c_str(),
@@ -88,6 +94,7 @@ bool UpscalerGGML::load_from_file(const std::string& esrgan_path,
         return false;
     }
     esrgan_upscaler->set_max_graph_vram_bytes(max_graph_vram_bytes);
+    esrgan_upscaler->set_stream_layers_enabled(stream_layers_enabled);
     if (direct) {
         esrgan_upscaler->set_conv2d_direct_enabled(true);
     }
@@ -132,7 +139,7 @@ sd::Tensor<float> UpscalerGGML::upscale_tensor(const sd::Tensor<float>& input_te
                                     false,
                                     on_processing);
     }
-    esrgan_upscaler->runner_end();
+    esrgan_upscaler->free_compute_buffer();
     if (upscaled.empty()) {
         LOG_ERROR("esrgan compute failed");
         return {};

@@ -111,7 +111,6 @@ struct CommandLineArgs {
     bool stream_layers = false;
     bool cuda_malloc = false;
     bool cuda_unified_memory = false;
-    bool xformers_compat = false;
     bool control_net_cpu = false;
     bool image_clip_on_cpu = false;
     bool video_clip_on_cpu = false;
@@ -162,7 +161,6 @@ void print_usage(const char* program_name) {
               << std::endl;
     std::cerr << "  --diffusion-fa                     Enable diffusion flash attention (default: false)" << std::endl;
     std::cerr << "  --flash-attention                  Enable native memory-efficient attention for all modules" << std::endl;
-    std::cerr << "  --xformers                         C++/CUDA xFormers-equivalent fused attention" << std::endl;
     std::cerr << "  --sage-attention                  Prefer native SageAttention SM80 INT8-QK kernels" << std::endl;
     std::cerr << "  --max-vram <GiB|assignments>       Graph VRAM budget, e.g. 6 or cuda=6,cpu=0" << std::endl;
     std::cerr << "  --stream-layers                   Stream model layers within the --max-vram budget" << std::endl;
@@ -271,10 +269,6 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
         } else if (arg == "--diffusion-fa") {
             args.diffusion_fa = true;
         } else if (arg == "--flash-attention") {
-            args.flash_attention = true;
-            args.diffusion_fa = true;
-        } else if (arg == "--xformers") {
-            args.xformers_compat = true;
             args.flash_attention = true;
             args.diffusion_fa = true;
         } else if (arg == "--sage-attention") {
@@ -394,14 +388,6 @@ int main(int argc, char* argv[]) {
     }
     if (args.cuda_unified_memory) {
         LOG_WARNING("CUDA unified memory enabled: allocations may spill into system RAM and run much slower");
-    }
-    if (args.xformers_compat) {
-#ifdef _WIN32
-        _putenv_s("SD_CUDA_XFORMERS", "1");
-#else
-        setenv("SD_CUDA_XFORMERS", "1", 1);
-#endif
-        LOG_INFO("--xformers enabled native fused C++/CUDA memory-efficient attention");
     }
     if (args.sage_attention) {
         LOG_INFO("Native SageAttention SM80 preference enabled; unsupported operations use ggml flash attention");

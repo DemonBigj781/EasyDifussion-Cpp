@@ -262,7 +262,7 @@ endif()
 message(STATUS "stable-diffusion.cpp version ${SDCPP_BUILD_VERSION}")
 
 if(NOT SDCPP_BUILD_COMMIT)
-    set(SDCPP_BUILD_COMMIT d04e895)
+    set(SDCPP_BUILD_COMMIT 6b3edaa)
 endif()
 message(STATUS "stable-diffusion.cpp commit ${SDCPP_BUILD_COMMIT}")
 
@@ -288,10 +288,6 @@ else()
         set(BUILD_SHARED_LIBS OFF)
     endif()
     add_library(${SD_LIB} STATIC ${SD_LIB_SOURCES})
-endif()
-
-if(MSVC)
-    target_compile_options(${SD_LIB} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/bigobj>)
 endif()
 
 if(APPLE)

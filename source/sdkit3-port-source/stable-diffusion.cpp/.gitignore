@@ -1,7 +1,6 @@
 build*/
 cmake-build-*/
 test/
-tests/
 .vscode/
 .idea/
 .cache/

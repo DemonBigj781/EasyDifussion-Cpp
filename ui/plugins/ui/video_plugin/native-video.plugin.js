@@ -44,7 +44,7 @@
 
     const byId = (id) => document.getElementById(id)
     const enabled = byId("native-video-enabled")
-    const videoModelInput = byId("native-video-model")
+    const modelInput = byId("stable_diffusion_model")
     const vaeInput = byId("native-video-vae")
     const textEncoderInput = byId("native-video-text-encoder")
     const cache = byId("native-video-cache")
@@ -65,11 +65,8 @@
     const state = readState()
     const companions = state.companions && typeof state.companions === "object" ? state.companions : {}
 
-    videoModelInput.dataset.path = typeof state.model === "string" ? state.model : ""
-    const videoModel = new ModelDropdown(videoModelInput, "video", "Select a video model")
-
     function selectedModel() {
-        return videoModel.value || ""
+        return modelInput?.dataset.path || ""
     }
 
     function saveState() {
@@ -82,7 +79,6 @@
         }
         localStorage.setItem(STATE_KEY, JSON.stringify({
             enabled: enabled.checked,
-            model: selectedModel(),
             companions,
             frames: byId("native-video-frames").value,
             fps: byId("native-video-fps").value,
@@ -103,7 +99,7 @@
             : (cache.value === "easycache" ? "EasyCache default threshold: 0.20." : "Caching is disabled; every denoising step is exact.")
         const companionHint = selectedModel().toLowerCase().includes("mochi")
             ? " Mochi auto-detects its sibling VAE and T5 XXL when these fields are blank; it is text-to-video only."
-            : " The Video Model selection overrides the image checkpoint under Options; each video checkpoint keeps its own VAE and text encoder selections."
+            : " Select the video checkpoint under Options; each checkpoint keeps its own VAE and text encoder selections."
         byId("native-video-status").textContent = `${defaults}${companionHint} Frames are returned as a numbered strip while MP4 encoding is still being added.`
         saveState()
     }
@@ -138,10 +134,9 @@
     threshold.value = state.threshold ?? ""
     byId("native-video-cache-start").value = state.start ?? "15"
     byId("native-video-cache-end").value = state.end ?? "95"
-    panel.querySelectorAll("input:not(#native-video-model), select")
-        .forEach((input) => input.addEventListener("change", saveState))
+    panel.querySelectorAll("input, select").forEach((input) => input.addEventListener("change", saveState))
     let previousVideoModel = selectedModel()
-    videoModel.addEventListener("change", () => {
+    modelInput.addEventListener("change", () => {
         if (previousVideoModel) {
             companions[previousVideoModel] = {
                 vae: videoVae.value,
@@ -158,12 +153,11 @@
 
     PLUGINS.TASK_BUILD.push(function (event) {
         if (!enabled.checked) return
-        // Video owns its checkpoint and companions. Replacing the shared
-        // Options values here keeps image and video selections independent.
-        event.reqBody.use_stable_diffusion_model = selectedModel()
+        // Video uses the checkpoint selected in the shared Options panel, but
+        // keeps its companion VAE and text encoder independent from images.
         event.reqBody.use_vae_model = videoVae.value || null
         event.reqBody.use_text_encoder_model = videoTextEncoder.value || null
-        if (selectedModel().toLowerCase().includes("mochi")) {
+        if ((event.reqBody.use_stable_diffusion_model || selectedModel()).toLowerCase().includes("mochi")) {
             event.reqBody.sampler_name = "euler"
             event.reqBody.scheduler_name = "mochi"
         }
@@ -171,12 +165,6 @@
 
     PLUGINS.TASK_CREATE.push(function (event) {
         if (!enabled.checked) return
-        // TASK_BUILD normally supplies these values. Apply them again at the
-        // final routing boundary so later hooks and restored Options cannot
-        // replace the Video panel's authoritative selection.
-        event.reqBody.use_stable_diffusion_model = selectedModel()
-        event.reqBody.use_vae_model = videoVae.value || null
-        event.reqBody.use_text_encoder_model = videoTextEncoder.value || null
         event.reqBody.video_frames = Math.round(clamp(byId("native-video-frames").value, 1, 513, 25))
         event.reqBody.fps = Math.round(clamp(byId("native-video-fps").value, 1, 60, 8))
         event.reqBody.cache_mode = cache.value

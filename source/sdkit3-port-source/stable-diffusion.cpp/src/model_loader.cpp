@@ -165,7 +165,7 @@ void ModelLoader::add_tensor_storage(const TensorStorage& tensor_storage) {
 
 void ModelLoader::set_n_threads(int n_threads) {
     n_threads_ = n_threads > 0 ? n_threads : sd_get_num_physical_cores();
-    LOG_VERBOSE("using %d threads for model loading", n_threads_);
+    LOG_DEBUG("using %d threads for model loading", n_threads_);
 }
 
 bool ModelLoader::init_from_file(const std::string& file_path, const std::string& prefix) {
@@ -175,7 +175,7 @@ bool ModelLoader::init_from_file(const std::string& file_path, const std::string
     } else if (is_gguf_file(file_path)) {
         LOG_INFO("load %s using gguf format", file_path.c_str());
         return init_from_gguf_file(file_path, prefix);
-    } else if (ends_with(file_path, ".safetensors.index.json")) {
+    } else if (ends_with(file_path, ".json")) {
         LOG_INFO("load %s using safetensors index format", file_path.c_str());
         return init_from_safetensors_index_file(file_path, prefix);
     } else if (is_safetensors_file(file_path)) {
@@ -203,7 +203,7 @@ void ModelLoader::convert_tensors_name() {
 
     for (auto& [_, tensor_storage] : tensor_storage_map) {
         auto new_name = convert_tensor_name(tensor_storage.name, version);
-        // LOG_VERBOSE("%s -> %s", tensor_storage.name.c_str(), new_name.c_str());
+        // LOG_DEBUG("%s -> %s", tensor_storage.name.c_str(), new_name.c_str());
         tensor_storage.name = new_name;
         new_map[new_name]   = std::move(tensor_storage);
     }
@@ -238,7 +238,7 @@ bool ModelLoader::init_from_file_and_convert_name(const std::string& file_path, 
 /*================================================= GGUFModelLoader ==================================================*/
 
 bool ModelLoader::init_from_gguf_file(const std::string& file_path, const std::string& prefix) {
-    LOG_VERBOSE("init from '%s'", file_path.c_str());
+    LOG_DEBUG("init from '%s'", file_path.c_str());
 
     std::vector<TensorStorage> tensor_storages;
     std::string error;
@@ -250,7 +250,7 @@ bool ModelLoader::init_from_gguf_file(const std::string& file_path, const std::s
     size_t file_index = add_file_path(file_path);
 
     for (auto& tensor_storage : tensor_storages) {
-        // LOG_VERBOSE("%s", tensor_storage.name.c_str());
+        // LOG_DEBUG("%s", tensor_storage.name.c_str());
 
         if (!starts_with(tensor_storage.name, prefix)) {
             tensor_storage.name = prefix + tensor_storage.name;
@@ -266,7 +266,7 @@ bool ModelLoader::init_from_gguf_file(const std::string& file_path, const std::s
 /*================================================= SafeTensorsModelLoader ==================================================*/
 
 bool ModelLoader::init_from_safetensors_file(const std::string& file_path, const std::string& prefix) {
-    LOG_VERBOSE("init from '%s', prefix = '%s'", file_path.c_str(), prefix.c_str());
+    LOG_DEBUG("init from '%s', prefix = '%s'", file_path.c_str(), prefix.c_str());
 
     std::vector<TensorStorage> tensor_storages;
     std::string error;
@@ -289,14 +289,14 @@ bool ModelLoader::init_from_safetensors_file(const std::string& file_path, const
 
         add_tensor_storage(tensor_storage);
 
-        // LOG_VERBOSE("%s", tensor_storage.to_string().c_str());
+        // LOG_DEBUG("%s", tensor_storage.to_string().c_str());
     }
 
     return true;
 }
 
 bool ModelLoader::init_from_safetensors_index_file(const std::string& file_path, const std::string& prefix) {
-    LOG_VERBOSE("init from safetensors index '%s', prefix = '%s'", file_path.c_str(), prefix.c_str());
+    LOG_DEBUG("init from safetensors index '%s', prefix = '%s'", file_path.c_str(), prefix.c_str());
 
     std::vector<std::string> shard_paths;
     std::string error;
@@ -304,18 +304,20 @@ bool ModelLoader::init_from_safetensors_index_file(const std::string& file_path,
         LOG_ERROR("%s", error.c_str());
         return false;
     }
+
     for (const std::string& shard_path : shard_paths) {
-        if (!init_from_safetensors_file(shard_path, prefix)) {
+        if (!init_from_file(shard_path, prefix)) {
             return false;
         }
     }
+
     return true;
 }
 
 /*================================================= TorchLegacyModelLoader ==================================================*/
 
 bool ModelLoader::init_from_torch_legacy_file(const std::string& file_path, const std::string& prefix) {
-    LOG_VERBOSE("init from torch legacy '%s'", file_path.c_str());
+    LOG_DEBUG("init from torch legacy '%s'", file_path.c_str());
 
     std::vector<TensorStorage> tensor_storages;
     std::string error;
@@ -347,7 +349,7 @@ bool ModelLoader::init_from_torch_legacy_file(const std::string& file_path, cons
 /*================================================= TorchZipModelLoader ==================================================*/
 
 bool ModelLoader::init_from_torch_zip_file(const std::string& file_path, const std::string& prefix) {
-    LOG_VERBOSE("init from '%s'", file_path.c_str());
+    LOG_DEBUG("init from '%s'", file_path.c_str());
 
     std::vector<TensorStorage> tensor_storages;
     std::string error;
@@ -366,7 +368,7 @@ bool ModelLoader::init_from_torch_zip_file(const std::string& file_path, const s
 
         add_tensor_storage(tensor_storage);
 
-        // LOG_VERBOSE("%s", tensor_storage.to_string().c_str());
+        // LOG_DEBUG("%s", tensor_storage.to_string().c_str());
     }
 
     return true;
@@ -375,48 +377,25 @@ bool ModelLoader::init_from_torch_zip_file(const std::string& file_path, const s
 /*================================================= DiffusersModelLoader ==================================================*/
 
 bool ModelLoader::init_from_diffusers_file(const std::string& file_path, const std::string& prefix) {
-    auto load_component = [&](const std::vector<std::string>& relative_paths,
-                              const std::string& component_prefix) -> bool {
-        for (const std::string& relative_path : relative_paths) {
-            const std::string candidate = path_join(file_path, relative_path);
-            if (file_exists(candidate)) {
-                return init_from_file(candidate, prefix + component_prefix);
-            }
-        }
-        return false;
-    };
+    std::string unet_path   = path_join(file_path, "unet/diffusion_pytorch_model.safetensors");
+    std::string vae_path    = path_join(file_path, "vae/diffusion_pytorch_model.safetensors");
+    std::string clip_path   = path_join(file_path, "text_encoder/model.safetensors");
+    std::string clip_g_path = path_join(file_path, "text_encoder_2/model.safetensors");
 
-    const bool loaded_diffusion =
-        load_component({"unet/diffusion_pytorch_model.safetensors",
-                        "unet/diffusion_pytorch_model.safetensors.index.json"},
-                       "unet.") ||
-        load_component({"transformer/diffusion_pytorch_model.safetensors",
-                        "transformer/diffusion_pytorch_model.safetensors.index.json"},
-                       "model.diffusion_model.");
-    if (!loaded_diffusion) {
-        LOG_ERROR("Couldn't find a safetensors UNet or transformer in %s", file_path.c_str());
+    if (!init_from_safetensors_file(unet_path, "unet.")) {
         return false;
     }
 
-    if (!load_component({"vae/diffusion_pytorch_model.safetensors",
-                         "vae/diffusion_pytorch_model.safetensors.index.json"},
-                        "vae.")) {
+    if (!init_from_safetensors_file(vae_path, "vae.")) {
         LOG_WARN("Couldn't find working VAE in %s", file_path.c_str());
+        // return false;
     }
-    if (!load_component({"text_encoder/model.safetensors",
-                         "text_encoder/model.safetensors.index.json"},
-                        "te1.")) {
+    if (!init_from_safetensors_file(clip_path, "te.")) {
         LOG_WARN("Couldn't find working text encoder in %s", file_path.c_str());
+        // return false;
     }
-    if (!load_component({"text_encoder_2/model.safetensors",
-                         "text_encoder_2/model.safetensors.index.json"},
-                        "te2.")) {
+    if (!init_from_safetensors_file(clip_g_path, "te.1.")) {
         LOG_DEBUG("Couldn't find working second text encoder in %s", file_path.c_str());
-    }
-    if (!load_component({"text_encoder_3/model.safetensors",
-                         "text_encoder_3/model.safetensors.index.json"},
-                        "te3.")) {
-        LOG_DEBUG("Couldn't find working third text encoder in %s", file_path.c_str());
     }
     return true;
 }
@@ -438,7 +417,6 @@ SDVersion ModelLoader::get_sd_version() {
     bool has_output_block_311        = false;
     bool has_output_block_71         = false;
     bool has_attn_1024               = false;
-    int64_t unet_context_dim         = 0;
 
     for (auto& [name, tensor_storage] : tensor_storage_map) {
         if (tensor_storage.name.find("model.diffusion_model.double_blocks.") != std::string::npos ||
@@ -459,9 +437,6 @@ SDVersion ModelLoader::get_sd_version() {
             return VERSION_CHROMA_RADIANCE;
         }
         if (tensor_storage.name.find("model.diffusion_model.joint_blocks.") != std::string::npos) {
-            return VERSION_SD3;
-        }
-        if (tensor_storage.name.find("model.diffusion_model.transformer_blocks.0.attn.add_q_proj.weight") != std::string::npos) {
             return VERSION_SD3;
         }
         if (tensor_storage.name.find("model.x_embedder.proj1.weight") != std::string::npos &&
@@ -543,14 +518,9 @@ SDVersion ModelLoader::get_sd_version() {
                 is_xl = true;
             }
         }
-        if (tensor_storage.name.find("unet.down_blocks.") != std::string::npos &&
-            ends_with(tensor_storage.name, ".attn2.to_k.weight") && tensor_storage.ne[0] > 0) {
-            unet_context_dim = tensor_storage.ne[0];
-        }
         if (tensor_storage.name.find("conditioner.embedders.1") != std::string::npos ||
             tensor_storage.name.find("cond_stage_model.1") != std::string::npos ||
-            tensor_storage.name.find("te.1") != std::string::npos ||
-            tensor_storage.name.find("te2.") != std::string::npos) {
+            tensor_storage.name.find("te.1") != std::string::npos) {
             has_multiple_encoders = true;
             if (is_unet) {
                 is_xl = true;
@@ -579,7 +549,6 @@ SDVersion ModelLoader::get_sd_version() {
             tensor_storage.name == "cond_stage_model.model.token_embedding.weight" ||
             tensor_storage.name == "text_model.embeddings.token_embedding.weight" ||
             tensor_storage.name == "te.text_model.embeddings.token_embedding.weight" ||
-            tensor_storage.name == "te1.text_model.embeddings.token_embedding.weight" ||
             tensor_storage.name == "conditioner.embedders.0.model.token_embedding.weight" ||
             tensor_storage.name == "conditioner.embedders.0.transformer.text_model.embeddings.token_embedding.weight") {
             token_embedding_weight = tensor_storage;
@@ -594,11 +563,8 @@ SDVersion ModelLoader::get_sd_version() {
             context_ebedding_weight = tensor_storage;
         }
     }
-    if (is_unet && unet_context_dim == 2048) {
-        is_xl = true;
-    }
     if (is_wan) {
-        LOG_VERBOSE("patch_embedding_channels %d", patch_embedding_channels);
+        LOG_DEBUG("patch_embedding_channels %d", patch_embedding_channels);
         if (patch_embedding_channels == 184320 && !has_img_emb) {
             return VERSION_WAN2_2_I2V;
         }
@@ -649,7 +615,7 @@ SDVersion ModelLoader::get_sd_version() {
         return VERSION_FLUX2_KLEIN;
     }
 
-    if (token_embedding_weight.ne[0] == 768 || (is_unet && unet_context_dim == 768)) {
+    if (token_embedding_weight.ne[0] == 768) {
         if (is_inpaint) {
             return VERSION_SD1_INPAINT;
         }
@@ -663,7 +629,7 @@ SDVersion ModelLoader::get_sd_version() {
             return VERSION_SD1_TINY_UNET;
         }
         return VERSION_SD1;
-    } else if (token_embedding_weight.ne[0] == 1024 || (is_unet && unet_context_dim == 1024)) {
+    } else if (token_embedding_weight.ne[0] == 1024) {
         if (is_inpaint) {
             return VERSION_SD2_INPAINT;
         }
@@ -855,7 +821,7 @@ void ModelLoader::process_model_files(bool enable_mmap, bool writable_mmap) {
         fdata.tensors       = std::move(file_tensors);
 
         if (enable_mmap && !is_zip) {
-            LOG_VERBOSE("using mmap for I/O");
+            LOG_DEBUG("using mmap for I/O");
             std::unique_ptr<MmapWrapper> mmapped = MmapWrapper::create(file_path, writable_mmap);
             if (mmapped) {
                 uint8_t* mmap_data             = static_cast<uint8_t*>(mmapped->writable_data());
@@ -887,7 +853,7 @@ std::vector<MmapTensorStore> ModelLoader::mmap_tensors(std::map<std::string, ggm
     uint64_t mapped_bytes = 0;
     size_t mapped_tensors = 0;
 
-    LOG_VERBOSE("memory-mapping tensors...");
+    LOG_DEBUG("memory-mapping tensors...");
 
     int64_t t_start = ggml_time_ms();
 
@@ -1029,10 +995,10 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
         if (tensors_to_process.empty()) {
             continue;
         }
-        LOG_VERBOSE("loading %zu/%zu tensors from %s",
-                    tensors_to_process.size(),
-                    file_tensors.size(),
-                    file_path.c_str());
+        LOG_DEBUG("loading %zu/%zu tensors from %s",
+                  tensors_to_process.size(),
+                  file_tensors.size(),
+                  file_path.c_str());
 
         bool is_zip = fdata.is_zip;
 
@@ -1305,27 +1271,32 @@ bool ModelLoader::load_tensor(const TensorStorage& tensor_storage, ggml_tensor* 
 
     bool loaded = false;
     std::set<std::string> target_tensor_names{tensor_storage.name};
-    auto on_new_tensor_cb = [&](const TensorStorage& current, ggml_tensor** out_tensor) -> bool {
+    auto on_new_tensor_cb = [&](const TensorStorage& current_tensor_storage, ggml_tensor** out_tensor) -> bool {
         *out_tensor = nullptr;
-        if (current.name != tensor_storage.name) {
+        if (current_tensor_storage.name != tensor_storage.name) {
             return true;
         }
-        if (current.file_index != tensor_storage.file_index ||
-            current.offset != tensor_storage.offset ||
-            current.index_in_zip != tensor_storage.index_in_zip) {
+
+        if (current_tensor_storage.file_index != tensor_storage.file_index ||
+            current_tensor_storage.offset != tensor_storage.offset ||
+            current_tensor_storage.index_in_zip != tensor_storage.index_in_zip) {
             LOG_ERROR("load tensor failed: storage mismatch for '%s'", tensor_storage.name.c_str());
             return false;
         }
-        if (current.n_dims != tensor_storage.n_dims || current.nelements() != tensor_storage.nelements()) {
+
+        if (current_tensor_storage.n_dims != tensor_storage.n_dims ||
+            current_tensor_storage.nelements() != tensor_storage.nelements()) {
             LOG_ERROR("load tensor failed: metadata changed for '%s'", tensor_storage.name.c_str());
             return false;
         }
-        for (int i = 0; i < current.n_dims; i++) {
-            if (current.ne[i] != dst_tensor->ne[i]) {
+
+        for (int i = 0; i < current_tensor_storage.n_dims; i++) {
+            if (current_tensor_storage.ne[i] != dst_tensor->ne[i]) {
                 LOG_ERROR("load tensor failed: shape mismatch for '%s'", tensor_storage.name.c_str());
                 return false;
             }
         }
+
         *out_tensor = dst_tensor;
         loaded      = true;
         return true;
@@ -1335,10 +1306,12 @@ bool ModelLoader::load_tensor(const TensorStorage& tensor_storage, ggml_tensor* 
         LOG_ERROR("load tensor failed: '%s'", tensor_storage.name.c_str());
         return false;
     }
+
     if (!loaded) {
         LOG_ERROR("load tensor failed: tensor '%s' not found", tensor_storage.name.c_str());
         return false;
     }
+
     return true;
 }
 
@@ -1418,7 +1391,7 @@ bool ModelLoader::load_tensors(std::map<std::string, ggml_tensor*>& tensors,
     std::mutex tensor_names_mutex;
     auto on_new_tensor_cb = [&](const TensorStorage& tensor_storage, ggml_tensor** dst_tensor) -> bool {
         const std::string& name = tensor_storage.name;
-        // LOG_VERBOSE("%s", tensor_storage.to_string().c_str());
+        // LOG_DEBUG("%s", tensor_storage.to_string().c_str());
         {
             std::lock_guard<std::mutex> lock(tensor_names_mutex);
             tensor_names_in_file.insert(name);

@@ -53,7 +53,7 @@ struct AlibiConfig {
     bool enabled = false;
     const float* slopes = nullptr;
     std::int64_t slope_count = 0;
-    // GGML-style mask slope. When positive, the translation scales mask
+    // Optional per-head mask slope. When positive, the translation scales mask
     // values per head instead of consuming an explicit slopes buffer.
     float max_bias = 0.0f;
 };

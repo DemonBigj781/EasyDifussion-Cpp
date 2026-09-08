@@ -1,10 +1,7 @@
 #ifndef __SD_MODEL_ADAPTER_PMID_HPP__
 #define __SD_MODEL_ADAPTER_PMID_HPP__
 
-#include "core/ggml_extend.h"
-#include "core/ggml_runner.h"
-#include "core/util.h"
-#include "model/common/ggml_block.hpp"
+#include "core/ggml_extend.hpp"
 
 #include "model/adapter/lora.hpp"
 #include "model/common/block.hpp"
@@ -561,7 +558,7 @@ public:
             return build_graph(id_pixel_values, prompt_embeds, class_tokens_mask, id_embeds);
         };
 
-        return take_or_empty(GGMLRunner::compute(get_graph, n_threads, true));
+        return take_or_empty(GGMLRunner::compute<float>(get_graph, n_threads, true, true, true));
     }
 };
 
@@ -642,7 +639,7 @@ struct PhotoMakerIDEmbed : public GGMLRunner {
             return false;
         }
 
-        LOG_VERBOSE("finished loading PhotoMaker ID Embeds ");
+        LOG_DEBUG("finished loading PhotoMaker ID Embeds ");
         return true;
     }
 

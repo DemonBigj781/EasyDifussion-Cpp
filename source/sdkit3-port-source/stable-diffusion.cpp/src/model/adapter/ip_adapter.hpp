@@ -1,10 +1,8 @@
 #ifndef __SD_MODEL_ADAPTER_IP_ADAPTER_HPP__
 #define __SD_MODEL_ADAPTER_IP_ADAPTER_HPP__
 
-#include "core/ggml_extend.h"
-#include "core/ggml_runner.h"
+#include "core/ggml_extend.hpp"
 #include "model/common/block.hpp"
-#include "model/common/ggml_block.hpp"
 #include "model_loader.h"
 
 namespace IPAdapter {
@@ -202,7 +200,7 @@ namespace IPAdapter {
             auto get_graph = [&]() -> ggml_cgraph* {
                 return build_graph(image_embeds);
             };
-            return take_or_empty(GGMLRunner::compute(get_graph, n_threads, true));
+            return take_or_empty(GGMLRunner::compute<float>(get_graph, n_threads, true, true, true));
         }
     };
 

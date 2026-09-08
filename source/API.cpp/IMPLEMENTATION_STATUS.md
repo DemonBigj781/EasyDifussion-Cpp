@@ -95,8 +95,8 @@ contiguous 32 GB allocation. CPU/CUDA Library handlers now route through Common.
 | Sage `support` |  | `R` |  |  |  |
 | Sage `forward` |  | `R` |  |  |  |
 | FlashAttention | `B` | `E` |  |  |  |
-| Flex Attention |  |  |  |  |  |
-| Split Attention |  |  |  |  |  |
+| Flex Attention | `I` |  |  |  |  |
+| Split Attention | `I` |  |  |  |  |
 
 xFormers CPU uses registered materialized stages. CUDA registers only fused
 `forward`; QKT, mask, softmax, and AV semantics execute inside that kernel.
@@ -151,6 +151,21 @@ The planned normalized method inventories are:
 
 Blank feature rows remain blank even where source or prototypes exist; build
 and runtime maturity must be established explicitly.
+
+### CPU Flex and Split accounting
+
+Flex CPU is `I`, not `B` or `R`. The current host implementation performs the
+selection algorithm in one source path and exposes `sd_flex_attention_select`,
+but it still uses the SDKIT3-facing `sd` namespace and `stable-diffusion.h`.
+It has not been separated into CPU definition -> translation -> Common, and no
+current CPU API test establishes the planned individual method contracts.
+
+Split CPU is also `I`, not `B` or `R`. A backend-neutral exploratory prototype
+implements planning and forward execution, including exact query and K/V split
+behavior. The files under `split/common/` remain structural placeholders;
+there is no registered CPU translation and no application-facing Common route.
+The `I` marks account for existing source only and must not be interpreted as
+SDKIT3 integration or runtime support.
 
 ## Cache
 

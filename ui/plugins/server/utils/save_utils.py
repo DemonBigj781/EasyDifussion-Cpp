@@ -26,8 +26,6 @@ img_number_regex = re.compile("([0-9]{5,})")
 TASK_TEXT_MAPPING = {
     "prompt": "Prompt",
     "negative_prompt": "Negative Prompt",
-    "hidden_positive_prompt": "Hidden Positive Embeddings",
-    "hidden_negative_prompt": "Hidden Negative Embeddings",
     "seed": "Seed",
     "use_stable_diffusion_model": "Stable Diffusion model",
     "clip_skip": "Clip Skip",
@@ -228,9 +226,10 @@ def get_printable_request(
     task_data_metadata.update(output_format.dict())
     task_data_metadata.update(save_data.dict())
 
+    app_config = app.getConfig()
     # sdkit3 exposes the same LoRA, embedding, tiling, clip-skip, and
     # ControlNet request fields that this metadata branch preserves.
-    using_diffusers = True
+    using_diffusers = app_config.get("backend", "sdkit3") == "sdkit3"
 
     # Save the metadata in the order defined in TASK_TEXT_MAPPING
     metadata = {}

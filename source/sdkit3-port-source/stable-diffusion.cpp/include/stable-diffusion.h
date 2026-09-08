@@ -163,7 +163,6 @@ enum sd_type_t {
 
 enum sd_log_level_t {
     SD_LOG_DEBUG,
-    SD_LOG_VERBOSE,
     SD_LOG_INFO,
     SD_LOG_WARN,
     SD_LOG_ERROR
@@ -269,9 +268,8 @@ typedef struct {
     bool vae_conv_direct;
     bool force_sdxl_vae_conv_scale;
     enum sd_vae_format_t vae_format;
-    const char* max_vram;  // Optional per-device GiB budget for managed weights and runner buffers; 0 uses live free VRAM without an explicit budget
-    bool disable_prefetch;  // Disable asynchronous next-segment weight prefetch
-    bool stream_layers;  // Compatibility alias: enable managed segmented compute and prefetch
+    const char* max_vram;  // GiB budget or backend assignment spec for graph-cut segmented param offload (0 = disabled, -1 = auto)
+    bool stream_layers;  // Enable residency+prefetch streaming on top of --max-vram (no effect without --max-vram)
     bool eager_load;  // Load all params into the params backend at model-load time instead of lazily on first use
     bool keep_compute_params;  // Retain staged compute-backend weights until the context is destroyed
     const char* backend;
@@ -280,7 +278,6 @@ typedef struct {
     bool auto_fit;
     const char* rpc_servers;
     const char* model_args;
-    bool disable_segmented_compute;  // Force monolithic graph execution even when automatic graph cutting would fit memory better
 } sd_ctx_params_t;
 
 typedef struct {
@@ -658,8 +655,6 @@ SD_API bool convert(const char* input_path,
                     const char* tensor_type_rules,
                     bool convert_name);
 
-// Native image-model conversion only. Components may be supplied separately
-// for Diffusers-style SDXL, SD3/3.5, Flux, and Anima layouts.
 SD_API bool convert_with_components(const char* model_path,
                                     const char* clip_l_path,
                                     const char* clip_g_path,

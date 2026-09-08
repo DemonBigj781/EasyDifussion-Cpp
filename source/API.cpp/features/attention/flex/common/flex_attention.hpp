@@ -1,5 +1,5 @@
-#ifndef __SD_RUNTIME_FLEX_ATTENTION_HPP__
-#define __SD_RUNTIME_FLEX_ATTENTION_HPP__
+#ifndef EDCPP_API_ATTENTION_FLEX_COMMON_HPP
+#define EDCPP_API_ATTENTION_FLEX_COMMON_HPP
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace sd::flex_attention {
+namespace edcpp::api::attention::flex {
 
 // Native inference-time port of the reusable selection stage from
 // UMass-Embodied-AGI/FlexAttention (Apache-2.0). The reference method sums
@@ -136,6 +136,15 @@ inline SelectionResult select_high_resolution_tokens(const float* attention,
     return result;
 }
 
-}  // namespace sd::flex_attention
+size_t mask_size(int query_count, int high_grid_size);
 
-#endif  // __SD_RUNTIME_FLEX_ATTENTION_HPP__
+bool select(const float* attention,
+            int head_count,
+            int query_count,
+            const SelectionConfig& config,
+            uint8_t* mask,
+            size_t capacity);
+
+}  // namespace edcpp::api::attention::flex
+
+#endif  // EDCPP_API_ATTENTION_FLEX_COMMON_HPP

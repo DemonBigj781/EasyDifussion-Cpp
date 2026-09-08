@@ -88,10 +88,6 @@ CHECKPOINT_KEY_NAMES = {
     "wan_vae": "decoder.middle.0.residual.0.gamma",
     "wan_vace": "vace_blocks.0.after_proj.bias",
     "hidream": "double_stream_blocks.0.block.adaLN_modulation.1.bias",
-    "anima": [
-        "llm_adapter.blocks.0.cross_attn.q_proj.weight",
-        "model.diffusion_model.llm_adapter.blocks.0.cross_attn.q_proj.weight",
-    ],
     "cosmos-1.0": [
         "net.x_embedder.proj.1.weight",
         "net.blocks.block1.blocks.0.block.attn.to_q.0.weight",
@@ -215,9 +211,6 @@ def has_all_keys(header, keys):
 
 def infer_diffusers_model_type(header):
     s = shape_of
-
-    if has_any_key(header, CHECKPOINT_KEY_NAMES["anima"]):
-        return "anima"
 
     if CHECKPOINT_KEY_NAMES["inpainting"] in header and s(header, CHECKPOINT_KEY_NAMES["inpainting"])[1] == 9:
         if CHECKPOINT_KEY_NAMES["v2"] in header and s(header, CHECKPOINT_KEY_NAMES["v2"])[-1] == 1024:

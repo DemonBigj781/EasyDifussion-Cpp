@@ -1,8 +1,7 @@
 #ifndef __SD_MODEL_VAE_AUDIO_VAE_HPP__
 #define __SD_MODEL_VAE_AUDIO_VAE_HPP__
 
-#include "core/ggml_runner.h"
-#include "core/util.h"
+#include "core/ggml_extend.hpp"
 
 struct AudioVAERunner : public GGMLRunner {
     AudioVAERunner(ggml_backend_t backend,

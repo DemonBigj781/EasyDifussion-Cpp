@@ -237,7 +237,7 @@ bool read_safetensors_file(const std::string& file_path,
     for (auto& item : header_.items()) {
         std::string name           = item.key();
         nlohmann::json tensor_info = item.value();
-        // LOG_VERBOSE("%s %s\n", name.c_str(), tensor_info.dump().c_str());
+        // LOG_DEBUG("%s %s\n", name.c_str(), tensor_info.dump().c_str());
 
         if (name == "__metadata__") {
             continue;
@@ -350,7 +350,7 @@ bool read_safetensors_file(const std::string& file_path,
 
         tensor_storages.push_back(tensor_storage);
 
-        // LOG_VERBOSE("%s %s", tensor_storage.to_string().c_str(), dtype.c_str());
+        // LOG_DEBUG("%s %s", tensor_storage.to_string().c_str(), dtype.c_str());
     }
 
     return true;
@@ -386,6 +386,7 @@ bool read_safetensors_index_file(const std::string& file_path,
             set_error(error, "invalid shard path for tensor '" + item.key() + "'");
             return false;
         }
+
         std::string shard_path = resolve_index_shard_path(file_path,
                                                           item.value().get<std::string>());
         if (seen_shard_paths.insert(shard_path).second) {
@@ -397,6 +398,7 @@ bool read_safetensors_index_file(const std::string& file_path,
         set_error(error, "safetensors index has no tensors: '" + file_path + "'");
         return false;
     }
+
     return true;
 }
 

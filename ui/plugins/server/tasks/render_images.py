@@ -8,12 +8,6 @@ from easydiffusion import model_manager, runtime
 from easydiffusion.types import GenerateImageRequest, ModelsData, OutputFormatData, SaveToDiskData
 from easydiffusion.types import Image as ResponseImage
 from easydiffusion.types import GenerateImageResponse, RenderTaskData
-from easydiffusion.prompt_utils import combine_negative_prompt_for_clip, combine_positive_prompt_for_clip
-from easydiffusion.privacy_debug import (
-    block_alphabetic_context,
-    log_non_finite_counts,
-    log_result_image_diagnostics,
-)
 from easydiffusion.utils import get_printable_request, log, save_images_to_disk, filter_nsfw
 from sdkit.utils import (
     img_to_base64_str,
@@ -136,7 +130,6 @@ def make_images(
         step_callback,
         task,
     )
-    log_result_image_diagnostics(images, log, image_decoder=base64_str_to_img)
 
     res = GenerateImageResponse(
         req,
@@ -160,18 +153,15 @@ def print_task_info(
     output_format: OutputFormatData,
     save_data: SaveToDiskData,
 ):
-    printable_request = get_printable_request(req, task_data, models_data, output_format, save_data)
-    log_non_finite_counts(printable_request, log, "render_request")
-    for private_field in ("prompt", "negative_prompt", "hidden_positive_prompt", "hidden_negative_prompt"):
-        if private_field in printable_request:
-            printable_request[private_field] = block_alphabetic_context(printable_request[private_field])
-    req_str = pprint.pformat(printable_request).replace("[", "\\[")
+    req_str = pprint.pformat(get_printable_request(req, task_data, models_data, output_format, save_data)).replace(
+        "[", "\\["
+    )
     task_str = pprint.pformat(task_data.dict()).replace("[", "\\[")
     models_data = pprint.pformat(models_data.dict()).replace("[", "\\[")
     output_format = pprint.pformat(output_format.dict()).replace("[", "\\[")
     save_data = pprint.pformat(save_data.dict()).replace("[", "\\[")
 
-    log.info(f"request: {req_str}", extra={"privacy_sensitive": True})
+    log.info(f"request: {req_str}")
     log.info(f"task data: {task_str}")
     log.info(f"models data: {models_data}")
     log.info(f"output format: {output_format}")
@@ -295,20 +285,7 @@ def generate_images_internal(
         clip_skip=2 if task_data.clip_skip else -1,
     )
 
-    # Keep the hidden fields private to Easy Diffusion. The backend only sees
-    # the final positive and negative prompts that CLIP must encode.
-    backend_req = req.dict()
-    backend_req["prompt"] = combine_positive_prompt_for_clip(
-        req.prompt,
-        req.hidden_positive_prompt,
-    )
-    backend_req["negative_prompt"] = combine_negative_prompt_for_clip(
-        req.negative_prompt,
-        req.hidden_negative_prompt,
-    )
-    backend_req.pop("hidden_positive_prompt", None)
-    backend_req.pop("hidden_negative_prompt", None)
-    images = backend.generate_images(context, callback=callback, output_type="base64", **backend_req)
+    images = backend.generate_images(context, callback=callback, output_type="base64", **req.dict())
 
     return images
 

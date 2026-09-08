@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional
 
 from easydiffusion import app as easy_app
-from easydiffusion.model_manager import get_model_dirs
 from easydiffusion.utils import log as _logger
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -22,7 +21,7 @@ _env_model_dir = os.environ.get("TIPO_MODEL_DIR")
 MODEL_DIR = (
     Path(_env_model_dir).expanduser().resolve()
     if _env_model_dir
-    else Path(get_model_dirs("tipo")[0]).resolve()
+    else (Path(easy_app.MODELS_DIR) / "tipo").resolve()
 )
 
 MODEL_DIR.mkdir(parents=True, exist_ok=True)

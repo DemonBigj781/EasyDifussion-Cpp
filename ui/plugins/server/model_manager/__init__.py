@@ -14,7 +14,6 @@ from .list_models import list_models
 KNOWN_MODEL_TYPES = [
     "stable-diffusion",
     "vae",
-    "taesdvae",
     "hypernetwork",
     "gfpgan",
     "realesrgan",
@@ -38,7 +37,6 @@ MODEL_EXTENSIONS = {
     "stable-diffusion": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "video": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "vae": [".vae.pt", ".ckpt", ".safetensors", ".sft", ".gguf"],
-    "taesdvae": [".pt", ".pth", ".ckpt", ".safetensors", ".sft", ".gguf"],
     "hypernetwork": [".pt", ".safetensors", ".sft"],
     "gfpgan": [".pth"],
     "realesrgan": [".pth"],
@@ -78,7 +76,6 @@ ALTERNATE_FOLDER_NAMES = {  # for WebUI compatibility
     # is the canonical shared-store hierarchy.
     "stable-diffusion": "checkpoints",
     "vae": "VAE",
-    "taesdvae": "VAE-taesd",
     "hypernetwork": "hypernetworks",
     "codeformer": "Codeformer",
     "gfpgan": "GFPGAN",
@@ -112,17 +109,7 @@ PREFER_ALTERNATE_FOLDER_TYPES = {
     "controlnet-union",
     "uni-controlnet",
     "controlnet-lite",
-    "taesdvae",
 }
-
-MODEL_DIRECTORY_CONFIG_KEYS = {
-    "stable-diffusion": "checkpoints",
-}
-
-DIRECTORY_MODEL_TYPES = tuple(KNOWN_MODEL_TYPES) + ("video", "tipo")
-DIRECTORY_CONFIG_KEYS = tuple(
-    dict.fromkeys(MODEL_DIRECTORY_CONFIG_KEYS.get(model_type, model_type) for model_type in DIRECTORY_MODEL_TYPES)
-)
 
 # Native stable-diffusion.cpp video weights are commonly stored outside the
 # image checkpoint hierarchy. Keep a separate selector index while accepting
@@ -144,27 +131,6 @@ VIDEO_MODEL_FOLDER_NAMES = DEDICATED_VIDEO_MODEL_FOLDER_NAMES + (
     "diffusion_models",
     "DiffusionModels",
 )
-
-VIDEO_COMPANION_MODEL_FOLDER_NAMES = {
-    "vae": ("mochi/vae", "Mochi/vae"),
-    "text-encoder": (
-        "Text-encoder",
-        "Text_Encoder",
-        "mochi/t5xxl",
-        "Mochi/t5xxl",
-    ),
-}
-
-# Native image checkpoints converted to GGUF are kept out of checkpoints/ so
-# the original and converted files can share the same architecture-relative
-# name without colliding. The model selector still treats this as another
-# stable-diffusion checkpoint root and scans its architecture folders.
-IMAGE_GGUF_MODEL_FOLDER_NAMES = (
-    "Image_GGUF",
-    "image_gguf",
-)
-
-AUTOMATIC_CONTROLNET_MODEL = "__automatic_uni_union__"
 
 
 def init():
@@ -229,61 +195,15 @@ def resolve_model_to_use(model_name: Union[str, list] = None, model_type: str = 
     model_paths = []
     for m in model_names:
         if model_type == "embeddings":
-            resolved = resolve_model_to_use_single(m, model_type, False)
-            if resolved is None:
-                resolved = resolve_embedding_reference(m)
-            if resolved is not None:
-                model_paths.append(resolved)
-                continue
+            try:
+                resolve_model_to_use_single(m, model_type)
+            except FileNotFoundError:  # try with spaces
+                m = m.replace("_", " ")
 
         path = resolve_model_to_use_single(m, model_type, fail_if_not_found)
         model_paths.append(path)
 
     return model_paths[0] if len(model_paths) == 1 else model_paths
-
-
-def _embedding_reference_key(model_name: str) -> str:
-    """Match UI embedding tokens without losing real filename underscores."""
-    normalized = str(model_name).replace("\\", "/").strip("/")
-    for extension in sorted(MODEL_EXTENSIONS["embeddings"], key=len, reverse=True):
-        if normalized.lower().endswith(extension.lower()):
-            normalized = normalized[: -len(extension)]
-            break
-
-    parts = []
-    for part in normalized.split("/"):
-        # get_embedding_token() maps spaces to underscores. Treat either as a
-        # separator for lookup while retaining the exact path returned below.
-        parts.append("_".join(part.replace("_", " ").split()).casefold())
-    return "/".join(parts)
-
-
-def resolve_embedding_reference(model_name: str):
-    if not model_name:
-        return None
-
-    requested_key = _embedding_reference_key(model_name)
-    match_basename_only = "/" not in str(model_name).replace("\\", "/").strip("/")
-    matches = []
-    extensions = tuple(extension.casefold() for extension in MODEL_EXTENSIONS["embeddings"])
-
-    for model_dir in get_model_dirs("embeddings"):
-        for root, _, files in os.walk(model_dir):
-            for filename in files:
-                if not filename.casefold().endswith(extensions):
-                    continue
-                candidate = os.path.join(root, filename)
-                relative = os.path.relpath(candidate, model_dir).replace("\\", "/")
-                candidate_reference = os.path.basename(relative) if match_basename_only else relative
-                if _embedding_reference_key(candidate_reference) == requested_key:
-                    matches.append(candidate)
-
-    if not matches:
-        return None
-    matches.sort()
-    if len(matches) > 1:
-        log.warn(f"Multiple embeddings match {model_name}; using {matches[0]}")
-    return matches[0]
 
 
 def resolve_model_to_use_single(model_name: str = None, model_type: str = None, fail_if_not_found: bool = True):
@@ -436,11 +356,6 @@ def resolve_model_paths(models_data: ModelsData):
         if model_type in skip_models:  # doesn't use model paths
             continue
 
-        # Automatic Uni/Union is a native backend routing sentinel, not a
-        # checkpoint filename. Keep it intact for the generation request.
-        if model_type == "controlnet" and model_paths[model_type] == AUTOMATIC_CONTROLNET_MODEL:
-            continue
-
         # ModelsData uses None to request an unload. In particular, the image
         # model selector can now be left at None while another task (such as
         # native video) supplies its own checkpoint.
@@ -578,89 +493,11 @@ def is_malicious_model(file_path):
     return False
 
 
-def normalize_directory_config(value):
-    """Validate the per-model directory map stored in config.yaml."""
-    if not isinstance(value, dict):
-        raise ValueError("directories must be a mapping of model family names to paths")
-
-    normalized = {}
-    for key, raw_paths in value.items():
-        if key not in DIRECTORY_CONFIG_KEYS:
-            raise ValueError(f"Unknown model directory family: {key}")
-        paths = raw_paths if isinstance(raw_paths, (list, tuple)) else [raw_paths]
-        clean_paths = []
-        for raw_path in paths:
-            if raw_path is None or not str(raw_path).strip():
-                continue
-            path_value = str(raw_path).strip()
-            if "\x00" in path_value:
-                raise ValueError(f"Invalid path for model directory family: {key}")
-            if path_value not in clean_paths:
-                clean_paths.append(path_value)
-        if clean_paths:
-            normalized[key] = clean_paths[0] if len(clean_paths) == 1 else clean_paths
-    return normalized
-
-
-def _configured_model_dirs(model_type, base_dir):
-    directory_key = MODEL_DIRECTORY_CONFIG_KEYS.get(model_type, model_type)
-    directories = app.getConfig().get("directories") or {}
-    raw_paths = directories.get(directory_key)
-    if raw_paths is None:
-        return []
-    paths = raw_paths if isinstance(raw_paths, (list, tuple)) else [raw_paths]
-    resolved = []
-    for raw_path in paths:
-        if raw_path is None or not str(raw_path).strip():
-            continue
-        candidate = os.path.expanduser(str(raw_path).strip())
-        if not os.path.isabs(candidate):
-            candidate = os.path.join(base_dir, candidate)
-        candidate = os.path.abspath(candidate)
-        if candidate not in resolved:
-            resolved.append(candidate)
-    return resolved
-
-
-def _append_unique_directories(directories, candidates):
-    seen = {os.path.realpath(candidate) for candidate in directories}
-    for candidate in candidates:
-        real_candidate = os.path.realpath(candidate)
-        if real_candidate not in seen:
-            seen.add(real_candidate)
-            directories.append(candidate)
-
-
-def _existing_image_gguf_dirs(base_dir):
-    return [
-        os.path.join(base_dir, folder_name)
-        for folder_name in IMAGE_GGUF_MODEL_FOLDER_NAMES
-        if os.path.isdir(os.path.join(base_dir, folder_name))
-    ]
-
-
-def _existing_video_companion_dirs(model_type, base_dir):
-    return [
-        os.path.join(base_dir, folder_name)
-        for folder_name in VIDEO_COMPANION_MODEL_FOLDER_NAMES.get(model_type, ())
-        if os.path.isdir(os.path.join(base_dir, folder_name))
-    ]
-
-
 def get_model_dirs(model_type: str, base_dir=None):
     "Returns the possible model directory paths for the given model type. Mainly used for WebUI compatibility"
 
     if base_dir is None:
         base_dir = app.MODELS_DIR
-
-    configured_dirs = _configured_model_dirs(model_type, base_dir)
-    if configured_dirs:
-        if model_type == "stable-diffusion":
-            _append_unique_directories(configured_dirs, _existing_image_gguf_dirs(base_dir))
-        if model_type == "controlnet":
-            _append_unique_directories(configured_dirs, _configured_model_dirs("controlnet-lite", base_dir))
-        _append_unique_directories(configured_dirs, _existing_video_companion_dirs(model_type, base_dir))
-        return configured_dirs
 
     if model_type == "video":
         dirs = []
@@ -700,33 +537,23 @@ def get_model_dirs(model_type: str, base_dir=None):
 
     # Video companion weights stay separate from Image Settings while using
     # the normal VAE/text-encoder model types in the render request.
-    _append_unique_directories(dirs, _existing_video_companion_dirs(model_type, base_dir))
-
-    # ControlNet-LITE uses the standard ControlNet request path with a
-    # different backbone, so expose its directory in the standard selector.
-    if model_type == "controlnet":
-        lite_dirs = _configured_model_dirs("controlnet-lite", base_dir)
-        if not lite_dirs:
-            lite_dirs = [
-                os.path.join(base_dir, folder_name)
-                for folder_name in ("Controlnet_LITE", "controlnet-lite")
-                if os.path.isdir(os.path.join(base_dir, folder_name))
-            ]
-        _append_unique_directories(dirs, lite_dirs)
-
-    if model_type == "stable-diffusion":
-        _append_unique_directories(dirs, _existing_image_gguf_dirs(base_dir))
+    companion_folders = {
+        "vae": ("mochi/vae", "Mochi/vae"),
+        "text-encoder": (
+            "Text-encoder",
+            "Text_Encoder",
+            "mochi/t5xxl",
+            "Mochi/t5xxl",
+        ),
+    }
+    seen = {os.path.realpath(candidate) for candidate in dirs if os.path.isdir(candidate)}
+    for folder_name in companion_folders.get(model_type, ()):
+        candidate = os.path.join(base_dir, folder_name)
+        if not os.path.isdir(candidate):
+            continue
+        real_candidate = os.path.realpath(candidate)
+        if real_candidate not in seen:
+            seen.add(real_candidate)
+            dirs.append(candidate)
 
     return dirs
-
-
-def effective_directory_config(base_dir=None):
-    """Return resolved directory defaults for the System Settings editor."""
-    if base_dir is None:
-        base_dir = app.MODELS_DIR
-    result = {}
-    for model_type in DIRECTORY_MODEL_TYPES:
-        key = MODEL_DIRECTORY_CONFIG_KEYS.get(model_type, model_type)
-        directories = get_model_dirs(model_type, base_dir)
-        result[key] = directories[0] if len(directories) == 1 else directories
-    return result

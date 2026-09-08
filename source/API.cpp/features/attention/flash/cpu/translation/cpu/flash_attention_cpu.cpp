@@ -1,128 +1,154 @@
 #include "features/attention/flash/common/flash_attention.hpp"
-#include "features/attention/flash/cpu/definition/cpu/flash_attention_cpu.hpp"
 
-#include "ggml-cpu-impl.h"
-
-#include <array>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <limits>
+#include <vector>
 
 namespace edcpp::api::attention::flash::cpu::translation {
 namespace {
 
-std::size_t element_size(DType dtype) noexcept {
-    return dtype == DType::f32 ? sizeof(float) : sizeof(std::uint16_t);
+std::size_t scalar_size(DType type) noexcept {
+    return type == DType::f32 ? sizeof(float) : sizeof(std::uint16_t);
 }
 
-ggml_type native_type(DType dtype) noexcept {
-    switch (dtype) {
-        case DType::f32: return GGML_TYPE_F32;
-        case DType::f16: return GGML_TYPE_F16;
-        case DType::bf16: return GGML_TYPE_BF16;
+float f16_to_float(std::uint16_t value) noexcept {
+    const std::uint32_t sign = static_cast<std::uint32_t>(value & 0x8000u) << 16;
+    std::uint32_t exponent = (value >> 10) & 0x1fu;
+    std::uint32_t mantissa = value & 0x03ffu;
+    std::uint32_t bits = 0;
+    if (exponent == 0) {
+        if (mantissa == 0) bits = sign;
+        else {
+            int adjusted = -14;
+            while ((mantissa & 0x0400u) == 0) { mantissa <<= 1; --adjusted; }
+            bits = sign | (static_cast<std::uint32_t>(adjusted + 127) << 23) |
+                   ((mantissa & 0x03ffu) << 13);
+        }
+    } else if (exponent == 0x1fu) bits = sign | 0x7f800000u | (mantissa << 13);
+    else bits = sign | ((exponent - 15 + 127) << 23) | (mantissa << 13);
+    float result;
+    std::memcpy(&result, &bits, sizeof(result));
+    return result;
+}
+
+float load(const void* base, DType type, std::size_t byte_offset) noexcept {
+    const auto* bytes = static_cast<const std::uint8_t*>(base) + byte_offset;
+    if (type == DType::f32) {
+        float value;
+        std::memcpy(&value, bytes, sizeof(value));
+        return value;
     }
-    return GGML_TYPE_COUNT;
+    std::uint16_t value;
+    std::memcpy(&value, bytes, sizeof(value));
+    if (type == DType::f16) return f16_to_float(value);
+    const std::uint32_t bits = static_cast<std::uint32_t>(value) << 16;
+    float result;
+    std::memcpy(&result, &bits, sizeof(result));
+    return result;
 }
 
 template <typename Tensor>
-void set_layout(ggml_tensor& native, const Tensor& tensor) noexcept {
-    native.ne[0] = tensor.head_dim;
-    native.ne[1] = tensor.tokens;
-    native.ne[2] = tensor.heads;
-    native.ne[3] = tensor.batch;
-    const auto item_size = element_size(tensor.dtype);
-    const std::array<std::size_t, 4> contiguous = {
-        item_size,
-        item_size * static_cast<std::size_t>(tensor.head_dim),
-        item_size * static_cast<std::size_t>(tensor.head_dim * tensor.tokens),
-        item_size * static_cast<std::size_t>(tensor.head_dim * tensor.tokens * tensor.heads),
-    };
-    for (std::size_t i = 0; i < 4; ++i) {
-        native.nb[i] = tensor.byte_strides[i] == 0 ? contiguous[i] : tensor.byte_strides[i];
-    }
+std::size_t offset(const Tensor& t, std::int64_t d, std::int64_t token,
+                   std::int64_t head, std::int64_t batch) noexcept {
+    const std::size_t item = scalar_size(t.dtype);
+    const std::size_t s0 = t.byte_strides[0] ? t.byte_strides[0] : item;
+    const std::size_t s1 = t.byte_strides[1] ? t.byte_strides[1] : item * t.head_dim;
+    const std::size_t s2 = t.byte_strides[2] ? t.byte_strides[2] : s1 * t.tokens;
+    const std::size_t s3 = t.byte_strides[3] ? t.byte_strides[3] : s2 * t.heads;
+    return d * s0 + token * s1 + head * s2 + batch * s3;
 }
 
-template <typename Tensor>
-ggml_tensor make_tensor(const Tensor& tensor) noexcept {
-    ggml_tensor native{};
-    native.type = native_type(tensor.dtype);
-    native.data = const_cast<void*>(static_cast<const void*>(tensor.data));
-    set_layout(native, tensor);
-    return native;
+Result invalid(const char* message) noexcept { return {false, message}; }
+
+Result validate_cpu(const Request& r) noexcept {
+    if (!r.query.data || !r.key.data || !r.value.data || !r.output.data)
+        return invalid("CPU FlashAttention requires Q, K, V, and output buffers");
+    if (r.execution.thread_index != 0 || r.execution.thread_count != 1)
+        return invalid("CPU FlashAttention currently owns a single-thread execution context");
+    if (r.output.dtype != DType::f32)
+        return invalid("CPU FlashAttention currently writes F32 output");
+    if (r.query.batch <= 0 || r.query.heads <= 0 || r.query.tokens <= 0 || r.query.head_dim <= 0 ||
+        r.key.batch != r.query.batch || r.value.batch != r.query.batch || r.key.tokens <= 0 ||
+        r.key.tokens != r.value.tokens || r.key.head_dim != r.query.head_dim || r.value.head_dim <= 0 ||
+        r.key.heads <= 0 || r.value.heads <= 0 ||
+        r.query.heads % r.key.heads != 0 || r.query.heads % r.value.heads != 0)
+        return invalid("CPU FlashAttention received incompatible Q/K/V shapes");
+    if (r.output.batch != r.query.batch || r.output.heads != r.query.heads ||
+        r.output.tokens != r.query.tokens || r.output.head_dim != r.value.head_dim)
+        return invalid("CPU FlashAttention output shape is incompatible");
+    if (!std::isfinite(r.scale) || !std::isfinite(r.max_bias) ||
+        !std::isfinite(r.logit_softcap) || r.max_bias < 0.0f || r.logit_softcap < 0.0f)
+        return invalid("CPU FlashAttention scalar parameters must be finite and non-negative");
+    if (r.mask.data && (r.mask.head_dim != r.key.tokens || r.mask.tokens != r.query.tokens ||
+        (r.mask.heads != 1 && r.mask.heads != r.query.heads) ||
+        (r.mask.batch != 1 && r.mask.batch != r.query.batch)))
+        return invalid("CPU FlashAttention mask is not broadcast-compatible");
+    return {true, nullptr};
 }
 
-Result validate_cpu(const Request& request) noexcept {
-    if (request.execution.thread_index != 0 || request.execution.thread_count != 1) {
-        return {false, "CPU FlashAttention Common route currently supports single-thread execution only"};
-    }
-    if (request.query.dtype != DType::f32 || request.output.dtype != DType::f32) {
-        return {false, "CPU FlashAttention requires F32 query and output tensors"};
-    }
-    if (request.mask.data != nullptr && request.mask.dtype != DType::f16) {
-        return {false, "CPU FlashAttention requires an F16 additive mask"};
-    }
-    if (request.mask.data != nullptr &&
-        (request.mask.head_dim != request.key.tokens || request.mask.tokens != request.query.tokens ||
-         request.query.heads % request.mask.heads != 0 || request.query.batch % request.mask.batch != 0)) {
-        return {false, "CPU FlashAttention mask shape is not broadcast-compatible"};
-    }
-    const auto row_contiguous = [](const auto& tensor) {
-        return tensor.byte_strides[0] == 0 || tensor.byte_strides[0] == element_size(tensor.dtype);
-    };
-    if (!row_contiguous(request.query) || !row_contiguous(request.key) || !row_contiguous(request.value) ||
-        !row_contiguous(request.output)) {
-        return {false, "CPU FlashAttention requires contiguous tensor rows"};
+float alibi_slope(std::int64_t head, std::int64_t heads, float max_bias) noexcept {
+    if (max_bias == 0.0f) return 1.0f;
+    std::uint32_t power = 1;
+    while ((power << 1) <= static_cast<std::uint32_t>(heads)) power <<= 1;
+    const float m0 = std::pow(2.0f, -max_bias / static_cast<float>(power));
+    const float m1 = std::pow(2.0f, -(max_bias * 0.5f) / static_cast<float>(power));
+    return head < power ? std::pow(m0, static_cast<float>(head + 1))
+                        : std::pow(m1, static_cast<float>(2 * (head - power) + 1));
+}
+
+Result forward_cpu(const Request& r) noexcept {
+    const auto checked = validate_cpu(r);
+    if (!checked.ok) return checked;
+    std::vector<float> scores(static_cast<std::size_t>(r.key.tokens));
+    for (std::int64_t b = 0; b < r.query.batch; ++b) for (std::int64_t h = 0; h < r.query.heads; ++h) {
+        const auto kh = h / (r.query.heads / r.key.heads);
+        const auto vh = h / (r.query.heads / r.value.heads);
+        const float slope = alibi_slope(h, r.query.heads, r.max_bias);
+        for (std::int64_t q = 0; q < r.query.tokens; ++q) {
+            float maximum = -std::numeric_limits<float>::infinity();
+            for (std::int64_t k = 0; k < r.key.tokens; ++k) {
+                float score = 0.0f;
+                for (std::int64_t d = 0; d < r.query.head_dim; ++d)
+                    score += load(r.query.data, r.query.dtype, offset(r.query, d, q, h, b)) *
+                             load(r.key.data, r.key.dtype, offset(r.key, d, k, kh, b));
+                score *= r.scale;
+                if (r.mask.data) {
+                    const auto mh = r.mask.heads == 1 ? 0 : h;
+                    const auto mb = r.mask.batch == 1 ? 0 : b;
+                    score += load(r.mask.data, r.mask.dtype, offset(r.mask, k, q, mh, mb)) * slope;
+                }
+                if (r.logit_softcap > 0.0f) score = r.logit_softcap * std::tanh(score / r.logit_softcap);
+                scores[static_cast<std::size_t>(k)] = score;
+                maximum = std::max(maximum, score);
+            }
+            float sum = 0.0f;
+            for (float& score : scores) { score = std::exp(score - maximum); sum += score; }
+            for (std::int64_t d = 0; d < r.value.head_dim; ++d) {
+                float result = 0.0f;
+                for (std::int64_t k = 0; k < r.key.tokens; ++k)
+                    result += scores[static_cast<std::size_t>(k)] / sum *
+                              load(r.value.data, r.value.dtype, offset(r.value, d, k, vh, b));
+                const float value = result;
+                const auto out_offset = offset(r.output, d, q, h, b);
+                std::memcpy(static_cast<std::uint8_t*>(r.output.data) + out_offset, &value, sizeof(value));
+            }
+        }
     }
     return {true, nullptr};
 }
 
-Result forward_cpu(const Request& request) noexcept {
-    auto query = make_tensor(request.query);
-    auto key = make_tensor(request.key);
-    auto value = make_tensor(request.value);
-    auto output = make_tensor(request.output);
-    ggml_tensor mask{};
-    ggml_tensor* mask_ptr = nullptr;
-    if (request.mask.data != nullptr) {
-        mask = make_tensor(request.mask);
-        mask_ptr = &mask;
-    }
-
-    output.op = GGML_OP_FLASH_ATTN_EXT;
-    output.src[0] = &query;
-    output.src[1] = &key;
-    output.src[2] = &value;
-    output.src[3] = mask_ptr;
-    const float params[] = {request.scale, request.max_bias, request.logit_softcap};
-    std::memcpy(output.op_params, params, sizeof(params));
-    output.op_params[3] = GGML_PREC_F32;
-
-    ggml_compute_params execution{};
-    execution.ith = request.execution.thread_index;
-    execution.nth = request.execution.thread_count;
-    execution.wdata = request.execution.workspace;
-    execution.wsize = request.execution.workspace_size;
-    execution.threadpool = nullptr;
-    execution.use_ref = request.execution.reference;
-
-    return definition::forward(&execution, &output)
-        ? Result{true, nullptr}
-        : Result{false, "CPU FlashAttention native execution failed"};
-}
-
 const Translation cpu_translation = [] {
-    Translation translation;
-    translation.backend = Backend::cpu;
-    translation.name = "cpu";
-    translation.capabilities.forward = true;
-    translation.capabilities.additive_mask = true;
-    translation.capabilities.alibi_bias = true;
-    translation.capabilities.logit_softcap = true;
-    translation.capabilities.grouped_query = true;
-    translation.capabilities.f32_accumulation = true;
-    translation.validate = &validate_cpu;
-    translation.forward = &forward_cpu;
-    return translation;
+    Translation t;
+    t.backend = Backend::cpu;
+    t.name = "cpu-self-contained";
+    t.capabilities = {true, true, true, true, true, true};
+    t.validate = &validate_cpu;
+    t.forward = &forward_cpu;
+    return t;
 }();
-
 const bool registered = register_translation(&cpu_translation);
 
 } // namespace

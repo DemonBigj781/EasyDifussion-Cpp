@@ -202,7 +202,7 @@ struct LatentInterposerRunner : public GGMLRunner {
 
     sd::Tensor<float> compute(int n_threads, const sd::Tensor<float>& input) {
         auto get_graph = [&]() -> ggml_cgraph* { return build_graph(input); };
-        return restore_trailing_singleton_dims(GGMLRunner::compute(get_graph, n_threads), input.dim());
+        return restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads), input.dim());
     }
 };
 

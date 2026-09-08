@@ -1089,7 +1089,7 @@ preview.addEventListener("keydown", (event) => {
 	window.setSettings = setSettings;
 
 	function rhLoadSamplers() {
-		const diffusersToggle = document.getElementById('test_diffusers');
+		const diffusersToggle = document.getElementById('test_diffusers') || document.getElementById('use_v3_engine');
 		if(diffusersToggle?.checked == true){
 			var samplerList = document.querySelectorAll('#sampler_name option:not(.k_diffusion-only)');
 		}else{

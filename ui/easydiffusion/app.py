@@ -68,6 +68,7 @@ APP_CONFIG_DEFAULTS = {
     "ui": {
         "open_browser_on_start": True,
     },
+    "backend": "sdkit3",
 }
 
 IMAGE_EXTENSIONS = [
@@ -133,6 +134,11 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
     if os.path.isfile(config_legacy_yaml):
         shutil.move(config_legacy_yaml, config_yaml_path)
 
+    def set_config_on_startup(config: dict):
+        if getConfig.__use_backend_on_startup is None:
+            getConfig.__use_backend_on_startup = "sdkit3"
+        config["config_on_startup"] = {"backend": getConfig.__use_backend_on_startup}
+
     if os.path.isfile(config_yaml_path):
         try:
             yaml = YAML()
@@ -149,9 +155,17 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
                 else:
                     config["net"]["listen_to_network"] = True
 
+            # This fork ships and supports one generation backend. Normalize
+            # older configuration files without rewriting them during reads.
+            config["backend"] = "sdkit3"
+            config["use_v3_engine"] = True
+
+            set_config_on_startup(config)
+
             return config
         except Exception as e:
             log.warn(traceback.format_exc())
+            set_config_on_startup(default_val)
             return default_val
     else:
         try:
@@ -172,11 +186,18 @@ def getConfig(default_val=APP_CONFIG_DEFAULTS):
             return getConfig(default_val)
         except Exception as e:
             log.warn(traceback.format_exc())
+            set_config_on_startup(default_val)
             return default_val
+
+
+getConfig.__use_backend_on_startup = None
 
 
 def setConfig(config):
     global MODELS_DIR
+
+    config["backend"] = "sdkit3"
+    config["use_v3_engine"] = True
 
     try:  # config.yaml
         config_yaml_path = os.path.join(CONFIG_DIR, "..", "config.yaml")
@@ -195,6 +216,9 @@ def setConfig(config):
 
                 config = commented_config
         yaml.indent(mapping=2, sequence=4, offset=2)
+
+        if "config_on_startup" in config:
+            del config["config_on_startup"]
 
         try:
             f = open(config_yaml_path + ".tmp", "w", encoding="utf-8")
@@ -334,10 +358,11 @@ def open_browser():
             )
         )
     else:
+        backend_name = config["backend"]
         Console().print(
             Panel(
                 "\n"
-                + "[white]The native backend is still installing..\n\n"
+                + f"[white]Backend: {backend_name} is still installing..\n\n"
                 + "A new browser tab will open automatically after it finishes.\n"
                 + f"If it does not, please open your web browser and navigate to [bold yellow underline]http://localhost:{port}/\n",
                 title=f"Backend engine is installing",

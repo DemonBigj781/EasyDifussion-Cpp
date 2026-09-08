@@ -101,8 +101,7 @@
         }
 
         /*********** GGUF conversion UI ***********/
-        .gguf-converter-grid,
-        .safetensors-converter-grid {
+        .gguf-converter-grid {
             display: grid;
             grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr);
             gap: 10px 14px;
@@ -112,10 +111,8 @@
             padding: 16px;
         }
         .gguf-converter-grid input,
-        .gguf-converter-grid select,
-        .safetensors-converter-grid input { width: 100%; box-sizing: border-box; }
-        #gguf-convert-log,
-        #safetensors-convert-log {
+        .gguf-converter-grid select { width: 100%; box-sizing: border-box; }
+        #gguf-convert-log {
             grid-column: 1 / -1;
             min-height: 180px;
             max-height: 360px;
@@ -128,10 +125,8 @@
             font-family: monospace;
         }
         @media screen and (max-width: 700px) {
-            .gguf-converter-grid,
-            .safetensors-converter-grid { grid-template-columns: 1fr; }
-            #gguf-convert-log,
-            #safetensors-convert-log { grid-column: 1; }
+            .gguf-converter-grid { grid-template-columns: 1fr; }
+            #gguf-convert-log { grid-column: 1; }
         }
 
         /*********** LORA UI ***********/
@@ -360,7 +355,7 @@
             <div>
                 <input id="gguf-output-name" type="text" spellcheck="false" autocomplete="off"
                     placeholder="model-name">
-                <small id="gguf-target-folder">Architecture is detected from the source; output goes under <code>Image_GGUF/1.5</code>, <code>3.0</code>, <code>anima</code>, or <code>sdxl</code>.</small>
+                <small>Saved under <code>models/Image_GGUF</code>.</small>
             </div>
 
             <div>
@@ -392,36 +387,6 @@
             <pre id="gguf-convert-log">No conversion started.</pre>
         </div>`
 
-    let safetensorsUI = `
-        <div class="panel-box safetensors-converter-grid">
-            <div>
-                <label for="safetensors-source"><b>Legacy embedding source</b></label><br>
-                <small>Select a <code>.pt</code>, <code>.pth</code>, <code>.bin</code>, or <code>.ckpt</code> textual-inversion embedding.</small>
-            </div>
-            <div>
-                <input id="safetensors-source" type="text" spellcheck="false" autocomplete="off"
-                    list="safetensors-source-options" placeholder="embeddings/sd1.5/positive/embedding.pt">
-                <datalist id="safetensors-source-options"></datalist>
-                <small id="safetensors-source-summary">Scanning configured embedding folders…</small>
-            </div>
-
-            <label><b>Output</b></label>
-            <div>
-                <code id="safetensors-output-path">Choose an embedding source.</code><br>
-                <small>The converted file is saved beside its source, preserving the architecture and positive/negative folder.</small>
-            </div>
-
-            <div id="safetensors-readiness" style="grid-column:1 / -1; color:var(--small-label-color);">
-                Checking the secure embedding converter…
-            </div>
-            <div style="grid-column:1 / -1; text-align:center;">
-                <button id="safetensors-convert-button" class="primaryButton" type="button" disabled>
-                    Convert embedding to Safetensors
-                </button>
-            </div>
-            <pre id="safetensors-convert-log">No conversion started.</pre>
-        </div>`
-
     let tabHTML = `
         <div id="model-tool-tab-bar" class="tab-container tab-centered">
             <span id="tab-model-loraUI" class="tab active">
@@ -432,9 +397,6 @@
             </span>
             <span id="tab-model-ggufUI" class="tab">
                 <span><i class="fa-solid fa-file-export"></i> Convert to GGUF</span>
-            </span>
-            <span id="tab-model-safetensorsUI" class="tab">
-                <span><i class="fa-solid fa-shield-halved"></i> Convert to Safetensors</span>
             </span>
         </div>
         <div id="model-tool-tab-content" class="panel-box">
@@ -453,12 +415,6 @@
             <div id="tab-content-model-ggufUI" class="tab-content">
                 <div class="tab-content-inner">
                     ${ggufUI}
-                </div>
-            </div>
-
-            <div id="tab-content-model-safetensorsUI" class="tab-content">
-                <div class="tab-content-inner">
-                    ${safetensorsUI}
                 </div>
             </div>
         </div>`
@@ -747,7 +703,6 @@
         const logEl = document.querySelector("#gguf-convert-log")
         const sourceOptions = document.querySelector("#gguf-source-options")
         const sourceSummary = document.querySelector("#gguf-source-summary")
-        const targetFolderEl = document.querySelector("#gguf-target-folder")
         let readiness = null
         const discoveredSources = new Map()
 
@@ -776,8 +731,7 @@
                 const option = document.createElement("option")
                 option.value = source.path
                 const size = (Number(source.size || 0) / (1024 * 1024 * 1024)).toFixed(2)
-                const target = source.targetFolder ? ` → ${source.targetFolder}` : " → architecture unknown"
-                option.label = `${source.name} — ${source.format.toUpperCase()}, ${size} GiB${target}`
+                option.label = `${source.name} — ${source.format.toUpperCase()}, ${size} GiB`
                 sourceOptions.appendChild(option)
             })
             sourceSummary.textContent = sourceData.count
@@ -794,11 +748,6 @@
             readinessEl.textContent = source
                 ? readiness.nativeDetail
                 : readiness.detail
-            targetFolderEl.textContent = source && source.targetFolder
-                ? `Detected output folder: models/${source.targetFolder}`
-                : (source && source.detectionError
-                    ? source.detectionError
-                    : "Architecture will be detected when conversion starts.")
         })
 
         button.addEventListener("click", async () => {
@@ -832,7 +781,6 @@
                     if (job.status === "completed") {
                         const size = (Number(job.size || 0) / (1024 * 1024)).toFixed(1)
                         readinessEl.textContent = `Conversion complete: ${job.output} (${size} MB)`
-                        await getModels()
                         break
                     }
                 }
@@ -841,98 +789,6 @@
                 readinessEl.textContent = `Conversion failed: ${error.message}`
             } finally {
                 button.disabled = false
-            }
-        })
-    }
-
-    async function initSafetensorsUI() {
-        const sourceEl = document.querySelector("#safetensors-source")
-        const readinessEl = document.querySelector("#safetensors-readiness")
-        const button = document.querySelector("#safetensors-convert-button")
-        const logEl = document.querySelector("#safetensors-convert-log")
-        const sourceOptions = document.querySelector("#safetensors-source-options")
-        const sourceSummary = document.querySelector("#safetensors-source-summary")
-        const outputEl = document.querySelector("#safetensors-output-path")
-        const discoveredSources = new Map()
-        let ready = false
-
-        async function jsonResponse(response) {
-            const payload = await response.json().catch(() => ({}))
-            if (!response.ok) throw new Error(payload.detail || payload.error || `HTTP ${response.status}`)
-            return payload
-        }
-
-        try {
-            const readiness = await fetch("/model-tools/safetensors/readiness", { cache: "no-store" }).then(jsonResponse)
-            ready = readiness.ready
-            readinessEl.textContent = readiness.detail
-            button.disabled = !ready
-        } catch (error) {
-            readinessEl.textContent = `Unable to check the embedding converter: ${error.message}`
-        }
-
-        try {
-            const sourceData = await fetch("/model-tools/safetensors/sources", { cache: "no-store" }).then(jsonResponse)
-            ;(sourceData.sources || []).forEach((source) => {
-                discoveredSources.set(source.path, source)
-                const option = document.createElement("option")
-                option.value = source.path
-                const size = (Number(source.size || 0) / 1024).toFixed(1)
-                option.label = `${source.name} — ${source.format.toUpperCase()}, ${size} KiB${source.outputExists ? " (Safetensors exists)" : ""}`
-                sourceOptions.appendChild(option)
-            })
-            sourceSummary.textContent = sourceData.count
-                ? `${sourceData.count} legacy embedding${sourceData.count === 1 ? "" : "s"} available.`
-                : "No legacy embedding files found in the configured embedding folders."
-        } catch (error) {
-            sourceSummary.textContent = `Could not scan embedding folders: ${error.message}`
-        }
-
-        sourceEl.addEventListener("change", () => {
-            const source = discoveredSources.get(sourceEl.value.trim())
-            outputEl.textContent = source ? source.output : "Output will be placed beside the selected source."
-            button.disabled = !ready || Boolean(source && source.outputExists)
-            if (source && source.outputExists) {
-                readinessEl.textContent = `Output already exists: ${source.output}`
-            }
-        })
-
-        button.addEventListener("click", async () => {
-            const source = sourceEl.value.trim()
-            if (!source) {
-                logEl.textContent = "Choose a legacy textual-inversion embedding."
-                sourceEl.focus()
-                return
-            }
-            button.disabled = true
-            logEl.textContent = "Starting secure embedding conversion…"
-            try {
-                const started = await fetch("/model-tools/safetensors/convert", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ source }),
-                }).then(jsonResponse)
-
-                while (true) {
-                    await new Promise((resolve) => setTimeout(resolve, 500))
-                    const job = await fetch(`/model-tools/safetensors/jobs/${encodeURIComponent(started.jobId)}`, {
-                        cache: "no-store",
-                    }).then(jsonResponse)
-                    logEl.textContent = (job.log || []).join("\n") || `Conversion status: ${job.status}`
-                    if (job.status === "failed") throw new Error(job.error || "Safetensors conversion failed")
-                    if (job.status === "completed") {
-                        const size = (Number(job.size || 0) / 1024).toFixed(1)
-                        outputEl.textContent = job.output
-                        readinessEl.textContent = `Conversion complete: ${job.tensorCount} tensor(s), ${size} KiB`
-                        await getModels()
-                        break
-                    }
-                }
-            } catch (error) {
-                logEl.textContent += `\n${error.message}`
-                readinessEl.textContent = `Conversion failed: ${error.message}`
-            } finally {
-                button.disabled = !ready
             }
         })
     }
@@ -1087,16 +943,13 @@
             }
             initMergeUI()
             initGgufUI()
-            initSafetensorsUI()
             LoraUI.init()
             const tabMergeUI = document.querySelector("#tab-model-mergeUI")
             const tabLoraUI = document.querySelector("#tab-model-loraUI")
             const tabGgufUI = document.querySelector("#tab-model-ggufUI")
-            const tabSafetensorsUI = document.querySelector("#tab-model-safetensorsUI")
             linkTabContents(tabMergeUI)
             linkTabContents(tabLoraUI)
             linkTabContents(tabGgufUI)
-            linkTabContents(tabSafetensorsUI)
         },
     })
 })()

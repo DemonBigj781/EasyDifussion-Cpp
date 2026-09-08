@@ -14,7 +14,6 @@ from uuid import uuid4
 
 from easydiffusion import app
 from easydiffusion.utils import log
-from easydiffusion.utils.model_identifier import identify_model_type
 from fastapi import APIRouter, HTTPException
 
 
@@ -27,13 +26,6 @@ _NATIVE_OUTTYPES = {
     "tq1_0", "tq2_0",
 }
 _CHECKPOINT_EXTENSIONS = {".ckpt", ".safetensors", ".pt", ".pth", ".sft"}
-_EMBEDDING_SOURCE_EXTENSIONS = {".pt", ".pth", ".bin", ".ckpt"}
-_GGUF_ARCHITECTURE_FOLDERS = {
-    "sd15": "1.5",
-    "sd3": "3.0",
-    "anima": "anima",
-    "sdxl": "sdxl",
-}
 _CONVERTER_SCRIPTS = {
     "huggingface": "convert_hf_to_gguf.py",
     "tokenizer-update": "convert_hf_to_gguf_update.py",
@@ -248,7 +240,6 @@ def _checkpoint_sources(limit: int = 4000) -> list[Dict[str, Any]]:
                     "kind": "native",
                     "format": resolved.suffix.lower().lstrip("."),
                     "size": resolved.stat().st_size,
-                    **_gguf_source_classification(resolved),
                 }
             )
             if len(sources) >= limit:
@@ -256,218 +247,17 @@ def _checkpoint_sources(limit: int = 4000) -> list[Dict[str, Any]]:
     return sources
 
 
-def _gguf_family_from_model_type(model_type: str) -> Optional[str]:
-    normalized = str(model_type or "").lower()
-    if normalized == "anima":
-        return "anima"
-    if normalized.startswith("sd_v3"):
-        return "sd3"
-    if normalized.startswith(("sd_xl", "playground_v2_5")):
-        return "sdxl"
-    if normalized.startswith(("sd_v1", "sd_v2")) or normalized == "instruct_pix2pix":
-        return "sd15"
-    return None
-
-
-def _gguf_family_from_path(source: Path) -> Optional[str]:
-    hint = "/" + str(source).replace("\\", "/").lower().strip("/") + "/"
-    if "anima" in hint:
-        return "anima"
-    if any(token in hint for token in ("/sdxl/", "/sd_xl/", "pony", "illustrious", "noobai")):
-        return "sdxl"
-    if any(token in hint for token in ("/3.0/", "/sd3/", "stable-diffusion-3")):
-        return "sd3"
-    if any(token in hint for token in ("/1.5/", "/sd1.5/", "/sd15/", "stable-diffusion-1")):
-        return "sd15"
-    return None
-
-
-def _detect_gguf_family(source: Path) -> str:
-    if source.is_file() and source.suffix.lower() in {".safetensors", ".sft"}:
-        try:
-            family = _gguf_family_from_model_type(identify_model_type(str(source)))
-            if family:
-                return family
-        except Exception:
-            pass
-
-    family = _gguf_family_from_path(source)
-    if family:
-        return family
-
-    if source.is_dir():
-        for config_name in ("model_index.json", "config.json", "unet/config.json", "transformer/config.json"):
-            config_path = source / config_name
-            if not config_path.is_file():
-                continue
-            try:
-                config_hint = config_path.read_text(encoding="utf-8", errors="ignore").lower()
-            except OSError:
-                continue
-            if "anima" in config_hint:
-                return "anima"
-            if "stablediffusion3" in config_hint or "stable-diffusion-3" in config_hint:
-                return "sd3"
-            if "stablediffusionxl" in config_hint or "stable-diffusion-xl" in config_hint:
-                return "sdxl"
-            if "stablediffusion" in config_hint:
-                return "sd15"
-
-    raise ValueError(
-        "Could not classify this image model as SD 1.5, SD 3, Anima, or SDXL; "
-        "place the source under a matching checkpoints architecture folder"
-    )
-
-
-def _gguf_source_classification(source: Path) -> Dict[str, Any]:
-    try:
-        family = _detect_gguf_family(source)
-        return {
-            "architecture": family,
-            "targetFolder": f"Image_GGUF/{_GGUF_ARCHITECTURE_FOLDERS[family]}",
-        }
-    except ValueError as exc:
-        return {"architecture": None, "targetFolder": None, "detectionError": str(exc)}
-
-
-def _resolve_output(value: str, outtype: str, family: str) -> Path:
+def _resolve_output(value: str, outtype: str) -> Path:
     filename = _OUTPUT_RE.sub("-", str(value or "model").strip()).strip("-.") or "model"
     if filename.lower().endswith(".gguf"):
         filename = filename[:-5]
-    folder_name = _GGUF_ARCHITECTURE_FOLDERS.get(family)
-    if folder_name is None:
-        raise ValueError("Unsupported GGUF image architecture")
     output_dir = _inside(
-        _models_root() / "Image_GGUF" / folder_name,
+        _models_root() / "Image_GGUF",
         _models_root(),
         "GGUF output directory must be inside the configured models directory",
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir / f"{filename}.{outtype}.gguf"
-
-
-def _embedding_roots() -> list[Path]:
-    from easydiffusion.model_manager import get_model_dirs
-
-    roots = []
-    seen = set()
-    for value in get_model_dirs("embeddings"):
-        root = Path(value).expanduser().resolve()
-        if root in seen:
-            continue
-        seen.add(root)
-        roots.append(root)
-    return roots
-
-
-def _embedding_display_path(candidate: Path) -> str:
-    try:
-        return candidate.relative_to(_models_root()).as_posix()
-    except ValueError:
-        return str(candidate)
-
-
-def _resolve_embedding_source(value: str) -> Path:
-    text_value = str(value or "").strip()
-    if not text_value:
-        raise ValueError("Choose an embedding source file")
-    raw = Path(text_value).expanduser()
-    candidates = [raw] if raw.is_absolute() else [_models_root() / raw]
-    if not raw.is_absolute():
-        candidates.extend(root / raw for root in _embedding_roots())
-
-    roots = _embedding_roots()
-    for candidate in candidates:
-        resolved = candidate.resolve()
-        if not resolved.is_file():
-            continue
-        inside_root = False
-        for root in roots:
-            try:
-                resolved.relative_to(root)
-                inside_root = True
-                break
-            except ValueError:
-                continue
-        if not inside_root:
-            continue
-        if resolved.suffix.lower() not in _EMBEDDING_SOURCE_EXTENSIONS:
-            raise ValueError("Embedding source must be .pt, .pth, .bin, or .ckpt")
-        return resolved
-    raise ValueError("Embedding source must be a file inside a configured embeddings directory")
-
-
-def _embedding_sources(limit: int = 4000) -> list[Dict[str, Any]]:
-    sources = []
-    seen = set()
-    for root in _embedding_roots():
-        if not root.is_dir():
-            continue
-        for current, directories, filenames in os.walk(root, followlinks=False):
-            directories[:] = sorted(name for name in directories if not name.startswith("."))
-            for filename in sorted(filenames):
-                candidate = Path(current) / filename
-                if candidate.suffix.lower() not in _EMBEDDING_SOURCE_EXTENSIONS:
-                    continue
-                try:
-                    resolved = _inside(candidate, root, "Embedding is outside its configured directory")
-                except (OSError, ValueError):
-                    continue
-                if resolved in seen:
-                    continue
-                seen.add(resolved)
-                output = resolved.with_suffix(".safetensors")
-                sources.append(
-                    {
-                        "path": _embedding_display_path(resolved),
-                        "name": resolved.stem,
-                        "format": resolved.suffix.lower().lstrip("."),
-                        "size": resolved.stat().st_size,
-                        "output": _embedding_display_path(output),
-                        "outputExists": output.exists(),
-                    }
-                )
-                if len(sources) >= limit:
-                    return sources
-    return sources
-
-
-def safetensors_readiness_state() -> Dict[str, Any]:
-    try:
-        import torch  # noqa: F401
-        from safetensors.torch import save_file  # noqa: F401
-
-        return {"ready": True, "detail": "Secure embedding conversion is ready."}
-    except Exception as exc:
-        return {
-            "ready": False,
-            "detail": f"Embedding conversion needs PyTorch and safetensors in the Easy Diffusion environment: {exc}",
-        }
-
-
-def _embedding_tensor_map(payload: Any, torch_module: Any) -> Dict[str, Any]:
-    if torch_module.is_tensor(payload):
-        return {"emb_params": payload.detach().cpu().contiguous()}
-    if not isinstance(payload, dict):
-        raise ValueError("Embedding file does not contain a tensor mapping")
-
-    container = payload
-    for wrapper in ("string_to_param", "state_dict"):
-        wrapped = container.get(wrapper)
-        if isinstance(wrapped, dict) and any(torch_module.is_tensor(value) for value in wrapped.values()):
-            container = wrapped
-            break
-
-    tensors = {
-        str(key): value.detach().cpu().contiguous()
-        for key, value in container.items()
-        if torch_module.is_tensor(value)
-    }
-    if not tensors:
-        raise ValueError("Embedding file does not contain any tensors")
-    if len(tensors) == 1 and not any(key in tensors for key in ("emb_params", "clip_l", "clip_g")):
-        return {"emb_params": next(iter(tensors.values()))}
-    return tensors
 
 
 def _set_job(job_id: str, **fields: Any) -> Dict[str, Any]:
@@ -569,51 +359,6 @@ def _conversion_worker(
         )
 
 
-def _safetensors_conversion_worker(job_id: str, source: Path, output: Path) -> None:
-    start = time.perf_counter()
-    temporary_output = output.with_name(f".{output.stem}.{job_id}.partial.safetensors")
-    _set_job(job_id, status="running", startedAt=time.time())
-    try:
-        import torch
-        from safetensors.torch import save_file
-
-        # weights_only is deliberately mandatory. Legacy pickle loading can
-        # execute code embedded in a downloaded .pt/.bin file.
-        payload = torch.load(str(source), map_location="cpu", weights_only=True)
-        tensors = _embedding_tensor_map(payload, torch)
-        save_file(
-            tensors,
-            str(temporary_output),
-            metadata={"converted_from": source.name, "converter": "Easy Diffusion Model Tools"},
-        )
-        if output.exists():
-            raise RuntimeError(f"Safetensors output was created by another process: {output.name}")
-        temporary_output.replace(output)
-        _set_job(
-            job_id,
-            status="completed",
-            output=str(output),
-            tensorCount=len(tensors),
-            size=output.stat().st_size,
-            completedAt=time.time(),
-            elapsedSeconds=round(time.perf_counter() - start, 2),
-        )
-    except Exception as exc:
-        try:
-            temporary_output.unlink(missing_ok=True)
-        except OSError:
-            pass
-        log.error(f"Embedding safetensors conversion failed: {exc}")
-        _append_log(job_id, str(exc))
-        _set_job(
-            job_id,
-            status="failed",
-            error=str(exc),
-            completedAt=time.time(),
-            elapsedSeconds=round(time.perf_counter() - start, 2),
-        )
-
-
 @router.get("/gguf/readiness")
 def gguf_readiness():
     return converter_readiness()
@@ -640,12 +385,8 @@ def gguf_convert(payload: Dict[str, Any]):
     # checkpoint, Auto means the broadly compatible F16 export.
     if kind == "native" and outtype == "auto":
         outtype = "f16"
-    try:
-        architecture = _detect_gguf_family(source)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     default_output_name = source.stem if source.is_file() else source.name
-    output = _resolve_output(str(payload.get("outputName") or default_output_name), outtype, architecture)
+    output = _resolve_output(str(payload.get("outputName") or default_output_name), outtype)
     if output.exists():
         raise HTTPException(status_code=409, detail=f"Output already exists: {output.name}")
     readiness = converter_readiness()
@@ -661,14 +402,11 @@ def gguf_convert(payload: Dict[str, Any]):
         if any(job.get("status") in {"queued", "running"} for job in _JOBS.values()):
             raise HTTPException(status_code=409, detail="Another GGUF conversion is already running")
         _JOBS[job_id] = {
-            "jobType": "gguf",
             "status": "queued",
             "source": str(source),
             "output": str(output),
             "outtype": outtype,
             "kind": kind,
-            "architecture": architecture,
-            "targetFolder": f"Image_GGUF/{_GGUF_ARCHITECTURE_FOLDERS[architecture]}",
             "log": [],
             "createdAt": time.time(),
         }
@@ -685,60 +423,6 @@ def gguf_convert(payload: Dict[str, Any]):
 def gguf_job(job_id: str):
     with _JOBS_LOCK:
         job = dict(_JOBS.get(job_id) or {})
-    if not job or job.get("jobType") != "gguf":
+    if not job:
         raise HTTPException(status_code=404, detail="GGUF conversion job not found")
-    return {"ok": True, "jobId": job_id, **job}
-
-
-@router.get("/safetensors/readiness")
-def safetensors_readiness():
-    return safetensors_readiness_state()
-
-
-@router.get("/safetensors/sources")
-def safetensors_sources():
-    sources = _embedding_sources()
-    return {"ok": True, "sources": sources, "count": len(sources)}
-
-
-@router.post("/safetensors/convert")
-def safetensors_convert(payload: Dict[str, Any]):
-    try:
-        source = _resolve_embedding_source(str(payload.get("source") or ""))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    output = source.with_suffix(".safetensors")
-    if output.exists():
-        raise HTTPException(status_code=409, detail=f"Output already exists: {output.name}")
-    readiness = safetensors_readiness_state()
-    if not readiness["ready"]:
-        raise HTTPException(status_code=503, detail=readiness["detail"])
-
-    job_id = uuid4().hex
-    with _JOBS_LOCK:
-        if any(job.get("status") in {"queued", "running"} for job in _JOBS.values()):
-            raise HTTPException(status_code=409, detail="Another model conversion is already running")
-        _JOBS[job_id] = {
-            "jobType": "safetensors",
-            "status": "queued",
-            "source": str(source),
-            "output": str(output),
-            "log": [],
-            "createdAt": time.time(),
-        }
-    worker = threading.Thread(
-        target=_safetensors_conversion_worker,
-        args=(job_id, source, output),
-        daemon=True,
-    )
-    worker.start()
-    return {"ok": True, "jobId": job_id, "status": "queued"}
-
-
-@router.get("/safetensors/jobs/{job_id}")
-def safetensors_job(job_id: str):
-    with _JOBS_LOCK:
-        job = dict(_JOBS.get(job_id) or {})
-    if not job or job.get("jobType") != "safetensors":
-        raise HTTPException(status_code=404, detail="Safetensors conversion job not found")
     return {"ok": True, "jobId": job_id, **job}

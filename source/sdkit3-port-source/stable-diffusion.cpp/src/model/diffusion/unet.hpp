@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-#include "core/ggml_tensor_utils.h"
 
 #include "model.h"
 #include "model/adapter/ip_adapter.hpp"
@@ -132,15 +131,15 @@ struct UNetConfig {
             }
         }
 
-        LOG_VERBOSE("unet: in_channels = %d, out_channels = %d, model_channels = %d, time_embed_dim = %d, context_dim = %d, adm_in_channels = %d, num_res_blocks = %d, tiny_unet = %s",
-                    config.in_channels,
-                    config.out_channels,
-                    config.model_channels,
-                    config.time_embed_dim,
-                    config.context_dim,
-                    config.adm_in_channels,
-                    config.num_res_blocks,
-                    config.tiny_unet ? "true" : "false");
+        LOG_DEBUG("unet: in_channels = %d, out_channels = %d, model_channels = %d, time_embed_dim = %d, context_dim = %d, adm_in_channels = %d, num_res_blocks = %d, tiny_unet = %s",
+                  config.in_channels,
+                  config.out_channels,
+                  config.model_channels,
+                  config.time_embed_dim,
+                  config.context_dim,
+                  config.adm_in_channels,
+                  config.num_res_blocks,
+                  config.tiny_unet ? "true" : "false");
         return config;
     }
 };
@@ -926,7 +925,7 @@ struct UNetModelRunner : public DiffusionModelRunner {
                                ip_scale);
         };
 
-        return restore_trailing_singleton_dims(GGMLRunner::compute(get_graph, n_threads, false), x.dim());
+        return restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, false, false, false), x.dim());
     }
 
     sd::Tensor<float> compute(int n_threads,
@@ -1001,7 +1000,7 @@ struct UNetModelRunner : public DiffusionModelRunner {
             GGML_ASSERT(!out_opt.empty());
             out = std::move(out_opt);
             print_sd_tensor(out);
-            LOG_VERBOSE("unet test done in %lldms", t1 - t0);
+            LOG_DEBUG("unet test done in %lldms", t1 - t0);
         }
     }
 };

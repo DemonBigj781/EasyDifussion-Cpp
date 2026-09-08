@@ -61,19 +61,9 @@ file(GLOB   GGML_HEADERS_ROCM "../ggml-cuda/*.cuh")
 list(APPEND GGML_HEADERS_ROCM "../../include/ggml-cuda.h")
 
 file(GLOB   GGML_SOURCES_ROCM "../ggml-cuda/*.cu")
-set(GGML_API_ATTENTION_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/features/attention")
-set(GGML_API_CUDA_FLASH_DIR "${GGML_API_ATTENTION_DIR}/flash/cuda/translation/gpu")
-set(GGML_API_CUDA_SAGE_DIR "${GGML_API_ATTENTION_DIR}/sage/cuda/translation/gpu")
-list(FILTER GGML_SOURCES_ROCM EXCLUDE REGEX "/(fattn|fattn-tile|fattn-wmma-f16|sage-attention-dispatch)\\.cu$")
-list(APPEND GGML_SOURCES_ROCM
-    "${GGML_API_CUDA_FLASH_DIR}/fattn.cu"
-    "${GGML_API_CUDA_FLASH_DIR}/fattn-tile.cu"
-    "${GGML_API_CUDA_FLASH_DIR}/fattn-wmma-f16.cu"
-    "${GGML_API_CUDA_SAGE_DIR}/sage-attention.cu"
-)
-file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-tile*.cu")
+file(GLOB   SRCS "../ggml-cuda/template-instances/fattn-tile*.cu")
 list(APPEND GGML_SOURCES_ROCM ${SRCS})
-file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-mma*.cu")
+file(GLOB   SRCS "../ggml-cuda/template-instances/fattn-mma*.cu")
 list(APPEND GGML_SOURCES_ROCM ${SRCS})
 file(GLOB   SRCS "../ggml-cuda/template-instances/mmq*.cu")
 list(APPEND GGML_SOURCES_ROCM ${SRCS})
@@ -81,15 +71,15 @@ file(GLOB   SRCS "../ggml-cuda/template-instances/mmf*.cu")
 list(APPEND GGML_SOURCES_ROCM ${SRCS})
 
 if (GGML_CUDA_FA_ALL_QUANTS)
-    file(GLOB   SRCS "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec*.cu")
+    file(GLOB   SRCS "../ggml-cuda/template-instances/fattn-vec*.cu")
     list(APPEND GGML_SOURCES_ROCM ${SRCS})
     add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)
 else()
     list(APPEND GGML_SOURCES_ROCM
-        "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-f16-f16.cu"
-        "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-q4_0-q4_0.cu"
-        "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-q8_0-q8_0.cu"
-        "${GGML_API_CUDA_FLASH_DIR}/template-instances/fattn-vec-instance-bf16-bf16.cu")
+        ../ggml-cuda/template-instances/fattn-vec-instance-f16-f16.cu
+        ../ggml-cuda/template-instances/fattn-vec-instance-q4_0-q4_0.cu
+        ../ggml-cuda/template-instances/fattn-vec-instance-q8_0-q8_0.cu
+        ../ggml-cuda/template-instances/fattn-vec-instance-bf16-bf16.cu)
 endif()
 
 ggml_add_backend_library(ggml-hip

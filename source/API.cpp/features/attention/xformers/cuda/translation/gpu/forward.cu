@@ -93,7 +93,7 @@ __device__ __forceinline__ float load_mask_value(
     return load_value<float>(pointer);
 }
 
-__device__ __forceinline__ float ggml_alibi_slope(
+__device__ __forceinline__ float alibi_slope(
         const FusedForwardParams& p, std::int64_t head) {
     return head < p.head_log2
         ? powf(p.alibi_m0, static_cast<float>(head + 1))
@@ -238,7 +238,7 @@ __global__ void fused_forward_kernel(FusedForwardParams p) {
                     float mask_value =
                         load_mask_value(mask_pointer, p.mask_dtype);
                     if (p.max_bias > 0.0f) {
-                        mask_value *= ggml_alibi_slope(p, q_head);
+                        mask_value *= alibi_slope(p, q_head);
                     }
                     score += mask_value;
                 }

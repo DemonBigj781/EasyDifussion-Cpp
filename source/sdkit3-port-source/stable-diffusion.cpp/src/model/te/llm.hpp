@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cinttypes>
 #include <cmath>
 #include <fstream>
 #include <functional>
@@ -19,13 +18,8 @@
 #include <utility>
 #include <vector>
 
-#include "core/ggml_extend.h"
-#include "core/ggml_extend_backend.h"
-#include "core/ggml_runner.h"
-#include "core/ggml_tensor_utils.h"
-#include "core/util.h"
+#include "core/ggml_extend.hpp"
 #include "json.hpp"
-#include "model/common/ggml_block.hpp"
 #include "model/common/rope.hpp"
 #include "model_loader.h"
 #include "model_manager.h"
@@ -325,11 +319,11 @@ namespace LLM {
                     config.vision.deepstack_visual_indexes = {8, 16, 24};
                 }
             }
-            LOG_VERBOSE("llm: num_layers = %" PRId64 ", vocab_size = %" PRId64 ", hidden_size = %" PRId64 ", intermediate_size = %" PRId64,
-                        config.num_layers,
-                        config.vocab_size,
-                        config.hidden_size,
-                        config.intermediate_size);
+            LOG_DEBUG("llm: num_layers = %" PRId64 ", vocab_size = %" PRId64 ", hidden_size = %" PRId64 ", intermediate_size = %" PRId64,
+                      config.num_layers,
+                      config.vocab_size,
+                      config.hidden_size,
+                      config.intermediate_size);
             return config;
         }
     };
@@ -1893,9 +1887,9 @@ namespace LLM {
                 enable_vision = false;
             }
             if (enable_vision) {
-                LOG_VERBOSE("enable llm vision");
+                LOG_DEBUG("enable llm vision");
                 if (config.llama_cpp_style) {
-                    LOG_VERBOSE("llama.cpp style vision weight");
+                    LOG_DEBUG("llama.cpp style vision weight");
                 }
             }
             model = LLM(config, enable_vision, config.llama_cpp_style);
@@ -2085,7 +2079,9 @@ namespace LLM {
                                   const ImageEmbeds& image_embeds,
                                   std::set<int> out_layers,
                                   bool return_all_hidden_states                      = false,
-                                  bool auto_runner_end                               = true,
+                                  bool auto_free                                     = true,
+                                  bool free_compute_buffer                           = true,
+                                  bool free_compute_params                           = true,
                                   const DeepStackImageEmbeds& deepstack_image_embeds = {},
                                   const std::vector<ImageGrid>& image_grids          = {}) {
             auto get_graph = [&]() -> ggml_cgraph* {
@@ -2097,7 +2093,7 @@ namespace LLM {
                                    out_layers,
                                    return_all_hidden_states);
             };
-            return restore_trailing_singleton_dims(GGMLRunner::compute(get_graph, n_threads, auto_runner_end),
+            return restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, auto_free, free_compute_buffer, free_compute_params),
                                                    input_ids.dim() + 1);
         }
 
@@ -2177,11 +2173,13 @@ namespace LLM {
 
         sd::Tensor<float> encode_image(const int n_threads,
                                        const sd::Tensor<float>& image,
-                                       bool auto_runner_end = false) {
+                                       bool auto_free           = false,
+                                       bool free_compute_buffer = false,
+                                       bool free_compute_params = false) {
             auto get_graph = [&]() -> ggml_cgraph* {
                 return build_encode_image_graph(image);
             };
-            return take_or_empty(GGMLRunner::compute(get_graph, n_threads, auto_runner_end));
+            return take_or_empty(GGMLRunner::compute<float>(get_graph, n_threads, auto_free, free_compute_buffer, free_compute_params));
         }
 
         ggml_cgraph* build_encode_image_outputs_graph(const sd::Tensor<float>& image_tensor) {
@@ -2289,11 +2287,13 @@ namespace LLM {
 
         std::vector<sd::Tensor<float>> encode_image_outputs(const int n_threads,
                                                             const sd::Tensor<float>& image,
-                                                            bool auto_runner_end = false) {
+                                                            bool auto_free           = false,
+                                                            bool free_compute_buffer = false,
+                                                            bool free_compute_params = false) {
             auto get_graph = [&]() -> ggml_cgraph* {
                 return build_encode_image_outputs_graph(image);
             };
-            auto combined = take_or_empty(GGMLRunner::compute(get_graph, n_threads, auto_runner_end));
+            auto combined = take_or_empty(GGMLRunner::compute<float>(get_graph, n_threads, auto_free, free_compute_buffer, free_compute_params));
             if (combined.empty()) {
                 return {};
             }
@@ -2312,14 +2312,20 @@ namespace LLM {
 
         std::vector<sd::Tensor<float>> encode_video_block_outputs(const int n_threads,
                                                                   const sd::Tensor<float>& frames,
-                                                                  bool auto_runner_end = false) {
+                                                                  bool auto_free           = false,
+                                                                  bool free_compute_buffer = false,
+                                                                  bool free_compute_params = false) {
             int grid_h        = static_cast<int>(frames.shape()[1] / config.vision.patch_size);
             int grid_w        = static_cast<int>(frames.shape()[0] / config.vision.patch_size);
             auto pixel_values = process_video_block_tensor(frames, config.vision);
             auto get_graph    = [&]() -> ggml_cgraph* {
                 return build_encode_video_block_outputs_graph(pixel_values, grid_h, grid_w);
             };
-            auto combined = take_or_empty(GGMLRunner::compute(get_graph, n_threads, auto_runner_end));
+            auto combined = take_or_empty(GGMLRunner::compute<float>(get_graph,
+                                                                     n_threads,
+                                                                     auto_free,
+                                                                     free_compute_buffer,
+                                                                     free_compute_params));
             if (combined.empty()) {
                 return {};
             }
@@ -2381,7 +2387,7 @@ namespace LLM {
                     ss << "['" << item.first << "', " << item.second << "], ";
                 }
                 ss << "]";
-                LOG_VERBOSE("parse '%s' to %s", text.c_str(), ss.str().c_str());
+                LOG_DEBUG("parse '%s' to %s", text.c_str(), ss.str().c_str());
             }
 
             std::vector<int> tokens;
@@ -2432,7 +2438,7 @@ namespace LLM {
                     out = std::move(out_opt);
                     print_sd_tensor(out, false, "image_embed");
                     image_embed = out;
-                    LOG_VERBOSE("llm encode_image test done in %lldms", t1 - t0);
+                    LOG_DEBUG("llm encode_image test done in %lldms", t1 - t0);
                 }
 
                 std::string placeholder  = "<|image_pad|>";
@@ -2472,7 +2478,7 @@ namespace LLM {
                 GGML_ASSERT(!out_opt.empty());
                 out = std::move(out_opt);
                 print_sd_tensor(out);
-                LOG_VERBOSE("llm test done in %lldms", t1 - t0);
+                LOG_DEBUG("llm test done in %lldms", t1 - t0);
             } else if (test_vit) {
                 // auto image = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 280, 280, 3);
                 // ggml_set_f32(image, 0.f);
@@ -2491,7 +2497,7 @@ namespace LLM {
                 // auto ref_out = load_tensor_from_file(ctx, "qwen2vl.bin");
                 // ggml_ext_tensor_diff(ref_out, out, 0.01f);
 
-                LOG_VERBOSE("llm test done in %lldms", t1 - t0);
+                LOG_DEBUG("llm test done in %lldms", t1 - t0);
             } else if (test_mistral) {
                 std::pair<int, int> prompt_attn_range;
                 std::string text        = "[SYSTEM_PROMPT]You are an AI that reasons about image descriptions. You give structured responses focusing on object relationships, object\nattribution and actions without speculation.[/SYSTEM_PROMPT][INST]";
@@ -2516,7 +2522,7 @@ namespace LLM {
                 GGML_ASSERT(!out_opt.empty());
                 out = std::move(out_opt);
                 print_sd_tensor(out);
-                LOG_VERBOSE("llm test done in %lldms", t1 - t0);
+                LOG_DEBUG("llm test done in %lldms", t1 - t0);
             } else if (test_qwen3) {
                 std::pair<int, int> prompt_attn_range;
                 std::string text        = "<|im_start|>user\n";
@@ -2541,7 +2547,7 @@ namespace LLM {
                 GGML_ASSERT(!out_opt.empty());
                 out = std::move(out_opt);
                 print_sd_tensor(out);
-                LOG_VERBOSE("llm test done in %lldms", t1 - t0);
+                LOG_DEBUG("llm test done in %lldms", t1 - t0);
             } else {
                 std::pair<int, int> prompt_attn_range;
                 std::string text        = "<|im_start|>system\nDescribe the image by detailing the color, shape, size, texture, quantity, text, spatial relationships of the objects and background:<|im_end|>\n<|im_start|>user\n";
@@ -2566,7 +2572,7 @@ namespace LLM {
                 GGML_ASSERT(!out_opt.empty());
                 out = std::move(out_opt);
                 print_sd_tensor(out);
-                LOG_VERBOSE("llm test done in %lldms", t1 - t0);
+                LOG_DEBUG("llm test done in %lldms", t1 - t0);
             }
         }
 

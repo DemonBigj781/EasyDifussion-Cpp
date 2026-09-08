@@ -35,6 +35,8 @@ jobs:
         password: '${{ secrets.GITHUB_TOKEN }}'
     steps:
       - uses: actions/checkout@v7
+      - name: Verify API ownership boundaries
+        run: python3 scripts/test_api_boundaries.py
       - name: Verify CPU compiler
         shell: bash
         run: |
@@ -114,9 +116,6 @@ jobs:
           flags=(
             -std=c++17 -Wall -Wextra -Wpedantic
             -Isource/API.cpp
-            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/include
-            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/src
-            -Isource/sdkit3-port-source/stable-diffusion.cpp/ggml/src/ggml-cpu
           )
           c++ "${flags[@]}" \
             source/API.test/Feature/Attention/Flash/Cpu/Main.cpp \

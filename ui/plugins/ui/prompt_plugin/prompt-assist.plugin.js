@@ -480,18 +480,7 @@
   const tokenizerAction = (e) => {
     let tokens = e.target.value.split(',');
     let tokenCount = Math.floor(e.target.value.length / 2.9);
-    const textEncoderRoot = document.getElementById('text_encoder_model');
-    let selectedTextEncoders = textEncoderRoot?.dataset.path || '';
-    try {
-      const parsed = JSON.parse(selectedTextEncoders);
-      selectedTextEncoders = Array.isArray(parsed?.modelNames) ? parsed.modelNames.join(' ') : selectedTextEncoders;
-    } catch (_) {
-      // A plain model path is also a valid selector value.
-    }
-    const usesLongClip = /long[\s_\/-]*clip/i.test(selectedTextEncoders);
-    const tokenLimit = usesLongClip ? 248 : 75;
-    tokenCounter.title = usesLongClip ? 'LongCLIP limit: 248 tokens' : 'CLIP limit: 75 tokens';
-    if (tokenCount > tokenLimit) {
+    if (tokenCount > 75) {
       tokenCounter.classList.add("over-limit");
     } else {
       tokenCounter.classList.remove("over-limit");
@@ -530,10 +519,6 @@
   insertAfter(tokenCounter, tokenContainer);
   textarea.addEventListener('input', tokenizerAction);
   textarea.addEventListener('change', tokenizerAction);
-  const textEncoderRoot = document.getElementById('text_encoder_model');
-  const refreshTokenLimit = () => textarea.dispatchEvent(new Event('input', { bubbles: true }));
-  textEncoderRoot?.addEventListener('input', refreshTokenLimit);
-  textEncoderRoot?.addEventListener('change', refreshTokenLimit);
   document.getElementById('prompt').dispatchEvent(new Event('input', { bubbles: true }));
   const settingsTable = document.getElementsByClassName('parameters-table')[0];
   settingsTable.appendChild(document.getElementById("prompt-assist-settings-template").content.cloneNode(true));

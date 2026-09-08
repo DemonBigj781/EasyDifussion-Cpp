@@ -58,9 +58,7 @@ code {
     display: block;
     border: 2px solid var(--background-color2);
 }
-#negative_prompt,
-#hidden_positive_prompt,
-#hidden_negative_prompt {
+#negative_prompt {
     width: 100%;
     height: 50pt;
     font-size: 13px;
@@ -1092,9 +1090,7 @@ div.img-preview img {
     width: 93%;
 }
 
-#negative_prompt,
-#hidden_positive_prompt,
-#hidden_negative_prompt {
+#negative_prompt {
     width: 100%;
 }
 
@@ -1282,69 +1278,10 @@ input::file-selector-button {
     opacity: 0.75;
 }
 
-.model-directories-editor {
-    display: grid;
-    gap: 8px;
-    width: min(760px, 65vw);
-    min-width: min(520px, 65vw);
-}
-
-.model-directory-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 7px 12px;
-}
-
-.model-directory-value {
-    display: grid;
-    grid-template-columns: minmax(115px, auto) minmax(0, 1fr);
-    gap: 8px;
-    align-items: center;
-}
-
-.model-directory-value small {
-    display: block;
-    opacity: 0.7;
-}
-
-.model-directory-value textarea {
-    width: 100%;
-    min-height: 34px;
-    box-sizing: border-box;
-    resize: vertical;
-}
-
 @media (max-width: 760px) {
-    #system-settings-table > [data-setting-id="backend_commandline_args"],
-    #system-settings-table > [data-setting-id="directories"] {
-        flex-wrap: wrap;
-    }
-
-    #system-settings-table > [data-setting-id="backend_commandline_args"] > div:nth-child(2),
-    #system-settings-table > [data-setting-id="directories"] > div:nth-child(2) {
-        min-width: 0;
-    }
-
-    #system-settings-table > [data-setting-id="backend_commandline_args"] > div:nth-child(3),
-    #system-settings-table > [data-setting-id="directories"] > div:nth-child(3) {
-        box-sizing: border-box;
-        flex: 0 0 100%;
-        justify-content: stretch;
-        padding-top: 0;
-        text-align: left;
-        width: 100%;
-    }
-
-    .native-backend-arguments-editor,
-    .model-directories-editor {
+    .native-backend-arguments-editor {
         min-width: 0;
         width: 100%;
-    }
-
-    .native-backend-argument-grid,
-    .model-directory-grid,
-    .model-directory-value {
-        grid-template-columns: 1fr;
     }
 }
 .model-filter {
@@ -1444,6 +1381,7 @@ input::file-selector-button {
     #tab-content-wrapper > .tab-content {
         padding-top: 0;
     }
+    #image-modifiers-moved-note,
     #initial-text,
     #footer-spacer,
     #footer {
@@ -2093,84 +2031,6 @@ body.wait-pause {
 #embeddings-list button:hover {
     background: var(--accent-color);
     color: var(--button-text-color);
-}
-
-#embeddings-list .modifier-card.embedding-negative-selected {
-    border-color: #ff5c75;
-    box-shadow: 0 0 12px rgba(255, 92, 117, 0.8);
-}
-
-#embeddings-list .modifier-card.embedding-positive-selected {
-    border-color: #41d7b4;
-    box-shadow: 0 0 12px rgba(65, 215, 180, 0.75);
-}
-
-#embeddings-list .modifier-card.embedding-positive-selected .modifier-card-container {
-    background-color: rgba(8, 105, 88, 0.92);
-}
-
-#embeddings-list .modifier-card.embedding-positive-selected .modifier-card-label::after {
-    content: "positive selected";
-    display: block;
-    color: #d8fff6;
-    font-size: 0.65em;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-}
-
-#embeddings-list .modifier-card.embedding-negative-selected .modifier-card-container {
-    background-color: rgba(150, 20, 48, 0.9);
-}
-
-#embeddings-list .modifier-card.embedding-negative-selected .modifier-card-label::after {
-    content: "negative selected";
-    display: block;
-    color: #ffdce2;
-    font-size: 0.65em;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-}
-
-#embeddings-list .modifier-card.embedding-positive-selected.embedding-negative-selected {
-    border-color: #ffd166;
-    box-shadow: 0 0 12px rgba(255, 209, 102, 0.8);
-}
-
-#embeddings-list .modifier-card.embedding-positive-selected.embedding-negative-selected .modifier-card-label::after {
-    content: "positive + negative";
-    color: #fff1c2;
-}
-
-.embedding-settings-content {
-    display: grid;
-    gap: 8px;
-}
-
-.embedding-settings-content textarea {
-    box-sizing: border-box;
-    min-height: 54px;
-    resize: vertical;
-    width: 100%;
-}
-
-.embedding-settings-heading {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.embedding-set-row {
-    align-items: center;
-    display: grid;
-    gap: 6px;
-    grid-template-columns: minmax(70px, auto) minmax(120px, 1fr) auto auto;
-}
-
-@media (max-width: 760px) {
-    .embedding-set-row {
-        grid-template-columns: 1fr;
-    }
 }
 
 #embeddings-list .collapsible {

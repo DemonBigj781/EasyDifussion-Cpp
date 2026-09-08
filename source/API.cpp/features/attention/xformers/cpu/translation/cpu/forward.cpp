@@ -80,7 +80,7 @@ ValidationResult validate(const AttentionRequest& request) {
         return invalid("CPU xFormers ALiBi requires one slope per Q head");
     }
     if (request.alibi.max_bias != 0.0f) {
-        return invalid("CPU xFormers does not support GGML max-bias mask scaling");
+        return invalid("CPU xFormers does not support max-bias mask scaling");
     }
     if (request.sinks.enabled) {
         return invalid("CPU xFormers attention sinks are not implemented yet");

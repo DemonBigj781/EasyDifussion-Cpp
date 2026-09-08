@@ -1,10 +1,8 @@
 #ifndef __SD_MODEL_DIFFUSION_ANIMATEDIFF_HPP__
 #define __SD_MODEL_DIFFUSION_ANIMATEDIFF_HPP__
 
-#include "core/ggml_extend.h"
-#include "core/ggml_runner.h"
+#include "core/ggml_extend.hpp"
 #include "model/common/block.hpp"
-#include "model/common/ggml_block.hpp"
 
 // AnimateDiff (https://arxiv.org/abs/2307.04725) SD 1.5 motion modules.
 namespace AnimateDiff {

@@ -1,8 +1,7 @@
 #ifndef __SD_MODEL_DIFFUSION_DIT_HPP__
 #define __SD_MODEL_DIFFUSION_DIT_HPP__
 
-#include "core/ggml_extend.h"
-#include "core/ggml_runner.h"
+#include "core/ggml_extend.hpp"
 
 namespace DiT {
     inline ggml_tensor* patchify(ggml_context* ctx,

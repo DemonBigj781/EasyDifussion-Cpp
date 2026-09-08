@@ -35,6 +35,8 @@ jobs:
         password: '${{ secrets.GITHUB_TOKEN }}'
     steps:
       - uses: actions/checkout@v7
+      - name: Verify API ownership boundaries
+        run: python3 scripts/test_api_boundaries.py
       - name: Verify CUDA toolchain image
         shell: bash
         run: |

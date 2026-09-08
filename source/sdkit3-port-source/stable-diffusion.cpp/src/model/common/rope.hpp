@@ -2,13 +2,9 @@
 #define __SD_MODEL_COMMON_ROPE_HPP__
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
-#include <set>
 #include <vector>
-#include "core/ggml_extend.h"
-#include "core/ggml_runner.h"
-#include "core/util.h"
+#include "core/ggml_extend.hpp"
 
 namespace Rope {
     enum class EmbedNDLayout {

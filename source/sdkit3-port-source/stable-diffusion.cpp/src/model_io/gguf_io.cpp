@@ -168,6 +168,7 @@ bool GGUFStreamingWriter::write_metadata(const std::string& file_path,
         close();
         return false;
     }
+
     // ggml exposes GGUF metadata writing through FILE* only. Keep FILE usage
     // isolated here; tensor data is written through std::fstream by the shared
     // streaming pipeline.

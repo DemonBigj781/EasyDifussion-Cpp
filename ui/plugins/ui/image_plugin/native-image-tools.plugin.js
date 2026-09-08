@@ -12,9 +12,6 @@
     const holder = document.createElement("div")
     holder.id = "native-image-tools"
     holder.innerHTML = `
-        <button id="native-remove-background" class="button" type="button" title="Remove the background locally with the bundled U²-Net ONNX model and replace the initial image">
-            <i class="fa-solid fa-person-rays"></i> Remove background
-        </button>
         <button id="native-text-mask" class="button" type="button" title="Find likely text and load it as an editable inpaint mask">
             <i class="fa-solid fa-font"></i> Text mask
         </button>
@@ -23,9 +20,6 @@
         </button>
         <button id="native-face-mask" class="button" type="button" title="Detect faces with the native C++ YOLO sidecar and mask them">
             <i class="fa-regular fa-face-smile"></i> Faces
-        </button>
-        <button id="native-remove-object" class="button" type="button" title="Remove the currently painted inpaint mask with the Deep Object Removal model">
-            <i class="fa-solid fa-eraser"></i> Remove object
         </button>
         <small id="native-image-tools-status" aria-live="polite"></small>`
     buttons.appendChild(holder)
@@ -79,35 +73,6 @@
         imageInpainter.show()
     }
 
-    async function removeBackground() {
-        ensureImage()
-        status.textContent = "Removing background…"
-        const result = await post("/image-tools/remove-background", {
-            image: imagePayload(),
-            model: "u2net",
-            alpha_matting: false,
-        })
-        if (!result.image) throw new Error("Background remover returned no image.")
-        preview.src = result.image
-        status.textContent = `Background removed at ${result.width} × ${result.height}.`
-    }
-
-    async function removeObject() {
-        ensureImage()
-        if (!maskSetting.checked) throw new Error("Paint and save an inpaint mask first.")
-        status.textContent = "Removing masked object…"
-        const result = await post("/image-tools/remove-object", {
-            image: imagePayload(),
-            mask: imageInpainter.getImg(),
-            feather: 4,
-        })
-        if (!result.image) throw new Error("Object remover returned no image.")
-        preview.src = result.image
-        maskSetting.checked = false
-        maskSetting.dispatchEvent(new Event("change"))
-        status.textContent = `Removed the masked object at ${result.width} × ${result.height}.`
-    }
-
     async function textMask() {
         ensureImage()
         status.textContent = "Finding text…"
@@ -154,9 +119,7 @@
         })
     }
 
-    document.getElementById("native-remove-background").addEventListener("click", () => run(removeBackground))
     document.getElementById("native-text-mask").addEventListener("click", () => run(textMask))
     document.getElementById("native-object-mask").addEventListener("click", () => run(() => detectionMask("objects")))
     document.getElementById("native-face-mask").addEventListener("click", () => run(() => detectionMask("face")))
-    document.getElementById("native-remove-object").addEventListener("click", () => run(removeObject))
 })()
