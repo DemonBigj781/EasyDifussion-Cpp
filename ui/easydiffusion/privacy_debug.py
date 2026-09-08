@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 import math
 import os
 import re
+from functools import lru_cache
 from logging.handlers import RotatingFileHandler
 from numbers import Real
 from pathlib import Path
@@ -19,6 +21,51 @@ _PRIVATE_CONTEXT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_QUOTED_ABSOLUTE_PATH_PATTERN = re.compile(
+    r"(?P<quote>['\"])(?P<path>(?:[A-Za-z]:[\\/]|/)[^'\"\r\n]+)(?P=quote)"
+)
+_UNQUOTED_ABSOLUTE_PATH_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_:/])(?P<path>(?:[A-Za-z]:[\\/]|/)[^\s'\"<>|]+)"
+)
+_TECHNICAL_IDENTIFIERS = (
+    "ControlNet",
+    "SDXL",
+    "SD15",
+    "LoRA",
+    "UNet",
+    "CLIP",
+    "GGUF",
+    "VAE",
+    "SD3",
+    "SD",
+)
+_TECHNICAL_IDENTIFIER_PATTERN = re.compile(
+    "|".join(sorted(map(re.escape, _TECHNICAL_IDENTIFIERS), key=len, reverse=True)),
+    re.IGNORECASE,
+)
+_NORMALIZED_IDENTIFIERS = {value.lower(): value for value in _TECHNICAL_IDENTIFIERS}
+_SAFE_EXTENSIONS = {
+    ".bin",
+    ".ckpt",
+    ".gguf",
+    ".json",
+    ".onnx",
+    ".pt",
+    ".pth",
+    ".safetensors",
+}
+_SAFE_RESOURCE_CATEGORIES = {
+    "clip",
+    "clip-vision",
+    "controlnet",
+    "embeddings",
+    "lora",
+    "models",
+    "outputs",
+    "unet",
+    "vae",
+}
+
 
 def block_alphabetic_context(value: object) -> str:
     """Preserve prompt syntax while removing readable alphabetic context."""
@@ -31,6 +78,119 @@ def redact_log_message(message: object, force: bool = False) -> str:
     if force or _PRIVATE_CONTEXT_PATTERN.search(rendered):
         return block_alphabetic_context(rendered)
     return rendered
+
+
+@lru_cache(maxsize=512)
+def _cached_file_md5(path_text: str, size: int, modified_ns: int) -> str:
+    """Hash a file once for a stable diagnostic identity.
+
+    Size and modification time are cache-key inputs so a changed file is read
+    again. MD5 is an identifier here, not a security or integrity guarantee.
+    """
+
+    del size, modified_ns
+    digest = hashlib.md5()
+    with open(path_text, "rb") as source:
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _file_md5(path: Path) -> str | None:
+    try:
+        details = path.stat()
+        if not path.is_file():
+            return None
+        return _cached_file_md5(str(path), details.st_size, details.st_mtime_ns)
+    except (OSError, ValueError):
+        return None
+
+
+def _safe_extension(filename: str) -> str:
+    extension = Path(filename).suffix.lower()
+    return extension if extension in _SAFE_EXTENSIONS else ""
+
+
+def _redact_filename(filename: str) -> str:
+    """Block alphabetic context while retaining known model identifiers."""
+
+    extension = _safe_extension(filename)
+    stem = filename[: -len(extension)] if extension else filename
+    output: list[str] = []
+    cursor = 0
+    for match in _TECHNICAL_IDENTIFIER_PATTERN.finditer(stem):
+        output.append(block_alphabetic_context(stem[cursor : match.start()]))
+        output.append(_NORMALIZED_IDENTIFIERS[match.group(0).lower()])
+        cursor = match.end()
+    output.append(block_alphabetic_context(stem[cursor:]))
+    return "".join(output) + extension
+
+
+def _relative_resource_category(path_text: str) -> str:
+    parts = [part for part in path_text.replace("\\", "/").split("/") if part]
+    lowered = [part.lower() for part in parts]
+    for index, part in enumerate(lowered[:-1]):
+        if part == "models":
+            category = ["models"]
+            if index + 1 < len(parts) - 1 and lowered[index + 1] in _SAFE_RESOURCE_CATEGORIES:
+                category.append(lowered[index + 1])
+            return "/".join(category)
+        if part in {"outputs", "output"}:
+            return "outputs"
+    return "resource"
+
+
+def _looks_like_filesystem_path(path_text: str) -> bool:
+    normalized = path_text.replace("\\", "/")
+    lowered = normalized.lower()
+    if re.match(r"^[a-z]:/", lowered):
+        return True
+    if any(
+        lowered.startswith(prefix)
+        for prefix in ("/home/", "/users/", "/workspace/", "/tmp/", "/var/", "/opt/", "/mnt/", "/media/", "/srv/", "/root/")
+    ):
+        return True
+    parts = {part for part in lowered.split("/") if part}
+    if parts.intersection(_SAFE_RESOURCE_CATEGORIES):
+        return True
+    if re.search(r"\.[a-z0-9]{1,12}$", lowered):
+        return True
+    try:
+        return Path(path_text).expanduser().exists()
+    except (OSError, ValueError):
+        return False
+
+
+def report_safe_path(path_text: str) -> str:
+    """Return a shareable path label without its directory or basename."""
+
+    suffix_match = re.match(r"^(.*?)(:\d+)?([.,;)]+)?$", path_text)
+    normalized = suffix_match.group(1) if suffix_match else path_text
+    trailing = "" if suffix_match is None else "".join(
+        part or "" for part in suffix_match.groups()[1:]
+    )
+    if not _looks_like_filesystem_path(normalized):
+        return path_text
+    filename = normalized.replace("\\", "/").rsplit("/", 1)[-1]
+    extension = _safe_extension(filename)
+    digest = _file_md5(Path(normalized).expanduser())
+    identity = f"<md5:{digest}>{extension}" if digest else _redact_filename(filename)
+    return f"{_relative_resource_category(normalized)}/{identity}{trailing}"
+
+
+def sanitize_log_paths(message: object) -> str:
+    """Remove absolute paths and sensitive filenames from exported log text."""
+
+    rendered = str(message)
+
+    def replace_quoted(match: re.Match) -> str:
+        quote = match.group("quote")
+        return f"{quote}{report_safe_path(match.group('path'))}{quote}"
+
+    rendered = _QUOTED_ABSOLUTE_PATH_PATTERN.sub(replace_quoted, rendered)
+    return _UNQUOTED_ABSOLUTE_PATH_PATTERN.sub(
+        lambda match: report_safe_path(match.group("path")), rendered
+    )
 
 
 def count_non_finite_values(value: object) -> tuple[int, int]:
@@ -117,7 +277,10 @@ class PrivacySafeRotatingFileHandler(RotatingFileHandler):
 
     def format(self, record: logging.LogRecord) -> str:
         rendered = super().format(record)
-        return redact_log_message(rendered, force=bool(getattr(record, "privacy_sensitive", False)))
+        rendered = redact_log_message(
+            rendered, force=bool(getattr(record, "privacy_sensitive", False))
+        )
+        return sanitize_log_paths(rendered)
 
 
 def install_privacy_debug_logger(log_path: str, log_format: str, date_format: str = "%X") -> Path:
