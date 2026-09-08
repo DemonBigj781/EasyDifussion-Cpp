@@ -13,10 +13,11 @@ load/unload, backend tensors, attention implementations, cache implementations,
 or driver calls. Those are DiffUser concerns, requested only through DiffUser
 Common contracts.
 
-Feature implementations follow the DiffUser organizational convention under
-`features/<feature>/common/`. Tokenization therefore begins under
-`features/token/common/`; device definition and translation layers are added
-only when a feature genuinely has device-specific behavior.
+Tokenization follows the shared `features/token/common/` organization. VAE has
+the explicit implementation layout
+`Feature/vae/[backend]/[device]/[function].cpp`, with its normalized planning
+contract under `Feature/vae/common/`. Backend/device function files are added
+only when a real implementation exists.
 
 The initial build contains the independent request/execution-plan layer and a
 generic BPE tokenizer foundation. The tokenizer is not yet CLIP- or T5-complete.

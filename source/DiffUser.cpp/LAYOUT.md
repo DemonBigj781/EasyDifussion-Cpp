@@ -279,6 +279,11 @@ See `IMPLEMENTATION_STATUS.md` for the backend/feature coverage matrix and the
 active/future/compatibility map. A matrix cell
 is not supported merely because its empty directory scaffold exists.
 
+Primitive implementations use the specialized type-oriented layout
+`features/primitives/[backend]/[device]/[primitive_type].cpp`, with normalized
+contracts and registration in `features/primitives/common/`. This keeps support
+claims explicit for each backend, device class, and primitive data type.
+
 ## Placement rules
 
 1. Keep feature and method names lowercase.

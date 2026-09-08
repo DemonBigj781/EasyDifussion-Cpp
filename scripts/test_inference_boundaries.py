@@ -11,7 +11,7 @@ FORBIDDEN = re.compile(
 )
 
 violations = []
-for folder in (PRODUCTION / "include", PRODUCTION / "src", PRODUCTION / "features"):
+for folder in (PRODUCTION / "include", PRODUCTION / "src", PRODUCTION / "features", PRODUCTION / "Feature"):
     for path in folder.rglob("*"):
         if path.is_file() and path.suffix in {".h", ".hpp", ".c", ".cc", ".cpp", ".cxx"}:
             for line_number, line in enumerate(path.read_text(errors="ignore").splitlines(), 1):

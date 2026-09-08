@@ -34,9 +34,9 @@ model logic or deliver the finished result, it belongs to INFERENCE.cpp.
 | latent creation and ownership | no | no | no | block latent initialization execution |
 | deterministic noise fill | no | no | no | add before sampler execution |
 | model-family forward execution | INFERENCE-owned; not a DiffUser operation | required primitives incomplete | required GPU primitive translations incomplete | implementation blocked, ownership retained by INFERENCE |
-| generic tensor operations needed by schedulers | only operation enum fragments | no complete route | no complete route | audit each scheduler before migration |
-| VAE encode semantics | INFERENCE plan exists; not a DiffUser operation | handler resources absent | handler GPU translations absent | execution blocked |
-| VAE decode semantics | INFERENCE plan exists; not a DiffUser operation | handler resources absent | handler GPU translations absent | execution blocked |
+| project-wide tensor primitives | only operation enum fragments | no complete route | no complete route | governed by `INFERENCE_PRIMITIVE_AUDIT.md` |
+| VAE encode semantics | INFERENCE plan exists under `Feature/vae/common`; not a DiffUser operation | handler resources absent | handler GPU translations absent | backend/device `encode.cpp` blocked |
+| VAE decode semantics | INFERENCE plan exists under `Feature/vae/common`; not a DiffUser operation | handler resources absent | handler GPU translations absent | backend/device `decode.cpp` blocked |
 | normalized image resource | no | no | no | raw image pointers forbidden |
 | normalized mask resource | no | no | no | raw mask pointers forbidden |
 | device-to-host result transfer | no | no | no | add administrative Common transfer handler |

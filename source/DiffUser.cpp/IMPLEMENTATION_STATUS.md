@@ -193,6 +193,14 @@ Planned TeaCache methods: `support`, `configure`, `validate`, `init`, `enabled`,
 `begin_step`, `rel_l1`, `rescale`, `accumulate`, `reuse`, `store`, `apply`,
 `skipped`, `before`, and `after`.
 
+## Primitives
+
+Project-wide primitive requirements are classified in the dated
+`Audit/2026-09-08/INFERENCE_PRIMITIVE_AUDIT.md`. No backend/device/type primitive
+source has yet passed the Common contract, implementation, build, and runtime
+gates. Existing `Operation` enum members are inventory labels, not primitive
+support claims.
+
 ## Deferred feature scaffolds
 
 `ggml`, `gguf`, and `reserve` are explicitly later-development directories.

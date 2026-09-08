@@ -7,7 +7,7 @@ set(DIFFUSER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../DiffUser.cpp" CACHE PATH
 add_library(edcpp_inference STATIC
     src/plan.cpp
     features/token/common/tokenizer.cpp
-    features/vae/common/vae.cpp
+    Feature/vae/common/vae.cpp
 )
 target_include_directories(edcpp_inference PUBLIC
     include
@@ -26,7 +26,7 @@ if(BUILD_TESTING)
     target_link_libraries(edcpp_inference_tokenizer_test PRIVATE edcpp_inference)
     add_test(NAME edcpp_inference_tokenizer COMMAND edcpp_inference_tokenizer_test)
 
-    add_executable(edcpp_inference_vae_plan_test tests/features/vae/vae_plan_test.cpp)
+    add_executable(edcpp_inference_vae_plan_test tests/Feature/vae/vae_plan_test.cpp)
     target_link_libraries(edcpp_inference_vae_plan_test PRIVATE edcpp_inference)
     add_test(NAME edcpp_inference_vae_plan COMMAND edcpp_inference_vae_plan_test)
 endif()

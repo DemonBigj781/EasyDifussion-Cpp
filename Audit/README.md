@@ -13,6 +13,7 @@ chronologically.
 
 - [CPU attention coverage audit](2026-09-08/CPU_ATTENTION_AUDIT.md)
 - [INFERENCE.cpp to DiffUser Common gap audit](2026-09-08/INFERENCE_COMMON_GAP_AUDIT.md)
+- [Project-wide inference primitive audit](2026-09-08/INFERENCE_PRIMITIVE_AUDIT.md)
 
 An audit stays in its original dated directory when later documentation links
 to it. A materially new inspection should create a new dated audit rather than

@@ -1,5 +1,22 @@
 # VAE inference feature
 
+## Layout
+
+```text
+Feature/vae/
+├── common/vae.hpp
+├── common/vae.cpp
+└── [backend]/
+    └── [device]/
+        ├── encode.cpp
+        └── decode.cpp
+```
+
+Backend/device functions are created only when they contain a real
+INFERENCE-owned implementation. They may consume prepared DiffUser Common
+resources and primitives, but may not call DiffUser definitions or translations
+directly.
+
 INFERENCE.cpp owns the meaning, execution, and sequencing of VAE encode and decode. The
 Common inference layer currently validates image/latent shapes, scaling policy,
 and tiling policy and produces an encode or decode plan.

@@ -9,6 +9,10 @@ Before admitting a feature, update the
 That audit determines which DiffUser Common contracts and backend translations
 must land before the inference implementation may call them.
 
+Primitive requirements apply throughout inference and are tracked in the
+[project-wide primitive audit](../../Audit/2026-09-08/INFERENCE_PRIMITIVE_AUDIT.md),
+not as a VAE-only subset.
+
 ## Reimplement in INFERENCE.cpp
 
 | SDKIT3 reference area | Intended INFERENCE.cpp ownership |
@@ -78,7 +82,8 @@ input planning is deferred until those resource routes exist.
 7. API.test composition tests that prove INFERENCE.cpp reaches hardware and
    resources only through DiffUser Common.
 
-VAE planning is now represented under `features/vae/common`. Execution remains
+VAE planning is now represented under `Feature/vae/common`. Backend execution
+uses `Feature/vae/[backend]/[device]/[function].cpp`. Execution remains
 blocked on DiffUser Common handlers for VAE, image, and latent resources plus
 the compute primitives and GPU translations required by the inference-owned
 encode/decode implementation.

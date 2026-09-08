@@ -1,4 +1,4 @@
-#include "features/vae/common/vae.hpp"
+#include "Feature/vae/common/vae.hpp"
 
 #include <cmath>
 
