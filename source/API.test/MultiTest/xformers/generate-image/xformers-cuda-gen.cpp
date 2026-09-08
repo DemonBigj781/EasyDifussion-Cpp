@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-// Linked from the canonical API.cpp CUDA xFormers implementation through the
+// Linked from the canonical DiffUser.cpp CUDA xFormers implementation through the
 // static ggml-cuda library. This is deliberately only an observation hook;
 // image execution still enters attention through normal ggml dispatch.
 std::uint64_t ggml_cuda_xformers_attn_launch_count() noexcept;

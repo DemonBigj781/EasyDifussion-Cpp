@@ -1,6 +1,6 @@
 # API runtime test applications
 
-This tree contains standalone executables for normalized API.cpp routes. A feature test calls its Common API and links the selected backend translation and definition; test code must not call backend implementation symbols directly.
+This tree contains standalone executables for normalized DiffUser.cpp routes. A feature test calls its Common API and links the selected backend translation and definition; test code must not call backend implementation symbols directly.
 
 ## xFormers test layout
 

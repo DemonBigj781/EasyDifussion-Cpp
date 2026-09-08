@@ -10,7 +10,7 @@ VULKAN_LDLIBS ?= -lvulkan
 OPENGL_LDLIBS ?= -lEGL -lGL
 MESA_LDLIBS ?= -lEGL -lGL
 
-API_ROOT := ../API.cpp
+API_ROOT := ../DiffUser.cpp
 BUILD_DIR ?= build
 INCLUDES := -I. -I$(API_ROOT) -I$(API_ROOT)/library/include
 COMMON_SOURCES := \

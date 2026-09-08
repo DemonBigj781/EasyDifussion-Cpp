@@ -8,12 +8,12 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 TREES = {
-    "API.cpp": ROOT / "source/API.cpp",
+    "DiffUser.cpp": ROOT / "source/DiffUser.cpp",
     "SDKIT3": ROOT / "source/sdkit3-port-source",
     "llama.cpp": ROOT / "source/llama.cpp",
 }
 RULES = {
-    "API.cpp": re.compile(r"API\.test|\bggml\b|\bggml_|\bGGML_|sdkit3-port-source|stable-diffusion(?:\.cpp|\.h)|(?:^|[/\\])llama\.cpp", re.I),
+    "DiffUser.cpp": re.compile(r"API\.test|\bggml\b|\bggml_|\bGGML_|sdkit3-port-source|stable-diffusion(?:\.cpp|\.h)|(?:^|[/\\])llama\.cpp", re.I),
     "SDKIT3": re.compile(r"(?:^|[/\\])API(?:\.cpp|\.bridge)(?:[/\\]|$)", re.I),
     "llama.cpp": re.compile(r"(?:^|[/\\])API(?:\.cpp|\.bridge)(?:[/\\]|$)|sdkit3-port-source|stable-diffusion(?:\.cpp|\.h)", re.I),
 }
@@ -34,7 +34,7 @@ for name, tree in TREES.items():
 # Exact engine-source copies are also coupling, even without an include path.
 source_suffixes = SUFFIXES - {".cmake"}
 api_hashes = {}
-for path in TREES["API.cpp"].rglob("*"):
+for path in TREES["DiffUser.cpp"].rglob("*"):
     if path.is_file() and path.suffix in source_suffixes and path.stat().st_size:
         api_hashes.setdefault(hashlib.sha256(path.read_bytes()).digest(), []).append(path)
 for engine in ("SDKIT3", "llama.cpp"):
@@ -50,4 +50,4 @@ for engine in ("SDKIT3", "llama.cpp"):
 if violations:
     print("Production library boundary violations:", *violations, sep="\n")
     sys.exit(1)
-print("API.cpp, SDKIT3, and llama.cpp production boundaries are independent")
+print("DiffUser.cpp, SDKIT3, and llama.cpp production boundaries are independent")
