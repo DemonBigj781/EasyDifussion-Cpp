@@ -19,16 +19,15 @@ selection route derived from these logical stages:
 - `expand`
 - `select`
 
-This is implementation evidence, not a completed Common contract. The code
-still uses the SDKIT3-facing `sd` namespace and includes
-`stable-diffusion.h`. Before CPU support can advance beyond `I`, it must be
-separated into:
+This is implementation evidence, not a completed registered Common contract.
+The source is self-contained under `edcpp::api::attention::flex`, but it is
+still one host algorithm rather than an accommodated CPU route. Before CPU
+support can advance beyond `I`, it must be separated into:
 
 1. a backend-neutral Common request and result;
 2. a CPU definition containing native host behavior;
 3. a CPU translation registered with Common;
 4. deterministic CPU validation for the logical selection semantics;
-5. a narrow SDKIT3 bridge that consumes the Common API without placing API
-   implementation inside SDKIT3.
+5. API.test coverage that exercises each advertised selection semantic.
 
 See `native-calls/cpu.md` for the present inventory.

@@ -122,6 +122,10 @@ XFORMERS_CPU_CYCLE_SOURCES := \
 	MultiTest/xformers/cycle/xformers-load-unload-cpu-test.cpp \
 	$(XFORMERS_CPU_RUNTIME_SOURCES) \
 	$(CPU_MODEL_SOURCES)
+FLASH_CPU_SOURCES := \
+	Feature/Attention/Flash/Cpu/Main.cpp \
+	$(API_ROOT)/features/attention/flash/common/flash_attention.cpp \
+	$(API_ROOT)/features/attention/flash/cpu/translation/cpu/flash_attention_cpu.cpp
 XFORMERS_IMAGE_DIR := MultiTest/xformers/generate-image
 XFORMERS_IMAGE_SOURCES := \
 	$(XFORMERS_IMAGE_DIR)/CMakeLists.txt \
@@ -169,12 +173,12 @@ SAGE_CUDA_SUPPORT_SOURCES := \
 .PHONY: all cpu cuda opencl vulkan opengl mesa \
 	load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda \
 	xformers-cpu xformers-cuda xformers-cpu-gen xformers-cuda-gen \
-	flash-cuda flash-cuda-roundtrip flash-cuda-gen sage-cuda-support \
+	flash-cpu flash-cuda flash-cuda-roundtrip flash-cuda-gen sage-cuda-support \
 	run-cpu run-cuda run-opencl run-vulkan run-opengl run-mesa \
 	run-load-cpu run-load-cuda \
 	run-unload-cpu run-unload-cuda run-overflow-cpu run-overflow-cuda \
 	run-overflow-cuda-stress run-xformers-cpu run-xformers-cuda \
-	run-flash-cuda run-flash-cuda-roundtrip run-sage-cuda-support \
+	run-flash-cpu run-flash-cuda run-flash-cuda-roundtrip run-sage-cuda-support \
 	check check-xformers check-flash check-sage clean
 
 all: cpu cuda load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda
@@ -206,6 +210,8 @@ overflow-cuda: $(BUILD_DIR)/overflow-cuda
 xformers-cpu: $(BUILD_DIR)/xformers-load-unload-cpu-test
 
 xformers-cuda: $(BUILD_DIR)/xformers-load-unload-cuda-test
+
+flash-cpu: $(BUILD_DIR)/flash-attention-cpu-test
 
 flash-cuda: $(BUILD_DIR)/flash-attention-cuda-test
 
@@ -285,6 +291,9 @@ run-xformers-cpu: xformers-cpu
 run-xformers-cuda: xformers-cuda
 	$(BUILD_DIR)/xformers-load-unload-cuda-test
 
+run-flash-cpu: flash-cpu
+	$(BUILD_DIR)/flash-attention-cpu-test
+
 run-flash-cuda: flash-cuda
 	$(BUILD_DIR)/flash-attention-cuda-test
 
@@ -299,7 +308,7 @@ check: run-cpu run-cuda run-load-cpu run-load-cuda \
 
 check-xformers: run-xformers-cpu run-xformers-cuda
 
-check-flash: run-flash-cuda
+check-flash: run-flash-cpu run-flash-cuda
 
 check-sage: run-sage-cuda-support
 
@@ -363,6 +372,10 @@ $(BUILD_DIR)/xformers-load-unload-cpu-test: $(XFORMERS_CPU_CYCLE_SOURCES)
 $(BUILD_DIR)/xformers-load-unload-cuda-test: $(XFORMERS_CUDA_CYCLE_SOURCES)
 	@mkdir -p $(dir $@)
 	$(NVCC) -O2 -std=c++17 $(CUDA_CPPFLAGS) $(INCLUDES) $^ -o $@
+
+$(BUILD_DIR)/flash-attention-cpu-test: $(FLASH_CPU_SOURCES)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
 $(BUILD_DIR)/flash-attention-cuda-test: $(FLASH_CUDA_SOURCES)
 	@mkdir -p $(dir $@)

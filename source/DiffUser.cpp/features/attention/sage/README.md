@@ -1,15 +1,8 @@
 # SageAttention
 
-The current CUDA slice normalizes capability selection without overstating the
-forward route:
-
-```text
-stable-diffusion.cpp GGML selector
-  -> Sage Common support
-  -> CUDA support translation
-  -> CUDA-native support definition
-  -> direct GGML-native SM80 forward compatibility kernel
-```
+The current source normalizes capability selection without overstating a
+forward route. DiffUser does not depend on stable-diffusion.cpp, GGML, SDKIT3,
+or llama.cpp.
 
 `common/sage_attention.*` owns the backend-neutral tensor, device, capability,
 validation, registry, and support-dispatch contract. The CUDA definition
@@ -22,15 +15,6 @@ translation registers that definition with Common.
 contract test. It does not execute CUDA or establish numerical/runtime proof by
 itself.
 
-Manual runtime validation on an RTX 3060 (`sm_86`, driver 580.94.18) completed
-a profiled one-step 256x256 SDXL Turbo generation and wrote a valid RGB PNG.
-The Nsight Systems trace recorded 280 launches each of the Sage key-mean, F16 K
-quantization, F32 Q quantization, INT8-QK/FP16-PV attention, and output
-conversion kernels. This is runtime proof of the Common support selector and
-retained native forward path, not numerical parity proof or a normalized Common
-`forward` route.
-
-The next migration step is a normalized Common `forward` request and CUDA
-translation. Once that exists, the GGML-to-Common request adapter belongs in
-`source/API.bridge/sdkit3-ggml`, and the direct native launch can be retired
-after application and fallback coverage are proven.
+There is no Sage CPU definition, CPU translation, CPU test, or CPU forward
+implementation. The CPU family is therefore not accommodated. CUDA forward
+work also remains separate from its existing support contract.
