@@ -77,14 +77,12 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn("/plugins/core/prompt_plugin/spell-tokenizer.worker.js", plugin)
         self.assertIn("getElementById('system-settings-table')", plugin)
 
-    def test_perchance_gallery_exposes_rating_choices(self):
+    def test_perchance_gallery_uses_unfiltered_rating(self):
         perchance_root = self.plugin_root / "perchance_plugin"
         plugin = (perchance_root / "perchance-gallery.tab.plugin.js").read_text(encoding="utf-8")
         html = (perchance_root / "perchance-gallery.tab.plugin.html").read_text(encoding="utf-8")
-        self.assertIn('id="perchance-generator-gallery-content-filter"', html)
-        for rating in ('value="g"', 'value="pg13"', 'value="none"'):
-            self.assertIn(rating, html)
-        self.assertIn("data-custom-rating", plugin)
+        self.assertNotIn('id="perchance-generator-gallery-content-filter"', html)
+        self.assertIn('content_filter: "none"', plugin)
 
     def test_perchance_features_are_independently_toggleable(self):
         self.assertIn('id: "perchance-image"', self.loader)
