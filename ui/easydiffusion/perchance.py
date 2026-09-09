@@ -32,6 +32,7 @@ MAX_PROMPT_LENGTH = 20_000
 MAX_CAPTURE_LENGTH = 1_000_000
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 DEFAULT_GALLERY_CHANNEL = "ai-text-to-image-generator"
+DEFAULT_GALLERY_CONTENT_FILTER = "none"
 CHANNEL_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 FUSE_ERROR_MARKERS = (
     "cannot mount appimage",
@@ -412,7 +413,7 @@ def _decorate_download(item: dict) -> dict:
 def _gallery_common(payload: dict) -> tuple[str, str, bool, bool]:
     channel = _gallery_channel(payload.get("channel"))
     content_filter = _bounded_string(
-        payload.get("content_filter", "g"),
+        payload.get("content_filter", DEFAULT_GALLERY_CONTENT_FILTER),
         "content_filter",
         128,
     )
