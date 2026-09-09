@@ -23,6 +23,10 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
     async def test_gallery_timeout_allows_nested_frame_startup(self):
         self.assertGreaterEqual(perchance.GALLERY_TIMEOUT_SECONDS, 10 * 60)
 
+    async def test_gallery_defaults_to_unfiltered_content(self):
+        self.assertEqual(perchance.DEFAULT_GALLERY_CONTENT_FILTER, "none")
+        self.assertEqual(perchance._gallery_common({})[1], "none")
+
     async def test_launcher_prefers_extracted_binary(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
