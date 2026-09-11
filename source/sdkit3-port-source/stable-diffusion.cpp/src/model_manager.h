@@ -13,6 +13,8 @@
 #include "weight_manager.h"
 
 class ModelManager : public RunnerWeightManager {
+    friend struct ModelManagerTestAccess;
+
 public:
     enum class ResidencyMode {
         Disk,

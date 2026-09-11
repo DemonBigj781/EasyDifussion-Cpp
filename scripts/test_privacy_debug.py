@@ -1,9 +1,9 @@
-import hashlib
 import importlib.util
 import logging
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -15,20 +15,19 @@ SPEC.loader.exec_module(privacy_debug)
 
 
 class TestReportSafeFilenameLogging(unittest.TestCase):
-    def test_existing_file_uses_content_md5_without_private_path_or_name(self):
+    def test_existing_file_uses_metadata_identity_without_reading_contents(self):
         with tempfile.TemporaryDirectory() as directory:
             model_dir = pathlib.Path(directory) / "models" / "lora"
             model_dir.mkdir(parents=True)
             model = model_dir / "private descriptive name SDXL.safetensors"
-            contents = b"diagnostic model fixture"
-            model.write_bytes(contents)
+            model.write_bytes(b"diagnostic model fixture")
 
-            rendered = privacy_debug.sanitize_log_paths(f"failed to load '{model}'")
+            with mock.patch("builtins.open", side_effect=AssertionError("model contents were read")):
+                rendered = privacy_debug.sanitize_log_paths(f"failed to load '{model}'")
 
-            expected_md5 = hashlib.md5(contents).hexdigest()
-            self.assertEqual(
+            self.assertRegex(
                 rendered,
-                f"failed to load 'models/lora/<md5:{expected_md5}>.safetensors'",
+                r"^failed to load 'models/lora/<id:[0-9a-f]{32}>\.safetensors'$",
             )
             self.assertNotIn(directory, rendered)
             self.assertNotIn("private descriptive name", rendered)
@@ -59,7 +58,7 @@ class TestReportSafeFilenameLogging(unittest.TestCase):
             rendered = handler.format(record)
             handler.close()
 
-            self.assertIn("models/<md5:", rendered)
+            self.assertIn("models/<id:", rendered)
             self.assertNotIn(str(model), rendered)
             self.assertNotIn("unsafe-name", rendered)
 

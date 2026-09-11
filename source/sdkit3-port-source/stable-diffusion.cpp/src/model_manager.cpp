@@ -112,10 +112,20 @@ void ModelManager::set_loras(std::vector<LoraSpec> loras, SDVersion version) {
         return;
     }
 
+    const bool had_loras = !loras_.empty();
     loras_        = std::move(loras);
     lora_version_ = version;
     current_lora_epoch_++;
-    reset_lora_applied_params();
+    if (had_loras) {
+        // Previously applied LoRAs mutated the loaded weights, so changing or
+        // removing them must restore pristine tensors from model storage.
+        reset_lora_applied_params();
+    } else {
+        // The initial LoRA set can reuse eagerly loaded pristine weights.
+        for (auto& state : tensor_states_) {
+            state->applied_lora_epoch = UINT64_MAX;
+        }
+    }
 }
 
 std::set<std::string> ModelManager::tensor_names() const {

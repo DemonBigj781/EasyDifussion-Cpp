@@ -102,7 +102,7 @@ boundary.
 Run `python3 scripts/benchmark_sdkit_xavier.py --help` for all defaults and
 overrides. A model-independent regression test is available when the native
 build is configured with `-DSDKIT_BUILD_TESTS=ON`; run it with
-`ctest --test-dir <build-directory> -R 'model-loader-version-test|clip-token-count-test|gguf-original-shape-test' --output-on-failure`.
+`ctest --test-dir <build-directory> -R 'model-loader-version-test|model-manager-lora-cache-test|clip-token-count-test|gguf-original-shape-test' --output-on-failure`.
 
 The H3C XG310 is four independent 8 GB Intel SG1/Xe-LP devices, not one unified
 32 GB device. The build path is ready, but SG1 is not in llama.cpp's currently

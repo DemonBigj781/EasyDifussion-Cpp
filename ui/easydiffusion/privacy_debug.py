@@ -7,7 +7,7 @@ import hashlib
 import math
 import os
 import re
-from functools import lru_cache
+import stat
 from logging.handlers import RotatingFileHandler
 from numbers import Real
 from pathlib import Path
@@ -80,28 +80,23 @@ def redact_log_message(message: object, force: bool = False) -> str:
     return rendered
 
 
-@lru_cache(maxsize=512)
-def _cached_file_md5(path_text: str, size: int, modified_ns: int) -> str:
-    """Hash a file once for a stable diagnostic identity.
+def _file_identity(path: Path) -> str | None:
+    """Return an opaque identity without reading file contents."""
 
-    Size and modification time are cache-key inputs so a changed file is read
-    again. MD5 is an identifier here, not a security or integrity guarantee.
-    """
-
-    del size, modified_ns
-    digest = hashlib.md5()
-    with open(path_text, "rb") as source:
-        while chunk := source.read(1024 * 1024):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _file_md5(path: Path) -> str | None:
     try:
         details = path.stat()
-        if not path.is_file():
+        if not stat.S_ISREG(details.st_mode):
             return None
-        return _cached_file_md5(str(path), details.st_size, details.st_mtime_ns)
+        identity = ":".join(
+            str(value)
+            for value in (
+                details.st_dev,
+                details.st_ino,
+                details.st_size,
+                details.st_mtime_ns,
+            )
+        )
+        return hashlib.blake2s(identity.encode("ascii"), digest_size=16).hexdigest()
     except (OSError, ValueError):
         return None
 
@@ -173,8 +168,8 @@ def report_safe_path(path_text: str) -> str:
         return path_text
     filename = normalized.replace("\\", "/").rsplit("/", 1)[-1]
     extension = _safe_extension(filename)
-    digest = _file_md5(Path(normalized).expanduser())
-    identity = f"<md5:{digest}>{extension}" if digest else _redact_filename(filename)
+    file_identity = _file_identity(Path(normalized).expanduser())
+    identity = f"<id:{file_identity}>{extension}" if file_identity else _redact_filename(filename)
     return f"{_relative_resource_category(normalized)}/{identity}{trailing}"
 
 
