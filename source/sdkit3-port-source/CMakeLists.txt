@@ -17,6 +17,7 @@ set(CMAKE_PLATFORM_NO_VERSIONED_SONAME ON)
 
 # Option to build tools
 option(SDKIT_BUILD_TOOLS "Build sdkit tools" OFF)
+option(SDKIT_BUILD_TESTS "Build sdkit regression tests" OFF)
 option(SDKIT_BUILD_NATIVE_VISION "Build the isolated LibTorch YOLO sidecar" OFF)
 option(SDKIT_BUILD_IMAGE_TOOLS "Build lightweight native image helpers" ON)
 option(SDKIT_BUILD_LLAMA_RUNTIME
@@ -45,6 +46,11 @@ endif()
 
 # Include stable-diffusion.cpp
 add_subdirectory(stable-diffusion.cpp)
+
+if(SDKIT_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(stable-diffusion.cpp/tests)
+endif()
 
 # Add the sdkit binary
 file(GLOB_RECURSE ED_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)

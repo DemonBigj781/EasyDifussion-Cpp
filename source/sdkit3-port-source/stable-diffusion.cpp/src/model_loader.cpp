@@ -512,6 +512,7 @@ SDVersion ModelLoader::get_sd_version() {
             has_img_emb = true;
         }
         if (tensor_storage.name.find("model.diffusion_model.input_blocks.") != std::string::npos ||
+            tensor_storage.name.find("model.diffusion_model.down_blocks.") != std::string::npos ||
             tensor_storage.name.find("unet.down_blocks.") != std::string::npos) {
             is_unet = true;
             if (has_multiple_encoders) {
@@ -520,7 +521,8 @@ SDVersion ModelLoader::get_sd_version() {
         }
         if (tensor_storage.name.find("conditioner.embedders.1") != std::string::npos ||
             tensor_storage.name.find("cond_stage_model.1") != std::string::npos ||
-            tensor_storage.name.find("te.1") != std::string::npos) {
+            tensor_storage.name.find("te.1") != std::string::npos ||
+            starts_with(tensor_storage.name, "clip_g.")) {
             has_multiple_encoders = true;
             if (is_unet) {
                 is_xl = true;
@@ -530,17 +532,21 @@ SDVersion ModelLoader::get_sd_version() {
             return VERSION_SVD;
         }
         if (tensor_storage.name.find("model.diffusion_model.middle_block.1.") != std::string::npos ||
+            tensor_storage.name.find("model.diffusion_model.mid_block.resnets.1.") != std::string::npos ||
             tensor_storage.name.find("unet.mid_block.resnets.1.") != std::string::npos) {
             has_middle_block_1 = true;
         }
         if (tensor_storage.name.find("model.diffusion_model.output_blocks.3.1.transformer_blocks.1") != std::string::npos ||
+            tensor_storage.name.find("model.diffusion_model.up_blocks.1.attentions.0.transformer_blocks.1") != std::string::npos ||
             tensor_storage.name.find("unet.up_blocks.1.attentions.0.transformer_blocks.1") != std::string::npos) {
             has_output_block_311 = true;
         }
         if (tensor_storage.name.find("model.diffusion_model.output_blocks.7.1") != std::string::npos ||
+            tensor_storage.name.find("model.diffusion_model.up_blocks.2.attentions.1") != std::string::npos ||
             tensor_storage.name.find("unet.up_blocks.2.attentions.1") != std::string::npos) {
             has_output_block_71 = true;
-            if (tensor_storage.name.find("model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_k.weight") != std::string::npos) {
+            if (tensor_storage.name.find("model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_k.weight") != std::string::npos ||
+                tensor_storage.name.find("model.diffusion_model.up_blocks.2.attentions.1.transformer_blocks.0.attn1.to_k.weight") != std::string::npos) {
                 if (tensor_storage.ne[0] == 1024)
                     has_attn_1024 = true;
             }
@@ -549,6 +555,7 @@ SDVersion ModelLoader::get_sd_version() {
             tensor_storage.name == "cond_stage_model.model.token_embedding.weight" ||
             tensor_storage.name == "text_model.embeddings.token_embedding.weight" ||
             tensor_storage.name == "te.text_model.embeddings.token_embedding.weight" ||
+            tensor_storage.name == "clip_l.text_model.embeddings.token_embedding.weight" ||
             tensor_storage.name == "conditioner.embedders.0.model.token_embedding.weight" ||
             tensor_storage.name == "conditioner.embedders.0.transformer.text_model.embeddings.token_embedding.weight") {
             token_embedding_weight = tensor_storage;
@@ -556,6 +563,7 @@ SDVersion ModelLoader::get_sd_version() {
         }
         if (tensor_storage.name == "model.diffusion_model.input_blocks.0.0.weight" ||
             tensor_storage.name == "model.diffusion_model.img_in.weight" ||
+            tensor_storage.name == "model.diffusion_model.conv_in.weight" ||
             tensor_storage.name == "unet.conv_in.weight") {
             input_block_weight = tensor_storage;
         }
@@ -1188,8 +1196,8 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
                                        tensor_storage.type,
                                        convert_buf,
                                        dst_tensor->type,
-                                       (int)tensor_storage.nelements() / (int)tensor_storage.ne[0],
-                                       (int)tensor_storage.ne[0],
+                                       (int)tensor_storage.storage_nelements() / (int)tensor_storage.storage_row_size(),
+                                       (int)tensor_storage.storage_row_size(),
                                        std::move(imatrix));
                     } else {
                         convert_buf = read_buf;

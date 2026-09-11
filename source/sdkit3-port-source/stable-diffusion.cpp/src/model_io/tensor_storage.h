@@ -24,8 +24,10 @@ struct TensorStorage {
     bool is_int8_tensorwise     = false;
     bool int8_convrot           = false;
     int int8_convrot_group_size = 0;
-    int64_t ne[SD_MAX_DIMS]     = {1, 1, 1, 1, 1};
-    int n_dims                  = 0;
+    int64_t ne[SD_MAX_DIMS]          = {1, 1, 1, 1, 1};
+    int n_dims                       = 0;
+    int64_t storage_ne[SD_MAX_DIMS] = {1, 1, 1, 1, 1};
+    int storage_n_dims              = 0;
 
     std::string storage_key;
     size_t file_index = 0;
@@ -49,8 +51,24 @@ struct TensorStorage {
         return n;
     }
 
+    int64_t storage_nelements() const {
+        if (storage_n_dims == 0) {
+            return nelements();
+        }
+
+        int64_t n = 1;
+        for (int i = 0; i < SD_MAX_DIMS; i++) {
+            n *= storage_ne[i];
+        }
+        return n;
+    }
+
+    int64_t storage_row_size() const {
+        return storage_n_dims == 0 ? ne[0] : storage_ne[0];
+    }
+
     int64_t nbytes() const {
-        return nelements() * ggml_type_size(type) / ggml_blck_size(type);
+        return storage_nelements() * ggml_type_size(type) / ggml_blck_size(type);
     }
 
     int64_t nbytes_to_read() const {
@@ -94,6 +112,15 @@ struct TensorStorage {
         }
         for (int i = 0; i < n_dims; i++) {
             ne[i] = new_ne[i];
+        }
+        if (storage_n_dims > 0) {
+            int64_t new_storage_ne[SD_MAX_DIMS] = {1, 1, 1, 1, 1};
+            for (int i = 0; i < storage_n_dims; i++) {
+                new_storage_ne[i] = storage_ne[storage_n_dims - 1 - i];
+            }
+            for (int i = 0; i < storage_n_dims; i++) {
+                storage_ne[i] = new_storage_ne[i];
+            }
         }
     }
 

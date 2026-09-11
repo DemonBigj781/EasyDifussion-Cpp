@@ -85,6 +85,25 @@ source Intel's `setvars.sh`, confirm that `sycl-ls` exposes a GPU, and run:
 ./install.sh --native-build --sycl
 ```
 
+## Jetson Xavier benchmark
+
+`scripts/benchmark_sdkit_xavier.py` starts an isolated `sdkit` process, waits
+for its health endpoint, applies an explicit standalone UNet plus CLIP-L and
+VAE configuration, and measures one cold and one warm generation. It validates
+the returned PNGs in memory, rejects blank output, verifies that the warm run
+does not reload the model, reports request and sampler steps per second plus
+model-initialization and tensor-loading time, records Xavier and process
+telemetry, and preserves JSONL/CSV history without retaining PNG or Base64
+response data. The default mixed natural-language/Danbooru stress prompt is
+counted with sdkit's native CLIP BPE tokenizer; the run is rejected unless it
+exceeds the standard 77-token context and its semantic tail begins after that
+boundary.
+
+Run `python3 scripts/benchmark_sdkit_xavier.py --help` for all defaults and
+overrides. A model-independent regression test is available when the native
+build is configured with `-DSDKIT_BUILD_TESTS=ON`; run it with
+`ctest --test-dir <build-directory> -R 'model-loader-version-test|clip-token-count-test|gguf-original-shape-test' --output-on-failure`.
+
 The H3C XG310 is four independent 8 GB Intel SG1/Xe-LP devices, not one unified
 32 GB device. The build path is ready, but SG1 is not in llama.cpp's currently
 documented list of verified SYCL devices; select the `sycl` backend only after

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
+#include <limits>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -16,6 +17,110 @@ static void set_error(std::string* error, const std::string& message) {
     if (error != nullptr) {
         *error = message;
     }
+}
+
+static bool checked_nelements(const int64_t* dimensions,
+                              size_t dimension_count,
+                              int64_t& result) {
+    int64_t count = 1;
+    for (size_t i = 0; i < dimension_count; i++) {
+        const int64_t dimension = dimensions[i];
+        if (dimension <= 0 || count > std::numeric_limits<int64_t>::max() / dimension) {
+            return false;
+        }
+        count *= dimension;
+    }
+    result = count;
+    return true;
+}
+
+static bool restore_comfy_original_shape(const gguf_context* context,
+                                         const std::string& tensor_name,
+                                         TensorStorage& tensor_storage,
+                                         std::string* error) {
+    const std::string key = "comfy.gguf.orig_shape." + tensor_name;
+    const int64_t key_id  = gguf_find_key(context, key.c_str());
+    if (key_id < 0) {
+        return true;
+    }
+    if (gguf_get_kv_type(context, key_id) != GGUF_TYPE_ARRAY) {
+        set_error(error, "invalid original-shape metadata for tensor '" + tensor_name + "'");
+        return false;
+    }
+
+    const size_t dimension_count = gguf_get_arr_n(context, key_id);
+    if (dimension_count == 0 || dimension_count > SD_MAX_DIMS) {
+        set_error(error, "invalid original-shape dimensions for tensor '" + tensor_name + "'");
+        return false;
+    }
+
+    const void* data = gguf_get_arr_data(context, key_id);
+    if (data == nullptr) {
+        set_error(error, "missing original-shape data for tensor '" + tensor_name + "'");
+        return false;
+    }
+
+    std::vector<int64_t> original_shape(dimension_count);
+    switch (gguf_get_arr_type(context, key_id)) {
+        case GGUF_TYPE_INT32: {
+            const auto* dimensions = static_cast<const int32_t*>(data);
+            for (size_t i = 0; i < dimension_count; i++) {
+                original_shape[i] = dimensions[i];
+            }
+            break;
+        }
+        case GGUF_TYPE_UINT32: {
+            const auto* dimensions = static_cast<const uint32_t*>(data);
+            for (size_t i = 0; i < dimension_count; i++) {
+                original_shape[i] = dimensions[i];
+            }
+            break;
+        }
+        case GGUF_TYPE_INT64: {
+            const auto* dimensions = static_cast<const int64_t*>(data);
+            for (size_t i = 0; i < dimension_count; i++) {
+                original_shape[i] = dimensions[i];
+            }
+            break;
+        }
+        case GGUF_TYPE_UINT64: {
+            const auto* dimensions = static_cast<const uint64_t*>(data);
+            for (size_t i = 0; i < dimension_count; i++) {
+                if (dimensions[i] > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+                    set_error(error, "original-shape dimension is too large for tensor '" + tensor_name + "'");
+                    return false;
+                }
+                original_shape[i] = static_cast<int64_t>(dimensions[i]);
+            }
+            break;
+        }
+        default:
+            set_error(error, "unsupported original-shape metadata type for tensor '" + tensor_name + "'");
+            return false;
+    }
+
+    int64_t storage_elements = 0;
+    int64_t logical_elements = 0;
+    if (!checked_nelements(tensor_storage.ne, tensor_storage.n_dims, storage_elements) ||
+        !checked_nelements(original_shape.data(), original_shape.size(), logical_elements)) {
+        set_error(error, "invalid or overflowing original-shape dimensions for tensor '" + tensor_name + "'");
+        return false;
+    }
+    if (storage_elements != logical_elements) {
+        set_error(error, "original-shape element count mismatch for tensor '" + tensor_name + "'");
+        return false;
+    }
+
+    tensor_storage.storage_n_dims = tensor_storage.n_dims;
+    for (int i = 0; i < SD_MAX_DIMS; i++) {
+        tensor_storage.storage_ne[i] = tensor_storage.ne[i];
+        tensor_storage.ne[i]         = 1;
+    }
+    tensor_storage.n_dims = static_cast<int>(dimension_count);
+    for (size_t i = 0; i < dimension_count; i++) {
+        tensor_storage.ne[i] = original_shape[dimension_count - i - 1];
+    }
+    return true;
 }
 
 bool is_gguf_file(const std::string& file_path) {
@@ -80,6 +185,12 @@ bool read_gguf_file(const std::string& file_path,
         size_t offset      = data_offset + gguf_get_tensor_offset(ctx_gguf_, i);
 
         TensorStorage tensor_storage(name, dummy->type, dummy->ne, ggml_n_dims(dummy), 0, offset);
+
+        if (!restore_comfy_original_shape(ctx_gguf_, name, tensor_storage, error)) {
+            gguf_free(ctx_gguf_);
+            ggml_free(ctx_meta_);
+            return false;
+        }
 
         if (ggml_nbytes(dummy) != tensor_storage.nbytes()) {
             gguf_free(ctx_gguf_);
