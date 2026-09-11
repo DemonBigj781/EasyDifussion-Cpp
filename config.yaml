@@ -31,7 +31,8 @@ backend_config:
   COMMANDLINE_ARGS:
     - --log-level
     - info
-    - --diffusion-fa
+    - --attention
+    - flash
     - --vae-tiling
     - --vae-tiles
     - '64'

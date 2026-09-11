@@ -1334,11 +1334,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (keep_model_loaded_) {
         LOG_INFO("Model components will be preloaded and staged weights kept resident until model switch");
     }
-    if (diffusion_fa_) {
-        LOG_INFO("Diffusion flash attention enabled");
-    }
-    if (flash_attention_) {
-        LOG_INFO("Native memory-efficient attention enabled for all compatible model components");
+    if (diffusion_fa_ || flash_attention_) {
+        LOG_INFO("Flash attention pipeline enabled for compatible model components");
     }
     if (sage_attention_) {
         LOG_INFO("Native SageAttention SM80 preference enabled with automatic ggml fallback");

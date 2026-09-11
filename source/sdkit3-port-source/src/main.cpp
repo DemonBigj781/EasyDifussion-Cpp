@@ -112,6 +112,8 @@ struct CommandLineArgs {
     bool cuda_malloc = false;
     bool cuda_unified_memory = false;
     bool xformers_compat = false;
+    bool split_attention = false;
+    std::string attention_mode;
     bool control_net_cpu = false;
     bool image_clip_on_cpu = false;
     bool video_clip_on_cpu = false;
@@ -160,10 +162,13 @@ void print_usage(const char* program_name) {
     std::cerr << "  --no-mmap                          Disable automatic mmap with --offload-to-cpu" << std::endl;
     std::cerr << "  --keep-model-loaded                Keep staged compute weights resident until model switch (default: false)"
               << std::endl;
-    std::cerr << "  --diffusion-fa                     Enable diffusion flash attention (default: false)" << std::endl;
-    std::cerr << "  --flash-attention                  Enable native memory-efficient attention for all modules" << std::endl;
-    std::cerr << "  --xformers                         C++/CUDA xFormers-equivalent fused attention" << std::endl;
-    std::cerr << "  --sage-attention                  Prefer native SageAttention SM80 INT8-QK kernels" << std::endl;
+    std::cerr << "  --attention <mode>                 Select one attention pipeline: split, flash," << std::endl;
+    std::cerr << "                                     xformers, or sage (default: split)" << std::endl;
+    std::cerr << "  --opt-split-attention              Legacy alias for --attention split" << std::endl;
+    std::cerr << "  --diffusion-fa                     Legacy alias for --attention flash" << std::endl;
+    std::cerr << "  --flash-attention                  Legacy alias for --attention flash" << std::endl;
+    std::cerr << "  --xformers                         Legacy alias for --attention xformers" << std::endl;
+    std::cerr << "  --sage-attention                   Legacy alias for --attention sage" << std::endl;
     std::cerr << "  --max-vram <GiB|assignments>       Graph VRAM budget, e.g. 6 or cuda=6,cpu=0" << std::endl;
     std::cerr << "  --stream-layers                   Stream model layers within the --max-vram budget" << std::endl;
     std::cerr << "  --cuda-malloc                     Use the flushable legacy cudaMalloc pool instead of CUDA VMM" << std::endl;
@@ -268,18 +273,18 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.mmap_explicitly_disabled = true;
         } else if (arg == "--keep-model-loaded") {
             args.keep_model_loaded = true;
+        } else if (arg == "--attention" && i + 1 < argc) {
+            args.attention_mode = argv[++i];
+        } else if (arg == "--opt-split-attention") {
+            args.split_attention = true;
         } else if (arg == "--diffusion-fa") {
             args.diffusion_fa = true;
         } else if (arg == "--flash-attention") {
             args.flash_attention = true;
-            args.diffusion_fa = true;
         } else if (arg == "--xformers") {
             args.xformers_compat = true;
-            args.flash_attention = true;
-            args.diffusion_fa = true;
         } else if (arg == "--sage-attention") {
             args.sage_attention = true;
-            args.diffusion_fa = true;
         } else if (arg == "--max-vram" && i + 1 < argc) {
             args.max_vram = argv[++i];
         } else if (arg == "--stream-layers") {
@@ -327,6 +332,67 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
     if (args.vae_tiled_overlap < 0 || args.vae_tiled_overlap * 2 > args.vae_tiles) {
         std::cerr << "--vae-tiled-overlap must be between 0 and half of --vae-tiles" << std::endl;
         exit(1);
+    }
+
+    // Attention implementations are alternative graph pipelines, not additive
+    // toggles. Preserve legacy flags, but resolve conflicts compatibility-first
+    // rather than allowing a newer, more demanding implementation to mask an
+    // older request. The explicit selector takes precedence over legacy flags.
+    std::string selected_attention = args.attention_mode;
+    if (selected_attention.empty()) {
+        const bool legacy_flash_requested = args.diffusion_fa || args.flash_attention;
+        const int legacy_attention_count = static_cast<int>(args.split_attention) +
+                                           static_cast<int>(legacy_flash_requested) +
+                                           static_cast<int>(args.xformers_compat) +
+                                           static_cast<int>(args.sage_attention);
+        if (args.split_attention) {
+            selected_attention = "split";
+        } else if (legacy_flash_requested) {
+            selected_attention = "flash";
+        } else if (args.xformers_compat) {
+            selected_attention = "xformers";
+        } else if (args.sage_attention) {
+            selected_attention = "sage";
+        } else {
+            selected_attention = "split";
+        }
+        if (legacy_attention_count > 1) {
+            std::cerr << "Multiple legacy attention flags supplied; selected compatibility-first mode: "
+                      << selected_attention << std::endl;
+        }
+    }
+    if (selected_attention == "standard") {
+        // Accept the short-lived development spelling as a compatibility alias.
+        selected_attention = "split";
+    }
+    if (selected_attention != "split" && selected_attention != "flash" &&
+        selected_attention != "xformers" &&
+        selected_attention != "sage") {
+        std::cerr << "Invalid --attention mode: " << selected_attention << std::endl;
+        std::cerr << "Expected split, flash, xformers, or sage" << std::endl;
+        exit(1);
+    }
+
+    args.flash_attention = false;
+    args.diffusion_fa = false;
+    args.xformers_compat = false;
+    args.sage_attention = false;
+    args.split_attention = selected_attention == "split";
+    args.attention_mode = selected_attention;
+    if (selected_attention == "flash") {
+        // The historical flags controlled the scope of the same Flash
+        // Attention implementation. The unified mode applies it consistently.
+        args.flash_attention = true;
+        args.diffusion_fa = true;
+    } else if (selected_attention == "xformers") {
+        // xFormers is the selected FLASH_ATTN_EXT executor. These graph flags
+        // expose eligible operations to it; they do not select extra backends.
+        args.flash_attention = true;
+        args.diffusion_fa = true;
+        args.xformers_compat = true;
+    } else if (selected_attention == "sage") {
+        args.diffusion_fa = true;
+        args.sage_attention = true;
     }
     if (args.control_net_sd1_path.empty() != args.control_net_sdxl_path.empty()) {
         std::cerr << "--control-net-sd1-path and --control-net-sdxl-path must be set together" << std::endl;
@@ -395,6 +461,7 @@ int main(int argc, char* argv[]) {
     if (args.cuda_unified_memory) {
         LOG_WARNING("CUDA unified memory enabled: allocations may spill into system RAM and run much slower");
     }
+    LOG_INFO("Attention pipeline: %s", args.attention_mode.c_str());
     if (args.xformers_compat) {
 #ifdef _WIN32
         _putenv_s("SD_CUDA_XFORMERS", "1");
