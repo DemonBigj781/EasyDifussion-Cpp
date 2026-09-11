@@ -858,14 +858,29 @@ crow::response Server::handleProgress(const crow::request& req) {
             return crow::response(404, error);
         }
 
-        TaskState state = task_state_manager_->getTaskState(task_id);
+        bool wants_live_preview = true;
+        if (json_body.has("live_preview") && json_body["live_preview"].t() == crow::json::type::True) {
+            wants_live_preview = true;
+        } else if (json_body.has("live_preview") && json_body["live_preview"].t() == crow::json::type::False) {
+            wants_live_preview = false;
+        }
+        int client_preview_id = -1;
+        if (json_body.has("id_live_preview") &&
+            json_body["id_live_preview"].t() == crow::json::type::Number) {
+            client_preview_id = static_cast<int>(json_body["id_live_preview"].i());
+        }
+        TaskState state = task_state_manager_->getTaskProgressState(
+            task_id, wants_live_preview, client_preview_id);
+        const bool has_new_preview = wants_live_preview &&
+                                     client_preview_id != state.id_live_preview &&
+                                     !state.live_preview.empty();
 
         crow::json::wvalue response;
         response["completed"] = state.completed;
         response["progress"] = state.progress;
         response["current_step"] = state.current_step;
         response["total_steps"] = state.total_steps;
-        response["live_preview"] = state.live_preview;
+        response["live_preview"] = has_new_preview ? state.live_preview : "";
         response["id_live_preview"] = state.id_live_preview;
 
         return crow::response(200, response);

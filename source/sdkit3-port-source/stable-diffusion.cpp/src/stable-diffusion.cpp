@@ -3009,6 +3009,11 @@ public:
         }
 
         int64_t last_progress_us     = ggml_time_us();
+        int64_t positive_compute_us  = 0;
+        int64_t negative_compute_us  = 0;
+        int64_t image_uncond_compute_us = 0;
+        int64_t preview_compute_us   = 0;
+        int64_t sampling_started_us  = last_progress_us;
         SamplePreviewContext preview = prepare_sample_preview_context();
 
         sd::Tensor<float> processed_init_latent       = denoiser->process_latent_in(init_latent);
@@ -3084,7 +3089,9 @@ public:
             }
 
             if (preview_needed && sd_should_preview_noisy()) {
+                const int64_t preview_started_us = ggml_time_us();
                 preview_image(step, noised_input, version, preview.mode, preview.callback, preview.data, true);
+                preview_compute_us += ggml_time_us() - preview_started_us;
             }
 
             sd::Tensor<float> cond_out;
@@ -3229,7 +3236,9 @@ public:
                 }
             }
 
+            const int64_t positive_started_us = ggml_time_us();
             cond_out = run_condition(*positive_condition, c_concat_override);
+            positive_compute_us += ggml_time_us() - positive_started_us;
             if (cond_out.empty()) {
                 return {};
             }
@@ -3248,21 +3257,25 @@ public:
                     LOG_DEBUG("Skipping layers at uncond step %d\n", step);
                     uncond_skip_layers = &skip_layer_guidance.layers();
                 }
+                const int64_t negative_started_us = ggml_time_us();
                 uncond_out = run_condition(uncond,
                                            uncond.c_concat.empty() ? nullptr : &uncond.c_concat,
                                            uncond_skip_layers,
                                            nullptr,
                                            true);
+                negative_compute_us += ggml_time_us() - negative_started_us;
                 if (uncond_out.empty()) {
                     return {};
                 }
             }
             if (!img_uncond.empty()) {
+                const int64_t image_uncond_started_us = ggml_time_us();
                 img_uncond_out = run_condition(img_uncond,
                                                img_uncond.c_concat.empty() ? nullptr : &img_uncond.c_concat,
                                                nullptr,
                                                uncond_without_ref_latents ? &empty_ref_latents : nullptr,
                                                true);
+                image_uncond_compute_us += ggml_time_us() - image_uncond_started_us;
                 if (img_uncond_out.empty()) {
                     return {};
                 }
@@ -3311,7 +3324,9 @@ public:
                 denoised = denoised * denoise_mask + sampling_init_latent * (1.0f - denoise_mask);
             }
             if (preview_needed && sd_should_preview_denoised()) {
+                const int64_t preview_started_us = ggml_time_us();
                 preview_image(step, denoised, version, preview.mode, preview.callback, preview.data, false);
+                preview_compute_us += ggml_time_us() - preview_started_us;
             }
             report_sample_progress(step, steps, terminal_sigma_is_zero, &last_progress_us);
             output.pred = denoised;
@@ -3319,6 +3334,16 @@ public:
         };
 
         auto x0_opt = sample_k_diffusion(method, denoise, x_t, sigmas, sampler_rng, eta, is_flow_denoiser, extra_sample_args, denoiser);
+        const int64_t sampling_total_us = ggml_time_us() - sampling_started_us;
+        const int64_t measured_us = positive_compute_us + negative_compute_us +
+                                    image_uncond_compute_us + preview_compute_us;
+        LOG_INFO("sampling profile: total %.3fs, positive %.3fs, negative %.3fs, image-uncond %.3fs, preview %.3fs, other %.3fs",
+                 sampling_total_us / 1000000.0,
+                 positive_compute_us / 1000000.0,
+                 negative_compute_us / 1000000.0,
+                 image_uncond_compute_us / 1000000.0,
+                 preview_compute_us / 1000000.0,
+                 std::max<int64_t>(0, sampling_total_us - measured_us) / 1000000.0);
         if (x0_opt.empty()) {
             LOG_ERROR("Diffusion model sampling failed");
             if (control_net) {

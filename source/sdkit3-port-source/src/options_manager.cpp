@@ -14,7 +14,8 @@ bool OptionsManager::load() {
     if (!file.is_open()) {
         // File doesn't exist yet, start with default options
         options_data_["sd_model_checkpoint"] = "";
-        options_data_["live_previews_enable"] = true;
+        options_data_["live_previews_enable"] = false;
+        options_data_["show_progress_every_n_steps"] = 5;
         options_data_["CLIP_stop_at_last_layers"] = -1;
         options_data_["sdxl_clip_l_skip"] = false;
         options_data_["samples_format"] = "png";
@@ -29,7 +30,8 @@ bool OptionsManager::load() {
     if (content.empty()) {
         // Empty file, use defaults
         options_data_["sd_model_checkpoint"] = "";
-        options_data_["live_previews_enable"] = true;
+        options_data_["live_previews_enable"] = false;
+        options_data_["show_progress_every_n_steps"] = 5;
         options_data_["CLIP_stop_at_last_layers"] = -1;
         options_data_["sdxl_clip_l_skip"] = false;
         options_data_["samples_format"] = "png";

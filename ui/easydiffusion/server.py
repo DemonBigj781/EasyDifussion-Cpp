@@ -433,12 +433,7 @@ def set_app_config_internal(req: SetAppConfigRequest):
         selected_backend = req.backend or config.get("backend")
         if selected_backend != "sdkit3":
             raise HTTPException(status_code=400, detail="Live argument reload is supported by the sdkit3 backend.")
-        with task_manager.manager_lock:
-            backend_is_idle = (
-                task_manager.current_state == task_manager.ServerStates.Online
-                and not task_manager.tasks_queue
-            )
-        if not backend_is_idle:
+        if not task_manager.backend_is_idle():
             raise HTTPException(
                 status_code=409,
                 detail="The backend can only reload while generation is idle and the queue is empty.",

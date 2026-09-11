@@ -4,7 +4,7 @@
 #include "fattn-tile.cuh"
 #include "fattn-vec.cuh"
 #include "sage/sage-attention-sm80.cuh"
-#include "../../../../../API.cpp/cuda/attention/xformers/xformers-attention.cuh"
+#include "xformers/xformers-attention.cuh"
 #include "fattn.cuh"
 
 template <int DKQ, int DV, int ncols2>

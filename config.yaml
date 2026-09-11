@@ -32,18 +32,11 @@ backend_config:
     - --log-level
     - info
     - --diffusion-fa
-    - --sage-attention
     - --vae-tiling
     - --vae-tiles
     - '64'
     - --vae-tiled-overlap
     - '16'
-    - --video-clip-on-cpu
-    - --video-vae-on-cpu
-    - --video-offload-to-cpu
-    - --video-max-vram
-    - "8"
-    - --video-stream-layers
 
 # Set force_save_path to enforce an auto save path. Clients will not be able to change or
 # disable auto save when this option is set. Please adapt the path in the examples to your

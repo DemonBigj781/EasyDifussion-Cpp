@@ -33,6 +33,8 @@ class TaskStateManager {
 
     // Get task state
     TaskState getTaskState(const std::string& task_id);
+    TaskState getTaskProgressState(const std::string& task_id, bool include_live_preview,
+                                   int known_live_preview_id);
     bool taskExists(const std::string& task_id);
 
     // Clear old tasks

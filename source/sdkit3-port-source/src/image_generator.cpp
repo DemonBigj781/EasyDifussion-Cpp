@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <functional>
@@ -61,6 +62,7 @@ static void preview_callback(int step, int frame_count, sd_image_t* frames, bool
     if (g_callback_data.task_state_manager && !g_callback_data.task_id.empty() && frames && frame_count > 0) {
         // Encode first frame to JPEG, then base64 for live preview
         std::vector<unsigned char> jpg_buffer;
+        jpg_buffer.reserve(static_cast<size_t>(frames[0].width) * frames[0].height / 4);
         auto write_callback = [](void* context, void* data, int size) {
             auto* buffer = static_cast<std::vector<unsigned char>*>(context);
             unsigned char* bytes = static_cast<unsigned char*>(data);
@@ -386,6 +388,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 
 std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationParams& params, bool is_img2img,
                                                           const std::string& task_id, bool allow_ram_fallback) {
+    const auto request_started_at = std::chrono::steady_clock::now();
     // Ensure the correct model is loaded based on current options and controlnet (before taking lock)
     if (!ensureModelLoaded(params.controlnet_model,
                            params.control_net_lllite_model_path,
@@ -423,9 +426,14 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     auto options = options_manager_->getOptions();
     std::string options_json = options.dump();
     auto parsed_options = crow::json::load(options_json);
-    bool live_previews_enabled = true;  // default to true
+    bool live_previews_enabled = false;
+    int live_preview_interval = 5;
     if (parsed_options && parsed_options.has("live_previews_enable")) {
         live_previews_enabled = parsed_options["live_previews_enable"].b();
+    }
+    if (parsed_options && parsed_options.has("show_progress_every_n_steps") &&
+        parsed_options["show_progress_every_n_steps"].t() == crow::json::type::Number) {
+        live_preview_interval = std::max(1, static_cast<int>(parsed_options["show_progress_every_n_steps"].i()));
     }
     int effective_clip_skip = params.clip_skip;
     if (effective_clip_skip <= 0 && parsed_options &&
@@ -438,7 +446,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     LOG_DEBUG("CLIP stop at last layers: %d", effective_clip_skip);
 
     if (live_previews_enabled) {
-        sd_set_preview_callback(preview_callback, PREVIEW_PROJ, 3, true, false, nullptr);
+        sd_set_preview_callback(preview_callback, PREVIEW_PROJ, live_preview_interval, true, false, nullptr);
     } else {
         // Clear any existing preview callback
         sd_set_preview_callback(nullptr, PREVIEW_PROJ, 3, true, false, nullptr);
@@ -648,6 +656,14 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     sd_image_t* result = nullptr;
     int result_count = 0;
     const bool generation_succeeded = generate_image(sd_ctx_, &gen_params, &result, &result_count);
+    const auto generation_finished_at = std::chrono::steady_clock::now();
+    const double generation_seconds =
+        std::chrono::duration<double>(generation_finished_at - request_started_at).count();
+    LOG_INFO("Native image request completed in %.3fs (%d requested steps, previews %s every %d steps)",
+             generation_seconds,
+             params.steps,
+             live_previews_enabled ? "enabled" : "disabled",
+             live_preview_interval);
     bool generation_cancelled = false;
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);

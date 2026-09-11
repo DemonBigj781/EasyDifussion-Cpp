@@ -245,6 +245,8 @@ def thread_render(device):
             "device": runtime.context.device,
             "device_name": runtime.context.device_name,
             "alive": True,
+            "ready": False,
+            "busy": False,
         }
 
         current_state = ServerStates.LoadingModel
@@ -259,6 +261,7 @@ def thread_render(device):
                 time.sleep(1)
 
         model_manager.load_default_models(runtime.context)
+        weak_thread_data[threading.current_thread()]["ready"] = True
         current_state = ServerStates.Online
     except Exception as e:
         log.error(traceback.format_exc())
@@ -280,15 +283,18 @@ def thread_render(device):
             idle_event.clear()
             idle_event.wait(timeout=1)
             continue
+        weak_thread_data[threading.current_thread()]["busy"] = True
         if task.error is not None:
             log.error(task.error)
             task.response = {"status": "failed", "detail": str(task.error)}
             task.buffer_queue.put(json.dumps(task.response))
+            weak_thread_data[threading.current_thread()]["busy"] = False
             continue
         if current_state_error:
             task.error = current_state_error
             task.response = {"status": "failed", "detail": str(task.error)}
             task.buffer_queue.put(json.dumps(task.response))
+            weak_thread_data[threading.current_thread()]["busy"] = False
             continue
         log.info(f"Session {task.session_id} starting task {task.id} on {runtime.context.device_name}")
         if not task.lock.acquire(blocking=False):
@@ -305,6 +311,7 @@ def thread_render(device):
             log.error(traceback.format_exc())
         finally:
             task.lock.release()
+            weak_thread_data[threading.current_thread()]["busy"] = False
 
         keep_task_alive(task)
 
@@ -315,6 +322,26 @@ def thread_render(device):
         else:
             log.info(f"Session {task.session_id} task {task.id} completed by {runtime.context.device_name}.")
         current_state = ServerStates.Online
+
+
+def backend_is_idle() -> bool:
+    """Return true only when every live render worker is ready and inactive."""
+    if not manager_lock.acquire(blocking=True, timeout=LOCK_TIMEOUT):
+        raise Exception("backend_is_idle" + ERR_LOCK_FAILED)
+    try:
+        if tasks_queue or not render_threads:
+            return False
+        live_workers = 0
+        for rthread in render_threads:
+            if not rthread.is_alive():
+                continue
+            live_workers += 1
+            worker = weak_thread_data.get(rthread)
+            if not worker or not worker.get("ready", False) or worker.get("busy", False):
+                return False
+        return live_workers > 0
+    finally:
+        manager_lock.release()
 
 
 def get_cached_task(task_id: str, update_ttl: bool = False):

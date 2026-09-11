@@ -107,14 +107,17 @@ if (CUDAToolkit_FOUND)
     # implementations. Keep the old source in this de-gitted snapshot for
     # provenance, but do not pull it back into the build through the glob.
     list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "fattn-wmma-f16\\.cu$")
-    # Keep the optional xFormers-compatible implementation in API.cpp while
-    # compiling it into the regular ggml CUDA backend. Runtime dispatch is
-    # gated by SD_CUDA_XFORMERS and falls back for unsupported tensor layouts.
-    list(APPEND GGML_SOURCES_CUDA
-        "${CMAKE_CURRENT_LIST_DIR}/../../../../../API.cpp/cuda/attention/xformers/xformers-attention.cu")
-    # SageAttention's SM80 source is kept in its own Apache-2.0 attributed
-    # directory and uses a native ggml launcher (no PyTorch dependency).
-    list(APPEND GGML_SOURCES_CUDA sage/sage-attention-sm80.cu)
+    # Main owns its native xFormers-compatible CUDA implementation. Runtime
+    # dispatch is gated by SD_CUDA_XFORMERS and falls back for unsupported
+    # tensor layouts without depending on Theory-owned sources.
+    list(APPEND GGML_SOURCES_CUDA xformers/xformers-attention.cu)
+    # SageAttention requires Ampere (SM80) instructions. Keep a link-compatible
+    # stub for pre-Ampere builds such as Jetson Xavier (SM72).
+    if (GGML_CUDA_SAGE)
+        list(APPEND GGML_SOURCES_CUDA sage/sage-attention-sm80.cu)
+    else()
+        list(APPEND GGML_SOURCES_CUDA sage/sage-attention-stub.cu)
+    endif()
     file(GLOB   SRCS "template-instances/fattn-tile*.cu")
     list(APPEND GGML_SOURCES_CUDA ${SRCS})
     file(GLOB   SRCS "template-instances/fattn-mma*.cu")

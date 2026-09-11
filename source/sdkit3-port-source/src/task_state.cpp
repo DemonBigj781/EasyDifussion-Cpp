@@ -86,6 +86,31 @@ TaskState TaskStateManager::getTaskState(const std::string& task_id) {
     return empty_state;
 }
 
+TaskState TaskStateManager::getTaskProgressState(const std::string& task_id,
+                                                 bool include_live_preview,
+                                                 int known_live_preview_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    TaskState progress_state{};
+    progress_state.task_id = task_id;
+    auto it = tasks_.find(task_id);
+    if (it == tasks_.end()) {
+        return progress_state;
+    }
+
+    const TaskState& stored = it->second;
+    progress_state.completed = stored.completed;
+    progress_state.progress = stored.progress;
+    progress_state.current_step = stored.current_step;
+    progress_state.total_steps = stored.total_steps;
+    progress_state.id_live_preview = stored.id_live_preview;
+    progress_state.interrupted = stored.interrupted;
+    if (include_live_preview && known_live_preview_id != stored.id_live_preview) {
+        progress_state.live_preview = stored.live_preview;
+    }
+    return progress_state;
+}
+
 bool TaskStateManager::taskExists(const std::string& task_id) {
     std::lock_guard<std::mutex> lock(mutex_);
     return tasks_.find(task_id) != tasks_.end();
