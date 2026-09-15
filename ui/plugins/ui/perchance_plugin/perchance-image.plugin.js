@@ -143,7 +143,36 @@
                 link.rel = "noopener"
                 link.textContent = item.relative_path || item.path || `Image ${index + 1}`
                 link.style.cssText = "display:block;margin-top:6px;overflow-wrap:anywhere;font-size:11px;"
-                card.append(image, link)
+                const actions = document.createElement("div")
+                actions.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 6px;"
+                const saveToGallery = document.createElement("button")
+                saveToGallery.type = "button"
+                saveToGallery.className = "secondaryButton"
+                saveToGallery.textContent = item.saved_to_gallery ? "Saved to Gallery" : "Save to Gallery"
+                saveToGallery.disabled = Boolean(item.saved_to_gallery)
+                saveToGallery.addEventListener("click", async () => {
+                    if (!item.relative_path) return
+                    saveToGallery.disabled = true
+                    saveToGallery.textContent = "Saving…"
+                    core.setStatus(`Saving image ${index + 1} to Gallery…`)
+                    try {
+                        const saved = await core.requestJson("/perchance/images/save", {
+                            relative_path: item.relative_path,
+                        })
+                        item.saved_to_gallery = true
+                        item.gallery_url = saved.gallery_url
+                        saveToGallery.textContent = "Saved to Gallery"
+                        link.href = saved.gallery_url || link.href
+                        link.textContent = saved.gallery_relative_path || link.textContent
+                        core.setStatus(`Image ${index + 1} saved to Gallery.`)
+                    } catch (error) {
+                        saveToGallery.disabled = false
+                        saveToGallery.textContent = "Save to Gallery"
+                        core.setStatus(`Could not save image ${index + 1} to Gallery: ${error.message}`)
+                    }
+                })
+                actions.append(link, saveToGallery)
+                card.append(image, actions)
                 grid.appendChild(card)
                 void loadPreview(image, card, item.url).catch((error) => {
                     core.setStatus(`A generated image preview failed after ${PREVIEW_LOAD_ATTEMPTS} attempts: ${error.message}`)
@@ -206,8 +235,8 @@
                     amount: requestedAmount,
                 })
                 const images = Array.isArray(data.images) ? data.images : [data]
-                const rendered = renderImages(images, "Generated images")
-                core.setStatus(`${rendered} image${rendered === 1 ? "" : "s"} generated and saved.`)
+                const rendered = renderImages(images, "Generated images — not yet saved to Gallery")
+                core.setStatus(`${rendered} image${rendered === 1 ? "" : "s"} generated. Choose which to save to Gallery.`)
             } catch (error) {
                 core.setStatus(`Image generation failed: ${error.message}`)
             } finally {
@@ -219,7 +248,7 @@
         core.requestJson(`/perchance/images/recent?limit=${recentLimit}`)
             .then((data) => {
                 if (Array.isArray(data.images) && data.images.length) {
-                    renderImages(data.images, "Recent Perchance images")
+                    renderImages(data.images, "Recent unsaved Perchance images")
                 }
             })
             .catch(() => {})

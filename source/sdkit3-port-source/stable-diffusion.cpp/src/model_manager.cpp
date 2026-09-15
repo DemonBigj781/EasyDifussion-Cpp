@@ -1107,6 +1107,7 @@ bool ModelManager::assign_compute_backend(const std::vector<ggml_tensor*>& tenso
         return false;
     }
 
+    std::unordered_set<TensorState*> states_to_move;
     for (TensorState* state : required_states) {
         if (state == nullptr || state->tensor == nullptr) {
             continue;
@@ -1120,11 +1121,38 @@ bool ModelManager::assign_compute_backend(const std::vector<ggml_tensor*>& tenso
             continue;
         }
 
-        if (state->active_prepare_count > 0 || state->staged_to_compute_backend) {
+        if (state->active_prepare_count > 0) {
             LOG_ERROR("model manager cannot move active tensor '%s' to another compute backend",
                       state->name.c_str());
             return false;
         }
+        states_to_move.insert(state);
+    }
+
+    if (states_to_move.empty()) {
+        return true;
+    }
+
+    // A kept-compute-params staging block belongs to the backend it was
+    // created for. Runtime stage routing (for example VAE encode on a GPU and
+    // VAE decode on CPU) must restore the registered parameter bindings before
+    // changing TensorState::compute_backend; otherwise the next graph can hand
+    // a CPU executor a device pointer from the previous backend.
+    release_compute_staging_blocks(false, &states_to_move);
+
+    for (TensorState* state : states_to_move) {
+        if (state == nullptr || state->tensor == nullptr) {
+            continue;
+        }
+        if (state->staged_to_compute_backend) {
+            LOG_ERROR("model manager cannot release staged tensor '%s' for a backend switch",
+                      state->name.c_str());
+            return false;
+        }
+
+        const bool params_follow_compute = state->params_follow_compute_backend ||
+                                           state->residency_mode == ResidencyMode::Disk;
+        const bool params_changes = params_follow_compute && state->params_backend != compute_backend;
         if (params_changes && state->loaded_to_params_backend) {
             LOG_ERROR("model manager cannot move loaded tensor '%s' to another params backend",
                       state->name.c_str());

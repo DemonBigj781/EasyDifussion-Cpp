@@ -70,7 +70,7 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
                 return {"stdout": f"{json.dumps(output)}\n", "stderr": "", "returncode": 0}
 
             with (
-                patch.object(perchance, "_output_directory", return_value=output_directory),
+                patch.object(perchance, "_generated_image_directory", return_value=output_directory),
                 patch.object(perchance, "_run_perchance", side_effect=run_perchance),
             ):
                 result = await perchance.generate_image(
@@ -101,7 +101,7 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
             for path, timestamp in timestamps.items():
                 os.utime(path, ns=(timestamp, timestamp))
 
-            with patch.object(perchance, "_output_directory", return_value=output_directory):
+            with patch.object(perchance, "_generated_image_directory", return_value=output_directory):
                 result = perchance.recent_images(2)
 
             self.assertEqual(
@@ -109,6 +109,39 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
                 [second.name, third.name],
             )
             self.assertEqual(result["generated_amount"], 2)
+
+    async def test_generated_images_require_an_explicit_gallery_save(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            generated = root / "generated"
+            gallery = root / "gallery"
+            generated.mkdir()
+            gallery.mkdir()
+            image = generated / f"{'4' * 64}.jpeg"
+            image.write_bytes(b"generated image")
+
+            with (
+                patch.object(perchance, "_generated_image_directory", return_value=generated),
+                patch("ui.plugins.server.gallery.gallery.configured_directory", return_value=gallery),
+            ):
+                saved = perchance.save_generated_image({"relative_path": image.name})
+
+            destination = gallery / image.name
+            self.assertTrue(destination.is_file())
+            self.assertEqual(destination.read_bytes(), b"generated image")
+            self.assertFalse(image.exists())
+            self.assertTrue(saved["saved_to_gallery"])
+            self.assertEqual(saved["gallery_relative_path"], image.name)
+            self.assertEqual(saved["gallery_url"], f"/gallery/file/{image.name}")
+
+    async def test_generated_image_resolution_rejects_traversal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            generated = pathlib.Path(directory) / "generated"
+            generated.mkdir()
+            with patch.object(perchance, "_generated_image_directory", return_value=generated):
+                with self.assertRaises(HTTPException) as raised:
+                    perchance.resolve_generated_file("../outside.png")
+            self.assertEqual(raised.exception.status_code, 403)
 
     async def test_gallery_uses_lazy_local_cache_without_browser_download(self):
         image_id = "a" * 64

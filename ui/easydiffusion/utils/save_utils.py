@@ -1,5 +1,6 @@
 import os
 import re
+import threading
 import time
 import regex
 
@@ -20,12 +21,14 @@ from sdkit.utils import save_dicts, save_images
 from sdkit.models.model_loader.embeddings import get_embedding_token
 
 filename_regex = re.compile("[^a-zA-Z0-9._-]")
-img_number_regex = re.compile("([0-9]{5,})")
+img_number_regex = re.compile(r"^([0-9]{5,})(?=[^0-9]|$)")
 
 # keep in sync with `ui/media/js/dnd.js`
 TASK_TEXT_MAPPING = {
     "prompt": "Prompt",
     "negative_prompt": "Negative Prompt",
+    "hidden_positive_prompt": "Hidden Positive Embeddings",
+    "hidden_negative_prompt": "Hidden Negative Embeddings",
     "seed": "Seed",
     "use_stable_diffusion_model": "Stable Diffusion model",
     "clip_skip": "Clip Skip",
@@ -78,10 +81,10 @@ class ImageNumber:
         self._factory = factory
         self._evaluated = None
 
-    def __call__(self) -> int:
+    def __call__(self, offset: int = 0) -> int:
         if self._evaluated is None:
             self._evaluated = self._factory()
-        return self._evaluated
+        return self._evaluated + offset
 
 
 def format_placeholders(format: str, req: GenerateImageRequest, task_data: TaskData, now=None):
@@ -114,7 +117,7 @@ def format_file_name(
     format = format_placeholders(format, req, task_data, now)
 
     if "$n" in format:
-        format = format.replace("$n", f"{folder_img_number():05}")
+        format = format.replace("$n", f"{folder_img_number(batch_file_number):05}")
 
     if "$tsb64" in format:
         img_id = base_repr(int(now * 10000), 36)[-7:] + base_repr(
@@ -142,9 +145,9 @@ def save_images_to_disk(
     folder_format = app_config.get("folder_format", "$id")
     save_dir_path = os.path.join(save_data.save_to_disk_path, format_folder_name(folder_format, req, task_data))
     metadata_entries = get_metadata_entries_for_request(req, task_data, models_data, output_format, save_data)
-    file_number = calculate_img_number(save_dir_path, task_data)
+    file_number = calculate_img_number(save_dir_path, task_data, len(filtered_images))
     make_filename = make_filename_callback(
-        app_config.get("filename_format", "$p_$tsb64"),
+        app_config.get("filename_format", "$n_$p_$tsb64"),
         req,
         task_data,
         file_number,
@@ -226,10 +229,9 @@ def get_printable_request(
     task_data_metadata.update(output_format.dict())
     task_data_metadata.update(save_data.dict())
 
-    app_config = app.getConfig()
     # sdkit3 exposes the same LoRA, embedding, tiling, clip-skip, and
     # ControlNet request fields that this metadata branch preserves.
-    using_diffusers = app_config.get("backend", "sdkit3") == "sdkit3"
+    using_diffusers = True
 
     # Save the metadata in the order defined in TASK_TEXT_MAPPING
     metadata = {}
@@ -285,7 +287,7 @@ def make_filename_callback(
     filename_format: str,
     req: GenerateImageRequest,
     task_data: RenderTaskData,
-    folder_img_number: int,
+    folder_img_number: ImageNumber,
     suffix=None,
     now=None,
 ):
@@ -301,12 +303,12 @@ def make_filename_callback(
     return make_filename
 
 
-def _calculate_img_number(save_dir_path: str, task_data: RenderTaskData):
+def _calculate_img_number(save_dir_path: str, task_data: RenderTaskData, reserve_count: int = 1):
     def get_highest_img_number(accumulator: int, file: os.DirEntry) -> int:
-        if not file.is_file:
+        if not file.is_file():
             return accumulator
 
-        if len(list(filter(lambda e: file.name.endswith(e), app.IMAGE_EXTENSIONS))) == 0:
+        if not file.name.lower().endswith(tuple(extension.lower() for extension in app.IMAGE_EXTENSIONS)):
             return accumulator
 
         get_highest_img_number.number_of_images = get_highest_img_number.number_of_images + 1
@@ -318,32 +320,32 @@ def _calculate_img_number(save_dir_path: str, task_data: RenderTaskData):
         file_number = number_match.group().lstrip("0")
 
         # Handle 00000
-        return int(file_number) if file_number else 0
+        return max(accumulator, int(file_number) if file_number else 0)
 
     get_highest_img_number.number_of_images = 0
 
-    highest_file_number = -1
+    reserve_count = max(1, int(reserve_count))
+    counter_key = (os.path.normcase(os.path.realpath(save_dir_path)), task_data.session_id)
 
-    if os.path.isdir(save_dir_path):
-        existing_files = list(os.scandir(save_dir_path))
-        highest_file_number = reduce(get_highest_img_number, existing_files, -1)
+    with _calculate_img_number.lock:
+        highest_file_number = -1
+        if os.path.isdir(save_dir_path):
+            with os.scandir(save_dir_path) as existing_files:
+                highest_file_number = reduce(get_highest_img_number, existing_files, -1)
 
-    calculated_img_number = max(highest_file_number, get_highest_img_number.number_of_images - 1)
-
-    if task_data.session_id in _calculate_img_number.session_img_numbers:
+        calculated_img_number = max(highest_file_number, get_highest_img_number.number_of_images - 1)
         calculated_img_number = max(
-            _calculate_img_number.session_img_numbers[task_data.session_id],
+            _calculate_img_number.session_img_numbers.get(counter_key, -1),
             calculated_img_number,
-        )
+        ) + 1
 
-    calculated_img_number = calculated_img_number + 1
-
-    _calculate_img_number.session_img_numbers[task_data.session_id] = calculated_img_number
-    return calculated_img_number
+        _calculate_img_number.session_img_numbers[counter_key] = calculated_img_number + reserve_count - 1
+        return calculated_img_number
 
 
 _calculate_img_number.session_img_numbers = {}
+_calculate_img_number.lock = threading.Lock()
 
 
-def calculate_img_number(save_dir_path: str, task_data: RenderTaskData):
-    return ImageNumber(lambda: _calculate_img_number(save_dir_path, task_data))
+def calculate_img_number(save_dir_path: str, task_data: RenderTaskData, reserve_count: int = 1):
+    return ImageNumber(lambda: _calculate_img_number(save_dir_path, task_data, reserve_count))

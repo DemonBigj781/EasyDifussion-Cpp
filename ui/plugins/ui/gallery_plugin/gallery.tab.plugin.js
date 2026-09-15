@@ -1107,7 +1107,7 @@
         const preview = document.querySelector('#init_image_preview')
         if (!preview) throw new Error('The Initial Image control is unavailable')
         const file = await galleryImageFile(imgData)
-        preview.src = await fileAsDataUrl(file)
+        setInitialImageSource(await fileAsDataUrl(file))
         document.querySelector('#tab-main')?.click()
         document.querySelector('#initial-image-settings')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         showGalleryActionMessage(`Loaded ${file.name} as the initial image.`)

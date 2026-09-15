@@ -57,6 +57,9 @@ enum sample_method_t {
     DPMPP2M_SDE_SAMPLE_METHOD,
     DPMPP2M_SDE_BT_SAMPLE_METHOD,
     LMS_SAMPLE_METHOD,
+    DPMPP3M_SDE_SAMPLE_METHOD,
+    UNIPC_SAMPLE_METHOD,
+    DEIS_SAMPLE_METHOD,
     SAMPLE_METHOD_COUNT
 };
 
@@ -80,6 +83,8 @@ enum scheduler_t {
     FLUX2_SCHEDULER,
     FLUX_SCHEDULER,
     BETA_SCHEDULER,
+    DDIM_UNIFORM_SCHEDULER,
+    LINEAR_QUADRATIC_SCHEDULER,
     SCHEDULER_COUNT
 };
 
@@ -681,6 +686,38 @@ SD_API void disable_imatrix_collection(void);
 
 SD_API const char* sd_commit(void);
 SD_API const char* sd_version(void);
+
+enum sd_backend_device_type_t {
+    SD_BACKEND_DEVICE_TYPE_CPU,
+    SD_BACKEND_DEVICE_TYPE_GPU,
+    SD_BACKEND_DEVICE_TYPE_IGPU,
+    SD_BACKEND_DEVICE_TYPE_ACCELERATOR,
+    SD_BACKEND_DEVICE_TYPE_META,
+};
+
+// Backend device metadata. String pointers are owned by the backend registry
+// and remain valid for the lifetime of the process.
+typedef struct {
+    size_t index;
+    const char* backend;
+    const char* name;
+    const char* description;
+    const char* vendor;
+    const char* device_id;
+    size_t memory_free;
+    size_t memory_total;
+    enum sd_backend_device_type_t type;
+    bool async;
+    bool host_buffer;
+    bool buffer_from_host_ptr;
+    bool events;
+} sd_backend_device_info_t;
+
+// Return backend devices in stable process-local enumeration order. The name
+// is also the selector accepted by backend assignment specs (for example,
+// CUDA0 or SYCL1).
+SD_API size_t sd_get_backend_device_count(void);
+SD_API bool sd_get_backend_device_info(size_t index, sd_backend_device_info_t* info);
 
 // List available ggml backend devices, one `name<TAB>description` per line.
 // The names are the device names accepted by the --backend / --params-backend

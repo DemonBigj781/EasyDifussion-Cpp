@@ -1,8 +1,12 @@
 import importlib.util
+import base64
+from io import BytesIO
 import pathlib
 import sys
 import types
 import unittest
+
+from PIL import Image
 
 
 _MOCKED_MODULES = (
@@ -122,6 +126,35 @@ class TestWebuiFaceFilterPayloads(unittest.TestCase):
         self.assertEqual(payloads[0]["gfpgan_visibility"], 1)
         self.assertEqual(payloads[0]["upscaler_1"], "R-ESRGAN 4x+")
         self.assertEqual(payloads[0]["upscaling_resize"], 4)
+
+    def test_base64_images_are_canonicalized_for_native_backend(self):
+        normalized = self.webui_common.normalize_base64_image(
+            "data:image/png;base64, dG Vz\ndA",
+            "control image",
+        )
+        self.assertEqual(normalized, "dGVzdA==")
+
+    def test_invalid_base64_image_is_rejected_before_backend_request(self):
+        with self.assertRaisesRegex(ValueError, "control image"):
+            self.webui_common.normalize_base64_image("not@@base64", "control image")
+
+    def test_webp_images_are_transcoded_for_native_backend(self):
+        source = BytesIO()
+        Image.new("RGBA", (13, 17), (12, 34, 56, 78)).save(source, format="WEBP", lossless=True)
+        self.webui_common.USE_SDKIT3_API = True
+        try:
+            normalized = self.webui_common.normalize_base64_image(
+                "data:image/webp;base64," + base64.b64encode(source.getvalue()).decode("ascii"),
+                "initial image",
+            )
+        finally:
+            self.webui_common.USE_SDKIT3_API = False
+
+        decoded = base64.b64decode(normalized)
+        self.assertTrue(decoded.startswith(b"\x89PNG\r\n\x1a\n"))
+        with Image.open(BytesIO(decoded)) as image:
+            self.assertEqual(image.size, (13, 17))
+            self.assertEqual(image.mode, "RGBA")
 
 
 if __name__ == "__main__":

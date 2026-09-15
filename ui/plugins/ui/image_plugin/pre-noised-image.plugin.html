@@ -1,0 +1,16 @@
+        <h4 class="collapsible">Pure Noise Image <small>weighted palette · no content</small></h4>
+        <div class="collapsible-content settings-panel-entries">
+            <p class="pure-noise-explanation">
+                Create an Initial Image made only from independent noise pixels at the current image size.
+                Choose up to eight colors; weights are relative probabilities.
+            </p>
+            <div id="pure-noise-palette" class="pure-noise-palette"></div>
+            <div class="pure-noise-actions">
+                <label for="pure-noise-seed">Noise seed</label>
+                <input id="pure-noise-seed" type="number" min="0" max="4294967295" step="1" value="1">
+                <label><input id="pure-noise-random-seed" type="checkbox" checked> Randomize</label>
+                <button id="pure-noise-generate" type="button" class="secondaryButton">Create Initial Noise</button>
+            </div>
+            <canvas id="pure-noise-preview" width="256" height="256" aria-label="Pure noise preview"></canvas>
+            <small id="pure-noise-status">The generated PNG contains no source content, shapes, or prompt rendering.</small>
+        </div>

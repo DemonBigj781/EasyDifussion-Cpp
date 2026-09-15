@@ -57,9 +57,16 @@ static std::string convert_webui_sampler_name(const std::string& name) {
         {"DPM++ 2S a", "dpm++2s_a"},
         {"DPM++ 2M", "dpm++2m"},
         {"DPM++ 2M v2", "dpm++2mv2"},
+        {"DPM++ 2M SDE", "dpm++2m_sde"},
+        {"DPM++ 3M SDE", "dpm++3m_sde"},
+        {"UniPC", "unipc"},
+        {"DEIS", "deis"},
         {"IPNDM", "ipndm"},
         {"IPNDM_V", "ipndm_v"},
         {"LCM", "lcm"},
+        {"RES Multistep", "res_multistep"},
+        {"Gradient Estimation", "euler_ge"},
+        {"ER-SDE", "er_sde"},
         {"DDIM", "ddim_trailing"},
         {"TCD", "tcd"},
     };
@@ -71,9 +78,19 @@ static std::string convert_webui_sampler_name(const std::string& name) {
 
 static std::string convert_webui_scheduler_name(const std::string& name) {
     static const std::unordered_map<std::string, std::string> mapping = {
-        {"automatic", "discrete"},      {"uniform", "discrete"},           {"karras", "karras"},
-        {"exponential", "exponential"}, {"sgm_uniform", "sgm_uniform"},    {"simple", "simple"},
-        {"align_your_steps", "ays"},    {"align_your_steps_GITS", "gits"},
+        {"automatic", "discrete"},
+        {"uniform", "discrete"},
+        {"normal", "discrete"},
+        {"karras", "karras"},
+        {"exponential", "exponential"},
+        {"sgm_uniform", "sgm_uniform"},
+        {"simple", "simple"},
+        {"beta", "beta"},
+        {"kl_optimal", "kl_optimal"},
+        {"ddim_uniform", "ddim_uniform"},
+        {"linear_quadratic", "linear_quadratic"},
+        {"align_your_steps", "ays"},
+        {"align_your_steps_GITS", "gits"},
     };
 
     auto it = mapping.find(name);
@@ -193,6 +210,10 @@ void Server::setupRoutes() {
     // Ping endpoint
     CROW_ROUTE(app_, "/v1/internal/ping").methods("GET"_method)([this]() { return handlePing(); });
 
+    CROW_ROUTE(app_, "/v1/sdapi/v1/backend-devices").methods("GET"_method)([this]() {
+        return handleBackendDevices();
+    });
+
     // Options endpoints
     CROW_ROUTE(app_, "/v1/sdapi/v1/options").methods("GET"_method)([this]() { return handleGetOptions(); });
 
@@ -258,6 +279,41 @@ void Server::stop() {
 }
 
 crow::response Server::handlePing() { return crow::response(200, "OK"); }
+
+crow::response Server::handleBackendDevices() {
+    crow::json::wvalue::list devices;
+    for (size_t index = 0; index < sd_get_backend_device_count(); ++index) {
+        sd_backend_device_info_t info{};
+        if (!sd_get_backend_device_info(index, &info)) {
+            continue;
+        }
+        crow::json::wvalue device;
+        device["selector"] = std::string(info.name ? info.name : "");
+        device["backend"] = std::string(info.backend ? info.backend : "");
+        device["description"] = std::string(info.description ? info.description : "");
+        device["vendor"] = std::string(info.vendor ? info.vendor : "");
+        device["memory_free"] = static_cast<uint64_t>(info.memory_free);
+        device["memory_total"] = static_cast<uint64_t>(info.memory_total);
+        switch (info.type) {
+            case SD_BACKEND_DEVICE_TYPE_CPU:
+                device["type"] = "cpu";
+                break;
+            case SD_BACKEND_DEVICE_TYPE_IGPU:
+                device["type"] = "integrated-gpu";
+                break;
+            case SD_BACKEND_DEVICE_TYPE_GPU:
+                device["type"] = "gpu";
+                break;
+            default:
+                device["type"] = "other";
+                break;
+        }
+        devices.emplace_back(std::move(device));
+    }
+    crow::json::wvalue response;
+    response["devices"] = std::move(devices);
+    return crow::response(200, response);
+}
 
 crow::response Server::handleGetOptions() {
     try {
@@ -367,6 +423,12 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
 
     try {
         VideoGenerationParams params;
+        if (json_body.has("backend")) {
+            if (json_body["backend"].t() != crow::json::type::String) {
+                throw std::invalid_argument("backend must be a device-assignment string");
+            }
+            params.backend = std::string(json_body["backend"].s());
+        }
         params.prompt          = json_body.has("prompt") ? std::string(json_body["prompt"].s()) : "";
         params.negative_prompt = json_body.has("negative_prompt")
                                      ? std::string(json_body["negative_prompt"].s())
@@ -518,6 +580,12 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
     try {
         // Parse generation parameters
         ImageGenerationParams params;
+        if (json_body.has("backend")) {
+            if (json_body["backend"].t() != crow::json::type::String) {
+                throw std::invalid_argument("backend must be a device-assignment string");
+            }
+            params.backend = std::string(json_body["backend"].s());
+        }
         params.prompt = json_body.has("prompt") ? std::string(json_body["prompt"].s()) : "";
         params.negative_prompt = json_body.has("negative_prompt") ? std::string(json_body["negative_prompt"].s()) : "";
         if (json_body.has("lora_paths") && json_body["lora_paths"].t() == crow::json::type::List) {

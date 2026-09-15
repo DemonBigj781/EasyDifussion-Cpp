@@ -808,6 +808,8 @@
         num_inference_steps: 50,
         guidance_scale: 7.5,
         negative_prompt: "",
+        hidden_positive_prompt: "",
+        hidden_negative_prompt: "",
 
         num_outputs: 1,
         stream_progress_updates: true,
@@ -820,6 +822,8 @@
     }
     const TASK_OPTIONAL = {
         device: "string",
+        hidden_positive_prompt: "string",
+        hidden_negative_prompt: "string",
         init_image: "string",
         mask: "string",
         save_to_disk_path: "string",

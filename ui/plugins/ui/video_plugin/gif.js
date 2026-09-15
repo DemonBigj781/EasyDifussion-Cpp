@@ -443,6 +443,32 @@
                                 _this.freeWorkers.push(worker);
                                 return _this.frameFinished(event.data)
                             };
+                            worker.onerror = function(event) {
+                                var activeIndex, error, freeIndex, failedWorkers;
+                                if (typeof event.preventDefault === "function") {
+                                    event.preventDefault()
+                                }
+                                activeIndex = _this.activeWorkers.indexOf(worker);
+                                if (activeIndex >= 0) {
+                                    _this.activeWorkers.splice(activeIndex, 1)
+                                }
+                                freeIndex = _this.freeWorkers.indexOf(worker);
+                                if (freeIndex >= 0) {
+                                    _this.freeWorkers.splice(freeIndex, 1)
+                                }
+                                failedWorkers = _this.activeWorkers.concat(_this.freeWorkers);
+                                _this.activeWorkers = [];
+                                _this.freeWorkers = [];
+                                failedWorkers.forEach(function(failedWorker) {
+                                    failedWorker.terminate()
+                                });
+                                worker.terminate();
+                                _this.running = false;
+                                error = new Error("GIF worker failed to load or encode a frame: " + _this.options.workerScript);
+                                error.filename = event.filename;
+                                error.lineno = event.lineno;
+                                return _this.emit("error", error)
+                            };
                             return _this.freeWorkers.push(worker)
                         }
                     }(this));

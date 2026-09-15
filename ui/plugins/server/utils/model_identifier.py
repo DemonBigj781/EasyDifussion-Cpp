@@ -88,6 +88,10 @@ CHECKPOINT_KEY_NAMES = {
     "wan_vae": "decoder.middle.0.residual.0.gamma",
     "wan_vace": "vace_blocks.0.after_proj.bias",
     "hidream": "double_stream_blocks.0.block.adaLN_modulation.1.bias",
+    "anima": [
+        "llm_adapter.blocks.0.cross_attn.q_proj.weight",
+        "model.diffusion_model.llm_adapter.blocks.0.cross_attn.q_proj.weight",
+    ],
     "cosmos-1.0": [
         "net.x_embedder.proj.1.weight",
         "net.blocks.block1.blocks.0.block.attn.to_q.0.weight",
@@ -211,6 +215,9 @@ def has_all_keys(header, keys):
 
 def infer_diffusers_model_type(header):
     s = shape_of
+
+    if has_any_key(header, CHECKPOINT_KEY_NAMES["anima"]):
+        return "anima"
 
     if CHECKPOINT_KEY_NAMES["inpainting"] in header and s(header, CHECKPOINT_KEY_NAMES["inpainting"])[1] == 9:
         if CHECKPOINT_KEY_NAMES["v2"] in header and s(header, CHECKPOINT_KEY_NAMES["v2"])[-1] == 1024:
@@ -456,6 +463,63 @@ def identify_vae_latent_family(path):
     if any(token in normalized for token in ("/flux/", "flux_vae", "/ae.safetensors")):
         return "fx"
     return "v1"
+
+
+def identify_ip_adapter_compatibility(path):
+    """Return the native projection kind and required CLIP embedding width.
+
+    stable-diffusion.cpp supports the original linear projection and the
+    Perceiver/Plus resampler.  Reading the tensor shapes makes renamed model
+    files just as reliable as conventionally named downloads.
+    """
+    normalized = str(path).lower()
+    if not normalized.endswith((".safetensors", ".sft")):
+        return None
+    header = read_safetensors_header(path)
+
+    def find_shape(suffix):
+        for name, value in header.items():
+            if name.endswith(suffix) and isinstance(value, dict) and "shape" in value:
+                return tuple(value["shape"])
+        return None
+
+    latents = find_shape("image_proj.latents")
+    if latents is not None:
+        proj_in = find_shape("image_proj.proj_in.weight")
+        if proj_in and len(proj_in) >= 2:
+            return {"kind": "plus", "embedding_dim": int(proj_in[-1])}
+        return None
+
+    projection = find_shape("image_proj.proj.weight")
+    normalization = find_shape("image_proj.norm.weight")
+    if projection and len(projection) >= 2 and normalization:
+        return {"kind": "base", "embedding_dim": int(projection[-1])}
+    return None
+
+
+def identify_clip_vision_compatibility(path):
+    """Return hidden and pooled-projection widths for a CLIP-Vision model."""
+    normalized = str(path).lower()
+    if not normalized.endswith((".safetensors", ".sft")):
+        return None
+    header = read_safetensors_header(path)
+
+    def find_shape(suffix):
+        for name, value in header.items():
+            if name.endswith(suffix) and isinstance(value, dict) and "shape" in value:
+                return tuple(value["shape"])
+        return None
+
+    class_embedding = find_shape("vision_model.embeddings.class_embedding")
+    projection = find_shape("visual_projection.weight")
+    if not class_embedding:
+        patch = find_shape("vision_model.embeddings.patch_embedding.weight")
+        class_embedding = (patch[0],) if patch and len(patch) >= 1 else None
+    if not class_embedding:
+        return None
+    hidden_dim = int(class_embedding[0])
+    projection_dim = int(projection[0]) if projection and len(projection) >= 2 else hidden_dim
+    return {"hidden_dim": hidden_dim, "projection_dim": projection_dim}
 
 
 if __name__ == "__main__":

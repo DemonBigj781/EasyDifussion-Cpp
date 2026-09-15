@@ -18,7 +18,7 @@ public:
         blocks["fc1"] = std::shared_ptr<GGMLBlock>(new Linear(d_model, intermediate_size));
         blocks["fc2"] = std::shared_ptr<GGMLBlock>(new Linear(intermediate_size, d_model));
 
-        if (d_model == 1024 || d_model == 1280) {  // SD 2.x
+        if (d_model == 1024 || d_model == 1280 || d_model == 1664) {  // OpenCLIP
             use_gelu = true;
         } else {  // SD 1.x
             use_gelu = false;
@@ -245,7 +245,40 @@ enum CLIPVersion {
     OPENAI_CLIP_VIT_L_14,   // SD 1.x and SDXL
     OPEN_CLIP_VIT_H_14,     // SD 2.x
     OPEN_CLIP_VIT_BIGG_14,  // SDXL
+    CLIP_VERSION_AUTO,
 };
+
+inline CLIPVersion clip_vision_version_from_hidden_size(int64_t hidden_size,
+                                                        CLIPVersion fallback = OPEN_CLIP_VIT_H_14) {
+    switch (hidden_size) {
+        case 1024:
+            return OPENAI_CLIP_VIT_L_14;
+        case 1280:
+            return OPEN_CLIP_VIT_H_14;
+        case 1664:
+            return OPEN_CLIP_VIT_BIGG_14;
+        default:
+            return fallback;
+    }
+}
+
+inline CLIPVersion detect_clip_vision_version(const String2TensorStorage& tensor_storage_map,
+                                              const std::string& prefix,
+                                              CLIPVersion fallback = OPEN_CLIP_VIT_H_14) {
+    const std::string class_embedding_name = prefix + ".vision_model.embeddings.class_embedding";
+    const auto class_embedding             = tensor_storage_map.find(class_embedding_name);
+    if (class_embedding != tensor_storage_map.end() && class_embedding->second.n_dims >= 1) {
+        return clip_vision_version_from_hidden_size(class_embedding->second.ne[0], fallback);
+    }
+
+    const std::string patch_embedding_name = prefix + ".vision_model.embeddings.patch_embedding.weight";
+    const auto patch_embedding             = tensor_storage_map.find(patch_embedding_name);
+    if (patch_embedding != tensor_storage_map.end() && patch_embedding->second.n_dims >= 4) {
+        return clip_vision_version_from_hidden_size(patch_embedding->second.ne[3], fallback);
+    }
+
+    return fallback;
+}
 
 class CLIPTextModel : public GGMLBlock {
 protected:

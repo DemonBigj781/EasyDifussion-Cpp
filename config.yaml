@@ -19,7 +19,6 @@ render_devices:
   - cuda
 ui:
   open_browser_on_start: false
-update_branch: beta
 
 # Advanced backend overrides (optional)
 # These are applied at startup by `scripts/check_modules.py` and exported as environment variables.
@@ -31,30 +30,57 @@ backend_config:
   COMMANDLINE_ARGS:
     - --log-level
     - info
-    - --attention
-    - flash
+    - --keep-model-loaded
+    - --image-clip-vision-on-cpu
+    - --image-ip-adapter-on-cpu
     - --vae-tiling
     - --vae-tiles
     - '64'
     - --vae-tiled-overlap
     - '16'
-
-# Set force_save_path to enforce an auto save path. Clients will not be able to change or
-# disable auto save when this option is set. Please adapt the path in the examples to your
-# needs.
-# Windows:
-# force_save_path: C:\\Easy Diffusion Images\\
-# Linux:
+    - --attention
+    - flash
 force_save_path: /mnt/1812FB8512FB6662/easy-diffusion-save-backup
-use_v3_engine: false
+# $n is a collision-safe, five-digit counter reserved for every image in a batch.
+filename_format: $n_$p_$tsb64
 models_dir: /mnt/84760EBC760EAECC
+directories:
+  checkpoints: checkpoints
+  vae: vae
+  taesdvae: VAE-taesd
+  hypernetwork: hypernetwork
+  gfpgan: gfpgan
+  realesrgan: realesrgan
+  lora: lora
+  codeformer: codeformer
+  embeddings: embeddings
+  controlnet: controlnet
+  controlnet-union: Controlnet_Union
+  uni-controlnet: Uni_Controlnet
+  controlnet-lite: Controlnet_LITE
+  controlnet-lllite: controlnet-lllite
+  ip-adapter: ip-adapter
+  clip-vision: clip-vision
+  latent-interposer: latent-interposer
+  furception-vae: furception-vae
+  wd14-tagger: wd14-tagger
+  text-encoder: text-encoder
+  video:
+    - SVD
+    - diffusion_models
+    - mochi
+    - lighttricks
+  tipo: tipo
 model:
   stable-diffusion: sdxl/fruitHeart_v10
 vram_usage_level: balanced
-backend: sdkit3
 tipo:
   # The vendored CUDA llama.cpp server offloads all TIPO layers on this RTX 3060.
   device: cuda
   gpu_layers: 999
 gallery:
   directory: /mnt/1812FB8512FB6662/easy-diffusion-save-backup
+perchance:
+  gallery_id: ''
+  channel: ai-furry-generator
+  launcher: ''

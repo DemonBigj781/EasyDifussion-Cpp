@@ -153,6 +153,9 @@ const char* sampling_methods_str[] = {
     "DPM++ (2M) SDE",
     "DPM++ (2M) SDE BT",
     "LMS",
+    "DPM++ (3M) SDE",
+    "UniPC",
+    "DEIS",
 };
 
 static_assert(SAMPLE_METHOD_COUNT == sizeof(sampling_methods_str) / sizeof(sampling_methods_str[0]),
@@ -1141,8 +1144,10 @@ public:
         diffusion_conv_direct = sd_ctx_params->diffusion_conv_direct;
 
         size_t text_encoder_params_mem_size = 0;
+        size_t clip_vision_params_mem_size   = 0;
         size_t unet_params_mem_size         = 0;
         size_t vae_params_mem_size          = 0;
+        size_t ip_adapter_params_mem_size    = 0;
         control_net_params_mem_size         = 0;
         size_t extension_params_mem_size    = 0;
 
@@ -1160,7 +1165,9 @@ public:
         auto& tensor_storage_map = model_loader.get_tensor_storage_map();
 
         {
+            SDBackendModule conditioner_backend_module = SDBackendModule::TE;
             if (!ensure_backend_pair(SDBackendModule::TE) ||
+                !ensure_backend_pair(SDBackendModule::LLM) ||
                 !ensure_backend_pair(SDBackendModule::DIFFUSION)) {
                 return false;
             }
@@ -1174,7 +1181,8 @@ public:
                                                                 "model.diffusion_model",
                                                                 model_manager);
             } else if (sd_version_is_pid(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1185,7 +1193,8 @@ public:
                                                                    "model.diffusion_model.net",
                                                                    model_manager);
             } else if (sd_version_is_ideogram4(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1196,7 +1205,8 @@ public:
                                                                                "model.diffusion_model",
                                                                                model_manager);
             } else if (sd_version_is_krea2(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1223,7 +1233,8 @@ public:
                                                                         model_manager,
                                                                         sd_ctx_params->model_args);
                 } else if (version == VERSION_OVIS_IMAGE) {
-                    cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                    conditioner_backend_module = SDBackendModule::LLM;
+                    cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                      tensor_storage_map,
                                                                      version,
                                                                      "",
@@ -1242,7 +1253,8 @@ public:
                                                                      sd_ctx_params->model_args);
             } else if (sd_version_is_flux2(version) || sd_version_is_sefi_image(version)) {
                 bool is_chroma   = false;
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1255,7 +1267,8 @@ public:
                                                                      model_manager,
                                                                      sd_ctx_params->model_args);
             } else if (sd_version_is_ltxav(version)) {
-                cond_stage_model = std::make_shared<LTXAVEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LTXAVEmbedder>(backend_for(conditioner_backend_module),
                                                                    tensor_storage_map,
                                                                    "text_encoders.llm",
                                                                    "text_embedding_projection",
@@ -1278,7 +1291,8 @@ public:
                                                                                     "model.diffusion_model",
                                                                                     model_manager);
             } else if (sd_version_is_minimax_h3(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1289,7 +1303,8 @@ public:
                                                                                "model.diffusion_model",
                                                                                model_manager);
             } else if (sd_version_is_hunyuan_video(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1331,7 +1346,8 @@ public:
                     clip_vision->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::CLIP_VISION));
                     if (!register_runner_params("CLIP vision",
                                                 clip_vision,
-                                                SDBackendModule::CLIP_VISION)) {
+                                                SDBackendModule::CLIP_VISION,
+                                                &clip_vision_params_mem_size)) {
                         return false;
                     }
                 }
@@ -1343,7 +1359,8 @@ public:
                         break;
                     }
                 }
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1356,7 +1373,8 @@ public:
                                                                                      sd_ctx_params->model_args);
             } else if (sd_version_is_qwen_image(version)) {
                 bool enable_vision = version != VERSION_QWEN_IMAGE_LAYERED;
-                cond_stage_model   = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model   = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1369,7 +1387,8 @@ public:
                                                                           model_manager,
                                                                           sd_ctx_params->model_args);
             } else if (sd_version_is_mage_flow(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1380,7 +1399,8 @@ public:
                                                                              "model.diffusion_model",
                                                                              model_manager);
             } else if (sd_version_is_longcat(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1417,7 +1437,8 @@ public:
                                                                        "model.diffusion_model",
                                                                        model_manager);
             } else if (sd_version_is_z_image(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1429,7 +1450,8 @@ public:
                                                                          version,
                                                                          model_manager);
             } else if (sd_version_is_boogu_image(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1441,7 +1463,8 @@ public:
                                                                             version,
                                                                             model_manager);
             } else if (sd_version_is_ernie_image(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1452,7 +1475,8 @@ public:
                                                                                  "model.diffusion_model",
                                                                                  model_manager);
             } else if (sd_version_is_lens(version)) {
-                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(SDBackendModule::TE),
+                conditioner_backend_module = SDBackendModule::LLM;
+                cond_stage_model = std::make_shared<LLMEmbedder>(backend_for(conditioner_backend_module),
                                                                  tensor_storage_map,
                                                                  version,
                                                                  "",
@@ -1484,7 +1508,7 @@ public:
                 if (!register_runner_params("SVD CLIP vision",
                                             clip_vision,
                                             SDBackendModule::CLIP_VISION,
-                                            &text_encoder_params_mem_size)) {
+                                            &clip_vision_params_mem_size)) {
                     return false;
                 }
             } else {  // SD1.x SD2.x SDXL
@@ -1508,13 +1532,13 @@ public:
                 }
             }
 
-            cond_stage_model->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::TE));
+            cond_stage_model->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(conditioner_backend_module));
             cond_stage_model->set_execution_cancel_callback([this]() {
                 return get_cancel_flag() == SD_CANCEL_ALL;
             });
             if (!register_runner_params("Conditioner model",
                                         cond_stage_model,
-                                        SDBackendModule::TE,
+                                        conditioner_backend_module,
                                         &text_encoder_params_mem_size)) {
                 return false;
             }
@@ -1532,7 +1556,10 @@ public:
             }
 
             if (use_latent_interposer) {
-                latent_interposer = std::make_shared<LatentInterposerRunner>(backend_for(SDBackendModule::DIFFUSION),
+                if (!ensure_backend_pair(SDBackendModule::LATENT_INTERPOSER)) {
+                    return false;
+                }
+                latent_interposer = std::make_shared<LatentInterposerRunner>(backend_for(SDBackendModule::LATENT_INTERPOSER),
                                                                              tensor_storage_map,
                                                                              "latent_interposer",
                                                                              model_manager);
@@ -1547,14 +1574,17 @@ public:
                 }
                 if (!register_runner_params("Latent Interposer",
                                             latent_interposer,
-                                            SDBackendModule::DIFFUSION,
+                                            SDBackendModule::LATENT_INTERPOSER,
                                             &unet_params_mem_size)) {
                     return false;
                 }
             }
 
             if (use_latent_interposer_encode) {
-                latent_interposer_encode = std::make_shared<LatentInterposerRunner>(backend_for(SDBackendModule::DIFFUSION),
+                if (!ensure_backend_pair(SDBackendModule::LATENT_INTERPOSER_ENCODE)) {
+                    return false;
+                }
+                latent_interposer_encode = std::make_shared<LatentInterposerRunner>(backend_for(SDBackendModule::LATENT_INTERPOSER_ENCODE),
                                                                                     tensor_storage_map,
                                                                                     "latent_interposer_encode",
                                                                                     model_manager);
@@ -1569,14 +1599,17 @@ public:
                 }
                 if (!register_runner_params("Encode Latent Interposer",
                                             latent_interposer_encode,
-                                            SDBackendModule::DIFFUSION,
+                                            SDBackendModule::LATENT_INTERPOSER_ENCODE,
                                             &unet_params_mem_size)) {
                     return false;
                 }
             }
 
             if (use_latent_interposer_decode) {
-                latent_interposer_decode = std::make_shared<LatentInterposerRunner>(backend_for(SDBackendModule::DIFFUSION),
+                if (!ensure_backend_pair(SDBackendModule::LATENT_INTERPOSER_DECODE)) {
+                    return false;
+                }
+                latent_interposer_decode = std::make_shared<LatentInterposerRunner>(backend_for(SDBackendModule::LATENT_INTERPOSER_DECODE),
                                                                                     tensor_storage_map,
                                                                                     "latent_interposer_decode",
                                                                                     model_manager);
@@ -1591,7 +1624,7 @@ public:
                 }
                 if (!register_runner_params("Decode Latent Interposer",
                                             latent_interposer_decode,
-                                            SDBackendModule::DIFFUSION,
+                                            SDBackendModule::LATENT_INTERPOSER_DECODE,
                                             &unet_params_mem_size)) {
                     return false;
                 }
@@ -1621,24 +1654,32 @@ public:
                 clip_vision->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::CLIP_VISION));
                 if (!register_runner_params("CLIP vision",
                                             clip_vision,
-                                            SDBackendModule::CLIP_VISION)) {
+                                            SDBackendModule::CLIP_VISION,
+                                            &clip_vision_params_mem_size)) {
                     return false;
                 }
             }
 
             if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0) {
-                ip_adapter = std::make_shared<IPAdapter::IPAdapterRunner>(backend_for(SDBackendModule::DIFFUSION),
+                if (!ensure_backend_pair(SDBackendModule::IP_ADAPTER)) {
+                    return false;
+                }
+                ip_adapter = std::make_shared<IPAdapter::IPAdapterRunner>(backend_for(SDBackendModule::IP_ADAPTER),
                                                                           tensor_storage_map,
                                                                           "ip_adapter",
                                                                           model_manager);
+                ip_adapter->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::IP_ADAPTER));
                 if (!register_runner_params("IP-Adapter",
                                             ip_adapter,
-                                            SDBackendModule::DIFFUSION)) {
+                                            SDBackendModule::IP_ADAPTER,
+                                            &ip_adapter_params_mem_size)) {
                     return false;
                 }
             }
 
-            if (!ensure_backend_pair(SDBackendModule::VAE)) {
+            if (!ensure_backend_pair(SDBackendModule::VAE) ||
+                !ensure_backend_pair(SDBackendModule::VAE_ENCODE) ||
+                !ensure_backend_pair(SDBackendModule::VAE_DECODE)) {
                 return false;
             }
 
@@ -1902,7 +1943,7 @@ public:
                     if (!register_runner_params("Uni-ControlNet CLIP vision",
                                                 clip_vision,
                                                 SDBackendModule::CLIP_VISION,
-                                                &text_encoder_params_mem_size)) {
+                                                &clip_vision_params_mem_size)) {
                         return false;
                     }
 
@@ -2093,8 +2134,10 @@ public:
             };
 
             if (!add_params_memory(text_encoder_params_mem_size, SDBackendModule::TE) ||
+                !add_params_memory(clip_vision_params_mem_size, SDBackendModule::CLIP_VISION) ||
                 !add_params_memory(extension_params_mem_size, SDBackendModule::PHOTOMAKER) ||
                 !add_params_memory(unet_params_mem_size, SDBackendModule::DIFFUSION) ||
+                !add_params_memory(ip_adapter_params_mem_size, SDBackendModule::IP_ADAPTER) ||
                 !add_params_memory(vae_params_mem_size, SDBackendModule::VAE) ||
                 !add_params_memory(control_net_params_mem_size, SDBackendModule::CONTROL_NET)) {
                 return false;
@@ -2103,14 +2146,18 @@ public:
             size_t total_params_size = total_params_ram_size + total_params_vram_size;
             LOG_INFO(
                 "total params memory size = %.2fMB (VRAM %.2fMB, RAM %.2fMB): "
-                "text_encoders %.2fMB(%s), diffusion_model %.2fMB(%s), vae %.2fMB(%s), controlnet %.2fMB(%s), extensions %.2fMB(%s)",
+                "text_encoders %.2fMB(%s), clip_vision %.2fMB(%s), diffusion_model %.2fMB(%s), ip_adapter_projection %.2fMB(%s), vae %.2fMB(%s), controlnet %.2fMB(%s), extensions %.2fMB(%s)",
                 total_params_size / 1024.0 / 1024.0,
                 total_params_vram_size / 1024.0 / 1024.0,
                 total_params_ram_size / 1024.0 / 1024.0,
                 text_encoder_params_mem_size / 1024.0 / 1024.0,
                 params_memory_location(text_encoder_params_mem_size, SDBackendModule::TE),
+                clip_vision_params_mem_size / 1024.0 / 1024.0,
+                params_memory_location(clip_vision_params_mem_size, SDBackendModule::CLIP_VISION),
                 unet_params_mem_size / 1024.0 / 1024.0,
                 params_memory_location(unet_params_mem_size, SDBackendModule::DIFFUSION),
+                ip_adapter_params_mem_size / 1024.0 / 1024.0,
+                params_memory_location(ip_adapter_params_mem_size, SDBackendModule::IP_ADAPTER),
                 vae_params_mem_size / 1024.0 / 1024.0,
                 params_memory_location(vae_params_mem_size, SDBackendModule::VAE),
                 control_net_params_mem_size / 1024.0 / 1024.0,
@@ -2551,34 +2598,43 @@ public:
         return output;
     }
 
-    void compute_ip_adapter_tokens(const sd_image_t& image, float strength) {
+    bool compute_ip_adapter_tokens(const sd_image_t& image, float strength) {
         ip_adapter_tokens        = {};
         ip_adapter_uncond_tokens = {};
         ip_adapter_strength      = strength;
         if (ip_adapter == nullptr || clip_vision == nullptr || image.data == nullptr) {
-            return;
+            return true;
         }
         auto image_tensor = sd_image_to_tensor(image);
         auto embed        = ip_adapter->is_plus
                                 ? get_clip_vision_output(image_tensor, false, 2)
                                 : get_clip_vision_output(image_tensor, true, -1);
         if (embed.empty()) {
-            return;
+            return false;
         }
         ip_adapter_tokens = ip_adapter->compute(n_threads, embed);
         if (ip_adapter_tokens.empty()) {
             LOG_ERROR("IP-Adapter conditional image projection failed");
-            return;
+            return false;
+        }
+        if (auto unet = std::dynamic_pointer_cast<UNetModelRunner>(diffusion_model);
+            unet != nullptr && ip_adapter->expected_context_dim() != unet->config.context_dim) {
+            LOG_ERROR("IP-Adapter/checkpoint shape mismatch: adapter outputs context width %lld, but the diffusion model expects %d. Select an adapter built for this checkpoint family.",
+                      static_cast<long long>(ip_adapter->expected_context_dim()),
+                      unet->config.context_dim);
+            ip_adapter_tokens = {};
+            return false;
         }
         auto uncond_embed        = sd::Tensor<float>::zeros_like(embed);
         ip_adapter_uncond_tokens = ip_adapter->compute(n_threads, uncond_embed);
         if (ip_adapter_uncond_tokens.empty()) {
             LOG_ERROR("IP-Adapter unconditional image projection failed");
             ip_adapter_tokens = {};
-            return;
+            return false;
         }
         LOG_INFO("IP-Adapter: %lld image tokens, strength %.2f",
                  (long long)ip_adapter_tokens.shape()[1], strength);
+        return true;
     }
 
     std::vector<float> process_timesteps(const std::vector<float>& timesteps,
@@ -3689,7 +3745,27 @@ public:
         return latent_frames_to_video_frames(video_frames_to_latent_frames(frames));
     }
 
+    bool select_vae_runtime_backend(SDBackendModule module) {
+        if (!first_stage_model) {
+            return false;
+        }
+        ggml_backend_t backend = backend_for(module);
+        if (backend == nullptr) {
+            return false;
+        }
+        if (!first_stage_model->set_runtime_backend(backend)) {
+            LOG_ERROR("failed to select %s runtime backend for the VAE",
+                      sd_backend_module_name(module));
+            return false;
+        }
+        first_stage_model->set_runtime_backends(backend_manager.runtime_backends(module));
+        return true;
+    }
+
     sd::Tensor<float> encode_to_vae_latents(const sd::Tensor<float>& x) {
+        if (!select_vae_runtime_backend(SDBackendModule::VAE_ENCODE)) {
+            return {};
+        }
         auto latents = first_stage_model->encode(n_threads, x, vae_tiling_params, circular_x, circular_y);
         if (latents.empty()) {
             return {};
@@ -3815,6 +3891,9 @@ public:
         }
         auto latents = diffusion_to_decode_vae_latents(x, "Decode");
         if (latents.empty()) {
+            return {};
+        }
+        if (!select_vae_runtime_backend(SDBackendModule::VAE_DECODE)) {
             return {};
         }
         auto decoded = first_stage_model->decode(n_threads,
@@ -4087,6 +4166,9 @@ const char* sample_method_to_str[] = {
     "dpm++2m_sde",
     "dpm++2m_sde_bt",
     "lms",
+    "dpm++3m_sde",
+    "unipc",
+    "deis",
 };
 
 static_assert(SAMPLE_METHOD_COUNT == sizeof(sample_method_to_str) / sizeof(sample_method_to_str[0]),
@@ -4126,6 +4208,8 @@ const char* scheduler_to_str[] = {
     "flux2",
     "flux",
     "beta",
+    "ddim_uniform",
+    "linear_quadratic",
 };
 
 static_assert(SCHEDULER_COUNT == sizeof(scheduler_to_str) / sizeof(scheduler_to_str[0]),
@@ -4879,6 +4963,7 @@ static float resolve_eta(sd_ctx_t* sd_ctx,
             case EULER_A_CFG_PP_SAMPLE_METHOD:
             case DPMPP2M_SDE_SAMPLE_METHOD:
             case DPMPP2M_SDE_BT_SAMPLE_METHOD:
+            case DPMPP3M_SDE_SAMPLE_METHOD:
                 return 1.0f;
             default:;
         }
@@ -6143,7 +6228,10 @@ static std::optional<ImageGenerationEmbeds> prepare_image_generation_embeds(sd_c
             return std::nullopt;
         }
     }
-    sd_ctx->sd->compute_ip_adapter_tokens(ip_adapter_image, request->ip_adapter_strength);
+    if (!sd_ctx->sd->compute_ip_adapter_tokens(ip_adapter_image, request->ip_adapter_strength)) {
+        LOG_ERROR("IP-Adapter conditioning could not be prepared; generation cancelled without terminating the backend");
+        return std::nullopt;
+    }
     int64_t prepare_start_ms         = ggml_time_ms();
     condition_params.zero_out_masked = false;
     auto cond                        = sd_ctx->sd->cond_stage_model->get_learned_condition(sd_ctx->sd->n_threads,

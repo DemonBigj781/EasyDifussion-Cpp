@@ -59,20 +59,48 @@ static bool parse_backend_module(const std::string& raw_name, SDBackendModule* m
         *module = SDBackendModule::DIFFUSION;
         return true;
     }
-    if (name == "te" || name == "clip" || name == "text" || name == "textencoder" || name == "textencoders" || name == "conditioner" || name == "cond" || name == "llm" || name == "t5" || name == "t5xxl") {
+    if (name == "te" || name == "clip" || name == "text" || name == "textencoder" || name == "textencoders" || name == "conditioner" || name == "conditioning" || name == "cond" || name == "t5" || name == "t5xxl") {
         *module = SDBackendModule::TE;
+        return true;
+    }
+    if (name == "llm" || name == "language" || name == "languagemodel") {
+        *module = SDBackendModule::LLM;
         return true;
     }
     if (name == "clipvision" || name == "vision") {
         *module = SDBackendModule::CLIP_VISION;
         return true;
     }
+    if (name == "ipadapter" || name == "imageadapter") {
+        *module = SDBackendModule::IP_ADAPTER;
+        return true;
+    }
     if (name == "vae" || name == "firststage" || name == "autoencoder" || name == "tae") {
         *module = SDBackendModule::VAE;
         return true;
     }
+    if (name == "vaeencode" || name == "encoder") {
+        *module = SDBackendModule::VAE_ENCODE;
+        return true;
+    }
+    if (name == "vaedecode" || name == "decoder") {
+        *module = SDBackendModule::VAE_DECODE;
+        return true;
+    }
     if (name == "controlnet" || name == "control") {
         *module = SDBackendModule::CONTROL_NET;
+        return true;
+    }
+    if (name == "latentinterposer" || name == "interposer") {
+        *module = SDBackendModule::LATENT_INTERPOSER;
+        return true;
+    }
+    if (name == "latentinterposerencode" || name == "interposerencode") {
+        *module = SDBackendModule::LATENT_INTERPOSER_ENCODE;
+        return true;
+    }
+    if (name == "latentinterposerdecode" || name == "interposerdecode") {
+        *module = SDBackendModule::LATENT_INTERPOSER_DECODE;
         return true;
     }
     if (name == "photomaker" || name == "photomakerid" || name == "pmid" || name == "photo") {
@@ -94,6 +122,21 @@ static std::string module_assignment_name(const SDBackendAssignment& assignment,
     auto it = assignment.module_names.find(module);
     if (it != assignment.module_names.end()) {
         return it->second;
+    }
+    SDBackendModule parent = module;
+    if (module == SDBackendModule::LLM) {
+        parent = SDBackendModule::TE;
+    } else if (module == SDBackendModule::VAE_ENCODE || module == SDBackendModule::VAE_DECODE) {
+        parent = SDBackendModule::VAE;
+    } else if (module == SDBackendModule::LATENT_INTERPOSER_ENCODE ||
+               module == SDBackendModule::LATENT_INTERPOSER_DECODE) {
+        parent = SDBackendModule::LATENT_INTERPOSER;
+    }
+    if (parent != module) {
+        it = assignment.module_names.find(parent);
+        if (it != assignment.module_names.end()) {
+            return it->second;
+        }
     }
     return assignment.default_name;
 }
@@ -971,12 +1014,26 @@ const char* sd_backend_module_name(SDBackendModule module) {
             return "diffusion";
         case SDBackendModule::TE:
             return "te";
+        case SDBackendModule::LLM:
+            return "llm";
         case SDBackendModule::CLIP_VISION:
             return "clip_vision";
+        case SDBackendModule::IP_ADAPTER:
+            return "ip_adapter";
         case SDBackendModule::VAE:
             return "vae";
+        case SDBackendModule::VAE_ENCODE:
+            return "vae_encode";
+        case SDBackendModule::VAE_DECODE:
+            return "vae_decode";
         case SDBackendModule::CONTROL_NET:
             return "controlnet";
+        case SDBackendModule::LATENT_INTERPOSER:
+            return "latent_interposer";
+        case SDBackendModule::LATENT_INTERPOSER_ENCODE:
+            return "latent_interposer_encode";
+        case SDBackendModule::LATENT_INTERPOSER_DECODE:
+            return "latent_interposer_decode";
         case SDBackendModule::PHOTOMAKER:
             return "photomaker";
         case SDBackendModule::UPSCALER:

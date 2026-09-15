@@ -666,8 +666,15 @@ struct FrozenCLIPVisionEmbedder : public GGMLRunner {
     FrozenCLIPVisionEmbedder(ggml_backend_t backend,
                              const String2TensorStorage& tensor_storage_map      = {},
                              std::shared_ptr<RunnerWeightManager> weight_manager = nullptr,
-                             CLIPVersion version                                 = OPEN_CLIP_VIT_H_14)
+                             CLIPVersion version                                 = CLIP_VERSION_AUTO)
         : GGMLRunner(backend, weight_manager) {
+        if (version == CLIP_VERSION_AUTO) {
+            version = detect_clip_vision_version(tensor_storage_map, weight_prefix);
+            const char* architecture = version == OPEN_CLIP_VIT_BIGG_14 ? "ViT-bigG/14"
+                                       : version == OPEN_CLIP_VIT_H_14   ? "ViT-H/14"
+                                                                         : "ViT-L/14";
+            LOG_INFO("detected CLIP vision architecture: %s", architecture);
+        }
         bool proj_in = false;
         for (const auto& [name, tensor_storage] : tensor_storage_map) {
             if (!starts_with(name, weight_prefix)) {

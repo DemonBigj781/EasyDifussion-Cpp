@@ -37,6 +37,36 @@
         throw new Error("Image Settings plugin: panel could not be created")
     }
 
+    const recommendedSchedulerBySampler = Object.freeze({
+        euler: "normal",
+        euler_a: "exponential",
+        dpmpp_2m: "karras",
+        dpmpp_2m_sde: "karras",
+        dpmpp_3m_sde: "linear_quadratic",
+        unipc: "kl_optimal",
+        lcm: "sgm_uniform",
+        deis: "simple",
+        ipndm: "ddim_uniform",
+        res_multistep: "karras",
+        gradient_estimation_cfg_pp: "beta",
+        er_sde: "exponential",
+    })
+    const samplerField = panel.querySelector("#sampler_name")
+    const schedulerField = panel.querySelector("#scheduler_name")
+
+    function markRecommendedScheduler() {
+        const recommended = recommendedSchedulerBySampler[samplerField.value]
+        for (const option of schedulerField.options) {
+            option.dataset.baseLabel ||= option.textContent.replace(/ \*$/, "")
+            const isRecommended = option.value === recommended
+            option.textContent = `${option.dataset.baseLabel}${isRecommended ? " *" : ""}`
+            option.dataset.recommended = isRecommended ? "true" : "false"
+        }
+    }
+
+    samplerField.addEventListener("change", markRecommendedScheduler)
+    markRecommendedScheduler()
+
     panel.dataset.pluginOwner = "image-settings.plugin.js"
     window.__imageSettingsPluginLoaded = true
 })()

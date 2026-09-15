@@ -10,8 +10,6 @@ render_devices: auto
 ui:
   open_browser_on_start: false
 
-# sdkit3 is the native backend. This fork does not install or update Forge.
-backend: sdkit3
 backend_config:
   auto_update: false
 # Optional explicit Perchance v1 AppImage/launcher path. If omitted, Easy
@@ -24,9 +22,26 @@ backend_config:
 #   COMMANDLINE_ARGS: "--opt-split-attention"
 #   # Force full precision (float32). Can help if you see corrupted/black outputs on some GPUs/backends.
 #   FORCE_FULL_PRECISION: "1"
+# Optional per-family model directories. Relative paths are resolved below
+# models_dir. A YAML list lets a family scan more than one directory.
+# directories:
+#   checkpoints: checkpoints
+#   vae: vae
+#   taesdvae: VAE-taesd
+#   lora: lora
+#   embeddings: embeddings
+#   controlnet: controlnet
+#   controlnet-lite: Controlnet_LITE
+#   text-encoder: text-encoder
+#   video: [SVD, diffusion_models, mochi, lighttricks]
 #
 # Set force_save_path to enforce an auto save path. Clients will not be able to change or
 # disable auto save when this option is set. Please adapt the path in the examples to your
 # needs.
 # Linux:
 # force_save_path: /data/easy-diffusion-images/
+# Saved-image names support $n (five-digit folder counter), $p (first 50
+# prompt characters), $s (seed), $ts/$tsb64 (timestamp IDs), and the date/time
+# placeholders $yyyy, $MM, $dd, $HH, $mm, and $ss. Put $n first so an existing
+# directory can resume from its highest counter.
+# filename_format: "$n_$p_$tsb64"

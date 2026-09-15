@@ -4,8 +4,11 @@ from pydantic import BaseModel
 
 
 class GenerateImageRequest(BaseModel):
+    backend_assignment: str = ""
     prompt: str = ""
     negative_prompt: str = ""
+    hidden_positive_prompt: str = ""
+    hidden_negative_prompt: str = ""
 
     seed: int = 42
     width: int = 512
@@ -63,6 +66,7 @@ class FilterImageRequest(BaseModel):
 
 
 class VideoGenerationRequest(BaseModel):
+    backend_assignment: str = ""
     prompt: str = ""
     negative_prompt: str = ""
     seed: int = 42
@@ -282,9 +286,17 @@ def convert_legacy_render_req_to_new(old_req: dict):
         model_paths[model_name] = old_req.get("use_face_correction", "")
         model_paths[model_name] = model_paths[model_name] if model_name in model_paths[model_name].lower() else None
 
-    for model_name in ("realesrgan", "latent_upscaler", "esrgan_4x", "lanczos", "nearest", "scunet", "swinir"):
-        model_paths[model_name] = old_req.get("use_upscale", "")
-        model_paths[model_name] = model_paths[model_name] if model_name in model_paths[model_name].lower() else None
+    upscaler_model_names = ("realesrgan", "latent_upscaler", "esrgan_4x", "lanczos", "nearest", "scunet", "swinir")
+    selected_upscaler = old_req.get("use_upscale", "") or ""
+    selected_upscaler_name = next(
+        (name for name in upscaler_model_names if name in selected_upscaler.lower()),
+        # Custom files rarely include "realesrgan" in their names (for
+        # example, 4x-UltraSharp). They are nevertheless models from the
+        # RealESRGAN/upscaler directory and use the same extras route.
+        "realesrgan" if selected_upscaler else None,
+    )
+    for model_name in upscaler_model_names:
+        model_paths[model_name] = selected_upscaler if model_name == selected_upscaler_name else None
 
     if "control_filter_to_apply" in old_req:
         filter_model = old_req["control_filter_to_apply"]
@@ -334,7 +346,7 @@ def convert_legacy_render_req_to_new(old_req: dict):
             filters.append(model_name)
             break
 
-    for model_name in ("realesrgan", "latent_upscaler", "esrgan_4x", "lanczos", "nearest", "scunet", "swinir"):
+    for model_name in upscaler_model_names:
         if model_paths[model_name]:
             filters.append(model_name)
             break

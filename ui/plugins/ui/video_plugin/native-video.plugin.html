@@ -4,6 +4,12 @@
                 <label for="native-video-enabled">Enable</label>
                 <input id="native-video-enabled" type="checkbox">
 
+                <label for="native-video-model">Video Model</label>
+                <div class="model-input">
+                    <input id="native-video-model" type="text" spellcheck="false" autocomplete="off"
+                           class="model-filter" data-path="">
+                </div>
+
                 <label for="native-video-vae">Video VAE</label>
                 <div class="model-input">
                     <input id="native-video-vae" type="text" spellcheck="false" autocomplete="off"
@@ -49,6 +55,6 @@
             <img id="native-video-end-preview" class="native-video-end-preview displayNone"
                  alt="Native video end-frame preview">
             <small id="native-video-status">
-                Select the video checkpoint under Options. Blank companion fields auto-detect weights beside the checkpoint; explicit choices are saved separately per model. Mochi currently supports text-to-video.
+                Select a checkpoint here for video generation. It overrides the image model under Options. Blank companion fields auto-detect weights beside the checkpoint; explicit choices are saved separately per model. Mochi currently supports text-to-video.
             </small>
         </div>

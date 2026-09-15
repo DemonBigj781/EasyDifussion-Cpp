@@ -1,10 +1,15 @@
+#include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <csignal>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <thread>
+#include <vector>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -80,6 +85,10 @@ void signal_handler(int signal) {
 struct CommandLineArgs {
     int port = 8188;
     std::string log_level = "info";
+    std::string compute_backend = "auto";
+    std::string backend_devices;
+    bool backend_devices_set = false;
+    bool list_devices = false;
     int parent_pid = 0;
     std::string ckpt_dir;
     std::string vae_dir;
@@ -116,6 +125,8 @@ struct CommandLineArgs {
     std::string attention_mode;
     bool control_net_cpu = false;
     bool image_clip_on_cpu = false;
+    bool image_clip_vision_on_cpu = false;
+    bool image_ip_adapter_on_cpu = false;
     bool video_clip_on_cpu = false;
     bool video_vae_on_cpu = false;
     bool video_offload_to_cpu = false;
@@ -127,12 +138,174 @@ struct CommandLineArgs {
     std::string convert_type = "f16";
 };
 
+static std::string lowercase(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
+static const char* device_type_name(sd_backend_device_type_t type) {
+    switch (type) {
+        case SD_BACKEND_DEVICE_TYPE_CPU:
+            return "cpu";
+        case SD_BACKEND_DEVICE_TYPE_GPU:
+            return "gpu";
+        case SD_BACKEND_DEVICE_TYPE_IGPU:
+            return "integrated-gpu";
+        case SD_BACKEND_DEVICE_TYPE_ACCELERATOR:
+            return "accelerator";
+        case SD_BACKEND_DEVICE_TYPE_META:
+            return "meta";
+    }
+    return "unknown";
+}
+
+static void print_backend_devices() {
+    const size_t count = sd_get_backend_device_count();
+    std::cout << "index\tbackend\tselector\ttype\tfree MiB\ttotal MiB\tvendor\tcapabilities\tdescription"
+              << std::endl;
+    for (size_t i = 0; i < count; ++i) {
+        sd_backend_device_info_t info{};
+        if (!sd_get_backend_device_info(i, &info)) {
+            continue;
+        }
+        std::ostringstream capabilities;
+        capabilities << "async=" << (info.async ? "yes" : "no")
+                     << ",host-buffer=" << (info.host_buffer ? "yes" : "no")
+                     << ",host-pointer=" << (info.buffer_from_host_ptr ? "yes" : "no")
+                     << ",events=" << (info.events ? "yes" : "no");
+        std::cout << info.index << '\t'
+                  << info.backend << '\t'
+                  << info.name << '\t'
+                  << device_type_name(info.type) << '\t'
+                  << (info.memory_free / (1024 * 1024)) << '\t'
+                  << (info.memory_total / (1024 * 1024)) << '\t'
+                  << info.vendor << '\t'
+                  << capabilities.str() << '\t'
+                  << info.description;
+        if (info.device_id[0] != '\0') {
+            std::cout << " (" << info.device_id << ')';
+        }
+        std::cout << std::endl;
+    }
+}
+
+static bool parse_device_ids(const std::string& text, std::vector<int>& ids, std::string& error) {
+    if (text.empty() || text.front() == ',' || text.back() == ',') {
+        error = "--devices must be a comma-separated list of non-negative integers";
+        return false;
+    }
+    std::istringstream stream(text);
+    std::string item;
+    while (std::getline(stream, item, ',')) {
+        if (item.empty()) {
+            error = "--devices must be a comma-separated list of non-negative integers";
+            return false;
+        }
+        size_t consumed = 0;
+        long long value = -1;
+        try {
+            value = std::stoll(item, &consumed);
+        } catch (const std::exception&) {
+            error = "invalid device index '" + item + "'";
+            return false;
+        }
+        if (consumed != item.size() || value < 0 || value > std::numeric_limits<int>::max()) {
+            error = "invalid device index '" + item + "'";
+            return false;
+        }
+        const int id = static_cast<int>(value);
+        if (std::find(ids.begin(), ids.end(), id) != ids.end()) {
+            error = "duplicate device index '" + item + "'";
+            return false;
+        }
+        ids.push_back(id);
+    }
+    if (ids.empty()) {
+        error = "--devices requires at least one device index";
+        return false;
+    }
+    return true;
+}
+
+static bool build_compute_backend_spec(const CommandLineArgs& args, std::string& spec, std::string& error) {
+    const std::string backend = lowercase(args.compute_backend);
+    if (backend != "auto" && backend != "cpu" && backend != "cuda" && backend != "sycl" &&
+        backend != "vulkan") {
+        error = "invalid --backend '" + args.compute_backend + "' (expected auto, cpu, cuda, sycl, or vulkan)";
+        return false;
+    }
+
+    std::vector<int> ids;
+    if (args.backend_devices_set && !parse_device_ids(args.backend_devices, ids, error)) {
+        return false;
+    }
+    if (!ids.empty() && backend != "cuda" && backend != "sycl" && backend != "vulkan") {
+        error = "--device/--devices requires --backend cuda, sycl, or vulkan";
+        return false;
+    }
+
+    spec.clear();
+    if (backend == "auto") {
+        return true;
+    }
+    if (ids.empty()) {
+        spec = backend;
+    } else {
+        const std::string prefix = backend == "cuda" ? "CUDA" : (backend == "sycl" ? "SYCL" : "Vulkan");
+        for (int id : ids) {
+            if (!spec.empty()) {
+                spec.push_back('&');
+            }
+            spec += prefix + std::to_string(id);
+        }
+    }
+
+    std::vector<std::string> requested_names;
+    if (!ids.empty()) {
+        std::istringstream requested(spec);
+        std::string name;
+        while (std::getline(requested, name, '&')) {
+            requested_names.push_back(lowercase(name));
+        }
+    }
+
+    bool backend_found = false;
+    for (size_t i = 0; i < sd_get_backend_device_count(); ++i) {
+        sd_backend_device_info_t info{};
+        if (!sd_get_backend_device_info(i, &info)) {
+            continue;
+        }
+        const std::string registered_backend = lowercase(info.backend);
+        const std::string selector = lowercase(info.name);
+        if (ids.empty()) {
+            backend_found = backend_found || registered_backend == backend || selector == backend;
+        } else {
+            requested_names.erase(
+                std::remove(requested_names.begin(), requested_names.end(), selector),
+                requested_names.end());
+        }
+    }
+    if ((!ids.empty() && !requested_names.empty()) || (ids.empty() && !backend_found)) {
+        error = "requested " + backend + " backend/device is not available in this build";
+        return false;
+    }
+    return true;
+}
+
 void print_usage(const char* program_name) {
     std::cerr << "Usage: " << program_name << " [options]" << std::endl;
     std::cerr << std::endl;
     std::cerr << "Options:" << std::endl;
     std::cerr << "  --port <port>                      Server port (default: 8188)" << std::endl;
     std::cerr << "  --log-level <level>                Log level: verbose, debug, info, warning, error (default: info)"
+              << std::endl;
+    std::cerr << "  --backend <name>                   Compute backend: auto, cpu, cuda, sycl, or vulkan (default: auto)"
+              << std::endl;
+    std::cerr << "  --device <index>                   CUDA/SYCL/Vulkan device index" << std::endl;
+    std::cerr << "  --devices <i,j,...>                CUDA/SYCL/Vulkan devices for layer splitting" << std::endl;
+    std::cerr << "  --list-devices, --backend-info     List backend devices, memory, and capabilities, then exit"
               << std::endl;
     std::cerr << "  --parent-pid <pid>                 Parent process PID" << std::endl;
     std::cerr << "  --ckpt-dir <path>                  Checkpoint models directory" << std::endl;
@@ -176,6 +349,10 @@ void print_usage(const char* program_name) {
     std::cerr << "  --control-net-cpu                  Keep ControlNet on CPU (default: false)" << std::endl;
     std::cerr << "  --image-clip-on-cpu                Keep image-generation text encoders on CPU (default: false)"
               << std::endl;
+    std::cerr << "  --image-clip-vision-on-cpu         Keep CLIP Vision on CPU; otherwise it uses the GPU (default: false)"
+              << std::endl;
+    std::cerr << "  --image-ip-adapter-on-cpu          Keep IP-Adapter projection on CPU; otherwise it uses the GPU (default: false)"
+              << std::endl;
     std::cerr << "  --video-clip-on-cpu                Keep native-video text encoders on CPU (default: false)"
               << std::endl;
     std::cerr << "  --video-vae-on-cpu                 Keep native-video VAE on CPU (default: false)" << std::endl;
@@ -209,6 +386,13 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             }
         } else if (arg == "--log-level" && i + 1 < argc) {
             args.log_level = argv[++i];
+        } else if (arg == "--backend" && i + 1 < argc) {
+            args.compute_backend = argv[++i];
+        } else if ((arg == "--device" || arg == "--devices") && i + 1 < argc) {
+            args.backend_devices = argv[++i];
+            args.backend_devices_set = true;
+        } else if (arg == "--list-devices" || arg == "--backend-info") {
+            args.list_devices = true;
         } else if (arg == "--parent-pid" && i + 1 < argc) {
             try {
                 args.parent_pid = std::stoi(argv[++i]);
@@ -297,6 +481,10 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.control_net_cpu = true;
         } else if (arg == "--image-clip-on-cpu") {
             args.image_clip_on_cpu = true;
+        } else if (arg == "--image-clip-vision-on-cpu") {
+            args.image_clip_vision_on_cpu = true;
+        } else if (arg == "--image-ip-adapter-on-cpu") {
+            args.image_ip_adapter_on_cpu = true;
         } else if (arg == "--video-clip-on-cpu") {
             args.video_clip_on_cpu = true;
         } else if (arg == "--video-vae-on-cpu") {
@@ -432,6 +620,25 @@ int main(int argc, char* argv[]) {
     // Set log level from command line argument
     set_log_level(args.log_level);
 
+    if (args.list_devices) {
+        print_backend_devices();
+        return 0;
+    }
+
+    std::string compute_backend_spec;
+    std::string backend_error;
+    if (!build_compute_backend_spec(args, compute_backend_spec, backend_error)) {
+        LOG_ERROR("%s", backend_error.c_str());
+        std::cerr << "Run with --list-devices to see the selectors available in this build." << std::endl;
+        return 1;
+    }
+    const std::string selected_backend = lowercase(args.compute_backend);
+    if (selected_backend != "auto" && selected_backend != "cuda" &&
+        (args.cuda_malloc || args.cuda_unified_memory || args.xformers_compat || args.sage_attention)) {
+        LOG_ERROR("CUDA-only memory and attention options require --backend cuda (or auto)");
+        return 1;
+    }
+
     if (!args.convert_model.empty()) {
         const sd_type_t output_type = str_to_sd_type(args.convert_type.c_str());
         if (output_type == SD_TYPE_COUNT) {
@@ -472,6 +679,11 @@ int main(int argc, char* argv[]) {
     }
     if (args.sage_attention) {
         LOG_INFO("Native SageAttention SM80 preference enabled; unsupported operations use ggml flash attention");
+    }
+    if (compute_backend_spec.empty()) {
+        LOG_INFO("Compute backend: %s", selected_backend.c_str());
+    } else {
+        LOG_INFO("Compute backend: %s (%s)", selected_backend.c_str(), compute_backend_spec.c_str());
     }
 
     // Create and configure model manager
@@ -524,6 +736,7 @@ int main(int argc, char* argv[]) {
         ServerParams server_params;
         server_params.port = args.port;
         server_params.model_manager = model_manager;
+        server_params.compute_backend = compute_backend_spec;
         server_params.image_vae_on_cpu = args.image_vae_on_cpu;
         server_params.no_half = args.no_half;
         server_params.no_half_vae = args.no_half_vae;
@@ -544,6 +757,8 @@ int main(int argc, char* argv[]) {
         server_params.control_net_sd1_path = args.control_net_sd1_path;
         server_params.control_net_sdxl_path = args.control_net_sdxl_path;
         server_params.image_clip_on_cpu = args.image_clip_on_cpu;
+        server_params.image_clip_vision_on_cpu = args.image_clip_vision_on_cpu;
+        server_params.image_ip_adapter_on_cpu = args.image_ip_adapter_on_cpu;
         server_params.video_clip_on_cpu = args.video_clip_on_cpu;
         server_params.video_vae_on_cpu = args.video_vae_on_cpu;
         server_params.video_offload_to_cpu = args.video_offload_to_cpu;

@@ -1036,3 +1036,74 @@ size_t sd_list_devices(char* buffer, size_t buffer_size) {
     }
     return devices.size();
 }
+
+static sd_backend_device_type_t sd_device_type_from_ggml(enum ggml_backend_dev_type type) {
+    switch (type) {
+        case GGML_BACKEND_DEVICE_TYPE_CPU:
+            return SD_BACKEND_DEVICE_TYPE_CPU;
+        case GGML_BACKEND_DEVICE_TYPE_GPU:
+            return SD_BACKEND_DEVICE_TYPE_GPU;
+        case GGML_BACKEND_DEVICE_TYPE_IGPU:
+            return SD_BACKEND_DEVICE_TYPE_IGPU;
+        case GGML_BACKEND_DEVICE_TYPE_ACCEL:
+            return SD_BACKEND_DEVICE_TYPE_ACCELERATOR;
+        case GGML_BACKEND_DEVICE_TYPE_META:
+            return SD_BACKEND_DEVICE_TYPE_META;
+    }
+    return SD_BACKEND_DEVICE_TYPE_ACCELERATOR;
+}
+
+static const char* sd_backend_vendor(const char* backend) {
+    if (backend == nullptr) {
+        return "";
+    }
+    if (strcmp(backend, "CUDA") == 0) {
+        return "NVIDIA";
+    }
+    if (strcmp(backend, "SYCL") == 0) {
+        // This vendored ggml-sycl revision only supports its INTEL target.
+        return "Intel";
+    }
+    if (strcmp(backend, "HIP") == 0 || strcmp(backend, "ROCm") == 0) {
+        return "AMD";
+    }
+    if (strcmp(backend, "Metal") == 0 || strcmp(backend, "MTL") == 0) {
+        return "Apple";
+    }
+    return "";
+}
+
+size_t sd_get_backend_device_count(void) {
+    if (ggml_backend_dev_count() == 0) {
+        ggml_backend_load_all();
+    }
+    return ggml_backend_dev_count();
+}
+
+bool sd_get_backend_device_info(size_t index, sd_backend_device_info_t* info) {
+    if (info == nullptr || index >= sd_get_backend_device_count()) {
+        return false;
+    }
+
+    ggml_backend_dev_t dev = ggml_backend_dev_get(index);
+    ggml_backend_dev_props props;
+    ggml_backend_dev_get_props(dev, &props);
+    ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(dev);
+    const char* backend = reg != nullptr ? ggml_backend_reg_name(reg) : "";
+
+    *info = {};
+    info->index = index;
+    info->backend = backend != nullptr ? backend : "";
+    info->name = props.name != nullptr ? props.name : "";
+    info->description = props.description != nullptr ? props.description : "";
+    info->vendor = sd_backend_vendor(info->backend);
+    info->device_id = props.device_id != nullptr ? props.device_id : "";
+    info->memory_free = props.memory_free;
+    info->memory_total = props.memory_total;
+    info->type = sd_device_type_from_ggml(props.type);
+    info->async = props.caps.async;
+    info->host_buffer = props.caps.host_buffer;
+    info->buffer_from_host_ptr = props.caps.buffer_from_host_ptr;
+    info->events = props.caps.events;
+    return true;
+}

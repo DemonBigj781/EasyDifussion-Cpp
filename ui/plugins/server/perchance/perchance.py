@@ -15,6 +15,7 @@ import json
 import math
 import os
 import re
+import shutil
 import signal
 import threading
 import time
@@ -81,6 +82,7 @@ PERCHANCE_IMAGE_NAME_PATTERN = re.compile(
     re.IGNORECASE,
 )
 PERCHANCE_GALLERY_CACHE_DIRNAME = "perchance-gallery-cache"
+PERCHANCE_GENERATED_DIRNAME = "perchance-generated"
 PERCHANCE_GALLERY_IMAGE_ORIGIN = "https://aigc.uploads.dev"
 PERCHANCE_GALLERY_IMAGE_PATTERN = re.compile(
     r"^/image/(?P<filename>[0-9a-f]{64}\.(?:png|jpe?g|webp))$",
@@ -107,6 +109,7 @@ FUSE_ERROR_MARKERS = (
     "fusermount",
     "fuse: device not found",
 )
+GALLERY_SAVE_LOCK = threading.Lock()
 
 
 def _output_directory() -> Path:
@@ -118,6 +121,13 @@ def _output_directory() -> Path:
     else:
         directory = ED_ROOT / "outputs"
     directory = directory.resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _generated_image_directory() -> Path:
+    """Keep new Perchance results outside the filesystem-backed Gallery."""
+    directory = (Path(easy_app.BUCKET_DIR) / PERCHANCE_GENERATED_DIRNAME).resolve()
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 
@@ -348,7 +358,7 @@ def _saved_image_from(stdout: str, output_directory: Path) -> tuple[Path, str]:
     except ValueError as error:
         raise HTTPException(
             status_code=502,
-            detail=f"Perchance saved outside the Easy Diffusion output directory: {saved_path}",
+            detail=f"Perchance saved outside its selected output directory: {saved_path}",
         ) from error
     if not saved_path.is_file() or saved_path.suffix.lower() not in IMAGE_EXTENSIONS:
         raise HTTPException(
@@ -396,7 +406,8 @@ def _parse_image_results(stdout: str, output_directory: Path) -> list[dict]:
                 **record,
                 "path": str(saved_path),
                 "relative_path": relative_path,
-                "url": f"/perchance/file/{quote(relative_path, safe='/')}",
+                "url": f"/perchance/generated/file/{quote(relative_path, safe='/')}",
+                "saved_to_gallery": False,
             }
         )
     return images
@@ -411,7 +422,7 @@ def recent_images(limit=8) -> dict:
             detail=f"limit must be between 1 and {MAX_IMAGE_AMOUNT}.",
         )
 
-    output_directory = _output_directory()
+    output_directory = _generated_image_directory()
     candidates = [
         path
         for path in output_directory.iterdir()
@@ -430,13 +441,14 @@ def recent_images(limit=8) -> dict:
             {
                 "path": str(path),
                 "relative_path": relative_path,
-                "url": f"/perchance/file/{quote(relative_path, safe='/')}",
+                "url": f"/perchance/generated/file/{quote(relative_path, safe='/')}",
+                "saved_to_gallery": False,
             }
         )
     return {
         "images": images,
         "generated_amount": len(images),
-        "output_directory": str(output_directory),
+        "generated_image_directory": str(output_directory),
     }
 
 
@@ -484,6 +496,7 @@ def status() -> dict:
         "launcher": str(launcher),
         "resolved_launcher": resolved,
         "output_directory": str(_output_directory()),
+        "generated_image_directory": str(_generated_image_directory()),
         "settings": get_settings(),
         "release": {
             "tag": PERCHANCE_RELEASE_TAG,
@@ -514,7 +527,7 @@ async def generate_image(payload) -> dict:
             detail=f"amount must be between 1 and {MAX_IMAGE_AMOUNT}.",
         )
     negative_prompt = str(payload.get("negative_prompt", "")).strip()
-    output_directory = _output_directory()
+    output_directory = _generated_image_directory()
     arguments = [
         "image",
         "-o",
@@ -546,7 +559,59 @@ async def generate_image(payload) -> dict:
         "images": images,
         "requested_amount": amount,
         "generated_amount": len(images),
-        "output_directory": str(output_directory),
+        "generated_image_directory": str(output_directory),
+    }
+
+
+def resolve_generated_file(relative_path: str) -> Path:
+    generated_directory = _generated_image_directory()
+    image_path = (generated_directory / relative_path).resolve()
+    try:
+        image_path.relative_to(generated_directory)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=403,
+            detail="Path is outside the Perchance generated-image directory.",
+        ) from error
+    if not image_path.is_file() or image_path.suffix.lower() not in IMAGE_EXTENSIONS:
+        raise HTTPException(status_code=404, detail="Generated image not found.")
+    return image_path
+
+
+def save_generated_image(payload) -> dict:
+    """Move one explicitly selected staged result into the configured Gallery."""
+    payload = _require_payload(payload)
+    relative_path = _bounded_string(
+        payload.get("relative_path"),
+        "relative_path",
+        2_048,
+    )
+    source = resolve_generated_file(relative_path)
+
+    # Import lazily so the Perchance and Gallery plugin modules remain
+    # independently importable in tests and during plugin discovery.
+    from ui.plugins.server.gallery.gallery import configured_directory
+
+    gallery_directory = configured_directory()
+    gallery_directory.mkdir(parents=True, exist_ok=True)
+    with GALLERY_SAVE_LOCK:
+        destination = gallery_directory / source.name
+        if destination.resolve() != source:
+            suffix = 1
+            while destination.exists():
+                destination = gallery_directory / f"{source.stem}-{suffix}{source.suffix}"
+                suffix += 1
+            shutil.move(str(source), str(destination))
+        else:
+            destination = source
+
+    gallery_relative_path = destination.relative_to(gallery_directory).as_posix()
+    return {
+        "saved_to_gallery": True,
+        "path": str(destination),
+        "relative_path": relative_path,
+        "gallery_relative_path": gallery_relative_path,
+        "gallery_url": f"/gallery/file/{quote(gallery_relative_path, safe='/')}",
     }
 
 

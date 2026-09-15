@@ -1,6 +1,7 @@
 import os
 import platform
 import shutil
+import subprocess
 import requests
 import hashlib
 import concurrent.futures
@@ -159,12 +160,24 @@ def start_backend():
 
     def run_fn():
         exe_name = "sdkit.exe" if OS_NAME == "Windows" else "sdkit"
+        executable = os.path.join(backend_dir, exe_name)
         common_cli_args = get_common_cli_args(return_string=False)
-        cmd = [os.path.join(backend_dir, exe_name)] + common_cli_args + user_args
+        cmd = [executable] + common_cli_args + user_args
 
-        log.info(f"starting: {cmd}")
+        binary_stat = os.stat(executable)
+        log.info(
+            f"starting: {cmd} (binary size={binary_stat.st_size}, "
+            f"mtime_ns={binary_stat.st_mtime_ns})"
+        )
 
-        return run(cmd, cwd=backend_dir, wait=False, output_prefix="[sdkit3] ")
+        environment = get_backend_environment(backend_dir)
+        return run(
+            cmd,
+            cwd=backend_dir,
+            env=environment,
+            wait=False,
+            output_prefix="[sdkit3] ",
+        )
 
     do_start_backend(was_still_installing, run_fn)
 
@@ -180,6 +193,54 @@ def is_installed():
         return True
 
     return False
+
+
+def get_backend_devices():
+    response = webui_common.webui_get("/sdapi/v1/backend-devices", timeout=5)
+    response.raise_for_status()
+    payload = response.json()
+    devices = payload.get("devices", [])
+    return devices if isinstance(devices, list) else []
+
+
+def get_backend_environment(backend_dir):
+    """Return the process environment required by a local native bundle."""
+    environment = os.environ.copy()
+    if "-sycl-" not in os.path.basename(backend_dir):
+        return environment
+
+    setvars_path = environment.get("ONEAPI_SETVARS", "/opt/intel/oneapi/setvars.sh")
+    if not os.path.isfile(setvars_path):
+        log.warning(
+            "Intel oneAPI setvars.sh was not found at %s; the SYCL backend "
+            "may be unable to load its runtime libraries.",
+            setvars_path,
+        )
+        return environment
+
+    try:
+        completed = subprocess.run(
+            [
+                "bash",
+                "-c",
+                'source "$1" --force >/dev/null && env -0',
+                "easy-diffusion-oneapi",
+                setvars_path,
+            ],
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        for entry in completed.stdout.split(b"\0"):
+            if not entry or b"=" not in entry:
+                continue
+            name, value = entry.split(b"=", 1)
+            environment[os.fsdecode(name)] = os.fsdecode(value)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        log.warning("Unable to load the Intel oneAPI runtime environment: %s", exc)
+
+    return environment
 
 
 def get_target():

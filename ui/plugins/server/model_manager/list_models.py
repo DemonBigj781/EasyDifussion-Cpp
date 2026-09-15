@@ -2,7 +2,12 @@ import os
 
 from sdkit.models.model_loader.embeddings import get_embedding_token
 from easydiffusion.utils import log
-from easydiffusion.utils.model_identifier import identify_model_type, identify_vae_latent_family
+from easydiffusion.utils.model_identifier import (
+    identify_clip_vision_compatibility,
+    identify_ip_adapter_compatibility,
+    identify_model_type,
+    identify_vae_latent_family,
+)
 
 PREFILLED_MODELS = {
     "vae": [
@@ -141,6 +146,30 @@ def set_model_metadata(model_type, models, exts):
                 vae_family = None
             if vae_family:
                 m["tags"].append(f"vae_{vae_family}")
+        elif model_type == "ip-adapter":
+            try:
+                compatibility = identify_ip_adapter_compatibility(m["abs_path"])
+            except Exception:
+                compatibility = None
+            if compatibility:
+                m["tags"].extend(
+                    [
+                        f"ip_adapter_{compatibility['kind']}",
+                        f"ip_adapter_embedding_{compatibility['embedding_dim']}",
+                    ]
+                )
+        elif model_type == "clip-vision":
+            try:
+                compatibility = identify_clip_vision_compatibility(m["abs_path"])
+            except Exception:
+                compatibility = None
+            if compatibility:
+                m["tags"].extend(
+                    [
+                        f"clip_hidden_{compatibility['hidden_dim']}",
+                        f"clip_projection_{compatibility['projection_dim']}",
+                    ]
+                )
 
 
 def strip_null_models(models):

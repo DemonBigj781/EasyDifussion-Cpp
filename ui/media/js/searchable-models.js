@@ -40,6 +40,7 @@ class ModelDropdown {
     modelFilterInitialized //= undefined
 
     sorted //= true
+    modelPredicate //= undefined
 
     /* MIMIC A REGULAR INPUT FIELD */
     get parentElement() {
@@ -75,6 +76,24 @@ class ModelDropdown {
     }
     appendChild(option) {
         // do nothing
+    }
+
+    setModelPredicate(predicate) {
+        this.modelPredicate = typeof predicate === "function" ? predicate : undefined
+        if (this.modelList) this.showAllEntries()
+    }
+
+    isModelEntryAllowed(elem) {
+        if (!this.modelPredicate || !elem?.classList?.contains("model-file")) return true
+        const path = elem.dataset.path || ""
+        if (!path) return true
+        const modelKeys = Array.isArray(this.modelKey) ? this.modelKey : [this.modelKey]
+        let metadata
+        for (const key of modelKeys) {
+            metadata = modelsDB?.[key]?.[path]
+            if (metadata) break
+        }
+        return this.modelPredicate(path, metadata)
     }
 
     // remember 'this' - http://blog.niftysnippets.org/2008/04/you-must-remember-this.html
@@ -202,13 +221,14 @@ class ModelDropdown {
     }
 
     selectFirstFile() {
-        this.selectModelEntry(this.modelList.querySelector(".model-file"))
-        this.highlightedModelEntry.scrollIntoView({ block: "nearest" })
+        const elem = Array.from(this.modelElements).find((entry) => entry.style.display !== "none")
+        this.selectModelEntry(elem)
+        this.highlightedModelEntry?.scrollIntoView({ block: "nearest" })
         this.modelFilter.select()
     }
 
     selectLastFile() {
-        const elems = this.modelList.querySelectorAll(".model-file:last-child")
+        const elems = Array.from(this.modelElements).filter((entry) => entry.style.display !== "none")
         this.selectModelEntry(elems[elems.length - 1])
         this.modelFilter.select()
     }
@@ -398,9 +418,9 @@ class ModelDropdown {
     }
 
     showAllEntries() {
-        this.modelList.querySelectorAll("li").forEach(function (li) {
+        this.modelList.querySelectorAll("li").forEach((li) => {
             if (li.id !== "model-no-result") {
-                li.style.display = "list-item"
+                li.style.display = this.isModelEntryAllowed(li) ? "list-item" : "none"
             }
         })
         this.modelNoResult.style.display = "none"
@@ -410,12 +430,16 @@ class ModelDropdown {
         const filter = this.modelFilter.value.toLowerCase()
         let found = false
         let showAllChildren = false
+        const dropdown = this
 
         this.modelList.querySelectorAll("li").forEach(function (li) {
+            const allowed = dropdown.isModelEntryAllowed(li)
             if (li.classList.contains("model-folder")) {
                 showAllChildren = false
             }
-            if (filter == "") {
+            if (!allowed) {
+                li.style.display = "none"
+            } else if (filter == "") {
                 li.style.display = "list-item"
                 found = true
             } else if (showAllChildren || li.textContent.toLowerCase().match(filter)) {
@@ -432,9 +456,17 @@ class ModelDropdown {
         if (found) {
             this.modelResult.style.display = "list-item"
             this.modelNoResult.style.display = "none"
-            const elem = this.getNextVisibleSibling(this.modelList.querySelector(".model-file"))
-            this.highlightModel(elem)
-            elem.scrollIntoView({ block: "nearest" })
+            const elem = Array.from(this.modelElements).find((entry) => entry.style.display !== "none")
+            if (elem) {
+                this.highlightModel(elem)
+                elem.scrollIntoView({ block: "nearest" })
+            } else {
+                // A matching folder is not a selectable result when every
+                // model beneath it has been rejected by a compatibility
+                // predicate.
+                this.modelResult.style.display = "none"
+                this.modelNoResult.style.display = "list-item"
+            }
         } else {
             this.modelResult.style.display = "none"
             this.modelNoResult.style.display = "list-item"

@@ -17,6 +17,7 @@
 struct ServerParams;
 
 struct ImageGenerationParams {
+    std::string backend;
     std::string prompt;
     std::string negative_prompt;
     std::vector<std::string> lora_paths;
@@ -83,6 +84,7 @@ struct ImageGenerationParams {
 };
 
 struct VideoGenerationParams {
+    std::string backend;
     std::string prompt;
     std::string negative_prompt;
     std::vector<std::string> lora_paths;
@@ -174,7 +176,8 @@ class ImageGenerator {
                            const std::string& latent_interposer_encode_model_path = "",
                            const std::string& latent_interposer_decode_model_path = "",
                            sd_vae_format_t latent_interposer_vae_format = SD_VAE_FORMAT_AUTO,
-                           bool native_video_request = false);
+                           bool native_video_request = false,
+                           const std::string& request_compute_backend = "");
 
     sd_ctx_t* sd_ctx_;
     std::shared_ptr<TaskStateManager> task_state_manager_;
@@ -192,6 +195,7 @@ class ImageGenerator {
     bool video_generation_pending_;
     bool initialized_;
     std::string current_task_id_;
+    std::string compute_backend_;
 
     // Track currently loaded model paths for change detection
     std::string current_model_path_;
@@ -214,10 +218,13 @@ class ImageGenerator {
     std::string current_latent_interposer_decode_path_;
     sd_vae_format_t current_latent_interposer_vae_format_ = SD_VAE_FORMAT_AUTO;
     std::string current_furception_vae_path_;
-    // If a CUDA generation for this checkpoint fails, rebuild its context with
-    // VAE compute on CPU. Diffusion layers remain on CUDA and their parameters
-    // continue streaming from the CPU backend.
-    std::string cpu_vae_fallback_model_path_;
+    // If a CUDA generation for this exact model/module configuration fails,
+    // rebuild its context with VAE compute on CPU. Keying the fallback by the
+    // full configuration prevents one oversized external encoder combination
+    // from forcing later, smaller combinations for the same checkpoint onto
+    // the much slower CPU VAE path.
+    std::string cpu_vae_fallback_configuration_key_;
+    std::string current_model_configuration_key_;
     bool current_vae_uses_cpu_ = false;
     bool current_text_encoder_uses_cpu_ = false;
     bool current_params_offloaded_to_cpu_ = false;
@@ -245,6 +252,8 @@ class ImageGenerator {
     std::string control_net_sd1_path_;
     std::string control_net_sdxl_path_;
     bool image_clip_on_cpu_;
+    bool image_clip_vision_on_cpu_;
+    bool image_ip_adapter_on_cpu_;
     bool video_clip_on_cpu_;
     bool video_vae_on_cpu_;
     bool video_offload_to_cpu_;

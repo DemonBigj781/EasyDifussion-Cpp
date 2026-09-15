@@ -32,7 +32,7 @@
     panel.id = PANEL_ID
     panel.className = "settings-box panel-box latent-interposer-panel gated-feature"
     panel.dataset.featureKeys = "backend_sdkit3"
-        panel.innerHTML = window.loadRequiredPluginHTML("/plugins/core/interpose_pugin/latent-interposer-encode.plugin.html")
+    panel.innerHTML = window.loadRequiredPluginHTML("/plugins/core/interpose_pugin/latent-interposer-encode.plugin.html")
 
     const decodePanel = document.getElementById("sdkit3-decode-interpose-panel")
     if (decodePanel) decodePanel.before(panel)
@@ -118,22 +118,34 @@
         }))
     }
 
+    function hasInitialImage() {
+        const preview = document.getElementById("init_image_preview")
+        const source = preview?.getAttribute("src") || ""
+        return /^(?:data:image\/|blob:)/.test(source)
+    }
+
     function refresh() {
         const target = checkpointFamily()
         const origin = vaeFamily(target)
         const route = `${origin}-to-${target}`
         const same = origin === target
-        const available = !same && conversions.has(route)
+        const conversionAvailable = !same && conversions.has(route)
+        const available = conversionAvailable && hasInitialImage()
 
         source.textContent = labels[origin] || origin
         destination.textContent = labels[target] || target
         direction.textContent = same ? "No conversion needed" : `${origin} → ${target}`
-        model.disabled = !available
+        model.disabled = !conversionAvailable
         enabled.disabled = !available
-        if (available) {
+        if (conversionAvailable) {
             const converter = `${route}_interposer-v4.0`
             model.value = converter
-            status.textContent = `Auto-selected ${converter}.`
+            if (available) {
+                status.textContent = `Auto-selected ${converter}.`
+            } else {
+                enabled.checked = false
+                status.textContent = "Load an Initial Image (or generate pure noise) before enabling encode interpose."
+            }
         } else {
             model.value = ""
             enabled.checked = false
@@ -153,9 +165,26 @@
     model.addEventListener("change", saveState)
     document.getElementById("stable_diffusion_model")?.addEventListener("change", refresh)
     document.getElementById("vae_model")?.addEventListener("change", refresh)
+    document.getElementById("init_image_preview")?.addEventListener("load", refresh)
     document.addEventListener("refreshModels", refresh)
 
+    const initialImageContainer = document.getElementById("init_image_preview_container")
+    if (initialImageContainer) {
+        new MutationObserver(refresh).observe(initialImageContainer, {
+            attributes: true,
+            childList: true,
+            subtree: true,
+            attributeFilter: ["src", "class"],
+        })
+    }
+
     PLUGINS.TASK_CREATE.push(function (event) {
+        if (!event.reqBody.init_image) {
+            enabled.checked = false
+            event.reqBody.latent_interposer_encode_enabled = false
+            saveState()
+            return
+        }
         if (!enabled.checked || !model.value) return
         event.reqBody.latent_interposer_encode_enabled = true
         event.reqBody.latent_interposer_encode_model = model.value

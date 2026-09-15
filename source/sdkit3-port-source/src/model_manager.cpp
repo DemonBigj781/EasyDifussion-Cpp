@@ -198,6 +198,13 @@ void ModelManager::scanDirectoryInternal(const std::string& directory, ModelType
                     // For stable-diffusion models: use relative path from directory with extension
                     fs::path relative = fs::relative(entry.path(), directory);
                     lookup_name = relative.string();
+                } else if (type == ModelType::REALESRGAN) {
+                    // The UI identifies upscalers by a relative, extensionless
+                    // path. Retain subdirectories and let ModelInfo keep the
+                    // exact discovered container path used for loading.
+                    fs::path relative = fs::relative(entry.path(), directory);
+                    relative.replace_extension();
+                    lookup_name = relative.generic_string();
                 } else if (type == ModelType::CONTROLNET || type == ModelType::EMBEDDINGS || type == ModelType::LORA) {
                     // For controlnet, embeddings, lora: use filename without extension
                     lookup_name = entry.path().stem().string();

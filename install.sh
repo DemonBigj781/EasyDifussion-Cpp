@@ -21,6 +21,7 @@ Options:
   --gguf-tools    Install GGUF conversion tools into Easy Diffusion's main venv.
   --cuda          Require CUDA for the selected native builds.
   --sycl          Build for Intel GPUs with oneAPI/SYCL (source setvars.sh first).
+  --vulkan        Build the portable Vulkan GPU backend.
   --cpu           Build llama.cpp without CUDA.
   --jobs N        Set the parallel build job count.
   -h, --help      Show this help.
@@ -65,6 +66,9 @@ while [ "$#" -gt 0 ]; do
         --sycl)
             CUDA_MODE=sycl
             ;;
+        --vulkan)
+            CUDA_MODE=vulkan
+            ;;
         --cpu)
             CUDA_MODE=cpu
             ;;
@@ -104,6 +108,7 @@ echo "Third-party notices: $PROJECT_ROOT/THIRD_PARTY_NOTICES.md"
 
 CUDA_ENABLED=OFF
 SYCL_ENABLED=OFF
+VULKAN_ENABLED=OFF
 BUILD_PLATFORM=cpu
 COMPILER_ARGS=()
 if [ "$CUDA_MODE" = cuda ]; then
@@ -120,6 +125,10 @@ elif [ "$CUDA_MODE" = sycl ]; then
     SYCL_ENABLED=ON
     BUILD_PLATFORM=sycl
     COMPILER_ARGS=(-DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx)
+elif [ "$CUDA_MODE" = vulkan ]; then
+    command -v glslc >/dev/null || fail "--vulkan requires the glslc shader compiler"
+    VULKAN_ENABLED=ON
+    BUILD_PLATFORM=vulkan
 elif [ "$CUDA_MODE" = auto ] && command -v nvcc >/dev/null && command -v nvidia-smi >/dev/null; then
     CUDA_ENABLED=ON
     BUILD_PLATFORM=cuda
@@ -141,6 +150,7 @@ if [ "$BUILD_LLAMA" = true ]; then
         -DGGML_CUDA="$CUDA_ENABLED" \
         -DGGML_SYCL="$SYCL_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
+        -DGGML_VULKAN="$VULKAN_ENABLED" \
         -DLLAMA_CURL=OFF \
         -DLLAMA_BUILD_TESTS=OFF \
         -DLLAMA_BUILD_EXAMPLES=ON \
@@ -165,6 +175,7 @@ if [ "$BUILD_NATIVE" = true ]; then
         "${COMPILER_ARGS[@]}" \
         -DSD_CUDA="$CUDA_ENABLED" \
         -DSD_SYCL="$SYCL_ENABLED" \
+        -DSD_VULKAN="$VULKAN_ENABLED" \
         -DGGML_SYCL_F16="$SYCL_ENABLED" \
         -DSDKIT_BUILD_LLAMA_RUNTIME=ON \
         -DSDKIT_LLAMA_BUILD_JOBS="$JOB_COUNT" \

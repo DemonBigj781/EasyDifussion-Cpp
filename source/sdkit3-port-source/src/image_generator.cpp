@@ -6,6 +6,7 @@
 #include <cstring>
 #include <filesystem>
 #include <functional>
+#include <initializer_list>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -105,6 +106,7 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       cancel_requested_(false),
       video_generation_pending_(false),
       initialized_(false),
+      compute_backend_(server_params.compute_backend),
       image_vae_on_cpu_(server_params.image_vae_on_cpu),
       no_half_(server_params.no_half),
       no_half_vae_(server_params.no_half_vae),
@@ -124,6 +126,8 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       control_net_sd1_path_(server_params.control_net_sd1_path),
       control_net_sdxl_path_(server_params.control_net_sdxl_path),
       image_clip_on_cpu_(server_params.image_clip_on_cpu),
+      image_clip_vision_on_cpu_(server_params.image_clip_vision_on_cpu),
+      image_ip_adapter_on_cpu_(server_params.image_ip_adapter_on_cpu),
       video_clip_on_cpu_(server_params.video_clip_on_cpu),
       video_vae_on_cpu_(server_params.video_vae_on_cpu),
       video_offload_to_cpu_(server_params.video_offload_to_cpu),
@@ -231,7 +235,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 
     // Video checkpoints use the same context loader and options model selector.
     // Empty adapter/control paths deliberately release image-only extensions.
-    if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true)) {
+    if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true, params.backend)) {
         throw std::runtime_error("Failed to load video model from options");
     }
 
@@ -398,7 +402,9 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
                            params.furception_vae_path,
                            params.latent_interposer_encode_model_path,
                            params.latent_interposer_decode_model_path,
-                           params.latent_interposer_vae_format)) {
+                           params.latent_interposer_vae_format,
+                           false,
+                           params.backend)) {
         LOG_ERROR("Failed to ensure model is loaded");
         throw std::runtime_error("Failed to load model from options");
     }
@@ -721,7 +727,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         // buffer. Rebuild this checkpoint with only the VAE runtime on CPU and
         // retry once; diffusion remains accelerated on the GPU.
         if (allow_ram_fallback && !image_vae_on_cpu_ && current_vae_uses_cpu_ == false) {
-            cpu_vae_fallback_model_path_ = current_model_path_;
+            cpu_vae_fallback_configuration_key_ = current_model_configuration_key_;
             LOG_WARNING("CUDA generation failed; retrying VAE encode/decode on CPU/RAM");
             lock.unlock();
             return generateInternal(params, is_img2img, task_id, false);
@@ -934,6 +940,33 @@ static void prepend_backend_assignment(std::string& spec, const char* assignment
     spec = spec.empty() ? assignment : std::string(assignment) + "," + spec;
 }
 
+static std::string merge_backend_assignments(const std::string& defaults,
+                                             const std::string& request_overrides) {
+    if (defaults.empty()) {
+        return request_overrides;
+    }
+    if (request_overrides.empty()) {
+        return defaults;
+    }
+    // The parser applies later module entries over earlier ones. Keep the
+    // startup wildcard/device selection as the fallback, then layer the UI's
+    // explicit per-module choices on top.
+    return defaults + "," + request_overrides;
+}
+
+static std::string make_model_configuration_key(std::initializer_list<std::string> parts) {
+    std::string key;
+    for (const std::string& part : parts) {
+        // Length-prefix each field so paths containing separators cannot make
+        // two different configurations compare equal.
+        key.append(std::to_string(part.size()));
+        key.push_back(':');
+        key.append(part);
+        key.push_back(';');
+    }
+    return key;
+}
+
 bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        const std::string& control_net_lllite_model_path,
                                        const std::string& ip_adapter_model_path,
@@ -943,7 +976,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        const std::string& latent_interposer_encode_model_path,
                                        const std::string& latent_interposer_decode_model_path,
                                        sd_vae_format_t latent_interposer_vae_format,
-                                       bool native_video_request) {
+                                       bool native_video_request,
+                                       const std::string& request_compute_backend) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     // Get options
@@ -1069,10 +1103,6 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
 
     std::string lora_dir_str = model_manager_->getLoraDir();
     std::string embeddings_dir_str = model_manager_->getEmbeddingsDir();
-    const bool use_cpu_vae = (!native_video_request && image_vae_on_cpu_) ||
-                             (native_video_request && video_vae_on_cpu_) ||
-                             (!native_video_request && !cpu_vae_fallback_model_path_.empty() &&
-                              model_path == cpu_vae_fallback_model_path_);
     const bool use_cpu_text_encoder = (!native_video_request && image_clip_on_cpu_) ||
                                       (native_video_request && video_clip_on_cpu_);
     const bool offload_params_to_cpu = offload_to_cpu_ ||
@@ -1084,9 +1114,45 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                                 : max_vram_;
     const bool use_stream_layers = stream_layers_ ||
                                    (native_video_request && video_stream_layers_);
+    const std::string effective_compute_backend =
+        merge_backend_assignments(compute_backend_, request_compute_backend);
+    const std::string model_configuration_key = make_model_configuration_key({
+        native_video_request ? "video" : "image",
+        effective_compute_backend,
+        model_path,
+        vae_path_str,
+        clip_l_path_str,
+        clip_g_path_str,
+        clip_vision_path_str,
+        t5xxl_path_str,
+        llm_path_str,
+        controlnet_path_str,
+        automatic_control_net_sd1_path,
+        automatic_control_net_sdxl_path,
+        control_net_lllite_model_path,
+        ip_adapter_model_path,
+        latent_interposer_model_path,
+        latent_interposer_encode_model_path,
+        latent_interposer_decode_model_path,
+        std::to_string(static_cast<int>(latent_interposer_vae_format)),
+        furception_vae_path,
+        embeddings_dir_str,
+        use_cpu_text_encoder ? "clip-cpu" : "clip-default",
+        image_clip_vision_on_cpu_ ? "clip-vision-cpu" : "clip-vision-default",
+        image_ip_adapter_on_cpu_ ? "ip-adapter-cpu" : "ip-adapter-default",
+        offload_params_to_cpu ? "params-cpu" : "params-default",
+        use_mmap_weights ? "mmap" : "no-mmap",
+        effective_max_vram,
+        use_stream_layers ? "stream" : "no-stream",
+    });
+    const bool use_cpu_vae = (!native_video_request && image_vae_on_cpu_) ||
+                             (native_video_request && video_vae_on_cpu_) ||
+                             (!native_video_request && !cpu_vae_fallback_configuration_key_.empty() &&
+                              model_configuration_key == cpu_vae_fallback_configuration_key_);
 
     // Check if we need to reload the model (check all paths including controlnet)
-    bool needs_reload = !initialized_ || !sd_ctx_ || model_path != current_model_path_ ||
+    bool needs_reload = !initialized_ || !sd_ctx_ || model_configuration_key != current_model_configuration_key_ ||
+                        model_path != current_model_path_ ||
                         vae_path_str != current_vae_path_ || clip_l_path_str != current_clip_l_path_ ||
                         clip_g_path_str != current_clip_g_path_ ||
                         clip_vision_path_str != current_clip_vision_path_ ||
@@ -1279,13 +1345,20 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.rng_type = CUDA_RNG;
 
     // Apply CLI parameters for SD context
-    std::string backend, backend_params, model_args;
+    std::string backend = effective_compute_backend;
+    std::string backend_params, model_args;
 
     if (offload_params_to_cpu) {
         prepend_backend_assignment(backend_params, "*=cpu");
     }
     if (use_cpu_text_encoder) {
         prepend_backend_assignment(backend, "te=cpu");
+    }
+    if (!native_video_request && image_clip_vision_on_cpu_) {
+        prepend_backend_assignment(backend, "clipvision=cpu");
+    }
+    if (!native_video_request && image_ip_adapter_on_cpu_) {
+        prepend_backend_assignment(backend, "ipadapter=cpu");
     }
     if (use_cpu_vae) {
         prepend_backend_assignment(backend, "vae=cpu");
@@ -1354,6 +1427,12 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (use_cpu_text_encoder) {
         LOG_INFO("%s text encoder will be kept on CPU", native_video_request ? "Native video" : "Image");
     }
+    if (!native_video_request && image_clip_vision_on_cpu_) {
+        LOG_INFO("CLIP Vision will be kept on CPU");
+    }
+    if (!native_video_request && image_ip_adapter_on_cpu_) {
+        LOG_INFO("IP-Adapter projection will be kept on CPU; diffusion attention weights remain with diffusion");
+    }
     if (chroma_disable_dit_mask_) {
         LOG_INFO("DiT mask disabled for Chroma models");
     }
@@ -1386,6 +1465,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     current_latent_interposer_decode_path_ = latent_interposer_decode_model_path;
     current_latent_interposer_vae_format_ = latent_interposer_vae_format;
     current_furception_vae_path_ = furception_vae_path;
+    current_model_configuration_key_ = model_configuration_key;
     current_vae_uses_cpu_ = use_cpu_vae;
     current_text_encoder_uses_cpu_ = use_cpu_text_encoder;
     current_params_offloaded_to_cpu_ = offload_params_to_cpu;

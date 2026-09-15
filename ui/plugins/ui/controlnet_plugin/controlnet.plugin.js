@@ -25,6 +25,8 @@
     const validModes = new Set(Array.from(modeSelect.options, (option) => option.value))
 
     function applyMode(value, persist = true) {
+        if (value === "uni" || value === "union") value = "auto"
+        if (value === "lite") value = "standard"
         const mode = validModes.has(value) ? value : "off"
         modeSelect.value = mode
         standardEnabled.checked = mode === "standard"

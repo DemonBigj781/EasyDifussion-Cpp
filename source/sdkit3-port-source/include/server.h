@@ -14,6 +14,7 @@
 struct ServerParams {
     int port = 8188;
     std::shared_ptr<ModelManager> model_manager;
+    std::string compute_backend;
     bool image_vae_on_cpu = false;
     bool no_half = false;
     bool no_half_vae = false;
@@ -33,6 +34,8 @@ struct ServerParams {
     std::string control_net_sd1_path;
     std::string control_net_sdxl_path;
     bool image_clip_on_cpu = false;
+    bool image_clip_vision_on_cpu = false;
+    bool image_ip_adapter_on_cpu = false;
     bool video_clip_on_cpu = false;
     bool video_vae_on_cpu = false;
     bool video_offload_to_cpu = false;
@@ -55,6 +58,7 @@ class Server {
 
     // Route handlers
     crow::response handlePing();
+    crow::response handleBackendDevices();
     crow::response handleGetOptions();
     crow::response handlePostOptions(const crow::request& req);
     crow::response handleTxt2Img(const crow::request& req);

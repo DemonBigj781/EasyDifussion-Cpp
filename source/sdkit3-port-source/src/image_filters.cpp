@@ -1,13 +1,7 @@
 #include "image_filters.h"
 
-#include <filesystem>
-#include <stdexcept>
-
 #include "image_utils.h"
 #include "logging.h"
-#include "string_utils.h"
-
-namespace fs = std::filesystem;
 
 ImageFilters::ImageFilters(std::shared_ptr<ModelManager> model_manager)
     : model_manager_(model_manager), upscaler_ctx_(nullptr) {
@@ -171,8 +165,23 @@ bool ImageFilters::ensureUpscalerLoaded(const std::string& upscaler_name) {
         return false;
     }
 
-    // If upscaler is already loaded with the same name, we're good
-    if (upscaler_ctx_ && current_upscaler_path_ == upscaler_name) {
+    // Resolve against the scanned index instead of assuming every model is a
+    // top-level .pth file. Refresh once so files added through Reload Models
+    // are available without restarting the native backend.
+    ModelInfo model = model_manager_->getModelByName(upscaler_name, ModelType::REALESRGAN);
+    if (model.full_path.empty()) {
+        model_manager_->scanDirectory(ModelType::REALESRGAN);
+        model = model_manager_->getModelByName(upscaler_name, ModelType::REALESRGAN);
+    }
+    if (model.full_path.empty()) {
+        LOG_ERROR("Upscaler model is not present in the configured directory: %s", upscaler_name.c_str());
+        return false;
+    }
+
+    const std::string& upscaler_path = model.full_path;
+
+    // If this exact discovered file is already loaded, we're good.
+    if (upscaler_ctx_ && current_upscaler_path_ == upscaler_path) {
         return true;
     }
 
@@ -184,16 +193,6 @@ bool ImageFilters::ensureUpscalerLoaded(const std::string& upscaler_name) {
         current_upscaler_path_.clear();
     }
 
-    // Get the realesrgan models directory
-    std::string realesrgan_dir = model_manager_->getRealesrganModelsPath();
-    if (realesrgan_dir.empty()) {
-        throw std::runtime_error("RealESRGAN models directory not set. Use --realesrgan-models-path argument.");
-    }
-
-    // Construct full path to the model
-    fs::path model_path = fs::path(realesrgan_dir) / (upscaler_name + ".pth");
-    std::string upscaler_path = path_to_utf8(model_path);
-
     LOG_INFO("Loading upscaler from: %s", upscaler_path.c_str());
 
     upscaler_ctx_ = new_upscaler_ctx(upscaler_path.c_str(), false, -1, 128, nullptr, nullptr);
@@ -203,7 +202,7 @@ bool ImageFilters::ensureUpscalerLoaded(const std::string& upscaler_name) {
         return false;
     }
 
-    current_upscaler_path_ = upscaler_name;
+    current_upscaler_path_ = upscaler_path;
     LOG_INFO("Upscaler loaded successfully");
 
     return true;

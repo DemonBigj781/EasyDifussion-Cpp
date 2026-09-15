@@ -56,7 +56,6 @@
     const wrapper = byId("ip-adapter-image-wrapper")
     const status = byId("ip-adapter-status")
     let lastAutomaticModel = ""
-    let lastAutomaticClip = ""
 
     function readState() {
         try { return JSON.parse(localStorage.getItem(STATE_KEY) || "{}") }
@@ -110,9 +109,80 @@
         }))
     }
 
-    function isBaseAdapter(name) {
-        const base = String(name || "").split("/").pop().replace(/\.(safetensors|sft)$/i, "")
-        return /^ip-adapter_(sd15|sdxl)(?:_light(?:_v11)?|_vit-[gh])?$/i.test(base)
+    function metadataTags(type, name) {
+        return Array.isArray(modelsDB?.[type]?.[name]?.tags) ? modelsDB[type][name].tags : []
+    }
+
+    function compatibilityFromTags(name) {
+        const tags = metadataTags("ip-adapter", name)
+        const dimensionTag = tags.find((tag) => /^ip_adapter_embedding_\d+$/.test(String(tag)))
+        const kindTag = tags.find((tag) => /^ip_adapter_(base|plus)$/.test(String(tag)))
+        if (dimensionTag && kindTag) {
+            return {
+                dimension: Number(String(dimensionTag).split("_").pop()),
+                kind: String(kindTag).endsWith("plus") ? "plus" : "base",
+                detected: true,
+            }
+        }
+
+        // Fallback for inventories created before tensor metadata was added.
+        // The native guard remains authoritative for custom/renamed files.
+        const lower = String(name || "").toLowerCase()
+        if (lower.includes("faceid")) return null
+        const kind = lower.includes("plus") || lower.includes("perceiver") ? "plus" : "base"
+        if (lower.includes("vit-h") || lower.includes("sd15")) {
+            return { dimension: kind === "plus" ? 1280 : 1024, kind, detected: false }
+        }
+        if (lower.includes("vit-g") || lower.includes("sdxl")) {
+            return { dimension: kind === "plus" ? 1664 : 1280, kind, detected: false }
+        }
+        return null
+    }
+
+    function clipDimensionFromTags(name, kind) {
+        const tags = metadataTags("clip-vision", name)
+        const prefix = kind === "plus" ? "clip_hidden_" : "clip_projection_"
+        const dimensionTag = tags.find((tag) => String(tag).startsWith(prefix))
+        if (dimensionTag) return Number(String(dimensionTag).slice(prefix.length))
+
+        const lower = String(name || "").toLowerCase()
+        if (/(?:vit[-_]?h|vision[-_]?h|clip[-_]?h)(?:\b|_)/.test(lower)) {
+            return kind === "plus" ? 1280 : 1024
+        }
+        if (/(?:vit[-_]?g|bigg|big[-_]?g|vision[-_]?g|clip[-_]?g)(?:\b|_)/.test(lower)) {
+            return kind === "plus" ? 1664 : 1280
+        }
+        if (/(?:vit[-_]?l|vision[-_]?l|clip[-_]?l)(?:\b|_)/.test(lower)) {
+            return kind === "plus" ? 1024 : 768
+        }
+        return null
+    }
+
+    function isCompatibleClip(path, compatibility) {
+        if (!path || !compatibility) return false
+        return clipDimensionFromTags(path, compatibility.kind) === compatibility.dimension
+    }
+
+    function firstCompatibleClip(compatibility) {
+        if (!compatibility) return ""
+        return Array.from(clip.modelElements || [])
+            .map((entry) => entry.dataset.path || "")
+            .find((path) => path && isCompatibleClip(path, compatibility)) || ""
+    }
+
+    function modelPathExists(dropdown, path) {
+        return Boolean(path) && Array.from(dropdown.modelElements || [])
+            .some((entry) => entry.dataset.path === path)
+    }
+
+    function firstAdapterForFamily(family) {
+        const paths = Array.from(model.modelElements || [])
+            .map((entry) => entry.dataset.path || "")
+            .filter((path) => path && compatibilityFromTags(path))
+        const familyPattern = family === "sdxl"
+            ? /(?:^|[/_-])(?:sdxl|sd_xl|xl)(?:$|[/_.-])/i
+            : /(?:^|[/_-])(?:sd15|sd1(?:[._-]?5)?|v1)(?:$|[/_.-])/i
+        return paths.find((path) => familyPattern.test(path)) || ""
     }
 
     function refreshDefaults() {
@@ -124,15 +194,29 @@
             return
         }
         enabled.disabled = false
-        const automaticModel = family === "sdxl" ? "sdxl/ip-adapter_sdxl" : "sd15/ip-adapter_sd15"
-        const automaticClip = family === "sdxl" ? "clip_vision_g" : "clip_vision_h"
-        if (!model.value || model.value === lastAutomaticModel) model.value = automaticModel
-        if (!clip.value || clip.value === lastAutomaticClip) clip.value = automaticClip
+        const automaticModel = firstAdapterForFamily(family)
+        if (!modelPathExists(model, model.value)) {
+            model.value = automaticModel || ""
+        } else if (automaticModel && model.value === lastAutomaticModel) {
+            model.value = automaticModel
+        }
         lastAutomaticModel = automaticModel
-        lastAutomaticClip = automaticClip
-        status.textContent = isBaseAdapter(model.value)
-            ? `${family === "sdxl" ? "SDXL" : "SD 1.x"} base adapter selected. Adapter and CLIP weights are memory-mapped and offloaded when idle.`
-            : "This native path supports base/original IP-Adapter checkpoints; Plus, FaceID, and Perceiver variants are not yet supported."
+        const compatibility = compatibilityFromTags(model.value)
+        clip.setModelPredicate?.((path) => isCompatibleClip(path, compatibility))
+        const compatibleClip = firstCompatibleClip(compatibility)
+        if (!isCompatibleClip(clip.value, compatibility) && clip.value !== compatibleClip) {
+            clip.value = compatibleClip
+        }
+        if (!compatibility) {
+            enabled.checked = false
+            status.textContent = "This adapter does not expose a native base or Plus projection. FaceID adapters require an InsightFace path and are not accepted here."
+        } else if (!compatibleClip) {
+            enabled.checked = false
+            status.textContent = `No compatible CLIP-Vision model is installed. This ${compatibility.kind} adapter requires embedding width ${compatibility.dimension}.`
+        } else {
+            const source = compatibility.detected ? "tensor metadata" : "its filename"
+            status.textContent = `${family === "sdxl" ? "SDXL" : "SD 1.x"} ${compatibility.kind} adapter requires width ${compatibility.dimension}, detected from ${source}. Incompatible CLIP-Vision models are hidden.`
+        }
         saveState()
     }
 
@@ -165,6 +249,7 @@
 
     panel.querySelectorAll("input").forEach((input) => input.addEventListener("change", saveState))
     model.addEventListener("change", refreshDefaults)
+    clip.addEventListener("change", refreshDefaults)
     document.getElementById("stable_diffusion_model")?.addEventListener("change", refreshDefaults)
     document.addEventListener("refreshModels", refreshDefaults)
 
@@ -174,10 +259,7 @@
             notify("IP-Adapter is enabled, but its adapter, CLIP Vision model, or reference image is missing.", true)
             return
         }
-        if (!isBaseAdapter(model.value)) {
-            notify("Select a base/original IP-Adapter checkpoint. Plus and FaceID checkpoints use a different projection model.", true)
-            return
-        }
+        const compatibility = compatibilityFromTags(model.value)
         const rawStart = clamp(byId("ip-adapter-start").value, 0, 100, 0)
         const rawEnd = clamp(byId("ip-adapter-end").value, 0, 100, 100)
         event.reqBody.ip_adapter_image = preview.src
@@ -186,6 +268,13 @@
         event.reqBody.ip_adapter_strength = clamp(byId("ip-adapter-strength").value, -10, 10, 1)
         event.reqBody.ip_adapter_start_percent = Math.min(rawStart, rawEnd)
         event.reqBody.ip_adapter_end_percent = Math.max(rawStart, rawEnd)
+        if (!compatibility || !isCompatibleClip(clip.value, compatibility)) {
+            notify("Select a CLIP-Vision model whose detected embedding width matches this IP-Adapter.", true)
+            // Preserve the request so the native shape guard rejects stale or
+            // manually restored values cleanly instead of silently generating
+            // without the requested adapter.
+            return
+        }
         saveState()
     })
 

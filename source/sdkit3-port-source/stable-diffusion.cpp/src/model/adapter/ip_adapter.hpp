@@ -179,6 +179,14 @@ namespace IPAdapter {
             return "ip_adapter";
         }
 
+        int64_t expected_clip_embedding_dim() const {
+            return is_plus ? resampler.embed_dim : image_proj.clip_dim;
+        }
+
+        int64_t expected_context_dim() const {
+            return is_plus ? resampler.output_dim : image_proj.ctx_dim;
+        }
+
         void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors, const std::string = "") {
             if (is_plus) {
                 resampler.get_param_tensors(tensors, prefix + ".image_proj");
@@ -197,6 +205,16 @@ namespace IPAdapter {
         }
 
         sd::Tensor<float> compute(int n_threads, const sd::Tensor<float>& image_embeds) {
+            if (image_embeds.empty() || image_embeds.shape().empty() ||
+                image_embeds.shape()[0] != expected_clip_embedding_dim()) {
+                const int64_t actual_dim = image_embeds.empty() || image_embeds.shape().empty()
+                                               ? 0
+                                               : image_embeds.shape()[0];
+                LOG_ERROR("IP-Adapter/CLIP-Vision shape mismatch: adapter expects embedding width %lld, CLIP-Vision produced %lld. Select the matching CLIP-Vision model.",
+                          static_cast<long long>(expected_clip_embedding_dim()),
+                          static_cast<long long>(actual_dim));
+                return {};
+            }
             auto get_graph = [&]() -> ggml_cgraph* {
                 return build_graph(image_embeds);
             };

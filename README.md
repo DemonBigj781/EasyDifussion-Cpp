@@ -15,8 +15,11 @@ and local model tooling:
   `/civitai-api` and `/huggingface-api` routes.
 - A de-gitted llama.cpp source snapshot, a CUDA-capable local `llama-server`
   backend for TIPO, and Hugging Face model-to-GGUF conversion in Model Tools.
-- Native GIF output/GIF-to-GIF tasks and an opt-in manager for the supplied
-  legacy UI plugins, including the repaired Rabbit Hole and Storyteller tabs.
+- Native GIF output/GIF-to-GIF tasks, a local llama.cpp AI Image Critic, and an
+  opt-in manager for the remaining supplied legacy UI plugins, including the
+  repaired Rabbit Hole and Storyteller tabs.
+- One-click CLIP concept isolation for keeping a selected subject and its
+  attributes in a separate prompt context to reduce cross-concept bleed.
 - Shell-free native-backend argument editing and idle-time backend reload from
   System Settings.
 
@@ -46,6 +49,9 @@ Easy Diffusion's `models` symlink):
   ControlNet picker. Their dedicated UI panels read these folders directly.
 - `Image_GGUF/` receives GGUF files created by Model Tools, separate from
   language-model GGUF files used by TIPO.
+- `gguf/text/` and `gguf/vision/` hold the AI Image Critic's local llama.cpp
+  language and vision/projector GGUF files. Vision bundles require a matching
+  `mmproj`/projector GGUF; text-only files are reported as incompatible.
 
 Both native generation features require the locally patched sdkit3 build.
 WD14 runs in Easy Diffusion's Python process and is backend-independent.
@@ -76,6 +82,8 @@ linked into the C++ diffusion process.
 ./install.sh --native-build --cuda
 # or CPU-only
 ./install.sh --native-build --cpu
+# or portable Vulkan
+./install.sh --native-build --vulkan
 ```
 
 For an Intel oneAPI build, first install the card driver and oneAPI toolkit,
@@ -84,6 +92,54 @@ source Intel's `setvars.sh`, confirm that `sycl-ls` exposes a GPU, and run:
 ```bash
 ./install.sh --native-build --sycl
 ```
+
+The direct native build helper supports the same backend, with optional Intel
+GPU ahead-of-time compilation:
+
+```bash
+./source/Build.sh --sycl
+./source/Build.sh --sycl --sycl-device-arch <intel-gpu-architecture>
+# portable GPU backend
+./source/Build.sh --vulkan
+```
+
+Select **NVIDIA CUDA**, **Intel oneAPI / SYCL**, or **Vulkan** under System
+Settings → Backend platform after the corresponding local bundle has been
+built. Enable the reload checkbox when changing an already-running backend.
+The native binary also supports explicit startup selection and diagnostics:
+
+```bash
+sdkit --list-devices
+sdkit --backend cuda --device 0
+sdkit --backend sycl --devices 0,1
+sdkit --backend vulkan --device 0
+```
+
+`--devices` uses stable process-local selectors reported by `--list-devices`
+and enables the existing layer-split path across the selected CUDA, SYCL, or Vulkan
+devices. `auto` remains the default, and `--backend cpu` is always available as
+the controlled fallback.
+
+Each native Image and Video feature panel also contains compute-device controls
+for its own work: denoising/KSampler, text and LLM conditioning, ControlNet,
+CLIP-Vision and IP-Adapter projection, VAE encode/decode, latent interposer
+encode/decode, identity encoding, upscaling, and detection. These choices are
+sent as per-request module assignments. Changing one reloads the native model
+context so its tensors are staged for the requested device; **Automatic** keeps
+the backend's normal placement.
+
+The IP-Adapter panel reads safetensors projection shapes for original/base and
+Plus/resampler adapters. Once an adapter is selected, CLIP-Vision choices with
+the wrong pooled-projection or hidden-state width are hidden. The native runner
+checks both that input width and the adapter's output context width before it
+builds a matrix-multiplication graph, so stale/API-supplied incompatible pairs
+fail the request instead of terminating sdkit.
+
+The Image tab's **Pure Noise Image** panel creates a prompt-free Initial Image
+from up to eight colors with relative weights and a reproducible seed. Each
+pixel is sampled independently; the generated PNG contains no source content.
+Encode latent interpose remains disabled until an Initial Image (including this
+generated noise) is present, and the server repeats that guard for API calls.
 
 ## Jetson Xavier benchmark
 
@@ -105,9 +161,10 @@ build is configured with `-DSDKIT_BUILD_TESTS=ON`; run it with
 `ctest --test-dir <build-directory> -R 'model-loader-version-test|model-manager-lora-cache-test|clip-token-count-test|gguf-original-shape-test' --output-on-failure`.
 
 The H3C XG310 is four independent 8 GB Intel SG1/Xe-LP devices, not one unified
-32 GB device. The build path is ready, but SG1 is not in llama.cpp's currently
-documented list of verified SYCL devices; select the `sycl` backend only after
-the installed H3C/Intel driver exposes the card through `sycl-ls`.
+32 GB device. With the Intel compute runtime installed, `sdkit --list-devices`
+exposes them as `SYCL0` through `SYCL3` (and as `Vulkan0` through `Vulkan3` for
+the Vulkan build). Select one with `--device`, or use `--devices 0,1,2,3` for
+the existing layer-split path.
 
 System Settings → Native backend arguments accepts advanced sdkit arguments
 such as `--vae-tiles 32 --vae-tiled-overlap 16`. Arguments are stored as an
@@ -115,12 +172,20 @@ argv list and never passed through a shell. Easy Diffusion rejects injected
 port, parent-process, and model-directory flags. Enable “Reload native backend
 when saving” to apply them without restarting the UI; the queue must be empty.
 
+To isolate a concept, select one subject together with all of its attributes in
+the Prompt box and choose **Isolate Concept**. The UI places `BREAK` boundaries
+around the selection, forcing CLIP-based checkpoints to encode that group in a
+separate context chunk. Repeat this for each subject or concept that should not
+share text-encoder context. T5/LLM-only checkpoints may interpret `BREAK`
+differently, so this control is specifically labeled for CLIP prompting.
+
 ## Optional local plugins
 
 System Settings → Optional local plugins controls the supplied legacy plugin
 set. Enabling a plugin loads it immediately; disabling takes effect on the next
 page load because those older plugins have no unload lifecycle. GIF output is
-enabled by default. The Rabbit Hole compatibility fixes accept both the old
+a required built-in output format and loads before the optional plugin set. The
+Rabbit Hole compatibility fixes accept both the old
 Easy Diffusion 3.5 `/get/models` response and the current model response, while
 its original file remains usable in the old 3.5 plugin directory.
 
@@ -140,6 +205,10 @@ Easy Diffusion runtime configuration is stored in the root `config.yaml`; a
 root `options.json` is not used. The native backend keeps its private API state
 inside its own backend working directory. `./developer_console.sh` opens the
 contained `.venv`, validates `config.yaml`, and exposes its path to the shell.
+Saved-image names default to `$n_$p_$tsb64`: `$n` is a zero-padded, sequential
+folder counter, `$p` is the sanitized prompt prefix, and `$tsb64` is the compact
+timestamp/batch identifier. The counter reserves every position in a batch and
+continues after the highest existing counter instead of reusing filenames.
 
 The active conversion matrix is v1↔SDXL, v1↔SD3, SDXL↔SD3, and Flux→v1,
 Flux→SDXL, or Flux→SD3. Same-family sources need no converter. Destination

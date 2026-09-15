@@ -59,22 +59,22 @@ class TestTerminologyConsistency(unittest.TestCase):
             ),
         )
 
-    def test_video_options_uses_shared_checkpoint_and_independent_companions(self):
+    def test_video_options_owns_checkpoint_and_independent_companions(self):
         video_html = (self.repo_root / "ui" / "plugins" / "ui" / "video_plugin" / "native-video.plugin.html").read_text(encoding="utf-8")
         video_js = (self.repo_root / "ui" / "plugins" / "ui" / "video_plugin" / "native-video.plugin.js").read_text(encoding="utf-8")
         image_html = (self.repo_root / "ui" / "plugins" / "ui" / "image_plugin" / "image-settings.plugin.html").read_text(encoding="utf-8")
         self.assertIn('class="collapsible">Video Options', video_html)
-        self.assertNotIn('id="native-video-model"', video_html)
+        self.assertIn('id="native-video-model"', video_html)
         self.assertIn("Options", image_html)
         self.assertIn('<label for="stable_diffusion_model">Model:</label>', image_html)
         self.assertIn('id="native-video-vae"', video_html)
         self.assertIn('id="native-video-text-encoder"', video_html)
-        self.assertIn('const modelInput = byId("stable_diffusion_model")', video_js)
-        self.assertNotIn('new ModelDropdown(modelInput, "video"', video_js)
+        self.assertNotIn('const modelInput = byId("stable_diffusion_model")', video_js)
+        self.assertIn('new ModelDropdown(videoModelInput, "video", "Select a video model")', video_js)
         self.assertIn('new ModelDropdown(vaeInput, "vae", "Auto-detect / embedded")', video_js)
         self.assertIn('new ModelDropdown(textEncoderInput, "text-encoder", "Auto-detect / embedded")', video_js)
         self.assertIn('PLUGINS.TASK_BUILD.push', video_js)
-        self.assertNotIn('event.reqBody.use_stable_diffusion_model =', video_js)
+        self.assertGreaterEqual(video_js.count('event.reqBody.use_stable_diffusion_model = selectedModel()'), 2)
         self.assertIn('event.reqBody.use_vae_model = videoVae.value || null', video_js)
         self.assertIn('event.reqBody.use_text_encoder_model = videoTextEncoder.value || null', video_js)
         self.assertIn('event.reqBody.sampler_name = "euler"', video_js)
@@ -168,11 +168,11 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn("native_video_request && video_mmap_weights_", generator_cpp)
         self.assertIn("native_video_request && !video_max_vram_.empty()", generator_cpp)
         self.assertIn("native_video_request && video_stream_layers_", generator_cpp)
-        self.assertIn("--video-clip-on-cpu", config)
-        self.assertIn("--video-vae-on-cpu", config)
-        self.assertIn("--video-offload-to-cpu", config)
-        self.assertIn("--video-max-vram", config)
-        self.assertIn("--video-stream-layers", config)
+        self.assertNotIn("--video-clip-on-cpu", config)
+        self.assertNotIn("--video-vae-on-cpu", config)
+        self.assertNotIn("--video-offload-to-cpu", config)
+        self.assertNotIn("--video-max-vram", config)
+        self.assertNotIn("--video-stream-layers", config)
         self.assertIn("g_callback_data.video_generation   = true", generator_cpp)
         self.assertIn("Video sampling step %d/%d", generator_cpp)
 
@@ -241,6 +241,33 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn("vae_tiled_overlap_", generator_cpp)
         self.assertIn("VAE decode cancelled; skipping tiled fallback", stable_diffusion_cpp)
         self.assertIn("latent tiling and %d-pixel overlap", stable_diffusion_cpp)
+
+    def test_automatic_cpu_vae_fallback_is_scoped_to_external_modules(self):
+        generator_cpp = (
+            self.repo_root / "source" / "sdkit3-port-source" / "src" / "image_generator.cpp"
+        ).read_text(encoding="utf-8")
+        generator_h = (
+            self.repo_root / "source" / "sdkit3-port-source" / "include" / "image_generator.h"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("cpu_vae_fallback_model_path_", generator_cpp + generator_h)
+        self.assertIn("cpu_vae_fallback_configuration_key_", generator_cpp)
+        self.assertIn("current_model_configuration_key_", generator_cpp)
+        configuration_key = generator_cpp.split(
+            "const std::string model_configuration_key = make_model_configuration_key({", 1
+        )[1].split("});", 1)[0]
+        for selected_component in (
+            "model_path",
+            "vae_path_str",
+            "clip_l_path_str",
+            "clip_g_path_str",
+            "clip_vision_path_str",
+            "t5xxl_path_str",
+            "llm_path_str",
+            "controlnet_path_str",
+        ):
+            with self.subTest(selected_component=selected_component):
+                self.assertIn(selected_component, configuration_key)
 
     def test_explicit_no_image_checkpoint_does_not_fall_back_to_config(self):
         types_py = (self.repo_root / "ui" / "easydiffusion" / "types.py").read_text(encoding="utf-8")

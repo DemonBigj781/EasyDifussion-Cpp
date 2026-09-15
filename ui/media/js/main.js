@@ -42,6 +42,16 @@ const taskConfigSetup = {
             label: "Negative Prompt",
             visible: ({ reqBody }) => reqBody?.negative_prompt !== undefined && reqBody?.negative_prompt.trim() !== "",
         },
+        hidden_positive_prompt: {
+            label: "Hidden Positive Embeddings",
+            visible: ({ reqBody }) =>
+                reqBody?.hidden_positive_prompt !== undefined && reqBody?.hidden_positive_prompt.trim() !== "",
+        },
+        hidden_negative_prompt: {
+            label: "Hidden Negative Embeddings",
+            visible: ({ reqBody }) =>
+                reqBody?.hidden_negative_prompt !== undefined && reqBody?.hidden_negative_prompt.trim() !== "",
+        },
         prompt_strength: 'Prompt Strength <small>(<abbr title="Common name in other UIs">Denoising Strength</abbr>)</small>',
         use_face_correction: "Fix Faces",
         upscale: {
@@ -83,7 +93,10 @@ let imageRequest = []
 let promptField = document.querySelector("#prompt")
 let promptsFromFileSelector = document.querySelector("#prompt_from_file")
 let promptsFromFileBtn = document.querySelector("#promptsFromFileBtn")
+let isolateConceptButton = document.querySelector("#isolate-concept-button")
 let negativePromptField = document.querySelector("#negative_prompt")
+let hiddenPositivePromptField = document.querySelector("#hidden_positive_prompt")
+let hiddenNegativePromptField = document.querySelector("#hidden_negative_prompt")
 let numOutputsTotalField = document.querySelector("#num_outputs_total")
 let numOutputsParallelField = document.querySelector("#num_outputs_parallel")
 let numInferenceStepsField = document.querySelector("#num_inference_steps")
@@ -146,6 +159,43 @@ let gfpganModelField = new ModelDropdown(document.querySelector("#gfpgan_model")
 let useUpscalingField = document.querySelector("#use_upscale")
 let upscaleModelField = document.querySelector("#upscale_model")
 let upscaleAmountField = document.querySelector("#upscale_amount")
+
+function getUpscalerFilterName(path) {
+    if (!path) return null
+
+    // A discovered file is an upscaler even when its filename does not say
+    // RealESRGAN (4x-UltraSharp and Remacri are common examples).
+    if (modelsDB?.realesrgan?.[path]) return "realesrgan"
+
+    const filterNames = ["realesrgan", "latent_upscaler", "esrgan_4x", "lanczos", "nearest", "scunet", "swinir"]
+    const normalizedPath = path.toLowerCase()
+    return filterNames.find((name) => normalizedPath.includes(name)) || "realesrgan"
+}
+
+function refreshUpscalerModels() {
+    const selectedValue = upscaleModelField.value
+    upscaleModelField.querySelectorAll("option[data-discovered-upscaler]").forEach((option) => option.remove())
+
+    const existingValues = new Set(Array.from(upscaleModelField.options, (option) => option.value))
+    const discoveredModels = (modelsCache?.models || [])
+        .filter((model) => model.tags?.[0] === "realesrgan")
+        .sort((a, b) => (a.name || a.model).localeCompare(b.name || b.model))
+
+    for (const model of discoveredModels) {
+        if (existingValues.has(model.model)) continue
+        const option = document.createElement("option")
+        option.value = model.model
+        option.textContent = model.name || model.model
+        option.dataset.discoveredUpscaler = "true"
+        upscaleModelField.appendChild(option)
+        existingValues.add(model.model)
+    }
+
+    if (existingValues.has(selectedValue)) upscaleModelField.value = selectedValue
+    onUpscaleModelChange()
+}
+
+document.addEventListener("refreshModels", refreshUpscalerModels)
 let latentUpscalerSettings = document.querySelector("#latent_upscaler_settings")
 let latentUpscalerStepsSlider = document.querySelector("#latent_upscaler_steps_slider")
 let latentUpscalerStepsField = document.querySelector("#latent_upscaler_steps")
@@ -184,6 +234,11 @@ let embeddingsSearchBox = document.querySelector("#embeddings-search-box")
 let embeddingsList = document.querySelector("#embeddings-list")
 let embeddingsModeField = document.querySelector("#embeddings-mode")
 let embeddingsCardSizeSelector = document.querySelector("#embedding-card-size-selector")
+let embeddingSetSelect = document.querySelector("#embedding-set-select")
+let embeddingSetName = document.querySelector("#embedding-set-name")
+let embeddingSetSave = document.querySelector("#embedding-set-save")
+let embeddingSetLoad = document.querySelector("#embedding-set-load")
+let embeddingSetDelete = document.querySelector("#embedding-set-delete")
 let addEmbeddingsThumb = document.querySelector("#add-embeddings-thumb")
 let addEmbeddingsThumbInput = document.querySelector("#add-embeddings-thumb-input")
 
@@ -225,6 +280,37 @@ let maskSetting = document.querySelector("#enable_mask")
 
 let imagePreview = document.querySelector("#preview")
 let imagePreviewContent = document.querySelector("#preview-content")
+
+function isolateSelectedPromptConcept() {
+    const result = PromptGroups.isolateConceptSelection(
+        promptField.value,
+        promptField.selectionStart,
+        promptField.selectionEnd
+    )
+    if (result.error === "empty-selection") {
+        showToast("Select one concept and its attributes first.", 4500, true)
+        promptField.focus()
+        return
+    }
+    if (result.error === "multi-line-selection") {
+        showToast("An isolated concept must stay on one prompt line.", 4500, true)
+        promptField.focus()
+        return
+    }
+    if (result.error === "contains-boundary") {
+        showToast("That selection already contains an isolation boundary.", 4500, true)
+        promptField.focus()
+        return
+    }
+
+    promptField.value = result.value
+    promptField.focus()
+    promptField.setSelectionRange(result.selectionStart, result.selectionEnd)
+    promptField.dispatchEvent(new Event("input", { bubbles: true }))
+    showToast("Concept isolated in its own CLIP context.")
+}
+
+isolateConceptButton.addEventListener("click", isolateSelectedPromptConcept)
 
 let undoButton = document.querySelector("#undo")
 let undoBuffer = []
@@ -734,16 +820,9 @@ function onUseAsInputClick(req, img) {
     const imgData = img.src
 
     initImageSelector.value = null
-    initImagePreview.src = imgData
+    setInitialImageSource(imgData)
 
     maskSetting.checked = false
-
-    //Force the image settings size to match the input, as inpaint currently only works correctly
-    //if input image and generate sizes match.
-    addImageSizeOption(img.naturalWidth);
-    addImageSizeOption(img.naturalHeight);
-    widthField.value = img.naturalWidth;
-    heightField.value = img.naturalHeight;
 }
 
 function onUseForControlnetClick(req, img) {
@@ -1115,15 +1194,7 @@ function onUpscaleClick(req, img, e, tools) {
     let path = upscaleModelField.value
     let scale = parseInt(upscaleAmountField.value)
 
-    let filterName = null
-    const FILTERS = ["realesrgan", "latent_upscaler", "esrgan_4x", "lanczos", "nearest", "scunet", "swinir"]
-    for (let idx in FILTERS) {
-        let f = FILTERS[idx]
-        if (path.toLowerCase().includes(f)) {
-            filterName = f
-            break
-        }
-    }
+    let filterName = getUpscalerFilterName(path)
 
     if (!filterName) {
         return
@@ -1492,6 +1563,8 @@ function getCurrentUserRequest() {
             seed,
             used_random_seed: randomSeedField.checked,
             negative_prompt: negativePromptField.value.trim(),
+            hidden_positive_prompt: hiddenPositivePromptField.value.trim(),
+            hidden_negative_prompt: hiddenNegativePromptField.value.trim(),
             num_outputs: numOutputsParallel,
             num_inference_steps: parseInt(numInferenceStepsField.value),
             guidance_scale: parseFloat(guidanceScaleField.value),
@@ -1646,7 +1719,9 @@ function getCurrentUserRequest() {
 function setEmbeddings(task) {
     let prompt = task.reqBody.prompt
     let negativePrompt = task.reqBody.negative_prompt
-    let overallPrompt = (prompt + " " + negativePrompt).toLowerCase()
+    let hiddenPositivePrompt = task.reqBody.hidden_positive_prompt || ""
+    let hiddenNegativePrompt = task.reqBody.hidden_negative_prompt || ""
+    let overallPrompt = (prompt + " " + hiddenPositivePrompt + " " + negativePrompt + " " + hiddenNegativePrompt).toLowerCase()
     overallPrompt = overallPrompt.replaceAll(/[^a-z0-9\-_\.]/g, " ") // only allow alpha-numeric, dots and hyphens
     overallPrompt = overallPrompt.split(" ")
 
@@ -1659,7 +1734,7 @@ function setEmbeddings(task) {
                 extract(e[1], path)
             } else {
                 let path = basePath === "" ? basePath + e : basePath + "/" + e
-                embeddings.push([e.toLowerCase().replace(" ", "_"), path])
+                embeddings.push([e.toLowerCase().replaceAll(" ", "_"), path])
             }
         })
     }
@@ -2316,6 +2391,7 @@ function onUpscaleModelChange() {
 }
 upscaleModelField.addEventListener("change", onUpscaleModelChange)
 onUpscaleModelChange()
+if (modelsCache?.models) refreshUpscalerModels()
 
 makeImageBtn.addEventListener("click", makeImage)
 
@@ -2573,8 +2649,11 @@ function loadImg2ImgFromFile() {
     let reader = new FileReader()
     let file = initImageSelector.files[0]
 
-    reader.addEventListener("load", function (event) {
-        initImagePreview.src = reader.result
+    reader.addEventListener("load", function () {
+        setInitialImageSource(reader.result)
+    })
+    reader.addEventListener("error", function () {
+        showToast(`Could not read ${file.name}.`, 5000, true)
     })
 
     if (file) {
@@ -2583,6 +2662,44 @@ function loadImg2ImgFromFile() {
 }
 initImageSelector.addEventListener("change", loadImg2ImgFromFile)
 loadImg2ImgFromFile()
+
+function getGenerationDimensionsForImage(sourceWidth, sourceHeight, stepSize = IMAGE_STEP_SIZE) {
+    const width = Number(sourceWidth)
+    const height = Number(sourceHeight)
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        throw new TypeError("Image dimensions must be positive numbers")
+    }
+
+    const maximum = 2048
+    const step = Math.min(maximum, Math.max(1, Math.floor(Number(stepSize) || 1)))
+    const minimum = Math.max(128, step)
+    const largestGridSize = Math.floor(maximum / step) * step
+    const fitScale = Math.min(1, largestGridSize / width, largestGridSize / height)
+    const targetWidth = width * fitScale
+    const targetHeight = height * fitScale
+    const snap = (value) => Math.min(largestGridSize, Math.max(minimum, Math.round(value / step) * step))
+    const aspectRatio = width / height
+    const roundedWidth = snap(targetWidth)
+    const roundedHeight = snap(targetHeight)
+    const candidates = [
+        { width: roundedWidth, height: roundedHeight },
+        { width: roundedWidth, height: snap(roundedWidth / aspectRatio) },
+        { width: snap(roundedHeight * aspectRatio), height: roundedHeight },
+    ]
+
+    const score = (candidate) => {
+        const aspectError = Math.abs(Math.log((candidate.width / candidate.height) / aspectRatio))
+        const sizeError = Math.abs(Math.log(candidate.width / targetWidth)) +
+            Math.abs(Math.log(candidate.height / targetHeight))
+        return aspectError * 4 + sizeError
+    }
+    return candidates.reduce((best, candidate) => score(candidate) < score(best) ? candidate : best)
+}
+
+function setInitialImageSource(source, autoSelectDimensions = true) {
+    initImagePreview.dataset.autoSelectDimensions = autoSelectDimensions ? "true" : "false"
+    initImagePreview.src = source
+}
 
 function img2imgLoad() {
     promptStrengthContainer.style.display = "table-row"
@@ -2593,7 +2710,20 @@ function img2imgLoad() {
     colorCorrectionSetting.style.display = ""
     strictMaskBorderSetting.style.display = maskSetting.checked ? "" : "none"
 
-    initImageSizeBox.textContent = initImagePreview.naturalWidth + " x " + initImagePreview.naturalHeight
+    const sourceWidth = initImagePreview.naturalWidth
+    const sourceHeight = initImagePreview.naturalHeight
+    initImageSizeBox.textContent = sourceWidth + " x " + sourceHeight
+    if (initImagePreview.dataset.autoSelectDimensions === "true") {
+        const dimensions = getGenerationDimensionsForImage(sourceWidth, sourceHeight)
+        setImageWidthHeight(dimensions.width, dimensions.height)
+        if (dimensions.width !== sourceWidth || dimensions.height !== sourceHeight) {
+            showToast(
+                `Generation size set to ${dimensions.width}×${dimensions.height} to preserve the ` +
+                `image aspect ratio on the ${IMAGE_STEP_SIZE}-pixel grid.`
+            )
+        }
+    }
+    delete initImagePreview.dataset.autoSelectDimensions
     imageEditor.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
     imageInpainter.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
 }
@@ -2601,6 +2731,7 @@ function img2imgLoad() {
 function img2imgUnload() {
     initImageSelector.value = null
     initImagePreview.src = ""
+    delete initImagePreview.dataset.autoSelectDimensions
     maskSetting.checked = false
 
     promptStrengthContainer.style.display = "none"
@@ -2713,18 +2844,11 @@ function controlImageLoad() {
         controlNetEnabledField.checked = true
         controlNetEnabledField.dispatchEvent(new Event("change"))
     }
-    let w = controlImagePreview.naturalWidth
-    let h = controlImagePreview.naturalHeight
-    w = w - (w % IMAGE_STEP_SIZE)
-    h = h - (h % IMAGE_STEP_SIZE)
-
-    addImageSizeOption(w)
-    addImageSizeOption(h)
-
-    widthField.value = w
-    heightField.value = h
-    widthField.dispatchEvent(new Event("change"))
-    heightField.dispatchEvent(new Event("change"))
+    const dimensions = getGenerationDimensionsForImage(
+        controlImagePreview.naturalWidth,
+        controlImagePreview.naturalHeight
+    )
+    setImageWidthHeight(dimensions.width, dimensions.height)
 }
 controlImagePreview.addEventListener("load", controlImageLoad)
 
@@ -2939,6 +3063,98 @@ document.getElementById("toggle-tensorrt-install").addEventListener("click", fun
 
 /* Embeddings */
 
+const EMBEDDING_SETS_STORAGE_KEY = "easyDiffusionEmbeddingSetsV1"
+
+function parseEmbeddingField(value) {
+    return value
+        .split(",")
+        .map((token) => token.trim().replace(/,+\s*$/, ""))
+        .filter((token) => token !== "")
+}
+
+function formatEmbeddingField(tokens) {
+    return tokens.length === 0 ? "" : `${tokens.join(", ")},`
+}
+
+function readEmbeddingSets() {
+    try {
+        const value = JSON.parse(localStorage.getItem(EMBEDDING_SETS_STORAGE_KEY) || "{}")
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {}
+    } catch (error) {
+        console.warn("Could not read saved embedding sets", error)
+        return {}
+    }
+}
+
+function writeEmbeddingSets(sets) {
+    try {
+        localStorage.setItem(EMBEDDING_SETS_STORAGE_KEY, JSON.stringify(sets))
+        return true
+    } catch (error) {
+        console.error("Could not save embedding sets", error)
+        showToast("The browser blocked embedding-set storage.", 5000, true)
+        return false
+    }
+}
+
+function refreshEmbeddingSetOptions(selectedName = "") {
+    const sets = readEmbeddingSets()
+    embeddingSetSelect.replaceChildren(new Option("Choose a set...", ""))
+    Object.keys(sets)
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+        .forEach((name) => embeddingSetSelect.add(new Option(name, name)))
+    embeddingSetSelect.value = selectedName in sets ? selectedName : ""
+}
+
+function saveCurrentEmbeddingSet() {
+    const name = embeddingSetName.value.trim()
+    if (name === "") {
+        showToast("Enter a name for the embedding set.", 4000, true)
+        return
+    }
+
+    const sets = readEmbeddingSets()
+    sets[name] = {
+        positive: parseEmbeddingField(hiddenPositivePromptField.value),
+        negative: parseEmbeddingField(hiddenNegativePromptField.value),
+    }
+    if (!writeEmbeddingSets(sets)) return
+    refreshEmbeddingSetOptions(name)
+    showToast(`Saved embedding set: ${name}`)
+}
+
+function loadSelectedEmbeddingSet() {
+    const name = embeddingSetSelect.value
+    const selectedSet = readEmbeddingSets()[name]
+    if (!selectedSet) {
+        showToast("Choose an embedding set to load.", 4000, true)
+        return
+    }
+
+    hiddenPositivePromptField.value = formatEmbeddingField(Array.isArray(selectedSet.positive) ? selectedSet.positive : [])
+    hiddenNegativePromptField.value = formatEmbeddingField(Array.isArray(selectedSet.negative) ? selectedSet.negative : [])
+    hiddenPositivePromptField.dispatchEvent(new Event("input", { bubbles: true }))
+    hiddenNegativePromptField.dispatchEvent(new Event("input", { bubbles: true }))
+    embeddingSetName.value = name
+    showToast(`Loaded embedding set: ${name}`)
+}
+
+function deleteSelectedEmbeddingSet() {
+    const name = embeddingSetSelect.value
+    if (name === "") {
+        showToast("Choose an embedding set to delete.", 4000, true)
+        return
+    }
+    if (!confirm(`Delete embedding set "${name}"?`)) return
+
+    const sets = readEmbeddingSets()
+    delete sets[name]
+    if (!writeEmbeddingSets(sets)) return
+    refreshEmbeddingSetOptions()
+    if (embeddingSetName.value === name) embeddingSetName.value = ""
+    showToast(`Deleted embedding set: ${name}`)
+}
+
 addEmbeddingsThumb.addEventListener("click", (e) => addEmbeddingsThumbInput.click())
 addEmbeddingsThumbInput.addEventListener("change", loadThumbnailImageFromFile)
 
@@ -2969,6 +3185,19 @@ function loadThumbnailImageFromFile() {
 }
 
 function updateEmbeddingsList(filter = "") {
+    const selectedPositiveEmbeddings = new Set(
+        hiddenPositivePromptField.value
+            .split(",")
+            .map((token) => token.trim().toLowerCase())
+            .filter((token) => token !== "")
+    )
+    const selectedNegativeEmbeddings = new Set(
+        hiddenNegativePromptField.value
+            .split(",")
+            .map((token) => token.trim().toLowerCase())
+            .filter((token) => token !== "")
+    )
+
     function html(model, iconMap = {}, prefix = "", filter = "") {
         filter = filter.toLowerCase()
         let toplevel = document.createElement("div")
@@ -2987,6 +3216,8 @@ function updateEmbeddingsList(filter = "") {
                     button = createModifierCard(m, [img, img], true)
                     // }
                     button.dataset["embedding"] = m
+                    button.classList.toggle("embedding-positive-selected", selectedPositiveEmbeddings.has(token))
+                    button.classList.toggle("embedding-negative-selected", selectedNegativeEmbeddings.has(token))
                     button.addEventListener("click", onButtonClick)
                     toplevel.appendChild(button)
                 }
@@ -3020,23 +3251,26 @@ function updateEmbeddingsList(filter = "") {
 
         if (embeddingsModeField.value == "insert") {
             if (insertIntoNegative) {
-                insertAtCursor(negativePromptField, text)
+                insertAtCursor(hiddenNegativePromptField, text.replace(/,+\s*$/, "") + ",")
             } else {
-                insertAtCursor(promptField, text)
+                insertAtCursor(hiddenPositivePromptField, text.replace(/,+\s*$/, "") + ",")
             }
         } else {
             let pad = ""
             if (insertIntoNegative) {
-                if (!negativePromptField.value.endsWith(" ")) {
-                    pad = " "
-                }
-                negativePromptField.value += pad + text
+                const current = hiddenNegativePromptField.value.trimEnd()
+                const separator = current === "" || current.endsWith(",") ? "" : ","
+                hiddenNegativePromptField.value = `${current}${separator}${current === "" ? "" : " "}${text.replace(/,+\s*$/, "")}, `
             } else {
-                if (!promptField.value.endsWith(" ")) {
-                    pad = " "
-                }
-                promptField.value += pad + text
+                const current = hiddenPositivePromptField.value.trimEnd()
+                const separator = current === "" || current.endsWith(",") ? "" : ","
+                hiddenPositivePromptField.value = `${current}${separator}${current === "" ? "" : " "}${text.replace(/,+\s*$/, "")}, `
             }
+        }
+        if (insertIntoNegative) {
+            hiddenNegativePromptField.dispatchEvent(new Event("input", { bubbles: true }))
+        } else {
+            hiddenPositivePromptField.dispatchEvent(new Event("input", { bubbles: true }))
         }
     }
 
@@ -3121,6 +3355,32 @@ embeddingsDialogCloseBtn.addEventListener("click", (e) => {
 embeddingsSearchBox.addEventListener("input", (e) => {
     updateEmbeddingsList(embeddingsSearchBox.value)
 })
+
+hiddenNegativePromptField.addEventListener("input", () => {
+    if (embeddingsDialog.open) {
+        updateEmbeddingsList(embeddingsSearchBox.value)
+    }
+})
+
+hiddenPositivePromptField.addEventListener("input", () => {
+    if (embeddingsDialog.open) {
+        updateEmbeddingsList(embeddingsSearchBox.value)
+    }
+})
+
+embeddingSetSave.addEventListener("click", saveCurrentEmbeddingSet)
+embeddingSetLoad.addEventListener("click", loadSelectedEmbeddingSet)
+embeddingSetDelete.addEventListener("click", deleteSelectedEmbeddingSet)
+embeddingSetSelect.addEventListener("change", () => {
+    if (embeddingSetSelect.value !== "") loadSelectedEmbeddingSet()
+})
+embeddingSetName.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault()
+        saveCurrentEmbeddingSet()
+    }
+})
+refreshEmbeddingSetOptions()
 
 embeddingsCardSizeSelector.addEventListener("change", (e) => {
     resizeModifierCards(embeddingsCardSizeSelector.value)

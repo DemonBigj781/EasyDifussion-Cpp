@@ -165,71 +165,65 @@ function expandBinaryMask(mask, width, height, radius) {
     return mask
 }
 
-function removeImageBackground(editor) {
-    const width = editor.width
-    const height = editor.height
-    const pixels = editor.layers.background.ctx.getImageData(0, 0, width, height).data
-    const threshold = Number(editor.options.wand_threshold || 30)
-    const thresholdSquared = threshold * threshold
-    const background = new Uint8Array(width * height)
-    const visited = new Uint8Array(width * height)
-    const queue = new Int32Array(width * height)
-    const seeds = [0, width - 1, (height - 1) * width, width * height - 1]
+async function removeImageBackground(editor) {
+    if (editor.backgroundRemovalPending) return
+    editor.backgroundRemovalPending = true
+    editor.container.style.cursor = "progress"
+    try {
+        const source = editor.layers.background.canvas.toDataURL("image/png")
+        const response = await fetch("/image-tools/remove-background", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: source, model: "u2net", alpha_matting: false }),
+        })
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(result.detail || `Background removal failed (HTTP ${response.status})`)
+        if (!result.image) throw new Error("Background remover returned no image.")
 
-    seeds.forEach((seed) => {
-        if (visited[seed]) return
-        const seedOffset = seed * 4
-        const baseR = pixels[seedOffset]
-        const baseG = pixels[seedOffset + 1]
-        const baseB = pixels[seedOffset + 2]
-        let read = 0
-        let write = 0
-        queue[write++] = seed
-        visited[seed] = 1
-        while (read < write) {
-            const pixel = queue[read++]
-            background[pixel] = 1
-            const x = pixel % width
-            const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
-            for (let i = 0; i < neighbors.length; i++) {
-                const next = neighbors[i]
-                if (next < 0 || next >= background.length || visited[next]) continue
-                if ((i === 0 && x === 0) || (i === 1 && x === width - 1)) continue
-                const offset = next * 4
-                const dr = pixels[offset] - baseR
-                const dg = pixels[offset + 1] - baseG
-                const db = pixels[offset + 2] - baseB
-                if (dr * dr + dg * dg + db * db > thresholdSquared) continue
-                visited[next] = 1
-                queue[write++] = next
+        const removed = new Image()
+        await new Promise((resolve, reject) => {
+            removed.onload = resolve
+            removed.onerror = () => reject(new Error("Background remover returned an invalid image."))
+            removed.src = result.image
+        })
+
+        const rendered = document.createElement("canvas")
+        rendered.width = editor.width
+        rendered.height = editor.height
+        const renderedCtx = rendered.getContext("2d")
+        renderedCtx.drawImage(removed, 0, 0, editor.width, editor.height)
+
+        if (editor.inpainter) {
+            const rgba = renderedCtx.getImageData(0, 0, editor.width, editor.height)
+            const mask = renderedCtx.createImageData(editor.width, editor.height)
+            for (let offset = 0; offset < rgba.data.length; offset += 4) {
+                const backgroundAlpha = 255 - rgba.data[offset + 3]
+                mask.data[offset] = 255
+                mask.data[offset + 1] = 255
+                mask.data[offset + 2] = 255
+                mask.data[offset + 3] = backgroundAlpha
             }
+            const target = editor.layers.drawing.ctx
+            target.clearRect(0, 0, editor.width, editor.height)
+            target.putImageData(mask, 0, 0)
+        } else {
+            const target = editor.layers.background.ctx
+            target.clearRect(0, 0, editor.width, editor.height)
+            target.globalCompositeOperation = "source-over"
+            target.globalAlpha = 1
+            target.filter = "none"
+            target.drawImage(rendered, 0, 0)
         }
-    })
-
-    expandBinaryMask(background, width, height, Number(editor.options.selection_buffer || 0))
-    const maskCanvas = document.createElement("canvas")
-    maskCanvas.width = width
-    maskCanvas.height = height
-    const maskCtx = maskCanvas.getContext("2d")
-    const maskData = maskCtx.createImageData(width, height)
-    for (let i = 0; i < background.length; i++) {
-        if (!background[i]) continue
-        const offset = i * 4
-        maskData.data[offset] = 255
-        maskData.data[offset + 1] = 255
-        maskData.data[offset + 2] = 255
-        maskData.data[offset + 3] = 255
+        editor.setBrush()
+        if (typeof showToast === "function") showToast("Background removed with U²-Net.")
+    } catch (error) {
+        console.error("Background removal failed", error)
+        if (typeof showToast === "function") showToast(error.message, 7000, true)
+        else alert(error.message)
+    } finally {
+        editor.backgroundRemovalPending = false
+        editor.container.style.cursor = ""
     }
-    maskCtx.putImageData(maskData, 0, 0)
-
-    const target = editor.inpainter ? editor.layers.drawing.ctx : editor.layers.background.ctx
-    target.save()
-    target.globalAlpha = 1
-    target.filter = `blur(${Math.floor(Number(editor.options.sharpness || 0) * Number(editor.options.brush_size || 48))}px)`
-    target.globalCompositeOperation = editor.inpainter ? "source-over" : "destination-out"
-    target.drawImage(maskCanvas, 0, 0)
-    target.restore()
-    editor.setBrush()
 }
 
 const IMAGE_EDITOR_TOOLS = [

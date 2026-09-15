@@ -127,19 +127,9 @@
     let imageObj = new Image()
 
     imageObj.onload = function () {
-        const bestWidth = Math.max(IMAGE_STEP_SIZE, Math.round(this.width / IMAGE_STEP_SIZE) * IMAGE_STEP_SIZE)
-        const bestHeight = Math.max(IMAGE_STEP_SIZE, Math.round(this.height / IMAGE_STEP_SIZE) * IMAGE_STEP_SIZE)
-
-        addImageSizeOption(bestWidth)
-        addImageSizeOption(bestHeight)
-
-        // Set the width and height to the closest aspect ratio and closest to original dimensions
-        widthField.value = bestWidth;
-        heightField.value = bestHeight;
-
         // Keep the original pixels. Cropping through a shared canvas here was
         // another source of blank/white images, especially for small inputs.
-        initImagePreview.src = this.src
+        setInitialImageSource(this.src)
     };
 
     function handlePaste(e) {

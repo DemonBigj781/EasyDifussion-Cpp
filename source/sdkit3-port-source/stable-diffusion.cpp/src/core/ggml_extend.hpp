@@ -3331,6 +3331,44 @@ public:
         graph_cut_layer_split_primary_notice_logged_ = false;
     }
 
+    bool set_runtime_backend(ggml_backend_t backend) {
+        GGML_ASSERT(backend != nullptr);
+        if (runtime_backend == backend) {
+            return true;
+        }
+
+        std::vector<ggml_tensor*> params;
+        if (params_ctx != nullptr) {
+            for (ggml_tensor* tensor = ggml_get_first_tensor(params_ctx);
+                 tensor != nullptr;
+                 tensor = ggml_get_next_tensor(params_ctx, tensor)) {
+                params.push_back(tensor);
+            }
+        }
+        auto manager = weight_manager.lock();
+        if (!params.empty()) {
+            if (manager == nullptr) {
+                LOG_ERROR("%s cannot switch runtime backend without a weight manager",
+                          get_desc().c_str());
+                return false;
+            }
+            if (!manager->assign_compute_backend(params, backend)) {
+                LOG_ERROR("%s could not move registered weights to runtime backend %s",
+                          get_desc().c_str(),
+                          sd::layer_split_backend_device_display_name(backend).c_str());
+                return false;
+            }
+        }
+        free_compute_buffer();
+        free_cache_ctx_and_buffer();
+        runtime_backend = backend;
+        extra_runtime_backends.clear();
+        graph_cut_layer_split_assignments_.clear();
+        graph_cut_layer_split_node_assignments_.clear();
+        graph_cut_layer_split_primary_notice_logged_ = false;
+        return true;
+    }
+
     void set_runtime_backends(const std::vector<ggml_backend_t>& backends) {
         extra_runtime_backends.clear();
         for (ggml_backend_t backend : backends) {

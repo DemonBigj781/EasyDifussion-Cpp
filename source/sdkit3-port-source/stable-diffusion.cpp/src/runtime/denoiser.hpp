@@ -8,6 +8,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -53,6 +54,37 @@ struct DiscreteScheduler : SigmaScheduler {
     }
 };
 
+// Fixed-stride traversal of the model's training sigma table. This is the
+// scheduler named "ddim_uniform" by ComfyUI; it is independent of the DDIM
+// sampling update.
+struct DDIMUniformScheduler : SigmaScheduler {
+    std::vector<float> get_sigmas(uint32_t n,
+                                  float /*sigma_min*/,
+                                  float /*sigma_max*/,
+                                  t_to_sigma_t t_to_sigma) override {
+        if (n == 0) {
+            return {};
+        }
+
+        uint32_t steps = n;
+        int index      = 1;
+        std::vector<float> sigmas;
+        if (std::abs(t_to_sigma(static_cast<float>(index))) <= 1e-5f) {
+            ++steps;
+        } else {
+            sigmas.push_back(0.f);
+        }
+
+        const int stride = std::max(TIMESTEPS / static_cast<int>(steps), 1);
+        while (index < TIMESTEPS) {
+            sigmas.push_back(t_to_sigma(static_cast<float>(index)));
+            index += stride;
+        }
+        std::reverse(sigmas.begin(), sigmas.end());
+        return sigmas;
+    }
+};
+
 struct MochiScheduler : SigmaScheduler {
     std::vector<float> get_sigmas(uint32_t n,
                                   float /*sigma_min*/,
@@ -84,6 +116,53 @@ struct MochiScheduler : SigmaScheduler {
         for (uint32_t i = linear_steps; i < n; ++i) {
             const float fi = static_cast<float>(i);
             sigmas.push_back(1.f - (q * fi * fi + l * fi + c));
+        }
+        sigmas.push_back(0.f);
+        return sigmas;
+    }
+};
+
+// General form of Genmo's linear-quadratic schedule. MochiScheduler retains
+// its normalized, model-specific behavior; this variant scales the curve by
+// the active denoiser's sigma_max for ordinary image diffusion models.
+struct LinearQuadraticScheduler : SigmaScheduler {
+    std::vector<float> get_sigmas(uint32_t n,
+                                  float /*sigma_min*/,
+                                  float sigma_max,
+                                  t_to_sigma_t /*t_to_sigma*/) override {
+        if (n == 0) {
+            return {};
+        }
+        if (n == 1) {
+            return {sigma_max, 0.f};
+        }
+
+        const uint32_t linear_steps    = n / 2;
+        const uint32_t quadratic_steps = n - linear_steps;
+        const float threshold_noise    = 0.025f;
+        std::vector<float> sigmas;
+        sigmas.reserve(n + 1);
+
+        for (uint32_t i = 0; i < linear_steps; ++i) {
+            const float normalized = 1.f - static_cast<float>(i) * threshold_noise /
+                                               static_cast<float>(linear_steps);
+            sigmas.push_back(normalized * sigma_max);
+        }
+
+        const float step_diff = static_cast<float>(linear_steps) -
+                                threshold_noise * static_cast<float>(n);
+        const float quadratic_denominator = static_cast<float>(linear_steps) *
+                                            static_cast<float>(quadratic_steps) *
+                                            static_cast<float>(quadratic_steps);
+        const float q = step_diff / quadratic_denominator;
+        const float l = threshold_noise / static_cast<float>(linear_steps) -
+                        2.f * step_diff /
+                            (static_cast<float>(quadratic_steps) * static_cast<float>(quadratic_steps));
+        const float c = q * static_cast<float>(linear_steps) * static_cast<float>(linear_steps);
+        for (uint32_t i = linear_steps; i < n; ++i) {
+            const float fi         = static_cast<float>(i);
+            const float normalized = 1.f - (q * fi * fi + l * fi + c);
+            sigmas.push_back(normalized * sigma_max);
         }
         sigmas.push_back(0.f);
         return sigmas;
@@ -1105,6 +1184,14 @@ struct Denoiser {
             case BETA_SCHEDULER:
                 LOG_INFO("get_sigmas with Beta scheduler");
                 scheduler = std::make_shared<BetaScheduler>(extra_sample_args);
+                break;
+            case DDIM_UNIFORM_SCHEDULER:
+                LOG_INFO("get_sigmas with DDIM Uniform scheduler");
+                scheduler = std::make_shared<DDIMUniformScheduler>();
+                break;
+            case LINEAR_QUADRATIC_SCHEDULER:
+                LOG_INFO("get_sigmas with Linear Quadratic scheduler");
+                scheduler = std::make_shared<LinearQuadraticScheduler>();
                 break;
             case EXPONENTIAL_SCHEDULER:
                 LOG_INFO("get_sigmas exponential scheduler");
@@ -2139,6 +2226,417 @@ static sd::Tensor<float> sample_dpmpp_2m_sde_bt(denoise_cb_t model,
     return x;
 }
 
+// DPM-Solver++(3M) SDE with the same seeded Brownian-tree increments used by
+// the native 2M SDE BT path. It uses lambda=-log(sigma) for ordinary CompVis
+// sigmas and lambda=log((1-sigma)/sigma) plus alpha=1-sigma for rectified flow.
+// Ref: Lu et al. arXiv:2211.01095; ComfyUI sample_dpmpp_3m_sde.
+static sd::Tensor<float> sample_dpmpp_3m_sde(denoise_cb_t model,
+                                             sd::Tensor<float> x,
+                                             const std::vector<float>& sigmas,
+                                             std::shared_ptr<RNG> rng,
+                                             float eta,
+                                             bool is_flow_denoiser = false) {
+    if (sigmas.size() <= 1) {
+        return x;
+    }
+
+    std::vector<float> solver_sigmas = sigmas;
+    if (is_flow_denoiser && solver_sigmas.front() >= 1.f) {
+        solver_sigmas.front() = 1.f - 1e-4f;
+    }
+
+    double sigma_max = 0.0;
+    double sigma_min = std::numeric_limits<double>::infinity();
+    for (float sigma : solver_sigmas) {
+        if (sigma > 0.f) {
+            sigma_max = std::max(sigma_max, static_cast<double>(sigma));
+            sigma_min = std::min(sigma_min, static_cast<double>(sigma));
+        }
+    }
+
+    std::unique_ptr<BrownianTreeNoiseSampler> noise_sampler;
+    if (eta > 0.f && sigma_max > sigma_min) {
+        uint64_t tree_seed = 0;
+        auto draw          = rng->randn(2);
+        std::memcpy(&tree_seed, draw.data(), sizeof(tree_seed));
+        noise_sampler = std::make_unique<BrownianTreeNoiseSampler>(x, sigma_min, sigma_max, tree_seed);
+    }
+
+    sd::Tensor<float> denoised_1;
+    sd::Tensor<float> denoised_2;
+    bool have_denoised_1 = false;
+    bool have_denoised_2 = false;
+    float h_1            = 0.f;
+    float h_2            = 0.f;
+
+    const int steps = static_cast<int>(solver_sigmas.size()) - 1;
+    for (int i = 0; i < steps; ++i) {
+        auto denoised_opt = model(x, solver_sigmas[i], i + 1);
+        if (denoised_opt.pred.empty()) {
+            return {};
+        }
+        sd::Tensor<float> denoised = std::move(denoised_opt.pred);
+
+        float h = 0.f;
+        if (solver_sigmas[i + 1] == 0.f) {
+            x = denoised;
+        } else {
+            const auto lambda = [is_flow_denoiser](float sigma) {
+                return is_flow_denoiser ? std::log((1.f - sigma) / sigma) : -std::log(sigma);
+            };
+            const float lambda_s = lambda(solver_sigmas[i]);
+            const float lambda_t = lambda(solver_sigmas[i + 1]);
+            h                    = lambda_t - lambda_s;
+            const float h_eta    = h * (eta + 1.f);
+            const float ratio    = solver_sigmas[i + 1] / solver_sigmas[i];
+            const float alpha_t  = is_flow_denoiser ? 1.f - solver_sigmas[i + 1] : 1.f;
+
+            x = ratio * std::exp(-h * eta) * x + alpha_t * (-std::expm1(-h_eta)) * denoised;
+
+            float phi_2;
+            float phi_3;
+            if (std::abs(h_eta) < 1e-4f) {
+                const float h_eta_2 = h_eta * h_eta;
+                phi_2              = 0.5f * h_eta - h_eta_2 / 6.f;
+                phi_3              = -h_eta / 6.f + h_eta_2 / 24.f;
+            } else {
+                phi_2 = std::expm1(-h_eta) / h_eta + 1.f;
+                phi_3 = phi_2 / h_eta - 0.5f;
+            }
+
+            if (have_denoised_2) {
+                const float r0 = h_1 / h;
+                const float r1 = h_2 / h;
+                auto d1_0      = (denoised - denoised_1) / r0;
+                auto d1_1      = (denoised_1 - denoised_2) / r1;
+                auto delta     = d1_0 - d1_1;
+                auto d1        = d1_0 + (r0 / (r0 + r1)) * delta;
+                auto d2        = delta / (r0 + r1);
+                x += alpha_t * phi_2 * d1 - alpha_t * phi_3 * d2;
+            } else if (have_denoised_1) {
+                const float r = h_1 / h;
+                auto d        = (denoised - denoised_1) / r;
+                x += alpha_t * phi_2 * d;
+            }
+
+            if (noise_sampler) {
+                const float noise_scale = solver_sigmas[i + 1] * std::sqrt(-std::expm1(-2.f * h * eta));
+                x += (*noise_sampler)(solver_sigmas[i], solver_sigmas[i + 1]) * noise_scale;
+            }
+        }
+
+        denoised_2      = std::move(denoised_1);
+        denoised_1      = std::move(denoised);
+        have_denoised_2 = have_denoised_1;
+        have_denoised_1 = true;
+        h_2             = h_1;
+        h_1             = h;
+    }
+    return x;
+}
+
+static double deis_second_order_indefinite(double t, double b, double c) {
+    return t * (-std::log(c) + std::log(t) - 1.0) /
+           (std::log(b) - std::log(c));
+}
+
+static double deis_third_order_indefinite(double t, double b, double c, double d) {
+    const double log_t = std::log(t);
+    const double log_b = std::log(b);
+    const double log_c = std::log(c);
+    const double log_d = std::log(d);
+    const double numerator = t * (log_c * (log_d - log_t + 1.0) -
+                                  log_d * log_t + log_d + log_t * log_t -
+                                  2.0 * log_t + 2.0);
+    return numerator / ((log_b - log_c) * (log_b - log_d));
+}
+
+// Third-order log-rho DEIS. In the native k-diffusion state, rho is exactly
+// sigma and the converted DEIS model output is dx/dsigma=(x-x0)/sigma, so the
+// Hugging Face analytic coefficients can be applied without state conversion.
+// Ref: Zhang & Chen arXiv:2204.13902; Diffusers DEISMultistepScheduler.
+static sd::Tensor<float> sample_deis(denoise_cb_t model,
+                                     sd::Tensor<float> x,
+                                     const std::vector<float>& sigmas) {
+    std::vector<sd::Tensor<float>> derivative_history;
+    derivative_history.reserve(2);
+
+    const int steps = static_cast<int>(sigmas.size()) - 1;
+    for (int i = 0; i < steps; ++i) {
+        auto denoised_opt = model(x, sigmas[i], i + 1);
+        if (denoised_opt.pred.empty()) {
+            return {};
+        }
+        sd::Tensor<float> denoised = std::move(denoised_opt.pred);
+        auto derivative            = (x - denoised) / sigmas[i];
+
+        const double sigma_current = static_cast<double>(sigmas[i]);
+        const double sigma_next    = static_cast<double>(sigmas[i + 1]);
+        if (sigma_next <= 0.0) {
+            x = std::move(denoised);
+        } else {
+            int order = std::min(3, i + 1);
+            if (order >= 2 &&
+                std::abs(std::log(sigma_current) - std::log(static_cast<double>(sigmas[i - 1]))) < 1e-12) {
+                order = 1;
+            }
+            if (order >= 3 &&
+                (std::abs(std::log(sigma_current) - std::log(static_cast<double>(sigmas[i - 2]))) < 1e-12 ||
+                 std::abs(std::log(static_cast<double>(sigmas[i - 1])) -
+                          std::log(static_cast<double>(sigmas[i - 2]))) < 1e-12)) {
+                order = 2;
+            }
+
+            if (order == 1) {
+                x += static_cast<float>(sigma_next - sigma_current) * derivative;
+            } else if (order == 2) {
+                const double sigma_previous = static_cast<double>(sigmas[i - 1]);
+                const double coefficient_current =
+                    deis_second_order_indefinite(sigma_next, sigma_current, sigma_previous) -
+                    deis_second_order_indefinite(sigma_current, sigma_current, sigma_previous);
+                const double coefficient_previous =
+                    deis_second_order_indefinite(sigma_next, sigma_previous, sigma_current) -
+                    deis_second_order_indefinite(sigma_current, sigma_previous, sigma_current);
+                x += static_cast<float>(coefficient_current) * derivative +
+                     static_cast<float>(coefficient_previous) * derivative_history.back();
+            } else {
+                const double sigma_previous_1 = static_cast<double>(sigmas[i - 1]);
+                const double sigma_previous_2 = static_cast<double>(sigmas[i - 2]);
+                const double coefficient_current =
+                    deis_third_order_indefinite(
+                        sigma_next, sigma_current, sigma_previous_1, sigma_previous_2) -
+                    deis_third_order_indefinite(
+                        sigma_current, sigma_current, sigma_previous_1, sigma_previous_2);
+                const double coefficient_previous_1 =
+                    deis_third_order_indefinite(
+                        sigma_next, sigma_previous_1, sigma_previous_2, sigma_current) -
+                    deis_third_order_indefinite(
+                        sigma_current, sigma_previous_1, sigma_previous_2, sigma_current);
+                const double coefficient_previous_2 =
+                    deis_third_order_indefinite(
+                        sigma_next, sigma_previous_2, sigma_current, sigma_previous_1) -
+                    deis_third_order_indefinite(
+                        sigma_current, sigma_previous_2, sigma_current, sigma_previous_1);
+                x += static_cast<float>(coefficient_current) * derivative +
+                     static_cast<float>(coefficient_previous_1) * derivative_history.back() +
+                     static_cast<float>(coefficient_previous_2) * derivative_history.front();
+            }
+        }
+
+        derivative_history.push_back(std::move(derivative));
+        if (derivative_history.size() > 2) {
+            derivative_history.erase(derivative_history.begin());
+        }
+    }
+    return x;
+}
+
+static bool solve_small_linear_system(std::vector<std::vector<double>> matrix,
+                                      std::vector<double> rhs,
+                                      std::vector<double>& solution) {
+    const size_t n = rhs.size();
+    if (matrix.size() != n) {
+        return false;
+    }
+    for (size_t column = 0; column < n; ++column) {
+        size_t pivot = column;
+        for (size_t row = column + 1; row < n; ++row) {
+            if (std::abs(matrix[row][column]) > std::abs(matrix[pivot][column])) {
+                pivot = row;
+            }
+        }
+        if (std::abs(matrix[pivot][column]) < 1e-12) {
+            return false;
+        }
+        std::swap(matrix[column], matrix[pivot]);
+        std::swap(rhs[column], rhs[pivot]);
+        const double divisor = matrix[column][column];
+        for (size_t entry = column; entry < n; ++entry) {
+            matrix[column][entry] /= divisor;
+        }
+        rhs[column] /= divisor;
+        for (size_t row = 0; row < n; ++row) {
+            if (row == column) {
+                continue;
+            }
+            const double factor = matrix[row][column];
+            for (size_t entry = column; entry < n; ++entry) {
+                matrix[row][entry] -= factor * matrix[column][entry];
+            }
+            rhs[row] -= factor * rhs[column];
+        }
+    }
+    solution = std::move(rhs);
+    return true;
+}
+
+// Generate UniPC B(h) coefficients for ComfyUI's canonical bh1 variant.
+static bool unipc_bh1_coefficients(const std::vector<double>& rks,
+                                   double h,
+                                   bool corrector,
+                                   std::vector<double>& coefficients) {
+    const int order = static_cast<int>(rks.size());
+    if (order <= 0 || std::abs(h) < 1e-12) {
+        return false;
+    }
+    if (!corrector && order == 1) {
+        coefficients.clear();
+        return true;
+    }
+    if (!corrector && order == 2) {
+        coefficients = {0.5};
+        return true;
+    }
+    if (corrector && order == 1) {
+        coefficients = {0.5};
+        return true;
+    }
+
+    const double hh = -h;
+    const double b_h = hh;
+    double h_phi_k = std::expm1(hh) / hh - 1.0;
+    double factorial = 1.0;
+    std::vector<double> b;
+    b.reserve(order);
+    for (int row = 1; row <= order; ++row) {
+        b.push_back(h_phi_k * factorial / b_h);
+        factorial *= static_cast<double>(row + 1);
+        h_phi_k = h_phi_k / hh - 1.0 / factorial;
+    }
+
+    const int dimension = corrector ? order : order - 1;
+    std::vector<std::vector<double>> matrix(
+        static_cast<size_t>(dimension), std::vector<double>(static_cast<size_t>(dimension)));
+    std::vector<double> rhs(static_cast<size_t>(dimension));
+    for (int row = 0; row < dimension; ++row) {
+        rhs[static_cast<size_t>(row)] = b[static_cast<size_t>(row)];
+        for (int column = 0; column < dimension; ++column) {
+            matrix[static_cast<size_t>(row)][static_cast<size_t>(column)] =
+                std::pow(rks[static_cast<size_t>(column)], row);
+        }
+    }
+    return solve_small_linear_system(std::move(matrix), std::move(rhs), coefficients);
+}
+
+// UniPC with third-order warmup/lower-order-final behavior and the bh1
+// predictor/corrector coefficients used by ComfyUI's "uni_pc" sampler.
+// The equations are simplified into the native x=x0+sigma*epsilon state.
+// Ref: Zhao et al. arXiv:2302.04867; ComfyUI extra_samplers/uni_pc.py.
+static sd::Tensor<float> sample_unipc(denoise_cb_t model,
+                                      sd::Tensor<float> x,
+                                      const std::vector<float>& input_sigmas) {
+    if (input_sigmas.size() <= 1) {
+        return x;
+    }
+
+    std::vector<float> sigmas = input_sigmas;
+    if (sigmas.back() == 0.f) {
+        sigmas.back() = 0.001f;
+    }
+    const int steps        = static_cast<int>(sigmas.size()) - 1;
+    const int solver_order = std::max(1, std::min(3, steps - 1));
+
+    std::vector<sd::Tensor<float>> model_history;
+    model_history.reserve(static_cast<size_t>(solver_order));
+    sd::Tensor<float> last_sample;
+    bool have_last_sample = false;
+    int lower_order_nums   = 0;
+    int previous_order     = 1;
+
+    const auto lambda = [](float sigma) {
+        return -std::log(static_cast<double>(sigma));
+    };
+
+    for (int i = 0; i < steps; ++i) {
+        auto denoised_opt = model(x, sigmas[i], i + 1);
+        if (denoised_opt.pred.empty()) {
+            return {};
+        }
+        sd::Tensor<float> denoised = std::move(denoised_opt.pred);
+
+        if (i > 0 && have_last_sample) {
+            int order = std::min(previous_order, static_cast<int>(model_history.size()));
+            const int s0_index = i - 1;
+            const double h = lambda(sigmas[i]) - lambda(sigmas[s0_index]);
+            std::vector<double> rks;
+            std::vector<sd::Tensor<float>> differences;
+            rks.reserve(static_cast<size_t>(order));
+            differences.reserve(static_cast<size_t>(std::max(0, order - 1)));
+            const auto& m0 = model_history.back();
+            for (int history_index = 1; history_index < order; ++history_index) {
+                const int sigma_index = i - (history_index + 1);
+                const double rk = (lambda(sigmas[sigma_index]) - lambda(sigmas[s0_index])) / h;
+                rks.push_back(rk);
+                const auto& mi = model_history[model_history.size() - 1 -
+                                               static_cast<size_t>(history_index)];
+                differences.push_back((mi - m0) / static_cast<float>(rk));
+            }
+            rks.push_back(1.0);
+
+            std::vector<double> coefficients;
+            if (!unipc_bh1_coefficients(rks, h, true, coefficients)) {
+                order        = 1;
+                coefficients = {0.5};
+                differences.clear();
+            }
+            const float ratio = sigmas[i] / sigmas[s0_index];
+            const float h_phi_1 = static_cast<float>(std::expm1(-h));
+            sd::Tensor<float> correction = sd::Tensor<float>::zeros_like(m0);
+            for (size_t j = 0; j < differences.size(); ++j) {
+                correction += static_cast<float>(coefficients[j]) * differences[j];
+            }
+            correction += static_cast<float>(coefficients.back()) * (denoised - m0);
+            x = ratio * last_sample - h_phi_1 * m0 + static_cast<float>(h) * correction;
+        }
+
+        model_history.push_back(denoised);
+        if (model_history.size() > static_cast<size_t>(solver_order)) {
+            model_history.erase(model_history.begin());
+        }
+
+        const int final_limited_order = std::min(solver_order, steps - i);
+        int order = std::min(final_limited_order, lower_order_nums + 1);
+        order     = std::min(order, static_cast<int>(model_history.size()));
+        const double h = lambda(sigmas[i + 1]) - lambda(sigmas[i]);
+        std::vector<double> rks;
+        std::vector<sd::Tensor<float>> differences;
+        rks.reserve(static_cast<size_t>(order));
+        differences.reserve(static_cast<size_t>(std::max(0, order - 1)));
+        const auto& m0 = model_history.back();
+        for (int history_index = 1; history_index < order; ++history_index) {
+            const int sigma_index = i - history_index;
+            const double rk = (lambda(sigmas[sigma_index]) - lambda(sigmas[i])) / h;
+            rks.push_back(rk);
+            const auto& mi = model_history[model_history.size() - 1 -
+                                           static_cast<size_t>(history_index)];
+            differences.push_back((mi - m0) / static_cast<float>(rk));
+        }
+        rks.push_back(1.0);
+
+        std::vector<double> coefficients;
+        if (!unipc_bh1_coefficients(rks, h, false, coefficients)) {
+            order = 1;
+            coefficients.clear();
+            differences.clear();
+        }
+        const float ratio   = sigmas[i + 1] / sigmas[i];
+        const float h_phi_1 = static_cast<float>(std::expm1(-h));
+        sd::Tensor<float> prediction_residual = sd::Tensor<float>::zeros_like(m0);
+        for (size_t j = 0; j < differences.size(); ++j) {
+            prediction_residual += static_cast<float>(coefficients[j]) * differences[j];
+        }
+
+        last_sample     = x;
+        have_last_sample = true;
+        x = ratio * x - h_phi_1 * m0 + static_cast<float>(h) * prediction_residual;
+        previous_order = order;
+        if (lower_order_nums < solver_order) {
+            ++lower_order_nums;
+        }
+    }
+    return x;
+}
+
 using SamplerExtraArgs = KeyValueArgs;
 
 static sd::Tensor<float> sample_lcm(denoise_cb_t model,
@@ -2925,6 +3423,12 @@ static sd::Tensor<float> sample_k_diffusion(sample_method_t method,
             return sample_dpmpp_2m_sde(model, std::move(x), sigmas, rng, eta);
         case DPMPP2M_SDE_BT_SAMPLE_METHOD:
             return sample_dpmpp_2m_sde_bt(model, std::move(x), sigmas, rng, eta);
+        case DPMPP3M_SDE_SAMPLE_METHOD:
+            return sample_dpmpp_3m_sde(model, std::move(x), sigmas, rng, eta, is_flow_denoiser);
+        case UNIPC_SAMPLE_METHOD:
+            return sample_unipc(model, std::move(x), sigmas);
+        case DEIS_SAMPLE_METHOD:
+            return sample_deis(model, std::move(x), sigmas);
         case DDIM_TRAILING_SAMPLE_METHOD:
             // DDIM is equivalent to Euler Ancestral with the Simple scheduler
             return sample_euler_ancestral(model, std::move(x), sigmas, rng, is_flow_denoiser, eta);
