@@ -28,6 +28,7 @@ Options:
   --cuda-VERSION    Select /usr/local/cuda-VERSION (for example --cuda-11.4)
   --cuda-version V  Select /usr/local/cuda-V
   --cpu             Build the CPU-only backend
+  --cuda-vulkan     Build a combined NVIDIA CUDA + portable Vulkan backend
   --sycl            Build for Intel GPUs with oneAPI/SYCL
   --sycl-device-arch ARCH
                     Ahead-of-time Intel GPU architecture (default: JIT)
@@ -68,6 +69,12 @@ while (($#)); do
             USE_CUDA=OFF
             USE_SYCL=OFF
             USE_VULKAN=OFF
+            shift
+            ;;
+        --cuda-vulkan)
+            USE_CUDA=ON
+            USE_SYCL=OFF
+            USE_VULKAN=ON
             shift
             ;;
         --sycl)
@@ -163,7 +170,9 @@ if [[ -n "$XAVIER_PRESET" ]]; then
 fi
 
 if [[ -z "$BUILD_DIR" ]]; then
-    if [[ "$USE_CUDA" == ON ]]; then
+    if [[ "$USE_CUDA" == ON && "$USE_VULKAN" == ON ]]; then
+        BUILD_DIR="$PROJECT_DIR/build/local-linux-x64-cuda-vulkan-sm${CUDA_ARCH}"
+    elif [[ "$USE_CUDA" == ON ]]; then
         BUILD_DIR="$PROJECT_DIR/build/local-linux-x64-cuda-sm${CUDA_ARCH}"
     elif [[ "$USE_SYCL" == ON ]]; then
         BUILD_DIR="$PROJECT_DIR/build/local-linux-x64-sycl"

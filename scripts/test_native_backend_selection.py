@@ -10,6 +10,7 @@ class NativeBackendSelectionTests(unittest.TestCase):
     def test_platform_picker_exposes_cuda_sycl_and_vulkan(self):
         parameters = (self.root / "ui/media/js/parameters.js").read_text(encoding="utf-8")
         self.assertIn('{ value: "cuda", label: "NVIDIA CUDA" }', parameters)
+        self.assertIn('{ value: "cuda-vulkan", label: "NVIDIA CUDA + Vulkan (mixed GPUs, local build)" }', parameters)
         self.assertIn('{ value: "sycl", label: "Intel oneAPI / SYCL (local build)" }', parameters)
         self.assertIn('{ value: "vulkan", label: "Vulkan (experimental)" }', parameters)
 
@@ -20,10 +21,16 @@ class NativeBackendSelectionTests(unittest.TestCase):
         self.assertIn("-DCMAKE_CXX_COMPILER=icpx", build)
         self.assertIn("-DGGML_SYCL_F16=ON", build)
         self.assertIn("--vulkan)", build)
+        self.assertIn("--cuda-vulkan)", build)
         self.assertIn('-DSD_VULKAN="$USE_VULKAN"', build)
         installer = (self.root / "install.sh").read_text(encoding="utf-8")
         self.assertIn("--vulkan)", installer)
+        self.assertIn("--cuda-vulkan)", installer)
         self.assertIn('-DSD_VULKAN="$VULKAN_ENABLED"', installer)
+
+    def test_hybrid_backend_uses_the_nvidia_cuda_variant(self):
+        launcher = (self.root / "ui/easydiffusion/backends/sdkit3.py").read_text(encoding="utf-8")
+        self.assertIn('platform_name in ("cuda", "cuda-vulkan")', launcher)
 
     def test_native_server_exposes_runtime_backend_selection(self):
         main = (self.root / "source/sdkit3-port-source/src/main.cpp").read_text(encoding="utf-8")

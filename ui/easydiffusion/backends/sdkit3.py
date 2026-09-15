@@ -303,7 +303,7 @@ def get_platform_name():
 
 
 def get_variant_name(platform_name):
-    if platform_name == "cuda":
+    if platform_name in ("cuda", "cuda-vulkan"):
         # deduce the variant from gpu compute capability
         from torchruntime.device_db import get_gpus
         from torchruntime.gpu_db import get_nvidia_arch

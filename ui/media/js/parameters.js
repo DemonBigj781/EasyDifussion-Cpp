@@ -439,6 +439,7 @@ var PARAMETERS = [
         options: [
             { value: "auto", label: "Auto" },
             { value: "cuda", label: "NVIDIA CUDA" },
+            { value: "cuda-vulkan", label: "NVIDIA CUDA + Vulkan (mixed GPUs, local build)" },
             { value: "sycl", label: "Intel oneAPI / SYCL (local build)" },
             { value: "vulkan", label: "Vulkan (experimental)" },
         ],

@@ -20,6 +20,7 @@ Options:
   --llama-build   Build llama-cli, llama-server, and llama-quantize.
   --gguf-tools    Install GGUF conversion tools into Easy Diffusion's main venv.
   --cuda          Require CUDA for the selected native builds.
+  --cuda-vulkan   Build a combined CUDA + Vulkan runtime for mixed-vendor GPUs.
   --sycl          Build for Intel GPUs with oneAPI/SYCL (source setvars.sh first).
   --vulkan        Build the portable Vulkan GPU backend.
   --cpu           Build llama.cpp without CUDA.
@@ -62,6 +63,9 @@ while [ "$#" -gt 0 ]; do
             ;;
         --cuda)
             CUDA_MODE=cuda
+            ;;
+        --cuda-vulkan)
+            CUDA_MODE=cuda-vulkan
             ;;
         --sycl)
             CUDA_MODE=sycl
@@ -111,11 +115,15 @@ SYCL_ENABLED=OFF
 VULKAN_ENABLED=OFF
 BUILD_PLATFORM=cpu
 COMPILER_ARGS=()
-if [ "$CUDA_MODE" = cuda ]; then
-    command -v nvcc >/dev/null || fail "--cuda was requested but nvcc is unavailable"
-    command -v nvidia-smi >/dev/null || fail "--cuda was requested but nvidia-smi is unavailable"
+if [ "$CUDA_MODE" = cuda ] || [ "$CUDA_MODE" = cuda-vulkan ]; then
+    command -v nvcc >/dev/null || fail "--$CUDA_MODE was requested but nvcc is unavailable"
+    command -v nvidia-smi >/dev/null || fail "--$CUDA_MODE was requested but nvidia-smi is unavailable"
     CUDA_ENABLED=ON
-    BUILD_PLATFORM=cuda
+    BUILD_PLATFORM="$CUDA_MODE"
+    if [ "$CUDA_MODE" = cuda-vulkan ]; then
+        command -v glslc >/dev/null || fail "--cuda-vulkan requires the glslc shader compiler"
+        VULKAN_ENABLED=ON
+    fi
 elif [ "$CUDA_MODE" = sycl ]; then
     command -v icx >/dev/null || fail "--sycl requires the oneAPI icx compiler (source setvars.sh first)"
     command -v icpx >/dev/null || fail "--sycl requires the oneAPI icpx compiler (source setvars.sh first)"
@@ -164,7 +172,7 @@ fi
 if [ "$BUILD_NATIVE" = true ]; then
     SDKIT_BUILD_DIR="$SDKIT_SOURCE/build/linux-x64-$BUILD_PLATFORM"
     SDKIT_VARIANT=any
-    if [ "$BUILD_PLATFORM" = cuda ]; then
+    if [ "$BUILD_PLATFORM" = cuda ] || [ "$BUILD_PLATFORM" = cuda-vulkan ]; then
         COMPUTE_CAPABILITY="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1 | tr -d ' .')"
         [ -n "$COMPUTE_CAPABILITY" ] || fail "Could not determine the NVIDIA compute capability"
         SDKIT_VARIANT="sm$COMPUTE_CAPABILITY"

@@ -24,6 +24,7 @@ ui:
 # These are applied at startup by `scripts/check_modules.py` and exported as environment variables.
 #
 backend_config:
+  platform: cuda-vulkan
   # Keep the locally patched sdkit v3.4.1 binary; automatic validation would
   # replace it with the upstream build that has the ModelManager symbol clash.
   auto_update: false
