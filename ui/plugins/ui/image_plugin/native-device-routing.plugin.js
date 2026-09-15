@@ -1,13 +1,41 @@
-// Per-module native backend routing. Controls live beside the feature they run.
+// Per-module native backend routing. Controls live in System Settings.
 
 ;(function () {
     "use strict"
     if (window.NativeDeviceRouting) return
 
     const STATE_KEY = "easy-diffusion-native-device-routing-v1"
+    const SETTINGS_ID = "native-device-routing-settings"
     const mountedGroups = new Set()
     const selectSets = new Map()
     let devices = []
+
+    const IMAGE_MODULES = [
+        ["diffusion", "KSampler / denoising"],
+        ["te", "Conditioning / text encoders"],
+        ["llm", "LLM conditioning"],
+        ["vae_encode", "VAE encoding"],
+        ["vae_decode", "VAE decoding"],
+        ["controlnet", "ControlNet / LLLite"],
+        ["clip_vision", "CLIP-Vision encoding"],
+        ["ip_adapter", "IP-Adapter projection"],
+        ["photomaker", "Identity encoding"],
+        ["upscaler", "Latent / model upscaling"],
+        ["detector", "Detection / detailing"],
+        ["latent_interposer_encode", "Encode latent interposer"],
+        ["latent_interposer_decode", "Decode latent interposer"],
+    ]
+
+    const VIDEO_MODULES = [
+        ["diffusion", "KSampler / video denoising"],
+        ["te", "Conditioning / text encoders"],
+        ["llm", "LLM conditioning"],
+        ["vae_encode", "Video VAE encoding"],
+        ["vae_decode", "Video VAE decoding"],
+        ["clip_vision", "Image / CLIP-Vision encoding"],
+        ["latent_interposer_encode", "Encode latent interposer"],
+        ["latent_interposer_decode", "Decode latent interposer"],
+    ]
 
     function readState() {
         try { return JSON.parse(localStorage.getItem(STATE_KEY) || "{}") }
@@ -141,88 +169,69 @@
         const style = document.createElement("style")
         style.id = "native-device-routing-style"
         style.textContent = `
-            .native-device-routing-group { margin: 12px 0 4px; padding-top: 10px; border-top: 1px solid var(--background-color3, #444); }
+            #system-settings-table > [data-setting-id="native_device_routing"] { flex-wrap: wrap; }
+            #system-settings-table > [data-setting-id="native_device_routing"] > div:nth-child(2) { min-width: 0; }
+            #system-settings-table > [data-setting-id="native_device_routing"] > div:nth-child(3) {
+                box-sizing: border-box;
+                flex: 0 0 100%;
+                justify-content: stretch;
+                padding: 0 14px 14px 75px;
+                text-align: left;
+                width: 100%;
+            }
+            .native-device-routing-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 12px; min-width: 0; width: 100%; }
+            .native-device-routing-group { margin: 0; padding: 10px; border: 1px solid var(--background-color3, #444); border-radius: var(--input-border-radius, 6px); }
             .native-device-routing-title { display: block; margin-bottom: 8px; }
             .native-device-routing-grid { display: grid; grid-template-columns: minmax(145px, auto) minmax(180px, 1fr); gap: 7px 10px; align-items: center; }
             .native-device-routing-grid select { width: 100%; min-width: 0; }
-            @media (max-width: 700px) { .native-device-routing-grid { grid-template-columns: 1fr; } }
+            @media (max-width: 760px) {
+                #system-settings-table > [data-setting-id="native_device_routing"] > div:nth-child(3) { padding: 0 10px 14px; }
+                .native-device-routing-settings, .native-device-routing-grid { grid-template-columns: 1fr; }
+            }
         `
         document.head.appendChild(style)
     }
 
-    const placements = [
-        {
-            selector: "#editor-settings-entries",
-            scope: "image",
-            heading: "Image compute devices",
-            modules: [
-                ["diffusion", "KSampler / denoising"],
-                ["te", "Conditioning / text encoders"],
-                ["llm", "LLM conditioning"],
-                ["vae_encode", "VAE encoding"],
-                ["vae_decode", "VAE decoding"],
-                ["photomaker", "Identity encoding"],
-                ["upscaler", "Latent / model upscaling"],
-                ["detector", "Detection / detailing"],
-            ],
-        },
-        {
-            selector: "#sdkit3-controlnet-panel .collapsible-content, #sdkit3-lllite-panel .collapsible-content",
-            scope: "image",
-            heading: "Control compute device",
-            modules: [["controlnet", "ControlNet / LLLite"]],
-        },
-        {
-            selector: "#sdkit3-ip-adapter-panel .collapsible-content",
-            scope: "image",
-            heading: "IP-Adapter compute devices",
-            modules: [["clip_vision", "CLIP-Vision encoding"], ["ip_adapter", "IP-Adapter projection"]],
-        },
-        {
-            selector: "#sdkit3-encode-interpose-panel .collapsible-content",
-            scope: "image",
-            heading: "Interposer compute device",
-            modules: [["latent_interposer_encode", "Encode latent interposer"]],
-        },
-        {
-            selector: "#sdkit3-decode-interpose-panel .collapsible-content",
-            scope: "image",
-            heading: "Interposer compute device",
-            modules: [["latent_interposer_decode", "Decode latent interposer"]],
-        },
-        {
-            selector: "#sdkit3-native-video-panel .collapsible-content",
-            scope: "video",
-            heading: "Video compute devices",
-            modules: [
-                ["diffusion", "KSampler / video denoising"],
-                ["te", "Conditioning / text encoders"],
-                ["llm", "LLM conditioning"],
-                ["vae_encode", "Video VAE encoding"],
-                ["vae_decode", "Video VAE decoding"],
-                ["clip_vision", "Image / CLIP-Vision encoding"],
-                ["latent_interposer_encode", "Encode latent interposer"],
-                ["latent_interposer_decode", "Decode latent interposer"],
-            ],
-        },
-    ]
+    function mountSettings() {
+        const settingsTable = document.getElementById("system-settings-table")
+        if (!settingsTable || document.getElementById(SETTINGS_ID)) return Boolean(settingsTable)
 
-    function mountAvailablePlacements() {
-        for (const placement of placements) {
-            document.querySelectorAll(placement.selector).forEach((container) => {
-                mountGroup(
-                    container,
-                    placement.scope,
-                    placement.modules.map(([module, label]) => ({ module, label })),
-                    placement.heading
-                )
-            })
-        }
+        const row = document.createElement("div")
+        row.id = SETTINGS_ID
+        row.dataset.settingId = "native_device_routing"
+        row.innerHTML = `
+            <div><i class="fa fa-microchip"></i></div>
+            <div>
+                <label>Native compute devices</label>
+                <small>Choose a backend device for each native image or video module. Automatic follows the backend defaults.</small>
+            </div>`
+
+        const controls = document.createElement("div")
+        controls.className = "native-device-routing-settings"
+        const imageControls = document.createElement("div")
+        imageControls.id = "native-device-routing-image-settings"
+        const videoControls = document.createElement("div")
+        videoControls.id = "native-device-routing-video-settings"
+        controls.append(imageControls, videoControls)
+        row.appendChild(controls)
+        settingsTable.appendChild(row)
+
+        mountGroup(
+            imageControls,
+            "image",
+            IMAGE_MODULES.map(([module, label]) => ({ module, label })),
+            "Image pipeline"
+        )
+        mountGroup(
+            videoControls,
+            "video",
+            VIDEO_MODULES.map(([module, label]) => ({ module, label })),
+            "Video pipeline"
+        )
+        return true
     }
 
-    const observer = new MutationObserver(mountAvailablePlacements)
-    observer.observe(document.body, { childList: true, subtree: true })
-    mountAvailablePlacements()
+    mountSettings()
 
     PLUGINS.TASK_BUILD.push(function (event) {
         event.reqBody.backend_assignment = assignmentFor("image")

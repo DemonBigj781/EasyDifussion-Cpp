@@ -49,7 +49,7 @@ class NativeBackendSelectionTests(unittest.TestCase):
         self.assertIn("flex: 0 0 100%;", styles)
         self.assertRegex(styles, r"\.model-directories-editor\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;")
 
-    def test_per_module_device_controls_are_in_feature_panels(self):
+    def test_per_module_device_controls_are_in_system_settings(self):
         routing = (self.root / "ui/plugins/ui/image_plugin/native-device-routing.plugin.js").read_text(
             encoding="utf-8"
         )
@@ -69,6 +69,11 @@ class NativeBackendSelectionTests(unittest.TestCase):
             "latent_interposer_decode",
         ):
             self.assertIn(f'["{module}",', routing)
+        self.assertIn('document.getElementById("system-settings-table")', routing)
+        self.assertIn('row.dataset.settingId = "native_device_routing"', routing)
+        self.assertNotIn('selector: "#editor-settings-entries"', routing)
+        self.assertNotIn('selector: "#sdkit3-controlnet-panel', routing)
+        self.assertNotIn('selector: "#sdkit3-native-video-panel', routing)
         self.assertIn("native-device-routing.plugin.js", plugins)
         self.assertIn('assignmentFor("video")', video)
 
