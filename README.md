@@ -7,6 +7,8 @@ and local model tooling:
 - Automatic VAE-to-model encode and model-to-VAE decode latent conversion
   using the city96 v4.0 interposer matrix.
 - WD14 image tagging through the built-in Easy Diffusion `/tag` endpoint.
+- [LoRA and embedding training](training/README.md) for SD1.5/SDXL, with batch
+  WD14 captions, a Training tab, and a uv/PyInstaller trainer controller.
 - Built-in same-origin file discovery under `/files/*` and LoRA metadata APIs
   under `/meta/*`, plus modern Base64 bucket compatibility.
 - Built-in Perchance image, text, and public-gallery APIs under `/perchance/*`,

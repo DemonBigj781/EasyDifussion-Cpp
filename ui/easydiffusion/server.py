@@ -30,6 +30,7 @@ from easydiffusion.types import (
 )
 from ui.plugins.server.utils import log
 from ui.plugins.server.wd14_tagger import WD14TagRequest, tag_image
+from ui.plugins.server import training
 from ui.plugins.server.native_image_tools import (
     BackgroundRemovalRequest,
     NativeDetectionRequest,
@@ -109,6 +110,7 @@ def init():
     from ui.plugins.server.model_tools import router as model_tools_router
 
     server_api.include_router(model_tools_router, prefix="/model-tools")
+    server_api.include_router(training.router, prefix="/training")
 
     if os.path.isdir(app.CUSTOM_MODIFIERS_DIR):
         server_api.mount(
@@ -450,6 +452,7 @@ def init():
 
         shutdown_tipo()
         ai_image_critic.shutdown()
+        training.shutdown()
 
     @server_api.on_event("startup")
     def start_event():
@@ -760,7 +763,8 @@ def filter_internal(req: dict):
 
 def enqueue_task(task):
     try:
-        task_manager.enqueue_task(task)
+        with training.generation_guard():
+            task_manager.enqueue_task(task)
         response = {
             "status": str(task_manager.current_state),
             "queue": len(task_manager.tasks_queue),

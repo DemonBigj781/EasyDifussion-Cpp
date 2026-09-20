@@ -1,0 +1,29 @@
+[project]
+name = "easy-diffusion-training-runtime"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+# Matches scripts/sd-scripts at 4e624302e0088e39933b31cbc71f24212e900f5f.
+# The backend is executed in place, never installed editable or updated here.
+dependencies = [
+  "torch==2.6.0", "torchvision==0.21.0", "accelerate==1.6.0",
+  "transformers==4.54.1", "diffusers[torch]==0.32.1", "ftfy==6.3.1",
+  "opencv-python==4.10.0.84", "einops==0.7.0", "bitsandbytes==0.45.5",
+  "lion-pytorch==0.2.3", "schedulefree==1.4", "pytorch-optimizer==3.10.0",
+  "prodigy-plus-schedule-free==1.9.2", "prodigyopt==1.1.2",
+  "tensorboard==2.20.0", "safetensors==0.4.5", "toml==0.10.2",
+  "voluptuous==0.15.2", "huggingface-hub==0.34.3", "imagesize==1.4.1",
+  "numpy==2.2.6", "rich==14.1.0", "sentencepiece==0.2.1",
+]
+
+[tool.uv]
+package = false
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true

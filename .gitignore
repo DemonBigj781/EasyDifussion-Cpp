@@ -2,6 +2,13 @@
 /installer_files/
 /backends/
 /.venv/
+/training/.venv/
+/training/runtime/.venv/
+/training/build/
+/training/dist/
+/training/datasets/
+/training/local.json
+/scripts/sd-scripts/
 
 # Models live in a separately managed shared tree
 /models

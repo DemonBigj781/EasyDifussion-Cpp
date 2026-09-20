@@ -122,6 +122,7 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/modifiers_plugin/Modifiers-wheel.plugin.js",
     "/plugins/core/modifiers_plugin/modifiers-toggle.plugin.js",
     "/plugins/core/files_plugin/model-tools.plugin.js",
+    "/plugins/core/training_plugin/training.tab.plugin.js",
     "/plugins/core/files_plugin/fileparser.plugin.js",
     "/plugins/core/tipo_plugin/tipo.plugin.js",
     "/plugins/core/gallery_plugin/gallery.tab.plugin.js",
@@ -139,6 +140,7 @@ const FIRST_LOAD_TAB_PLUGINS = new Set([
     "/plugins/core/files_plugin/online-model-browser.plugin.js",
     "/plugins/core/draw_plugin/editor-page.plugin.js",
     "/plugins/core/files_plugin/model-tools.plugin.js",
+    "/plugins/core/training_plugin/training.tab.plugin.js",
     "/plugins/core/gallery_plugin/gallery.tab.plugin.js",
     "/plugins/core/perchance_plugin/perchance.plugin.js",
 ])
@@ -155,6 +157,7 @@ const FIRST_LOAD_TAB_ORDER = [
     "settings",
     "plugin",
     "merge",
+    "training",
     "image-editor-page",
     "perchance",
     "perchance-gallery",
