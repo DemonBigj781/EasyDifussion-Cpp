@@ -5,14 +5,15 @@
         <a data-perchance-release hidden target="_blank" rel="noopener" style="font-size:11px;"></a>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;align-items:end;">
-        <label style="font-size:12px;grid-column:1 / -1;">Saved gallery preset
+        <div style="font-size:12px;grid-column:1 / -1;">
+            <label for="perchance-generator-gallery-preset">Saved gallery preset</label>
             <span style="display:flex;gap:6px;align-items:stretch;">
                 <select id="perchance-generator-gallery-preset" style="display:block;min-width:0;flex:1 1 auto;width:100%;">
                     <option value="">Custom settings</option>
                 </select>
-                <button id="perchance-generator-gallery-delete-preset-button" type="button" class="tertiaryButton" disabled>Delete</button>
+                <button id="perchance-generator-gallery-delete-preset-button" type="button" class="tertiaryButton" title="Select a saved preset to enable deletion" disabled>Delete preset</button>
             </span>
-        </label>
+        </div>
         <label style="font-size:12px;">Preset name
             <input id="perchance-generator-gallery-preset-name" type="text" maxlength="80" spellcheck="false" style="display:block;width:100%;" placeholder="Name this ID + channel">
         </label>

@@ -40,6 +40,7 @@ void ggml_sycl_acc(ggml_backend_sycl_context & ctx, ggml_tensor * dst);
 void ggml_sycl_gelu(ggml_backend_sycl_context & ctx, ggml_tensor * dst);
 
 void ggml_sycl_silu(ggml_backend_sycl_context & ctx, ggml_tensor * dst);
+void ggml_sycl_silu_back(ggml_backend_sycl_context & ctx, ggml_tensor * dst);
 
 void ggml_sycl_gelu_quick(ggml_backend_sycl_context & ctx, ggml_tensor * dst);
 

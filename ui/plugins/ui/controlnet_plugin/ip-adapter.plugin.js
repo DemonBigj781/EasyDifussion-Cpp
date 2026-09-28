@@ -77,6 +77,7 @@
         const field = document.getElementById("stable_diffusion_model")
         const name = field?.dataset.path || field?.value || ""
         const tags = typeof modelsDB === "object" ? (modelsDB?.["stable-diffusion"]?.[name]?.tags || []) : []
+        if (tags.includes("sprite_gpt")) return "unsupported"
         if (tags.some((tag) => String(tag).startsWith("sd_xl") || String(tag).startsWith("playground_v2_5"))) return "sdxl"
         if (tags.some((tag) => String(tag).startsWith("sd_v1") || String(tag).startsWith("sd_v2"))) return "sd15"
         const lower = name.toLowerCase()
@@ -195,12 +196,13 @@
         }
         enabled.disabled = false
         const automaticModel = firstAdapterForFamily(family)
-        if (!modelPathExists(model, model.value)) {
-            model.value = automaticModel || ""
-        } else if (automaticModel && model.value === lastAutomaticModel) {
-            model.value = automaticModel
-        }
+        const nextModel = !modelPathExists(model, model.value) ||
+            (automaticModel && model.value === lastAutomaticModel)
+            ? automaticModel || "" : model.value
         lastAutomaticModel = automaticModel
+        // ModelDropdown emits change even for the same value. Only assign a
+        // different selection so this change handler cannot call itself forever.
+        if (model.value !== nextModel) model.value = nextModel
         const compatibility = compatibilityFromTags(model.value)
         clip.setModelPredicate?.((path) => isCompatibleClip(path, compatibility))
         const compatibleClip = firstCompatibleClip(compatibility)

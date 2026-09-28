@@ -4,6 +4,7 @@
   const PLUGIN_ID = "civitai-downloader"
   const API_ROOT = "/civitai-api/civitai"
   const SEARCH_ENDPOINT = `${API_ROOT}/search`
+  const ENUMS_ENDPOINT = `${API_ROOT}/enums`
   const IMAGES_ENDPOINT = `${API_ROOT}/global-images`
   const DOWNLOAD_ENDPOINT = `${API_ROOT}/download`
   const HF_API_ROOT = "/huggingface-api"
@@ -87,6 +88,10 @@
     const nsfwEl = document.querySelector(`#${PLUGIN_ID}-nsfw`)
     const sortEl = panel.querySelector(`#${PLUGIN_ID}-sort`)
     const periodEl = panel.querySelector(`#${PLUGIN_ID}-period`)
+    const baseModelEl = panel.querySelector(`#${PLUGIN_ID}-base-model`)
+    const modelTypeEl = panel.querySelector(`#${PLUGIN_ID}-model-type`)
+    const downloadQueueEl = panel.querySelector(`#${PLUGIN_ID}-queue`)
+    const downloadQueueCountEl = panel.querySelector(`#${PLUGIN_ID}-queue-count`)
     const modeEls = panel.querySelectorAll(`input[name="${PLUGIN_ID}-mode"]`)
     const imagesLabel = panel.querySelector(`#${PLUGIN_ID}-images-label`)
     const helpEl = panel.querySelector(`#${PLUGIN_ID}-help`)
@@ -102,6 +107,7 @@
     let activeSearch = null
     let activeSearchController = null
     let searchGeneration = 0
+    let downloadQueueRefreshTimer = null
 
     // Cursor paging (models)
     let currentCursor = null
@@ -116,6 +122,8 @@
     function applyModeUI() {
       currentMode = getMode()
       imgFiltersRow.style.display = currentMode === "images" ? "flex" : "none"
+      baseModelEl.disabled = currentProvider === "huggingface" || currentMode !== "models"
+      modelTypeEl.disabled = baseModelEl.disabled
       refreshSortOptions()
     }
 
@@ -129,6 +137,7 @@
         panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="models"]`).checked = true
       }
       periodEl.disabled = isHuggingFace
+      baseModelEl.disabled = isHuggingFace || getMode() !== "models"
       queryEl.placeholder = isHuggingFace
         ? "Search Hugging Face models or enter owner/repository"
         : "Search term or Civitai URN (blank browses)"
@@ -176,6 +185,30 @@
       throw new Error(`HTTP ${res.status} (non-JSON): ${text.slice(0, 200)}`)
     }
 
+    function addFilterOptions(select, values) {
+      if (!Array.isArray(values)) return
+      const existing = new Set(Array.from(select.options, (option) => option.value))
+      for (const value of values) {
+        if (typeof value !== "string" || !value.trim() || existing.has(value)) continue
+        select.add(new Option(value, value))
+        existing.add(value)
+      }
+    }
+
+    async function loadFilterOptions() {
+      try {
+        // The server proxies Civitai's ModelType and BaseModel enums.
+        const res = await fetch(ENUMS_ENDPOINT)
+        const json = await safeJson(res)
+        if (!res.ok || !json.ok) throw new Error("Could not load Civitai filter options")
+        addFilterOptions(modelTypeEl, json.modelTypes)
+        addFilterOptions(baseModelEl, json.baseModels)
+      } catch (error) {
+        // Keep the built-in options and saved selections available on failure.
+        console.warn("Using built-in Civitai filter options", error)
+      }
+    }
+
     function saveSettings() {
       const settings = {
         sort: sortEl.value,
@@ -187,6 +220,8 @@
         mode: getMode(),
         postId: (postIdEl.value || "").trim(),
         username: (usernameEl.value || "").trim(),
+        baseModel: baseModelEl.value,
+        modelType: modelTypeEl.value,
       }
       localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(settings))
     }
@@ -204,6 +239,12 @@
           currentProvider = providerEl.value
           postIdEl.value = settings.postId || ""
           usernameEl.value = settings.username || ""
+          // Restore selections from live enums even before the next enum fetch.
+          for (const [select, value] of [[baseModelEl, settings.baseModel], [modelTypeEl, settings.modelType]]) {
+            const savedValue = typeof value === "string" ? value : ""
+            addFilterOptions(select, [savedValue])
+            select.value = savedValue
+          }
 
           const m = settings.mode === "images" ? "images" : "models"
           const radio = panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="${m}"]`)
@@ -221,8 +262,9 @@
     }
 
     loadSettings()
+    loadFilterOptions()
 
-    ;[sortEl, periodEl, nsfwEl, apiKeyEl, hfTokenEl, postIdEl, usernameEl].forEach((el) =>
+    ;[sortEl, periodEl, baseModelEl, modelTypeEl, nsfwEl, apiKeyEl, hfTokenEl, postIdEl, usernameEl].forEach((el) =>
       el.addEventListener("change", saveSettings)
     )
 
@@ -256,13 +298,17 @@
     })
 
     function parseUrn(raw) {
-      // urn:air:sdxl:lora:civitai:MODELID@VERSIONID
+      // urn:air:anima:diffusionmodel:civitai:MODELID@VERSIONID+FILEID
       const s = (raw || "").trim()
       if (!s.toLowerCase().startsWith("urn:")) return null
-      // allow anything in the front; we only care about the tail civitai:<mid>@<vid?>
-      const m = s.match(/civitai:(\d+)(?:@(\d+))?$/i)
+      // The file suffix is optional for backwards compatibility.
+      const m = s.match(/civitai:(\d+)(?:@(\d+)(?:\+(\d+))?)?$/i)
       if (!m) return null
-      return { modelId: parseInt(m[1], 10), versionId: m[2] ? parseInt(m[2], 10) : null }
+      return {
+        modelId: parseInt(m[1], 10),
+        versionId: m[2] ? parseInt(m[2], 10) : null,
+        fileId: m[3] ? parseInt(m[3], 10) : null,
+      }
     }
 
     function escapeHTML(value) {
@@ -328,7 +374,9 @@
         let url = `${endpoint}?limit=${encodeURIComponent(mode === "images" ? 60 : 20)}`
 
         if (mode === "images") {
-          url += `&page=${encodeURIComponent(String(currentPage))}`
+          const useCursor = cursorOverride !== undefined ? cursorOverride : currentCursor
+          if (useCursor) url += `&cursor=${encodeURIComponent(useCursor)}`
+          else url += `&page=${encodeURIComponent(String(currentPage))}`
         } else {
           // models:
           // - If query is blank => page-based browse is allowed
@@ -352,12 +400,21 @@
         if (search.nsfw) url += `&nsfw=true`
         if (search.sort) url += `&sort=${encodeURIComponent(search.sort)}`
         if (search.period) url += `&period=${encodeURIComponent(search.period)}`
+        if (mode === "models" && search.baseModel) {
+          url += `&baseModels=${encodeURIComponent(search.baseModel)}`
+        }
+        if (mode === "models" && search.modelType) {
+          url += `&types=${encodeURIComponent(search.modelType)}`
+        }
 
         // If URN, prefer direct lookup in server (modelId/modelVersionId) for BOTH modes.
         if (urn) {
           url += `&modelId=${encodeURIComponent(String(urn.modelId))}`
           if (urn.versionId != null) {
             url += `&modelVersionId=${encodeURIComponent(String(urn.versionId))}`
+          }
+          if (urn.fileId != null) {
+            url += `&fileId=${encodeURIComponent(String(urn.fileId))}`
           }
         } else {
           // normal query (can be blank => browse)
@@ -383,11 +440,11 @@
           prevBtn.disabled = currentPage <= 1
           nextBtn.disabled = totalPages ? currentPage >= totalPages : (json.items || []).length === 0
           statusEl.textContent = `${json.items?.length || 0} images`
-          // cursor state irrelevant
-          nextCursor = null
+          nextCursor = extractCursor(json.metadata?.nextCursor || json.metadata?.nextPage) || null
+          if (nextCursor) nextBtn.disabled = false
         } else {
           renderModels(json.items || [])
-          nextCursor = extractCursor(json.metadata?.nextCursor) || null
+          nextCursor = extractCursor(json.metadata?.nextCursor || json.metadata?.nextPage) || null
 
           // If this is browse mode (blank query) and server provides total pages, allow page-based next.
           const qTrim = (q || "").trim()
@@ -492,7 +549,14 @@
                             <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">${
                               escapeHTML(f.name || `File ${idx + 1}`)
                             }</span>
-                            <button class="primaryButton" style="padding:1px 6px;" data-action="dl" data-idx="${idx}">Get</button>
+                            <span style="display:flex;gap:4px;align-items:center;">
+                              ${
+                                f.air
+                                  ? `<button class="secondaryButton" style="padding:1px 6px;" data-action="copy-file-air" data-idx="${idx}" title="Copy exact file AIR">AIR</button>`
+                                  : ""
+                              }
+                              <button class="primaryButton" style="padding:1px 6px;" data-action="dl" data-idx="${idx}">Get</button>
+                            </span>
                             <span style="font-size:0.75em;color:var(--text-color2);margin-left:6px;">${sizeMB}</span>
                           </div>`
                       })
@@ -510,12 +574,28 @@
           })
         })
 
+        card.querySelectorAll("[data-action=copy-file-air]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const file = files[parseInt(button.dataset.idx || "0", 10)] || {}
+            if (!file.air) return
+            try {
+              await navigator.clipboard.writeText(file.air)
+              statusEl.textContent = "Copied exact file AIR to clipboard."
+            } catch (_) {
+              statusEl.textContent = file.air
+            }
+          })
+        })
+
         const copyBtn = card.querySelector("[data-action=copy-urn]")
         if (copyBtn && item.id && mv.id) {
           copyBtn.addEventListener("click", async () => {
-            const urn = `urn:air:${
-              (mv.baseModel || "sd").toLowerCase().includes("xl") ? "sdxl" : "sd"
-            }:${String(item.type || "model").toLowerCase()}:civitai:${item.id}@${mv.id}`
+            const primaryFile = files.find((file) => file.primary) || files[0] || {}
+            const urn = primaryFile.air || mv.air
+            if (!urn) {
+              statusEl.textContent = "Civitai did not provide an AIR for this version."
+              return
+            }
             try {
               await navigator.clipboard.writeText(urn)
               statusEl.textContent = "Copied URN to clipboard."
@@ -654,39 +734,78 @@
       }
     }
 
+    const ACTIVE_DOWNLOAD_STATUSES = new Set(["queued", "preparing", "downloading"])
+
+    function renderDownloadQueue(jobs) {
+      const active = jobs.filter((job) => ACTIVE_DOWNLOAD_STATUSES.has(job.status))
+      const recent = jobs.filter((job) => !ACTIVE_DOWNLOAD_STATUSES.has(job.status)).slice(0, 3)
+      const visible = [...active, ...recent]
+      downloadQueueCountEl.textContent = active.length ? `(${active.length} active)` : ""
+      if (!visible.length) {
+        downloadQueueEl.innerHTML = "<small>No downloads yet.</small>"
+        return
+      }
+      downloadQueueEl.innerHTML = visible.map((job) => {
+        const provider = job.provider === "huggingface" ? "Hugging Face" : "Civitai"
+        let state = job.status || "unknown"
+        if (job.status === "queued") state = `queued #${job.queuePosition || "?"}`
+        if (job.status === "preparing") state = "preparing"
+        if (job.status === "downloading") state = `${Number(job.percent || 0).toFixed(1)}%`
+        if (job.status === "completed") state = "complete"
+        if (job.status === "failed") state = `failed: ${job.error || "unknown error"}`
+        return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:0.8em;background:var(--background-color2);padding:3px 6px;border-radius:4px;">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHTML(job.filename || job.downloadId)}">${escapeHTML(job.filename || "Model download")}</span>
+          <span style="white-space:nowrap;color:var(--text-color2);">${provider} • ${escapeHTML(state)}</span>
+        </div>`
+      }).join("")
+    }
+
+    async function fetchDownloadQueue(endpoint, provider) {
+      const response = await fetch(endpoint, { headers: headersForRequest(undefined, provider) })
+      const result = await safeJson(response)
+      if (!response.ok || !result.ok) throw new Error(result.detail || result.error || "Queue status failed")
+      return result.jobs || []
+    }
+
+    async function refreshDownloadQueue() {
+      let hasActive = false
+      try {
+        const results = await Promise.allSettled([
+          fetchDownloadQueue(DOWNLOAD_ENDPOINT, "civitai"),
+          fetchDownloadQueue(`${HF_API_ROOT}/download`, "huggingface"),
+        ])
+        const jobs = results.flatMap((result) => result.status === "fulfilled" ? result.value : [])
+          .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0))
+        hasActive = jobs.some((job) => ACTIVE_DOWNLOAD_STATUSES.has(job.status))
+        renderDownloadQueue(jobs)
+      } catch (error) {
+        console.warn("Unable to refresh model download queue", error)
+      } finally {
+        if (downloadQueueRefreshTimer) clearTimeout(downloadQueueRefreshTimer)
+        downloadQueueRefreshTimer = setTimeout(refreshDownloadQueue, hasActive ? 750 : 5000)
+      }
+    }
+
     async function handleDownload(item, file) {
-      statusEl.textContent = "Starting download..."
+      statusEl.textContent = "Adding download to queue..."
       try {
         const provider = item.provider === "huggingface" ? "huggingface" : "civitai"
         const endpoint = provider === "huggingface" ? `${HF_API_ROOT}/download` : DOWNLOAD_ENDPOINT
-        const headers = {
-          "Content-Type": "application/json",
-          ...headersForRequest(undefined, provider),
-        }
-
-        const res = await fetch(endpoint, {
+        const response = await fetch(endpoint, {
           method: "POST",
-          headers,
+          headers: {
+            "Content-Type": "application/json",
+            ...headersForRequest(undefined, provider),
+          },
           body: JSON.stringify({ model: item, file }),
         })
-        const json = await safeJson(res)
-        if (!json.ok) throw new Error(json.error || "Download failed")
-        const downloadId = json.downloadId
-        if (!downloadId) throw new Error("Download did not return a job ID")
-        while (true) {
-          await new Promise((resolve) => setTimeout(resolve, 750))
-          const statusResponse = await fetch(`${endpoint}/${encodeURIComponent(downloadId)}`, {
-            headers: headersForRequest(undefined, provider),
-          })
-          const job = await safeJson(statusResponse)
-          if (!job.ok) throw new Error(job.error || "Download status failed")
-          statusEl.textContent = `Downloading… ${Number(job.percent || 0).toFixed(1)}%`
-          if (job.status === "failed") throw new Error(job.error || "Download failed")
-          if (job.status === "completed") {
-            statusEl.textContent = `Downloaded to ${job.path} (${(job.size / (1024 * 1024)).toFixed(1)} MB)`
-            break
-          }
-        }
+        const job = await safeJson(response)
+        if (!response.ok || !job.ok) throw new Error(job.detail || job.error || "Download failed")
+        if (!job.downloadId) throw new Error("Download did not return a job ID")
+        statusEl.textContent = job.status === "queued"
+          ? `Queued ${job.filename || file.name || "model"} at position ${job.queuePosition || 1}.`
+          : `Started ${job.filename || file.name || "model"}.`
+        await refreshDownloadQueue()
       } catch (err) {
         console.error(err)
         statusEl.textContent = "Download error: " + (err && err.message ? err.message : "Server Error")
@@ -705,6 +824,8 @@
         apiKey: (currentProvider === "huggingface" ? hfTokenEl.value : apiKeyEl.value).trim(),
         postId: (postIdEl.value || "").trim(),
         username: (usernameEl.value || "").trim(),
+        baseModel: baseModelEl.value,
+        modelType: modelTypeEl.value,
       }
     }
 
@@ -730,20 +851,14 @@
         runSearch(activeSearch, undefined)
         return
       }
-      if (activeSearch.mode === "images") {
-        currentPage++
-        runSearch(activeSearch, undefined)
-        return
-      }
-
-      // models: move forward using nextCursor
+      // Civitai cursors avoid repeated results from page-number paging, and
+      // the API returns them for both model and image feeds.
       if (nextCursor) {
-        // push current cursor for "Prev"
         prevCursorStack.push(currentCursor) // may be null for page 1
         currentCursor = nextCursor
         currentPage++
         runSearch(activeSearch, currentCursor)
-      } else if (!activeSearch.query) {
+      } else if (activeSearch.mode === "images" || !activeSearch.query) {
         currentPage++
         runSearch(activeSearch, undefined)
       }
@@ -756,18 +871,13 @@
         runSearch(activeSearch, undefined)
         return
       }
-      if (activeSearch.mode === "images") {
-        currentPage = Math.max(1, currentPage - 1)
-        runSearch(activeSearch, undefined)
-        return
-      }
-
-      // models: pop back to previous cursor
+      // Return using the cursor saved when advancing, or page numbers when
+      // the upstream response did not provide a cursor.
       if (prevCursorStack.length > 0) {
         currentCursor = prevCursorStack.pop() || null
         currentPage = Math.max(1, currentPage - 1)
         runSearch(activeSearch, currentCursor)
-      } else if (!activeSearch.query && currentPage > 1) {
+      } else if ((activeSearch.mode === "images" || !activeSearch.query) && currentPage > 1) {
         currentPage--
         runSearch(activeSearch, undefined)
       }
@@ -777,6 +887,7 @@
     statusEl.textContent = currentProvider === "huggingface"
       ? "Hugging Face model mode."
       : currentMode === "images" ? "Civitai image mode." : "Civitai model mode."
+    refreshDownloadQueue()
     return true
   }
 

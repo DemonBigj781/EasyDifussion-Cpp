@@ -416,6 +416,7 @@ crow::response Server::handleImg2Video(const crow::request& req) {
 }
 
 crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool is_img2video) {
+    reset_sd_generation_error();
     std::string task_id = json_body.has("force_task_id")
                               ? std::string(json_body["force_task_id"].s())
                               : "default_video_task";
@@ -559,15 +560,17 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
         response["info"]   = std::move(info);
         return crow::response(200, response);
     } catch (const std::exception& e) {
-        LOG_ERROR("Video generation error: %s", e.what());
+        const std::string message = sd_generation_error_message(std::string("Video generation failed: ") + e.what());
+        LOG_ERROR("%s", message.c_str());
         crow::json::wvalue error;
-        error["message"] = std::string("Video generation failed: ") + e.what();
+        error["message"] = message;
         task_state_manager_->completeTask(task_id, {}, error.dump());
         return crow::response(500, error);
     }
 }
 
 crow::response Server::generateImage(const crow::json::rvalue& json_body, bool is_img2img) {
+    reset_sd_generation_error();
     // Extract task_id
     std::string task_id = "default_task";
     if (json_body.has("force_task_id")) {
@@ -895,9 +898,10 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
         return crow::response(200, response);
 
     } catch (const std::exception& e) {
-        LOG_ERROR("Image generation error: %s", e.what());
+        const std::string message = sd_generation_error_message(std::string("Generation failed: ") + e.what());
+        LOG_ERROR("%s", message.c_str());
         crow::json::wvalue error;
-        error["message"] = std::string("Generation failed: ") + e.what();
+        error["message"] = message;
         task_state_manager_->completeTask(task_id, {}, error.dump());
         return crow::response(500, error);
     }

@@ -43,6 +43,7 @@ enum SDVersion {
     VERSION_ANIMA,
     VERSION_FLUX2,
     VERSION_FLUX2_KLEIN,
+    VERSION_LTXV,
     VERSION_LTXAV,
     VERSION_MINIMAX_H3,
     VERSION_HIDREAM_O1,
@@ -123,6 +124,14 @@ static inline bool sd_version_is_ltxav(SDVersion version) {
         return true;
     }
     return false;
+}
+
+static inline bool sd_version_is_ltxv(SDVersion version) {
+    return version == VERSION_LTXV;
+}
+
+static inline bool sd_version_is_ltx_video(SDVersion version) {
+    return sd_version_is_ltxv(version) || sd_version_is_ltxav(version);
 }
 
 static inline bool sd_version_is_minimax_h3(SDVersion version) {
@@ -281,7 +290,7 @@ static inline bool sd_version_is_inpaint(SDVersion version) {
 static inline bool sd_version_is_dit(SDVersion version) {
     if (sd_version_is_flux(version) ||
         sd_version_is_flux2(version) ||
-        sd_version_is_ltxav(version) ||
+        sd_version_is_ltx_video(version) ||
         sd_version_is_minimax_h3(version) ||
         sd_version_is_sd3(version) ||
         sd_version_is_wan(version) ||

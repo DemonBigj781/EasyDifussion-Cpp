@@ -3,6 +3,8 @@
 
     const ID_PREFIX = "z-tipo";
     const STORAGE_KEY = "z_tipo_settings_v1";
+    const MODEL_PRESET_PREFIX = "model:";
+    const CUSTOM_PRESET_PREFIX = "custom:";
 
     const DEFAULT_FORMAT = `<|special|>,
 <|characters|>, <|copyrights|>,
@@ -26,6 +28,34 @@
         format: DEFAULT_FORMAT,
         model: "",
     };
+
+    function normalizeCustomPresets(value) {
+        if (!Array.isArray(value)) return [];
+        return value.filter((preset) => (
+            preset &&
+            typeof preset.id === "string" &&
+            typeof preset.name === "string" &&
+            typeof preset.model === "string" &&
+            typeof preset.format === "string"
+        )).map((preset) => ({
+            id: preset.id,
+            name: preset.name.slice(0, 80),
+            model: preset.model,
+            tagLength: preset.tagLength || DEFAULTS.tagLength,
+            nlLength: preset.nlLength || DEFAULTS.nlLength,
+            temperature: String(preset.temperature ?? DEFAULTS.temperature),
+            topP: String(preset.topP ?? DEFAULTS.topP),
+            minP: String(preset.minP ?? DEFAULTS.minP),
+            topK: String(preset.topK ?? DEFAULTS.topK),
+            seed: String(preset.seed ?? DEFAULTS.seed),
+            device: preset.device === "cpu" ? "cpu" : "cuda",
+            format: preset.format,
+        }));
+    }
+
+    function newPresetId() {
+        return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
 
     function loadSettings() {
         try {
@@ -107,6 +137,9 @@
         const nlEl = container.querySelector(`#${ID_PREFIX}-nl`);
         const nlInfoEl = container.querySelector(`#${ID_PREFIX}-nl-info`);
         const banEl = container.querySelector(`#${ID_PREFIX}-ban`);
+        const presetEl = container.querySelector(`#${ID_PREFIX}-preset`);
+        const presetNameEl = container.querySelector(`#${ID_PREFIX}-preset-name`);
+        const deletePresetEl = container.querySelector(`#${ID_PREFIX}-delete-preset`);
         const modelEl = container.querySelector(`#${ID_PREFIX}-model`);
         const deviceEl = container.querySelector(`#${ID_PREFIX}-device`);
         const modelInfoEl = container.querySelector(`#${ID_PREFIX}-model-info`);
@@ -132,6 +165,10 @@
         deviceEl.value = settings.device;
         formatEl.value = settings.format;
 
+        let availableModels = [];
+        let modelMetadata = {};
+        let customPresets = normalizeCustomPresets(settings.presets);
+
         function updateSettings() {
             saveSettings({
                 tagLength: tagLengthEl.value,
@@ -144,22 +181,73 @@
                 device: deviceEl.value,
                 format: formatEl.value,
                 model: modelEl.value,
+                presetId: presetEl.value,
+                presets: customPresets,
             });
         }
 
-        [
-            tagLengthEl,
-            nlLengthEl,
-            tempEl,
-            seedEl,
-            topPEl,
-            minPEl,
-            topKEl,
-            deviceEl,
-            formatEl,
-        ].forEach((el) => el.addEventListener("change", updateSettings));
+        function modelPresetValue(model) {
+            return `${MODEL_PRESET_PREFIX}${model}`;
+        }
 
-        let modelMetadata = {};
+        function customPresetValue(id) {
+            return `${CUSTOM_PRESET_PREFIX}${id}`;
+        }
+
+        function selectedCustomPreset() {
+            if (!presetEl.value.startsWith(CUSTOM_PRESET_PREFIX)) return null;
+            const id = presetEl.value.slice(CUSTOM_PRESET_PREFIX.length);
+            return customPresets.find((preset) => preset.id === id) || null;
+        }
+
+        function updatePresetControls() {
+            const preset = selectedCustomPreset();
+            deletePresetEl.disabled = !preset;
+            presetNameEl.value = preset ? preset.name : "";
+        }
+
+        function appendPresetOption(parent, value, label) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = label;
+            parent.appendChild(option);
+        }
+
+        function renderPresets(selectedValue = "") {
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "Current custom settings";
+            presetEl.replaceChildren(placeholder);
+
+            if (availableModels.length) {
+                const modelGroup = document.createElement("optgroup");
+                modelGroup.label = "Available model defaults";
+                availableModels.forEach((model) => {
+                    appendPresetOption(modelGroup, modelPresetValue(model), model);
+                });
+                presetEl.appendChild(modelGroup);
+            }
+            if (customPresets.length) {
+                const customGroup = document.createElement("optgroup");
+                customGroup.label = "Saved custom presets";
+                customPresets.forEach((preset) => {
+                    appendPresetOption(customGroup, customPresetValue(preset.id), preset.name);
+                });
+                presetEl.appendChild(customGroup);
+            }
+
+            const exists = Array.from(presetEl.options).some((option) => option.value === selectedValue);
+            presetEl.value = exists ? selectedValue : "";
+            updatePresetControls();
+        }
+
+        function detachPreset() {
+            if (presetEl.value.startsWith(MODEL_PRESET_PREFIX)) {
+                presetEl.value = "";
+                updatePresetControls();
+            }
+            updateSettings();
+        }
 
         function getSelectedProtocol() {
             const metadata = modelMetadata[modelEl.value];
@@ -184,6 +272,7 @@
             if (!metadata || metadata.error) {
                 modelInfoEl.textContent = metadata && metadata.error ? metadata.error : "No sidecar; inferred defaults";
                 updateProtocolFields();
+                updateSettings();
                 return;
             }
             tagLengthEl.value = metadata.tag_length || DEFAULTS.tagLength;
@@ -199,7 +288,108 @@
             updateSettings();
         }
 
-        modelEl.addEventListener("change", applyModelSidecar);
+        function applyCustomPreset(preset) {
+            if (!preset || !availableModels.includes(preset.model)) return false;
+            modelEl.value = preset.model;
+            tagLengthEl.value = preset.tagLength;
+            nlLengthEl.value = preset.nlLength;
+            tempEl.value = preset.temperature;
+            topPEl.value = preset.topP;
+            minPEl.value = preset.minP;
+            topKEl.value = preset.topK;
+            seedEl.value = preset.seed;
+            deviceEl.value = preset.device;
+            formatEl.value = preset.format;
+            const metadata = modelMetadata[preset.model];
+            const sidecarLabel = metadata?.sidecar ? ` · ${metadata.sidecar}` : " · preset override";
+            modelInfoEl.textContent = `${metadata?.protocol || "tipo"}${sidecarLabel}`;
+            updateProtocolFields();
+            updateSettings();
+            return true;
+        }
+
+        [
+            tagLengthEl,
+            nlLengthEl,
+            tempEl,
+            seedEl,
+            topPEl,
+            minPEl,
+            topKEl,
+            deviceEl,
+            formatEl,
+        ].forEach((el) => el.addEventListener("change", detachPreset));
+
+        modelEl.addEventListener("change", () => {
+            if (!selectedCustomPreset()) presetEl.value = modelPresetValue(modelEl.value);
+            updatePresetControls();
+            applyModelSidecar();
+        });
+
+        presetEl.addEventListener("change", () => {
+            if (presetEl.value.startsWith(MODEL_PRESET_PREFIX)) {
+                const model = presetEl.value.slice(MODEL_PRESET_PREFIX.length);
+                if (availableModels.includes(model)) {
+                    modelEl.value = model;
+                    applyModelSidecar();
+                }
+            } else {
+                const preset = selectedCustomPreset();
+                if (preset && !applyCustomPreset(preset)) {
+                    statusEl.textContent = `Preset model is unavailable: ${preset.model}`;
+                }
+            }
+            updatePresetControls();
+            updateSettings();
+        });
+
+        container.querySelector(`#${ID_PREFIX}-save-preset`).addEventListener("click", () => {
+            const name = presetNameEl.value.trim();
+            if (!name) {
+                statusEl.textContent = "Enter a name for the custom preset.";
+                presetNameEl.focus();
+                return;
+            }
+            if (!modelEl.value || !availableModels.includes(modelEl.value)) {
+                statusEl.textContent = "Choose an available model before saving a preset.";
+                return;
+            }
+
+            const selected = selectedCustomPreset();
+            let index = selected ? customPresets.findIndex((preset) => preset.id === selected.id) : -1;
+            if (index < 0) {
+                index = customPresets.findIndex((preset) => preset.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+            }
+            const preset = {
+                id: index >= 0 ? customPresets[index].id : newPresetId(),
+                name: name.slice(0, 80),
+                model: modelEl.value,
+                tagLength: tagLengthEl.value,
+                nlLength: nlLengthEl.value,
+                temperature: tempEl.value,
+                topP: topPEl.value,
+                minP: minPEl.value,
+                topK: topKEl.value,
+                seed: seedEl.value,
+                device: deviceEl.value,
+                format: formatEl.value,
+            };
+            if (index >= 0) customPresets[index] = preset;
+            else customPresets.push(preset);
+            renderPresets(customPresetValue(preset.id));
+            updateSettings();
+            statusEl.textContent = `Preset "${preset.name}" saved in this browser.`;
+        });
+
+        deletePresetEl.addEventListener("click", () => {
+            const preset = selectedCustomPreset();
+            if (!preset || !window.confirm(`Delete TIPO preset "${preset.name}"?`)) return;
+            customPresets = customPresets.filter((candidate) => candidate.id !== preset.id);
+            const fallback = availableModels.includes(modelEl.value) ? modelPresetValue(modelEl.value) : "";
+            renderPresets(fallback);
+            updateSettings();
+            statusEl.textContent = `Preset "${preset.name}" deleted.`;
+        });
 
         container.querySelector(`#${ID_PREFIX}-use-prompt`).addEventListener("click", () => {
             tagsEl.value = getPrompt();
@@ -219,10 +409,13 @@
 
         async function reloadModels() {
             const apiBase = getApiBase();
+            const currentModel = modelEl.value;
+            const currentPreset = presetEl.value;
             statusEl.textContent = "Loading models...";
             try {
                 const data = await getJson(`${apiBase}/models`);
                 const models = Array.isArray(data.models) ? data.models : [];
+                availableModels = models;
                 modelMetadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
                 modelEl.innerHTML = "";
                 if (models.length === 0) {
@@ -230,6 +423,7 @@
                     opt.value = "";
                     opt.textContent = "No models found";
                     modelEl.appendChild(opt);
+                    renderPresets();
                 } else {
                     models.forEach((model) => {
                         const opt = document.createElement("option");
@@ -237,10 +431,19 @@
                         opt.textContent = model;
                         modelEl.appendChild(opt);
                     });
-                    if (settings.model && models.includes(settings.model)) {
+                    if (currentModel && models.includes(currentModel)) {
+                        modelEl.value = currentModel;
+                    } else if (settings.model && models.includes(settings.model)) {
                         modelEl.value = settings.model;
                     }
-                    applyModelSidecar();
+                    const initialPresetValue = currentPreset || settings.presetId || modelPresetValue(modelEl.value);
+                    renderPresets(initialPresetValue);
+                    const customPreset = selectedCustomPreset();
+                    if (!customPreset || !applyCustomPreset(customPreset)) {
+                        presetEl.value = modelPresetValue(modelEl.value);
+                        updatePresetControls();
+                        applyModelSidecar();
+                    }
                 }
                 statusEl.textContent = `Loaded ${models.length} models`;
             } catch (err) {

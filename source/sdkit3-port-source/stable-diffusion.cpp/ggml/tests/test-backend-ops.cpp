@@ -6468,6 +6468,32 @@ struct test_group_norm : public test_case {
     }
 };
 
+// GGML_OP_GROUP_NORM_BACK
+struct test_group_norm_back : public test_case {
+    const std::array<int64_t, 4> ne;
+    const int32_t num_groups;
+    const float eps;
+
+    std::string vars() override {
+        return VARS_TO_STR4(GGML_TYPE_F32, ne, num_groups, eps);
+    }
+
+    test_group_norm_back(std::array<int64_t, 4> ne = {9, 7, 32, 2},
+            int32_t num_groups = 8, float eps = 1e-5f)
+        : ne(ne), num_groups(num_groups), eps(eps) {}
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        ggml_tensor * grad = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne.data());
+        ggml_tensor * input = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne.data());
+        ggml_set_name(grad, "grad");
+        ggml_set_name(input, "input");
+
+        ggml_tensor * out = ggml_group_norm_back(ctx, grad, input, num_groups, eps);
+        ggml_set_name(out, "out");
+        return out;
+    }
+};
+
 // GGML_OP_GROUP_NORM + GGML_OP_MUL + GGML_OP_ADD
 struct test_group_norm_mul_add : public test_case {
     const ggml_type type;
@@ -9415,6 +9441,8 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
     test_cases.emplace_back(new test_sum_rows(GGML_TYPE_F32, { 33, 256, 1, 1 }));
     test_cases.emplace_back(new test_group_norm(GGML_TYPE_F32, {64, 64, 320, 1}));
     test_cases.emplace_back(new test_group_norm(GGML_TYPE_F32, {9, 9, 1280, 1}));
+    test_cases.emplace_back(new test_group_norm_back({9, 7, 32, 2}, 8));
+    test_cases.emplace_back(new test_group_norm_back({64, 64, 320, 1}, 32));
     test_cases.emplace_back(new test_group_norm_mul_add(GGML_TYPE_F32, {64, 64, 320, 1}));
     test_cases.emplace_back(new test_group_norm_mul_add(GGML_TYPE_F32, {9, 9, 1280, 1}));
     test_cases.emplace_back(new test_acc(GGML_TYPE_F32, {256, 17, 1, 1}, {256, 16, 1, 1}, -1));

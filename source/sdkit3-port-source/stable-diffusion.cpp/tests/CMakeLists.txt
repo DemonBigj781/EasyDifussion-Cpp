@@ -1,5 +1,6 @@
 add_executable(model-loader-version-test model_loader_version_test.cpp)
 target_link_libraries(model-loader-version-test PRIVATE stable-diffusion)
+target_compile_definitions(model-loader-version-test PRIVATE GGML_MAX_NAME=160)
 add_test(NAME model-loader-version-test COMMAND model-loader-version-test)
 
 add_executable(model-manager-lora-cache-test model_manager_lora_cache_test.cpp)

@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import os
 import json
+import itertools
+import queue
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 from urllib.parse import quote, urlparse
 from uuid import uuid4
 
@@ -23,6 +25,40 @@ HUGGINGFACE_APP = APIRouter()
 
 _download_jobs: Dict[str, Dict[str, Any]] = {}
 _download_jobs_lock = threading.Lock()
+_download_sequence = itertools.count(1)
+
+
+class _DownloadScheduler:
+    """A process-wide FIFO that prevents model downloads competing for disk/network."""
+
+    def __init__(self) -> None:
+        self._tasks: queue.Queue[Tuple[Callable[..., None], Tuple[Any, ...]]] = queue.Queue()
+        self._worker_lock = threading.Lock()
+        self._worker: Optional[threading.Thread] = None
+
+    def enqueue(self, callback: Callable[..., None], *args: Any) -> None:
+        self._tasks.put((callback, args))
+        with self._worker_lock:
+            if self._worker is None or not self._worker.is_alive():
+                self._worker = threading.Thread(
+                    target=self._run,
+                    name="model-download-queue",
+                    daemon=True,
+                )
+                self._worker.start()
+
+    def _run(self) -> None:
+        while True:
+            callback, args = self._tasks.get()
+            try:
+                callback(*args)
+            except Exception:
+                _logger.exception("Unhandled model download worker error")
+            finally:
+                self._tasks.task_done()
+
+
+_download_scheduler = _DownloadScheduler()
 
 
 def _safe_error(error: Any) -> str:
@@ -44,13 +80,44 @@ def _set_download_job(download_id: str, **fields: Any) -> Dict[str, Any]:
                 _download_jobs.pop(key, None)
         job = _download_jobs.setdefault(download_id, {})
         job.update(fields)
-        return dict(job)
+        return _download_job_snapshot_locked(download_id, job)
+
+
+def _download_job_snapshot_locked(download_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    snapshot = {"downloadId": download_id, **job}
+    if job.get("status") == "queued":
+        queued = sorted(
+            (
+                (key, value)
+                for key, value in _download_jobs.items()
+                if value.get("status") == "queued"
+            ),
+            key=lambda item: item[1].get("queueOrder", 0),
+        )
+        snapshot["queuePosition"] = next(
+            (index for index, (key, _) in enumerate(queued, 1) if key == download_id),
+            None,
+        )
+    else:
+        snapshot["queuePosition"] = None
+    snapshot.pop("queueOrder", None)
+    return snapshot
 
 
 def _get_download_job(download_id: str) -> Optional[Dict[str, Any]]:
     with _download_jobs_lock:
         job = _download_jobs.get(download_id)
-        return dict(job) if job else None
+        return _download_job_snapshot_locked(download_id, job) if job else None
+
+
+def _list_download_jobs(provider: Optional[str] = None) -> list[Dict[str, Any]]:
+    with _download_jobs_lock:
+        jobs = [
+            _download_job_snapshot_locked(download_id, job)
+            for download_id, job in _download_jobs.items()
+            if provider is None or job.get("provider") == provider
+        ]
+    return sorted(jobs, key=lambda job: job.get("createdAt", 0), reverse=True)
 
 
 def _download_worker(
@@ -62,6 +129,7 @@ def _download_worker(
 ) -> None:
     start = time.perf_counter()
     file_override = file_choice if isinstance(file_choice, dict) else None
+    _set_download_job(download_id, status="preparing", startedAt=time.time())
     try:
         url = payload.get("fileUrl")
         fname = payload.get("filename")
@@ -142,6 +210,7 @@ def _huggingface_download_worker(
     token: Optional[str],
 ) -> None:
     start = time.perf_counter()
+    _set_download_job(download_id, status="preparing", startedAt=time.time())
     try:
         url, filename, dest_dir = hf.download_target(target, file_choice)
         _set_download_job(
@@ -485,12 +554,14 @@ async def civitai_search(request: Request):
         mvid = civ._to_int(qp.get("modelVersionId"))
         vid = civ._to_int(qp.get("versionId"))
         model_version_id = mvid if mvid is not None else vid
+        file_id = civ._to_int(qp.get("fileId"))
         model_hash = qp.get("hash")
 
-        urn_model_id, urn_ver_id, _, _ = civ._parse_urn(query)
+        urn_model_id, urn_ver_id, urn_file_id, _, _ = civ._parse_urn(query)
         if urn_model_id is not None:
             model_id = urn_model_id
             model_version_id = urn_ver_id
+            file_id = urn_file_id
             query = ""
 
         api_key = _resolve_key(request)
@@ -508,6 +579,7 @@ async def civitai_search(request: Request):
             base_models=base_models,
             model_id=model_id,
             model_version_id=model_version_id,
+            file_id=file_id,
             model_hash=model_hash,
         )
 
@@ -640,7 +712,7 @@ async def civitai_images(request: Request):
         post_id = civ._to_int(qp.get("postId"))
         username = qp.get("username")
 
-        urn_model_id, urn_ver_id, _, _ = civ._parse_urn(query)
+        urn_model_id, urn_ver_id, _, _, _ = civ._parse_urn(query)
         if urn_model_id is not None:
             model_id = urn_model_id
             model_version_id = urn_ver_id
@@ -686,6 +758,7 @@ async def civitai_global_images(request: Request):
         query = qp.get("query") or qp.get("q") or ""
         limit = int(qp.get("limit", "51") or "51")
         page = max(1, int(qp.get("page", "1") or "1"))
+        cursor = qp.get("cursor")
         nsfw = civ._to_bool(qp.get("nsfw"))
         sort = qp.get("sort")
         period = qp.get("period")
@@ -732,6 +805,7 @@ async def civitai_global_images(request: Request):
                     api_key=_resolve_key(request),
                     limit=limit,
                     page=page,
+                    cursor=cursor,
                     nsfw=nsfw,
                     sort=sort,
                     period=period,
@@ -750,6 +824,7 @@ async def civitai_global_images(request: Request):
                 api_key=_resolve_key(request),
                 limit=limit,
                 page=page,
+                cursor=cursor,
                 nsfw=nsfw,
                 sort=sort,
                 model_sort=civ._map_image_sort_to_model_sort(sort),
@@ -815,18 +890,22 @@ async def huggingface_download(request: Request):
         _set_download_job(
             download_id,
             status="queued",
+            provider="huggingface",
+            filename=file_choice.get("name") or file_choice.get("path") or target.get("name"),
             downloadedBytes=0,
             totalBytes=None,
             percent=0.0,
             createdAt=time.time(),
+            queueOrder=next(_download_sequence),
         )
-        worker = threading.Thread(
-            target=_huggingface_download_worker,
-            args=(download_id, target, file_choice, _resolve_huggingface_token(request, payload)),
-            daemon=True,
+        _download_scheduler.enqueue(
+            _huggingface_download_worker,
+            download_id,
+            target,
+            file_choice,
+            _resolve_huggingface_token(request, payload),
         )
-        worker.start()
-        return {"ok": True, "downloadId": download_id, "status": "queued"}
+        return {"ok": True, **(_get_download_job(download_id) or {})}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=_safe_error(exc)) from exc
     except Exception as exc:
@@ -834,12 +913,17 @@ async def huggingface_download(request: Request):
         raise HTTPException(status_code=500, detail=_safe_error(exc)) from exc
 
 
+@HUGGINGFACE_APP.get("/download")
+async def huggingface_download_queue():
+    return {"ok": True, "jobs": _list_download_jobs("huggingface")}
+
+
 @HUGGINGFACE_APP.get("/download/{download_id}")
 async def huggingface_download_status(download_id: str):
     job = _get_download_job(download_id)
     if not job:
         raise HTTPException(status_code=404, detail="download not found")
-    return {"ok": True, "downloadId": download_id, **job}
+    return {"ok": True, **job}
 
 
 @APP.post("/civitai/download")
@@ -866,18 +950,23 @@ async def civitai_download(request: Request):
         _set_download_job(
             download_id,
             status="queued",
+            provider="civitai",
+            filename=file_choice.get("name") or target.get("name"),
             downloadedBytes=0,
             totalBytes=None,
             percent=0.0,
             createdAt=time.time(),
+            queueOrder=next(_download_sequence),
         )
-        worker = threading.Thread(
-            target=_download_worker,
-            args=(download_id, target, file_choice, payload, api_key),
-            daemon=True,
+        _download_scheduler.enqueue(
+            _download_worker,
+            download_id,
+            target,
+            file_choice,
+            payload,
+            api_key,
         )
-        worker.start()
-        return {"ok": True, "downloadId": download_id, "status": "queued"}
+        return {"ok": True, **(_get_download_job(download_id) or {})}
 
     except HTTPException:
         raise
@@ -888,12 +977,17 @@ async def civitai_download(request: Request):
         raise HTTPException(status_code=500, detail=message)
 
 
+@APP.get("/civitai/download")
+async def civitai_download_queue():
+    return {"ok": True, "jobs": _list_download_jobs("civitai")}
+
+
 @APP.get("/civitai/download/{download_id}")
 async def civitai_download_status(download_id: str):
     job = _get_download_job(download_id)
     if not job:
         raise HTTPException(status_code=404, detail="download not found")
-    return {"ok": True, "downloadId": download_id, **job}
+    return {"ok": True, **job}
 
 
 router = APP

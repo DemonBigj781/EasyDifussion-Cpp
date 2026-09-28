@@ -1,23 +1,96 @@
 """Built-in WD14 image tagging support for Easy Diffusion."""
 
-import base64
-import binascii
-import csv
-import io
+import json
+import logging
 import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
 import threading
 
-import numpy as np
-from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
+from easydiffusion.privacy_debug import block_alphabetic_context, report_safe_path
 
 
 DEFAULT_MODEL = "wd-v1-4-moat-tagger-v2"
-MAX_IMAGE_BYTES = 64 * 1024 * 1024
 
-_cache_lock = threading.Lock()
-_session_cache = {}
-_labels_cache = {}
+_native_lock = threading.Lock()
+_native_process = None
+_logger = logging.getLogger("easydiffusion.wd14_tagger")
+
+
+def _censor(value, limit=320):
+    return block_alphabetic_context(str(value)[:limit])
+
+
+def _forward_native_diagnostics(stream):
+    model_event = re.compile(r"^model_loaded provider=(CPUExecutionProvider|CUDAExecutionProvider) labels=(\d+)$")
+    result_event = re.compile(r"^result matches=(\d+) ratings=(\d+)$")
+    for line in stream:
+        event = line.strip()
+        if event == "WD14_DIAG activated backend=cpp":
+            _logger.info("WD14 tagger activated backend=cpp")
+        elif event.startswith("WD14_DIAG "):
+            detail = event.removeprefix("WD14_DIAG ")
+            match = model_event.fullmatch(detail)
+            if match:
+                _logger.debug("WD14 C++ model loaded provider=%s labels=%s", *match.groups())
+                continue
+            match = result_event.fullmatch(detail)
+            if match:
+                _logger.debug("WD14 C++ result matches=%s ratings=%s", *match.groups())
+            elif detail == "request_failed":
+                _logger.warning("WD14 C++ request failed; details omitted")
+
+
+def _native_executable():
+    configured = os.environ.get("SDKIT_WD14_TAGGER")
+    if configured:
+        return configured if os.path.isfile(configured) else None
+    found = shutil.which("sdkit-wd14-tagger")
+    if found:
+        return found
+    root = Path(__file__).resolve().parents[4]
+    candidates = [root / "source/sdkit3-port-source/build/bin/sdkit-wd14-tagger"]
+    candidates.extend((root / "source/sdkit3-port-source/build").glob("*/bin/sdkit-wd14-tagger"))
+    return next((str(path) for path in candidates if path.is_file()), None)
+
+
+def _native_tag_image(request, model_name, model_path, csv_path):
+    global _native_process
+    executable = _native_executable()
+    if not executable:
+        raise RuntimeError("C++ WD14 tagger is unavailable; build sdkit-wd14-tagger first")
+    payload = {"image": request.image, "model": model_name, "model_path": model_path,
+               "csv_path": csv_path, "threshold": request.threshold,
+               "character_threshold": request.character_threshold,
+               "exclude_tags": request.exclude_tags,
+               "replace_underscore": request.replace_underscore,
+               "trailing_comma": request.trailing_comma}
+    with _native_lock:
+        try:
+            if _native_process is None or _native_process.poll() is not None:
+                _logger.debug("WD14 native process starting executable=%s",
+                              _censor(report_safe_path(executable)))
+                _native_process = subprocess.Popen([executable], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE, text=True, bufsize=1)
+                threading.Thread(target=_forward_native_diagnostics, args=(_native_process.stderr,),
+                                 name="WD14 C++ diagnostics", daemon=True).start()
+            _native_process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
+            _native_process.stdin.flush()
+            response = json.loads(_native_process.stdout.readline())
+        except (OSError, ValueError, BrokenPipeError) as exc:
+            if _native_process is not None:
+                _native_process.kill()
+                _native_process = None
+            _logger.warning("WD14 native request failed error_type=%s detail=%s",
+                            type(exc).__name__, _censor(exc))
+            raise RuntimeError(f"Native WD14 tagger failed: {exc}") from exc
+    if "error" in response:
+        _logger.warning("WD14 native inference failed detail=%s", _censor(response["error"]))
+        raise RuntimeError(response["error"])
+    return response
 
 
 class WD14TagRequest(BaseModel):
@@ -28,26 +101,6 @@ class WD14TagRequest(BaseModel):
     exclude_tags: str = ""
     replace_underscore: bool = False
     trailing_comma: bool = False
-
-
-def _decode_image(encoded: str) -> Image.Image:
-    if not isinstance(encoded, str) or not encoded:
-        raise ValueError("image is required")
-    if encoded.startswith("data:"):
-        marker = encoded.find(",")
-        if marker < 0:
-            raise ValueError("invalid image data URL")
-        encoded = encoded[marker + 1 :]
-    if len(encoded) > (MAX_IMAGE_BYTES * 4 // 3) + 16:
-        raise ValueError("image payload is too large")
-    try:
-        raw = base64.b64decode(encoded, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError("image is not valid base64") from exc
-    if len(raw) > MAX_IMAGE_BYTES:
-        raise ValueError("decoded image is too large")
-    with Image.open(io.BytesIO(raw)) as source:
-        return ImageOps.exif_transpose(source).convert("RGB")
 
 
 def _resolve_files(model_name: str):
@@ -63,91 +116,6 @@ def _resolve_files(model_name: str):
     return model_name, model_path, csv_path
 
 
-def _providers(ort):
-    available = set(ort.get_available_providers())
-    selected = [provider for provider in ("CUDAExecutionProvider", "CPUExecutionProvider") if provider in available]
-    return selected or list(available)
-
-
-def _get_session(model_path: str):
-    import onnxruntime as ort
-
-    with _cache_lock:
-        session = _session_cache.get(model_path)
-        if session is None:
-            options = ort.SessionOptions()
-            options.log_severity_level = 3
-            session = ort.InferenceSession(model_path, sess_options=options, providers=_providers(ort))
-            _session_cache[model_path] = session
-        return session
-
-
-def _get_labels(csv_path: str):
-    with _cache_lock:
-        cached = _labels_cache.get(csv_path)
-        if cached is not None:
-            return cached
-        labels = []
-        categories = []
-        with open(csv_path, "r", encoding="utf-8", newline="") as csv_file:
-            reader = csv.DictReader(csv_file)
-            if not {"name", "category"}.issubset(set(reader.fieldnames or [])):
-                raise ValueError(f"WD14 CSV is missing required columns: {csv_path}")
-            for row in reader:
-                labels.append(row["name"])
-                categories.append(int(row["category"]))
-        cached = (labels, categories)
-        _labels_cache[csv_path] = cached
-        return cached
-
-
-def _prepare_image(image: Image.Image, size: int) -> np.ndarray:
-    ratio = float(size) / max(image.size)
-    resized_size = tuple(max(1, int(axis * ratio)) for axis in image.size)
-    resized = image.resize(resized_size, Image.Resampling.LANCZOS)
-    square = Image.new("RGB", (size, size), (255, 255, 255))
-    square.paste(resized, ((size - resized_size[0]) // 2, (size - resized_size[1]) // 2))
-    pixels = np.asarray(square, dtype=np.float32)
-    return np.expand_dims(pixels[:, :, ::-1], axis=0)
-
-
-def _format_tag(tag: str, replace_underscore: bool) -> str:
-    if replace_underscore:
-        tag = tag.replace("_", " ")
-    return tag.replace("(", "\\(").replace(")", "\\)")
-
-
 def tag_image(request: WD14TagRequest):
     model_name, model_path, csv_path = _resolve_files(request.model)
-    session = _get_session(model_path)
-    labels, categories = _get_labels(csv_path)
-    input_info = session.get_inputs()[0]
-    size = input_info.shape[1]
-    if not isinstance(size, int) or size <= 0:
-        raise ValueError(f"WD14 model has unsupported input shape: {input_info.shape}")
-    probabilities = session.run(
-        [session.get_outputs()[0].name],
-        {input_info.name: _prepare_image(_decode_image(request.image), size)},
-    )[0][0]
-    if len(probabilities) != len(labels):
-        raise ValueError(f"WD14 model/CSV mismatch: model returned {len(probabilities)} scores, CSV has {len(labels)} tags")
-
-    excluded = {tag.strip().lower() for tag in request.exclude_tags.split(",") if tag.strip()}
-    ratings = []
-    general = []
-    characters = []
-    for label, category, score_value in zip(labels, categories, probabilities):
-        score = float(score_value)
-        rendered = _format_tag(label, request.replace_underscore)
-        item = {"tag": rendered, "raw_tag": label, "score": score}
-        if category == 9:
-            ratings.append(item)
-        elif category == 4 and score > request.character_threshold and label.lower() not in excluded and rendered.lower() not in excluded:
-            characters.append(item)
-        elif category == 0 and score > request.threshold and label.lower() not in excluded and rendered.lower() not in excluded:
-            general.append(item)
-
-    matches = characters + general
-    tags = "".join(item["tag"] + ", " for item in matches) if request.trailing_comma else ", ".join(item["tag"] for item in matches)
-    ratings.sort(key=lambda item: item["score"], reverse=True)
-    return {"model": model_name, "tags": tags, "matches": matches, "ratings": ratings, "providers": session.get_providers()}
+    return _native_tag_image(request, model_name, model_path, csv_path)

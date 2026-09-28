@@ -91,7 +91,7 @@ namespace sd_sample {
         config.total_steps   = sigmas.size() > 1 ? static_cast<int>(sigmas.size() - 1) : 0;
         config.model_variant = model_desc;
 
-        if (sd_version_is_ltxav(version)) {
+        if (sd_version_is_ltx_video(version)) {
             config.reuse_threshold = cache_params.reuse_threshold == INFINITY ? 0.05f
                                                                               : get_cache_reuse_threshold(cache_params);
             config.coefficients = {2.14700694e+01, -1.28016453e+01, 2.31279151e+00,

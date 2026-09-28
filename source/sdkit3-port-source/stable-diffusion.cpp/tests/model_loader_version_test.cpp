@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 
+#include "model/diffusion/ltxv.hpp"
 #include "model_loader.h"
 
 namespace {
@@ -85,6 +86,31 @@ int main(int argc, char** argv) {
     add_tensor(existing_unet_loader, make_tensor("unet.conv_in.weight", {3, 3, 4, 320}));
     add_tensor(existing_unet_loader, make_tensor("text_model.embeddings.token_embedding.weight", {768, 49408}));
     passed &= expect_version("existing unet prefix", existing_unet_loader, VERSION_SD1);
+
+    ModelLoader ltxv_loader;
+    add_tensor(ltxv_loader, make_tensor("model.diffusion_model.adaln_single.emb.timestep_embedder.linear_1.bias", {2048}));
+    add_tensor(ltxv_loader, make_tensor("model.diffusion_model.patchify_proj.weight", {128, 2048}));
+    add_tensor(ltxv_loader, make_tensor("model.diffusion_model.caption_projection.linear_1.weight", {4096, 2048}));
+    add_tensor(ltxv_loader, make_tensor("model.diffusion_model.transformer_blocks.0.attn2.to_k.weight", {2048, 2048}));
+    add_tensor(ltxv_loader, make_tensor("model.diffusion_model.transformer_blocks.27.scale_shift_table", {2048, 6}));
+    passed &= expect_version("LTX-Video video-only transformer", ltxv_loader, VERSION_LTXV);
+    const auto ltxv_config = LTXV::LTXAVConfig::detect_from_weights(
+        ltxv_loader.get_tensor_storage_map(), "model.diffusion_model");
+    if (ltxv_config.has_audio || ltxv_config.hidden_size != 2048 ||
+        ltxv_config.num_attention_heads != 32 || ltxv_config.attention_head_dim != 64 ||
+        ltxv_config.caption_channels != 4096 || ltxv_config.cross_attention_dim != 2048 ||
+        ltxv_config.num_layers != 28 || !ltxv_config.video_rope_interleaved ||
+        ltxv_config.causal_temporal_positioning || ltxv_config.use_middle_indices_grid ||
+        ltxv_config.vae_scale_factors != std::tuple<int, int, int>{8, 32, 32}) {
+        std::cerr << "LTX-Video 2B configuration was not inferred correctly\n";
+        passed = false;
+    }
+
+    ModelLoader ltxav_loader;
+    add_tensor(ltxav_loader, make_tensor("model.diffusion_model.adaln_single.emb.timestep_embedder.linear_1.bias", {3840}));
+    add_tensor(ltxav_loader, make_tensor("model.diffusion_model.patchify_proj.weight", {128, 3840}));
+    add_tensor(ltxav_loader, make_tensor("model.diffusion_model.audio_patchify_proj.weight", {128, 2048}));
+    passed &= expect_version("LTX-2 audio/video transformer", ltxav_loader, VERSION_LTXAV);
 
     return passed ? 0 : 1;
 }

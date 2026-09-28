@@ -4210,6 +4210,83 @@ void ggml_compute_forward_group_norm(
     }
 }
 
+// d/dx of group normalization. The forward op normalizes each sample and
+// channel group across dimensions 0, 1, and the group's channels in dimension 2.
+static void ggml_compute_forward_group_norm_back_f32(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    const ggml_tensor * grad  = dst->src[0];
+    const ggml_tensor * input = dst->src[1];
+
+    GGML_ASSERT(ggml_are_same_shape(grad, input) && ggml_are_same_shape(input, dst));
+    GGML_ASSERT(grad->type == GGML_TYPE_F32 && input->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32);
+    GGML_ASSERT(ggml_is_contiguous(grad) && ggml_is_contiguous(input) && ggml_is_contiguous(dst));
+
+    const int n_groups = ggml_get_op_params_i32(dst, 0);
+    const float eps = ggml_get_op_params_f32(dst, 1);
+    const int64_t ne0 = input->ne[0];
+    const int64_t ne1 = input->ne[1];
+    const int64_t ne2 = input->ne[2];
+    const int64_t ne3 = input->ne[3];
+    const int64_t channels_per_group = (ne2 + n_groups - 1) / n_groups;
+    const int64_t elements_per_channel = ne0 * ne1;
+    const int ith = params->ith;
+    const int nth = params->nth;
+
+    const float * g = (const float *) grad->data;
+    const float * x = (const float *) input->data;
+    float * dx = (float *) dst->data;
+
+    for (int64_t job = ith; job < (int64_t)n_groups * ne3; job += nth) {
+        const int64_t sample = job / n_groups;
+        const int group = (int)(job % n_groups);
+        const int64_t channel_start = (int64_t)group * channels_per_group;
+        const int64_t channel_end = MIN(channel_start + channels_per_group, ne2);
+        const int64_t group_elements = (channel_end - channel_start) * elements_per_channel;
+        const int64_t base = sample * ne2 * elements_per_channel + channel_start * elements_per_channel;
+
+        ggml_float sum_x = 0.0;
+        ggml_float sum_g = 0.0;
+        for (int64_t i = 0; i < group_elements; ++i) {
+            sum_x += x[base + i];
+            sum_g += g[base + i];
+        }
+        const float mean_x = (float)(sum_x / group_elements);
+
+        ggml_float sum_sq = 0.0;
+        for (int64_t i = 0; i < group_elements; ++i) {
+            const float centered = x[base + i] - mean_x;
+            sum_sq += (ggml_float)centered * centered;
+        }
+        const float inv_std = 1.0f / sqrtf((float)(sum_sq / group_elements) + eps);
+        const float mean_g = (float)(sum_g / group_elements);
+
+        ggml_float sum_g_norm = 0.0;
+        for (int64_t i = 0; i < group_elements; ++i) {
+            const float normalized = (x[base + i] - mean_x) * inv_std;
+            sum_g_norm += (ggml_float)g[base + i] * normalized;
+        }
+        const float mean_g_norm = (float)(sum_g_norm / group_elements);
+
+        for (int64_t i = 0; i < group_elements; ++i) {
+            const float normalized = (x[base + i] - mean_x) * inv_std;
+            dx[base + i] = inv_std * (g[base + i] - mean_g - normalized * mean_g_norm);
+        }
+    }
+}
+
+void ggml_compute_forward_group_norm_back(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    switch (dst->src[0]->type) {
+        case GGML_TYPE_F32:
+            ggml_compute_forward_group_norm_back_f32(params, dst);
+            break;
+        default:
+            GGML_ABORT("group norm backward supports F32 tensors only");
+    }
+}
+
 // ggml_compute_forward_l2_norm
 
 static void ggml_compute_forward_l2_norm_f32(

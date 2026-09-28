@@ -5,8 +5,8 @@ Framework-agnostic helpers:
 - images (cursor pagination with full generation metadata)
 - download
 
-Also supports URN lookup:
-  urn:air:sdxl:lora:civitai:MODELID@VERSIONID
+Also supports URN lookup, including exact file selection:
+  urn:air:sdxl:lora:civitai:MODELID@VERSIONID+FILEID
 
 Important behaviors (matches current CivitAI API):
 - When `query` is non-empty, CivitAI rejects `page`; you must use cursor pagination.
@@ -81,7 +81,8 @@ _SECRET_ASSIGNMENT_RE = re.compile(
 _BEARER_RE = re.compile(r"(?i)(Authorization:\s*Bearer\s+)[^\s,;]+")
 
 _URN_RE = re.compile(
-    r"^urn:air:(?P<base>[^:]+):(?P<mtype>[^:]+):civitai:(?P<model>\d+)(?:@(?P<ver>\d+))?$",
+    r"^urn:air:(?P<base>[^:]+):(?P<mtype>[^:]+):civitai:(?P<model>\d+)"
+    r"(?:@(?P<ver>\d+)(?:\+(?P<file>\d+))?)?$",
     re.IGNORECASE,
 )
 
@@ -634,16 +635,25 @@ def _to_bool(x: Optional[str]) -> Optional[bool]:
     return None
 
 
-def _parse_urn(s: str) -> Tuple[Optional[int], Optional[int], Optional[str], Optional[str]]:
+def _parse_urn(
+    s: str,
+) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[str], Optional[str]]:
     if not isinstance(s, str):
-        return (None, None, None, None)
+        return (None, None, None, None, None)
     m = _URN_RE.match(s.strip())
     if not m:
-        return (None, None, None, None)
+        return (None, None, None, None, None)
     model_id = int(m.group("model"))
     ver = m.group("ver")
+    file_id = m.group("file")
     version_id = int(ver) if ver else None
-    return (model_id, version_id, m.group("base"), m.group("mtype"))
+    return (
+        model_id,
+        version_id,
+        int(file_id) if file_id else None,
+        m.group("base"),
+        m.group("mtype"),
+    )
 
 
 def _clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -661,7 +671,89 @@ def _clean_params(params: Dict[str, Any]) -> Dict[str, Any]:
 # CivitAI API helpers
 # ----------------------------
 
-def _trim_model_item(item: Dict[str, Any], version_id: Optional[int] = None) -> Dict[str, Any]:
+def _air_resource_type(model_type: str, file_type: str = "") -> str:
+    """Map Civitai model/file metadata to its current AIR resource segment."""
+    file_key = _normalized_model_label(file_type)
+    file_types = {
+        "diffusion model": "diffusionmodel",
+        "unet": "unet",
+        "text encoder": "text_encoders",
+        "vae": "vae",
+        "controlnet": "controlnet",
+        "upscaler": "upscaler",
+    }
+    if file_key in file_types:
+        return file_types[file_key]
+
+    model_key = _normalized_model_label(model_type)
+    return {
+        "aesthetic gradient": "ag",
+        "checkpoint": "checkpoint",
+        "hypernetwork": "hypernet",
+        "textual inversion": "embedding",
+        "motion module": "motion",
+        "lora": "lora",
+        "dora": "dora",
+        "locon": "lycoris",
+        "controlnet": "controlnet",
+        "text encoder": "text_encoders",
+        "unet": "unet",
+        "vae": "vae",
+    }.get(model_key, re.sub(r"[^a-z0-9_]+", "", model_key) or "unknown")
+
+
+def _air_ecosystem(base_model: str) -> str:
+    """Best-effort AIR ecosystem for responses that omit their canonical AIR."""
+    base_key = _normalized_model_label(base_model)
+    if base_key.startswith("anima"):
+        return "anima"
+    if any(value in base_key for value in ("sdxl", "pony", "noobai", "illustrious")):
+        return "sdxl"
+    if base_key.startswith("sd 1"):
+        return "sd1"
+    if base_key.startswith("sd 2"):
+        return "sd2"
+    return re.sub(r"[^a-z0-9]+", "", base_key) or "unknown"
+
+
+def _file_air(
+    item: Dict[str, Any],
+    version: Dict[str, Any],
+    file_item: Dict[str, Any],
+) -> Optional[str]:
+    model_id = item.get("id") or version.get("modelId")
+    version_id = version.get("id")
+    file_id = file_item.get("id")
+    if model_id is None or version_id is None:
+        return None
+
+    canonical = str(version.get("air") or "").strip()
+    parsed = _URN_RE.match(canonical)
+    ecosystem = parsed.group("base") if parsed else _air_ecosystem(version.get("baseModel") or "")
+    explicit_file_types = {
+        "diffusion model",
+        "unet",
+        "text encoder",
+        "vae",
+        "controlnet",
+        "upscaler",
+    }
+    if parsed and _normalized_model_label(file_item.get("type") or "") not in explicit_file_types:
+        resource_type = parsed.group("mtype")
+    else:
+        resource_type = _air_resource_type(item.get("type") or "", file_item.get("type") or "")
+    suffix = f"+{int(file_id)}" if file_id is not None else ""
+    return (
+        f"urn:air:{ecosystem}:{resource_type}:civitai:"
+        f"{int(model_id)}@{int(version_id)}{suffix}"
+    )
+
+
+def _trim_model_item(
+    item: Dict[str, Any],
+    version_id: Optional[int] = None,
+    file_id: Optional[int] = None,
+) -> Dict[str, Any]:
     versions = item.get("modelVersions") or []
 
     chosen_ver: Dict[str, Any] = {}
@@ -673,10 +765,22 @@ def _trim_model_item(item: Dict[str, Any], version_id: Optional[int] = None) -> 
                     break
             except Exception:
                 continue
+        if not chosen_ver:
+            raise ValueError(f"Model version {version_id} is not available on model {item.get('id')}")
     if not chosen_ver:
         chosen_ver = versions[0] if versions else {}
 
     files = chosen_ver.get("files") or []
+    if file_id is not None:
+        selected_file = next(
+            (file_item for file_item in files if _to_int(file_item.get("id")) == int(file_id)),
+            None,
+        )
+        if selected_file is None:
+            raise ValueError(
+                f"Model file {file_id} is not available on model version {chosen_ver.get('id')}"
+            )
+        files = [selected_file]
     images = chosen_ver.get("images") or []
 
     thumb_url = None
@@ -702,6 +806,8 @@ def _trim_model_item(item: Dict[str, Any], version_id: Optional[int] = None) -> 
             "name": chosen_ver.get("name"),
             "baseModel": mv_base,
             "description": chosen_ver.get("description"),
+            "air": chosen_ver.get("air"),
+            "selectedFileId": file_id,
             "files": [
                 {
                     "id": f.get("id"),
@@ -710,6 +816,7 @@ def _trim_model_item(item: Dict[str, Any], version_id: Optional[int] = None) -> 
                     "sizeKB": f.get("sizeKB"),
                     "downloadUrl": f.get("downloadUrl"),
                     "primary": f.get("primary"),
+                    "air": _file_air(item, chosen_ver, f),
                 }
                 for f in files
             ],
@@ -1244,6 +1351,7 @@ def _search_civitai(
     base_models: Optional[str] = None,
     model_id: Optional[int] = None,
     model_version_id: Optional[int] = None,
+    file_id: Optional[int] = None,
     model_hash: Optional[str] = None,
 ) -> Dict[str, Any]:
     resolved_version: Optional[Dict[str, Any]] = None
@@ -1259,13 +1367,29 @@ def _search_civitai(
         parent_id = ver.get("modelId") or ver.get("model") or ver.get("model_id")
         if parent_id is None:
             raise ValueError("modelVersionId lookup did not include modelId")
+        if model_id is not None and int(parent_id) != int(model_id):
+            raise ValueError(
+                f"Model version {model_version_id} belongs to model {parent_id}, not model {model_id}"
+            )
         model = _get_model_by_id(int(parent_id), api_key)
-        item = _trim_model_item(model, version_id=int(model_version_id))
+        model = dict(model)
+        model["modelVersions"] = [ver] + [
+            candidate
+            for candidate in (model.get("modelVersions") or [])
+            if _to_int(candidate.get("id")) != int(model_version_id)
+        ]
+        item = _trim_model_item(
+            model,
+            version_id=int(model_version_id),
+            file_id=file_id,
+        )
         return {"ok": True, "items": [item], "metadata": {"page": 1, "pages": 1, "total": 1}}
 
     # Direct lookup: model
     if model_id is not None:
         model = _get_model_by_id(model_id, api_key)
+        if file_id is not None:
+            raise ValueError("An AIR file ID requires a model-version ID")
         item = _trim_model_item(model, version_id=None)
         return {"ok": True, "items": [item], "metadata": {"page": 1, "pages": 1, "total": 1}}
 
@@ -1651,6 +1775,8 @@ def _base_model_bucket(base_model: str) -> str:
         if bm.startswith("flux 3 video"):
             return "flux3video"
         return "flux"
+    if bm.startswith("anima"):
+        return "anima"
     if "sdxl" in bm or "pony" in bm or "noobai" in bm or "illustrious" in bm:
         return "sdxl"
     if bm.startswith("sd 2") or bm in ("2 0", "2 1"):
@@ -1693,7 +1819,20 @@ def _pick_download(target: Dict[str, Any], file_override: Optional[Dict[str, Any
     base_model = mv.get("baseModel") or ""
     model_type = target.get("type") or ""
 
-    chosen_file = file_override or None
+    chosen_file = None
+    if file_override:
+        override_id = _to_int(file_override.get("id"))
+        if override_id is not None:
+            chosen_file = next(
+                (file_item for file_item in files if _to_int(file_item.get("id")) == override_id),
+                None,
+            )
+            if chosen_file is None:
+                raise ValueError(
+                    f"Model file {override_id} is not available on model version {mv.get('id')}"
+                )
+        else:
+            chosen_file = file_override
     if not chosen_file:
         if not files:
             raise ValueError("No downloadable files in selection")

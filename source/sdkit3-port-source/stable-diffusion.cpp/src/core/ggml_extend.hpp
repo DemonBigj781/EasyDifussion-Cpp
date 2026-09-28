@@ -979,11 +979,12 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_scale(ggml_context* ctx,
 
 __STATIC_INLINE__ ggml_tensor* ggml_ext_gelu(ggml_context* ctx,
                                              ggml_tensor* x,
-                                             bool inplace = false) {
+                                             bool inplace = false,
+                                             bool training_graph = false) {
     if (!ggml_is_contiguous(x)) {
         x = ggml_cont(ctx, x);
     }
-    if (inplace) {
+    if (inplace && !training_graph) {
         x = ggml_gelu_inplace(ctx, x);
     } else {
         x = ggml_gelu(ctx, x);
@@ -1010,7 +1011,8 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_linear(ggml_context* ctx,
                                                ggml_tensor* w,
                                                ggml_tensor* b,
                                                bool force_prec_f32 = false,
-                                               float scale         = 1.f) {
+                                               float scale         = 1.f,
+                                               bool training_graph = false) {
     if (scale != 1.f) {
         x = ggml_ext_scale(ctx, x, scale);
     }
@@ -1034,7 +1036,7 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_linear(ggml_context* ctx,
         x = ggml_ext_scale(ctx, x, 1.f / scale);
     }
     if (b != nullptr) {
-        x = ggml_add_inplace(ctx, x, b);
+        x = training_graph ? ggml_add(ctx, x, b) : ggml_add_inplace(ctx, x, b);
     }
     return x;
 }
@@ -1141,7 +1143,8 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_conv_2d(ggml_context* ctx,
                                                 bool direct     = false,
                                                 bool circular_x = false,
                                                 bool circular_y = false,
-                                                float scale     = 1.f) {
+                                                float scale     = 1.f,
+                                                bool training_graph = false) {
     if (scale != 1.f) {
         x = ggml_ext_scale(ctx, x, scale);
     }
@@ -1165,7 +1168,7 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_conv_2d(ggml_context* ctx,
     }
     if (b != nullptr) {
         b = ggml_reshape_4d(ctx, b, 1, 1, b->ne[0], 1);
-        x = ggml_add_inplace(ctx, x, b);
+        x = training_graph ? ggml_add(ctx, x, b) : ggml_add_inplace(ctx, x, b);
     }
     return x;
 }
@@ -1355,7 +1358,8 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_attention_ext(ggml_context* ctx,
                                                       ggml_tensor* mask = nullptr,
                                                       bool skip_reshape = false,
                                                       uint8_t flash_attn = 0,
-                                                      float kv_scale    = 1.0f) {  // avoid overflow
+                                                      float kv_scale    = 1.0f,
+                                                      bool training_graph = false) {  // avoid overflow
     int64_t L_q;
     int64_t L_k;
     int64_t C;
@@ -1433,7 +1437,7 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_attention_ext(ggml_context* ctx,
         return out;
     };
 
-    if (flash_attn) {
+    if (flash_attn && !training_graph) {
         // LOG_DEBUG("attention_ext L_q:%d L_k:%d n_head:%d C:%d d_head:%d N:%d", L_q, L_k, n_head, C, d_head, N);
         bool can_use_flash_attn = true;
         if (mask != nullptr) {
@@ -1467,11 +1471,11 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_attention_ext(ggml_context* ctx,
 
         auto kq = ggml_mul_mat(ctx, k, q);  // [N * n_head, L_q, L_k]
         ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
-        kq = ggml_scale_inplace(ctx, kq, scale);
+        kq = training_graph ? ggml_scale(ctx, kq, scale) : ggml_scale_inplace(ctx, kq, scale);
         if (mask) {
-            kq = ggml_add_inplace(ctx, kq, mask);
+            kq = training_graph ? ggml_add(ctx, kq, mask) : ggml_add_inplace(ctx, kq, mask);
         }
-        kq = ggml_soft_max_inplace(ctx, kq);
+        kq = training_graph ? ggml_soft_max(ctx, kq) : ggml_soft_max_inplace(ctx, kq);
 
         kqv = ggml_mul_mat(ctx, v, kq);  // [N * n_head, L_q, d_head]
 
@@ -1489,12 +1493,13 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_layer_norm(ggml_context* ctx,
                                                    ggml_tensor* x,
                                                    ggml_tensor* w,
                                                    ggml_tensor* b,
-                                                   float eps = EPS) {
+                                                   float eps = EPS,
+                                                   bool training_graph = false) {
     x = ggml_norm(ctx, x, eps);
     if (w != nullptr) {
-        x = ggml_mul_inplace(ctx, x, w);
+        x = training_graph ? ggml_mul(ctx, x, w) : ggml_mul_inplace(ctx, x, w);
         if (b != nullptr) {
-            x = ggml_add_inplace(ctx, x, b);
+            x = training_graph ? ggml_add(ctx, x, b) : ggml_add_inplace(ctx, x, b);
         }
     }
     return x;
@@ -1504,7 +1509,8 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_group_norm(ggml_context* ctx,
                                                    ggml_tensor* x,
                                                    ggml_tensor* w,
                                                    ggml_tensor* b,
-                                                   int num_groups = 32) {
+                                                   int num_groups = 32,
+                                                   bool training_graph = false) {
     if (ggml_n_dims(x) >= 3 && w != nullptr && b != nullptr) {
         w = ggml_reshape_4d(ctx, w, 1, 1, w->ne[0], 1);
         b = ggml_reshape_4d(ctx, b, 1, 1, b->ne[0], 1);
@@ -1513,9 +1519,9 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_group_norm(ggml_context* ctx,
     const float eps = 1e-6f;  // default eps parameter
     x               = ggml_group_norm(ctx, x, num_groups, eps);
     if (w != nullptr && b != nullptr) {
-        x = ggml_mul_inplace(ctx, x, w);
+        x = training_graph ? ggml_mul(ctx, x, w) : ggml_mul_inplace(ctx, x, w);
         // b = ggml_repeat(ctx, b, x);
-        x = ggml_add_inplace(ctx, x, b);
+        x = training_graph ? ggml_add(ctx, x, b) : ggml_add_inplace(ctx, x, b);
     }
     return x;
 }
@@ -1683,6 +1689,9 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_vec_concat(ggml_context* ctx,
 
 struct WeightAdapter {
     struct ForwardParams {
+        // Training graphs must keep adapter additions out-of-place so autograd
+        // can retain the base and low-rank branches independently.
+        bool training_graph = false;
         enum class op_type_t {
             OP_LINEAR,
             OP_CONV2D,
@@ -1726,6 +1735,7 @@ struct GGMLRunnerContext {
     ggml_backend_t backend                                           = nullptr;
     ggml_context* ggml_ctx                                           = nullptr;
     uint8_t flash_attn_enabled                                       = 0;
+    bool training_graph                                              = false;
     bool conv2d_direct_enabled                                       = false;
     bool circular_x_enabled                                          = false;
     bool circular_y_enabled                                          = false;
@@ -1798,7 +1808,8 @@ protected:
     std::vector<ggml_backend_t> extra_runtime_backends;  // borrowed (SDBackendManager-owned)
     ggml_backend_sched_t sched             = nullptr;    // owned
     size_t sched_graph_capacity            = 0;
-    ggml_backend_t cpu_fallback_backend    = nullptr;  // owned, sched requires a trailing CPU backend
+    ggml_backend_t cpu_fallback_backend    = nullptr;  // owned, optional CPU fallback backend
+    bool sched_cpu_fallback_allowed        = true;
     bool multi_device_eval_callback_warned = false;
 
     std::shared_ptr<WeightAdapter> weight_adapter = nullptr;
@@ -1823,6 +1834,7 @@ protected:
     bool conv2d_direct_enabled = false;
     bool circular_x_enabled    = false;
     bool circular_y_enabled    = false;
+    bool training_graph         = false;
 
     sd::ggml_graph_cut::PlanCache graph_cut_plan_cache_;
     std::unordered_set<const ggml_tensor*> params_tensor_set_;
@@ -1974,12 +1986,16 @@ protected:
     bool prepare_execute_graph_weights(ggml_cgraph* gf,
                                        std::vector<ggml_tensor*>& graph_param_tensors,
                                        std::vector<ggml_tensor*>& params_to_prepare,
-                                       bool keep_compute_params) {
+                                       bool keep_compute_params,
+                                       const std::unordered_set<const ggml_tensor*>* externally_managed_params = nullptr) {
         graph_param_tensors = collect_used_param_tensors(gf);
         params_to_prepare.clear();
         params_to_prepare.reserve(graph_param_tensors.size());
         for (ggml_tensor* param : graph_param_tensors) {
             if (param == nullptr) {
+                continue;
+            }
+            if (externally_managed_params != nullptr && externally_managed_params->find(param) != externally_managed_params->end()) {
                 continue;
             }
             if (keep_compute_params &&
@@ -2092,13 +2108,17 @@ protected:
 
     // Pass explicit buffer types: synthesized defaults can make CUDA devices
     // report supporting each other's buffers and skip a required copy.
-    bool ensure_sched(ggml_cgraph* gf) {
-        const size_t required_graph_size = gf != nullptr
-                                               ? std::max<size_t>(1,
-                                                                  (size_t)ggml_graph_n_nodes(gf) +
-                                                                      sd::ggml_graph_cut::leaf_count(gf))
-                                               : 1;
-        if (sched != nullptr && sched_graph_capacity >= required_graph_size) {
+    bool ensure_sched(ggml_cgraph* gf,
+                      size_t minimum_graph_capacity = 0,
+                      bool allow_cpu_fallback = true) {
+        const size_t required_graph_size = std::max(minimum_graph_capacity,
+                                                    gf != nullptr
+                                                        ? std::max<size_t>(1,
+                                                                           (size_t)ggml_graph_n_nodes(gf) +
+                                                                               sd::ggml_graph_cut::leaf_count(gf))
+                                                        : size_t{1});
+        if (sched != nullptr && sched_graph_capacity >= required_graph_size &&
+            sched_cpu_fallback_allowed == allow_cpu_fallback) {
             return true;
         }
         if (sched != nullptr) {
@@ -2144,6 +2164,10 @@ protected:
             return false;
         }
         sched_graph_capacity = required_graph_size;
+        sched_cpu_fallback_allowed = allow_cpu_fallback;
+        if (!allow_cpu_fallback) {
+            ggml_backend_sched_set_allow_cpu_fallback(sched, false);
+        }
         return true;
     }
 
@@ -3097,6 +3121,7 @@ public:
         runner_ctx.ggml_ctx              = compute_ctx;
         runner_ctx.backend               = runtime_backend;
         runner_ctx.flash_attn_enabled    = flash_attn_enabled;
+        runner_ctx.training_graph        = training_graph;
         runner_ctx.conv2d_direct_enabled = conv2d_direct_enabled;
         runner_ctx.circular_x_enabled    = circular_x_enabled;
         runner_ctx.circular_y_enabled    = circular_y_enabled;
@@ -3273,6 +3298,10 @@ public:
         } else {
             flash_attn_enabled &= ~0x1u;
         }
+    }
+
+    void set_training_graph_enabled(bool enabled) {
+        training_graph = enabled;
     }
 
     void set_sage_attention_enabled(bool enabled) {
@@ -3633,6 +3662,7 @@ public:
             if (ctx->weight_adapter) {
                 WeightAdapter::ForwardParams forward_params;
                 forward_params.op_type               = WeightAdapter::ForwardParams::op_type_t::OP_LINEAR;
+                forward_params.training_graph        = ctx->training_graph;
                 forward_params.linear.force_prec_f32 = force_prec_f32;
                 forward_params.linear.scale          = scale;
                 out                                  = ctx->weight_adapter->add_lora_to_output(ctx->ggml_ctx,
@@ -3646,11 +3676,12 @@ public:
             return out;
         }
         if (has_weight_scale) {
-            out = ggml_ext_linear(ctx->ggml_ctx, x, w, nullptr, force_prec_f32, scale);
+            out = ggml_ext_linear(ctx->ggml_ctx, x, w, nullptr, force_prec_f32, scale, ctx->training_graph);
             out = ggml_mul(ctx->ggml_ctx, out, weight_scale);
             if (ctx->weight_adapter) {
                 WeightAdapter::ForwardParams forward_params;
                 forward_params.op_type               = WeightAdapter::ForwardParams::op_type_t::OP_LINEAR;
+                forward_params.training_graph        = ctx->training_graph;
                 forward_params.linear.force_prec_f32 = force_prec_f32;
                 forward_params.linear.scale          = scale;
                 out                                  = ctx->weight_adapter->add_lora_to_output(ctx->ggml_ctx,
@@ -3665,18 +3696,19 @@ public:
                 }
             }
             if (b != nullptr) {
-                out = ggml_add_inplace(ctx->ggml_ctx, out, b);
+                out = ctx->training_graph ? ggml_add(ctx->ggml_ctx, out, b) : ggml_add_inplace(ctx->ggml_ctx, out, b);
             }
             return out;
         }
         if (ctx->weight_adapter) {
             WeightAdapter::ForwardParams forward_params;
             forward_params.op_type               = WeightAdapter::ForwardParams::op_type_t::OP_LINEAR;
+            forward_params.training_graph        = ctx->training_graph;
             forward_params.linear.force_prec_f32 = force_prec_f32;
             forward_params.linear.scale          = scale;
             out                                  = ctx->weight_adapter->forward_with_lora(ctx->ggml_ctx, ctx->backend, x, w, linear_bias, prefix, forward_params);
         } else {
-            out = ggml_ext_linear(ctx->ggml_ctx, x, w, linear_bias, force_prec_f32, scale);
+            out = ggml_ext_linear(ctx->ggml_ctx, x, w, linear_bias, force_prec_f32, scale, ctx->training_graph);
         }
         return out;
     }
@@ -3786,6 +3818,7 @@ public:
         if (ctx->weight_adapter) {
             WeightAdapter::ForwardParams forward_params;
             forward_params.op_type           = WeightAdapter::ForwardParams::op_type_t::OP_CONV2D;
+            forward_params.training_graph    = ctx->training_graph;
             forward_params.conv2d.s0         = stride.second;
             forward_params.conv2d.s1         = stride.first;
             forward_params.conv2d.p0         = padding.second;
@@ -3811,7 +3844,8 @@ public:
                                 ctx->conv2d_direct_enabled,
                                 ctx->circular_x_enabled,
                                 ctx->circular_y_enabled,
-                                scale);
+                                scale,
+                                ctx->training_graph);
     }
 };
 
@@ -3875,6 +3909,7 @@ public:
             if (ctx->weight_adapter) {
                 WeightAdapter::ForwardParams forward_params;
                 forward_params.op_type           = WeightAdapter::ForwardParams::op_type_t::OP_CONV2D;
+                forward_params.training_graph    = ctx->training_graph;
                 forward_params.conv2d.s0         = stride.second;
                 forward_params.conv2d.s1         = stride.first;
                 forward_params.conv2d.p0         = padding.second;
@@ -3894,7 +3929,8 @@ public:
                                     ctx->conv2d_direct_enabled,
                                     ctx->circular_x_enabled,
                                     ctx->circular_y_enabled,
-                                    scale);
+                                    scale,
+                                    ctx->training_graph);
         }
 
         if (groups == in_channels && groups == out_channels) {
@@ -3944,6 +3980,7 @@ public:
             if (ctx->weight_adapter) {
                 WeightAdapter::ForwardParams forward_params;
                 forward_params.op_type           = WeightAdapter::ForwardParams::op_type_t::OP_CONV2D;
+                forward_params.training_graph    = ctx->training_graph;
                 forward_params.conv2d.s0         = stride.second;
                 forward_params.conv2d.s1         = stride.first;
                 forward_params.conv2d.p0         = padding.second;
@@ -4107,7 +4144,7 @@ public:
                 }
             }
         }
-        return ggml_ext_layer_norm(ctx->ggml_ctx, x, w, b, eps);
+        return ggml_ext_layer_norm(ctx->ggml_ctx, x, w, b, eps, ctx->training_graph);
     }
 };
 
@@ -4150,7 +4187,7 @@ public:
                 b = ctx->weight_adapter->patch_weight(ctx->ggml_ctx, ctx->backend, b, prefix + "bias");
             }
         }
-        return ggml_ext_group_norm(ctx->ggml_ctx, x, w, b, num_groups);
+        return ggml_ext_group_norm(ctx->ggml_ctx, x, w, b, num_groups, ctx->training_graph);
     }
 };
 

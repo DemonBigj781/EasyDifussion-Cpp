@@ -5,17 +5,12 @@ import os
 from pathlib import Path
 
 from safetensors import safe_open
-
-
-def lora_dir() -> Path:
-    configured = os.environ.get("ED_LORA_DIR") or os.environ.get("LORA_DIR")
-    if configured:
-        return Path(configured).expanduser().resolve()
-
-    from easydiffusion.model_manager import get_model_dirs
-
-    directories = [Path(path).resolve() for path in get_model_dirs("lora")]
-    return next((path for path in directories if path.is_dir()), directories[0])
+from ui.plugins.server.Browse_files import (
+    list_checkpoint_files,
+    list_lora_files,
+    list_vae_files,
+    lora_dir,
+)
 
 
 def resolve_lora_path(filepath: str) -> str:
@@ -33,36 +28,6 @@ def resolve_lora_path(filepath: str) -> str:
         if candidate.exists():
             path = candidate
     return str(path)
-
-
-def list_lora_files():
-    return sorted(str(path.resolve()) for path in lora_dir().rglob("*.safetensors") if path.is_file())
-
-
-def list_checkpoint_files():
-    from easydiffusion.model_manager import MODEL_EXTENSIONS, get_model_dirs
-
-    extensions = {extension.lower() for extension in MODEL_EXTENSIONS["stable-diffusion"]}
-    files = {
-        str(path.resolve())
-        for directory in get_model_dirs("stable-diffusion")
-        for path in Path(directory).rglob("*")
-        if path.is_file() and path.suffix.lower() in extensions
-    }
-    return sorted(files)
-
-
-def list_vae_files():
-    from easydiffusion.model_manager import MODEL_EXTENSIONS, get_model_dirs
-
-    extensions = tuple(extension.lower() for extension in MODEL_EXTENSIONS["vae"])
-    files = {
-        str(path.resolve())
-        for directory in get_model_dirs("vae")
-        for path in Path(directory).rglob("*")
-        if path.is_file() and path.name.lower().endswith(extensions)
-    }
-    return sorted(files)
 
 
 def extract_checkpoint_metadata(filepath):

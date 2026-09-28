@@ -594,6 +594,9 @@ extern "C" {
 
         GGML_OP_QUANTIZE_I8_CONVROT,
 
+        // Backward derivative for GGML_OP_GROUP_NORM.
+        GGML_OP_GROUP_NORM_BACK,
+
         GGML_OP_COUNT,
     };
 
@@ -1403,6 +1406,15 @@ extern "C" {
     GGML_API struct ggml_tensor * ggml_group_norm_inplace(
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
+            int                   n_groups,
+            float                 eps);
+
+    // Gradient of group normalization with respect to its input.
+    // `grad` is dL/d(group_norm(input)); `input` is the forward input.
+    GGML_API struct ggml_tensor * ggml_group_norm_back(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * grad,
+            struct ggml_tensor  * input,
             int                   n_groups,
             float                 eps);
 

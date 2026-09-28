@@ -6,6 +6,7 @@ Notes:
 """
 
 import json
+from contextlib import contextmanager
 import traceback
 
 TASK_TTL = 30 * 60  # seconds, Discard last session's task timeout
@@ -159,6 +160,7 @@ render_threads = []
 current_state = ServerStates.Init
 current_state_error: Exception = None
 tasks_queue = []
+backend_maintenance_active = False
 session_cache = DataCache()
 task_cache = DataCache()
 weak_thread_data = weakref.WeakKeyDictionary()
@@ -204,7 +206,7 @@ def thread_get_next_task():
     if not manager_lock.acquire(blocking=True, timeout=LOCK_TIMEOUT):
         log.warn(f"Render thread on device: {runtime.context.device} failed to acquire manager lock.")
         return None
-    if len(tasks_queue) <= 0:
+    if backend_maintenance_active or len(tasks_queue) <= 0:
         manager_lock.release()
         return None
     task = None
@@ -225,6 +227,9 @@ def thread_get_next_task():
             task = queued_task
             break
         if task is not None:
+            # Mark the worker busy before releasing the queue lock so that
+            # maintenance cannot start between dequeue and task execution.
+            weak_thread_data[threading.current_thread()]["busy"] = True
             del tasks_queue[tasks_queue.index(task)]
         return task
     finally:
@@ -283,7 +288,6 @@ def thread_render(device):
             idle_event.clear()
             idle_event.wait(timeout=1)
             continue
-        weak_thread_data[threading.current_thread()]["busy"] = True
         if task.error is not None:
             log.error(task.error)
             task.response = {"status": "failed", "detail": str(task.error)}
@@ -329,7 +333,7 @@ def backend_is_idle() -> bool:
     if not manager_lock.acquire(blocking=True, timeout=LOCK_TIMEOUT):
         raise Exception("backend_is_idle" + ERR_LOCK_FAILED)
     try:
-        if tasks_queue or not render_threads:
+        if backend_maintenance_active or tasks_queue or not render_threads:
             return False
         live_workers = 0
         for rthread in render_threads:
@@ -342,6 +346,26 @@ def backend_is_idle() -> bool:
         return live_workers > 0
     finally:
         manager_lock.release()
+
+
+@contextmanager
+def backend_maintenance():
+    """Reserve the idle generation backend without holding the queue lock during I/O."""
+    global backend_maintenance_active
+    if not manager_lock.acquire(timeout=LOCK_TIMEOUT):
+        raise ConnectionRefusedError("The generation queue is busy. Try again shortly.")
+    try:
+        if not backend_is_idle():
+            raise ConnectionRefusedError("Wait for generation to finish and the queue to empty before clearing VRAM.")
+        backend_maintenance_active = True
+    finally:
+        manager_lock.release()
+    try:
+        yield
+    finally:
+        with manager_lock:
+            backend_maintenance_active = False
+            idle_event.set()
 
 
 def get_cached_task(task_id: str, update_ttl: bool = False):
@@ -522,6 +546,17 @@ def shutdown_event():  # Signal render thread to close on shutdown
 
 
 def enqueue_task(task: Task):
+    if not manager_lock.acquire(timeout=LOCK_TIMEOUT):
+        raise ConnectionRefusedError("The generation queue is busy. Try again shortly.")
+    try:
+        if backend_maintenance_active:
+            raise ConnectionRefusedError("VRAM is being cleared. Try again when the backend is ready.")
+        return _enqueue_task(task)
+    finally:
+        manager_lock.release()
+
+
+def _enqueue_task(task: Task):
     current_thread_count = is_alive()
     if current_thread_count <= 0:  # Render thread is dead
         raise ChildProcessError("Rendering thread has died.")

@@ -256,6 +256,7 @@ struct ggml_opt_params ggml_opt_default_params(
         /*get_opt_pars    =*/ ggml_opt_get_default_optimizer_params,
         /*get_opt_pars_ud =*/ nullptr,
         /*optimizer       =*/ GGML_OPT_OPTIMIZER_TYPE_ADAMW,
+        /*graph_size      =*/ GGML_DEFAULT_GRAPH_SIZE,
     };
 }
 
@@ -573,7 +574,8 @@ ggml_opt_context_t ggml_opt_init(struct ggml_opt_params params) {
     GGML_ASSERT(result->inputs);
     GGML_ASSERT(result->outputs);
 
-    result->gf = ggml_new_graph_custom(result->ctx_compute, GGML_DEFAULT_GRAPH_SIZE, /*grads =*/ true); // Forward pass.
+    const int graph_size = params.graph_size > 0 ? params.graph_size : GGML_DEFAULT_GRAPH_SIZE;
+    result->gf = ggml_new_graph_custom(result->ctx_compute, graph_size, /*grads =*/ true); // Forward pass.
     ggml_build_forward_expand(result->gf, result->outputs);
 
     ggml_opt_build(result);

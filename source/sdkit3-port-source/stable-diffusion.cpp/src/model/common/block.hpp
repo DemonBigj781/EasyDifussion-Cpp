@@ -139,7 +139,7 @@ public:
 
         // in_layers
         auto h = in_layers_0->forward(ctx, x);
-        h      = ggml_silu_inplace(ctx->ggml_ctx, h);
+        h      = ctx->training_graph ? ggml_silu(ctx->ggml_ctx, h) : ggml_silu_inplace(ctx->ggml_ctx, h);
         h      = in_layers_2->forward(ctx, h);  // [N, out_channels, h, w] if dims == 2 else [N, out_channels, t, h, w]
 
         // emb_layers
@@ -164,7 +164,7 @@ public:
 
         // out_layers
         h = out_layers_0->forward(ctx, h);
-        h = ggml_silu_inplace(ctx->ggml_ctx, h);
+        h = ctx->training_graph ? ggml_silu(ctx->ggml_ctx, h) : ggml_silu_inplace(ctx->ggml_ctx, h);
         // dropout, skip for inference
         h = out_layers_3->forward(ctx, h);
 
@@ -202,7 +202,7 @@ public:
 
         gate = ggml_cont(ctx->ggml_ctx, gate);
 
-        gate = ggml_ext_gelu(ctx->ggml_ctx, gate, true);
+        gate = ggml_ext_gelu(ctx->ggml_ctx, gate, true, ctx->training_graph);
 
         x = ggml_mul(ctx->ggml_ctx, x, gate);  // [ne3, ne2, ne1, dim_out]
 
@@ -222,7 +222,7 @@ public:
         auto proj = std::dynamic_pointer_cast<Linear>(blocks["proj"]);
 
         x = proj->forward(ctx, x);
-        x = ggml_ext_gelu(ctx->ggml_ctx, x, true);
+        x = ggml_ext_gelu(ctx->ggml_ctx, x, true, ctx->training_graph);
         return x;
     }
 };
@@ -252,7 +252,7 @@ public:
         auto fc2 = std::dynamic_pointer_cast<Linear>(blocks["fc2"]);
 
         x = fc1->forward(ctx, x);
-        x = ggml_ext_gelu(ctx->ggml_ctx, x, true);
+        x = ggml_ext_gelu(ctx->ggml_ctx, x, true, ctx->training_graph);
         x = fc2->forward(ctx, x);
         return x;
     }
@@ -387,14 +387,14 @@ public:
         if (xtra_dim) {
             context->ne[0] = 320;  // reset dim to orig
         }
-        x = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k, v, n_head, nullptr, false, ctx->flash_attn_enabled);  // [N, n_token, inner_dim]
+        x = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k, v, n_head, nullptr, false, ctx->flash_attn_enabled, 1.0f, ctx->training_graph);  // [N, n_token, inner_dim]
 
         if (has_ip && ctx->ip_context != nullptr && ctx->ip_scale != 0.0f) {
             auto to_k_ip = std::dynamic_pointer_cast<Linear>(blocks["to_k_ip"]);
             auto to_v_ip = std::dynamic_pointer_cast<Linear>(blocks["to_v_ip"]);
             auto k_ip    = to_k_ip->forward(ctx, ctx->ip_context);
             auto v_ip    = to_v_ip->forward(ctx, ctx->ip_context);
-            auto x_ip    = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k_ip, v_ip, n_head, nullptr, false, ctx->flash_attn_enabled);
+            auto x_ip    = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k_ip, v_ip, n_head, nullptr, false, ctx->flash_attn_enabled, 1.0f, ctx->training_graph);
             x            = ggml_add(ctx->ggml_ctx, x, ggml_scale(ctx->ggml_ctx, x_ip, ctx->ip_scale));
         }
 

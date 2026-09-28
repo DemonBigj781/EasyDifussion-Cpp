@@ -16,6 +16,7 @@ USE_CUDA=ON
 USE_SYCL=OFF
 USE_VULKAN=OFF
 XAVIER_PRESET=""
+BUILD_SPRITE_GPT=OFF
 DEPLOY=0
 DEPLOY_DIR="${SDKIT_DEPLOY_DIR:-}"
 
@@ -40,13 +41,14 @@ Options:
   --build-type TYPE CMake build type (default: Release)
   --jobs N          Parallel build jobs (default: 4)
   --target NAME     CMake target (default: sdkit)
+  --sprite-gpt      Build the isolated native Sprite-GPT sidecar
   --deploy PATH     Copy the completed bin bundle to PATH
   -h, --help        Show this help
 
 Environment equivalents: SDKIT_CUDA_ARCHITECTURES, SDKIT_CUDA_VERSION,
 SDKIT_SYCL_DEVICE_ARCH,
 SDKIT_BUILD_DIR, SDKIT_BUILD_TYPE, SDKIT_BUILD_JOBS, SDKIT_BUILD_TARGET,
-SDKIT_DEPLOY_DIR.
+SDKIT_DEPLOY_DIR, SDKIT_TORCH_PYTHON.
 Setting SDKIT_DEPLOY_DIR alone does not deploy; --deploy is required.
 EOF
 }
@@ -121,6 +123,10 @@ while (($#)); do
         --target)
             TARGET="$2"
             shift 2
+            ;;
+        --sprite-gpt)
+            BUILD_SPRITE_GPT=ON
+            shift
             ;;
         --deploy)
             DEPLOY=1
@@ -238,8 +244,23 @@ CMAKE_ARGS=(
     -DSD_VULKAN="$USE_VULKAN"
     -DGGML_NATIVE=OFF
     -DSDKIT_BUILD_NATIVE_VISION=OFF
+    -DSDKIT_BUILD_SPRITE_GPT="$BUILD_SPRITE_GPT"
     -DSDKIT_BUILD_IMAGE_TOOLS=ON
 )
+if [[ "$BUILD_SPRITE_GPT" == ON ]]; then
+    TORCH_PYTHON="${SDKIT_TORCH_PYTHON:-$SCRIPT_DIR/../.venv/bin/python}"
+    if [[ ! -x "$TORCH_PYTHON" ]]; then
+        echo "--sprite-gpt requires a Python environment with LibTorch: $TORCH_PYTHON" >&2
+        exit 1
+    fi
+    TORCH_CMAKE_PREFIX="$("$TORCH_PYTHON" -c 'import torch; print(torch.utils.cmake_prefix_path)')"
+    TORCH_CUDART="$("$TORCH_PYTHON" -c 'import pathlib, torch; root = pathlib.Path(torch.__file__).resolve().parent; print(next(root.parent.glob("nvidia/cuda_runtime/lib/libcudart.so*"), ""))')"
+    CMAKE_ARGS+=(
+        -DCMAKE_PREFIX_PATH="$TORCH_CMAKE_PREFIX"
+        -DSDKIT_TORCH_CUDART="$TORCH_CUDART"
+    )
+    echo "Building Sprite-GPT with LibTorch from $TORCH_PYTHON"
+fi
 if [[ "$USE_CUDA" == ON ]]; then
     CMAKE_ARGS+=(-DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCH")
 fi
@@ -249,6 +270,8 @@ if [[ "$USE_SYCL" == ON ]]; then
         -DCMAKE_CXX_COMPILER=icpx
         -DGGML_SYCL=ON
         -DGGML_SYCL_F16=ON
+        -DMKL_THREADING=sequential
+        -DMKL_SYCL_THREADING=sequential
     )
     if [[ -n "$SYCL_DEVICE_ARCH" ]]; then
         CMAKE_ARGS+=(-DGGML_SYCL_DEVICE_ARCH="$SYCL_DEVICE_ARCH")

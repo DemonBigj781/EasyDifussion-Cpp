@@ -88,6 +88,7 @@ namespace LTXV {
         bool causal_temporal_positioning              = true;
         float timestep_scale_multiplier               = 1000.f;
 
+        bool has_audio                                      = true;
         int64_t audio_in_channels                           = 128;
         int64_t audio_out_channels                          = 128;
         int64_t audio_hidden_size                           = 2048;
@@ -173,6 +174,7 @@ namespace LTXV {
             }
 
             auto audio_patchify_proj_iter = tensor_storage_map.find(prefix + ".audio_patchify_proj.weight");
+            config.has_audio = audio_patchify_proj_iter != tensor_storage_map.end();
             if (audio_patchify_proj_iter != tensor_storage_map.end()) {
                 config.audio_in_channels         = audio_patchify_proj_iter->second.ne[0];
                 config.audio_hidden_size         = audio_patchify_proj_iter->second.ne[1];
@@ -233,6 +235,21 @@ namespace LTXV {
                 config.use_audio_caption_projection = false;
             }
 
+            auto caption_projection_iter = tensor_storage_map.find(prefix + ".caption_projection.linear_1.weight");
+            if (caption_projection_iter != tensor_storage_map.end()) {
+                config.caption_channels = caption_projection_iter->second.ne[0];
+            }
+
+            // LTX-Video 0.9.x predates the audio/video architecture used by
+            // LTX-2. Its transformer is video-only, projects T5-XXL captions after
+            // patchification, and uses the original start-of-cell RoPE positions.
+            if (!config.has_audio) {
+                config.caption_proj_before_connector = false;
+                config.video_rope_interleaved        = true;
+                config.causal_temporal_positioning   = false;
+                config.use_middle_indices_grid       = false;
+            }
+
             config.num_layers = count_prefix_blocks(tensor_storage_map, prefix + ".", "transformer_blocks.");
 
             auto connector_iter = tensor_storage_map.find(prefix + ".video_embeddings_connector.transformer_1d_blocks.0.attn1.to_q.weight");
@@ -274,7 +291,8 @@ namespace LTXV {
                     config.audio_connector_apply_gated_attention = true;
                 }
             }
-            LOG_DEBUG("ltxav: num_layers = %" PRId64 ", hidden_size = %" PRId64 ", num_attention_heads = %" PRId64 ", audio_hidden_size = %" PRId64 ", audio_num_attention_heads = %" PRId64,
+            LOG_DEBUG("%s: num_layers = %" PRId64 ", hidden_size = %" PRId64 ", num_attention_heads = %" PRId64 ", audio_hidden_size = %" PRId64 ", audio_num_attention_heads = %" PRId64,
+                      config.has_audio ? "ltxav" : "ltxv",
                       config.num_layers,
                       config.hidden_size,
                       config.num_attention_heads,
@@ -1334,10 +1352,12 @@ namespace LTXV {
                                                                    get_type(prefix + "scale_shift_table", tensor_storage_map, GGML_TYPE_F32),
                                                                    config.hidden_size,
                                                                    2);
-            params["audio_scale_shift_table"] = ggml_new_tensor_2d(ctx,
-                                                                   get_type(prefix + "audio_scale_shift_table", tensor_storage_map, GGML_TYPE_F32),
-                                                                   config.audio_hidden_size,
-                                                                   2);
+            if (config.has_audio) {
+                params["audio_scale_shift_table"] = ggml_new_tensor_2d(ctx,
+                                                                       get_type(prefix + "audio_scale_shift_table", tensor_storage_map, GGML_TYPE_F32),
+                                                                       config.audio_hidden_size,
+                                                                       2);
+            }
             if (config.use_keyframes_abs_pos_embedding) {
                 params["keyframes_abs_pos_embedding"] = ggml_new_tensor_2d(ctx,
                                                                            get_type(prefix + "keyframes_abs_pos_embedding", tensor_storage_map, GGML_TYPE_F32),
@@ -1348,18 +1368,24 @@ namespace LTXV {
 
         LTXAVModelBlock(const LTXAVConfig& config)
             : config(config) {
-            blocks["patchify_proj"]       = std::make_shared<Linear>(config.in_channels, config.hidden_size, true, true);
-            blocks["audio_patchify_proj"] = std::make_shared<Linear>(config.audio_in_channels, config.audio_hidden_size, true, true);
-            blocks["adaln_single"]        = std::make_shared<AdaLayerNormSingle>(config.hidden_size, config.cross_attention_adaln ? 9 : 6);
-            blocks["audio_adaln_single"]  = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, config.cross_attention_adaln ? 9 : 6);
-            if (config.cross_attention_adaln) {
-                blocks["prompt_adaln_single"]       = std::make_shared<AdaLayerNormSingle>(config.hidden_size, 2);
-                blocks["audio_prompt_adaln_single"] = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, 2);
+            blocks["patchify_proj"] = std::make_shared<Linear>(config.in_channels, config.hidden_size, true, true);
+            blocks["adaln_single"]  = std::make_shared<AdaLayerNormSingle>(config.hidden_size, config.cross_attention_adaln ? 9 : 6);
+            if (config.has_audio) {
+                blocks["audio_patchify_proj"] = std::make_shared<Linear>(config.audio_in_channels, config.audio_hidden_size, true, true);
+                blocks["audio_adaln_single"]  = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, config.cross_attention_adaln ? 9 : 6);
             }
-            blocks["av_ca_video_scale_shift_adaln_single"] = std::make_shared<AdaLayerNormSingle>(config.hidden_size, 4);
-            blocks["av_ca_a2v_gate_adaln_single"]          = std::make_shared<AdaLayerNormSingle>(config.hidden_size, 1);
-            blocks["av_ca_audio_scale_shift_adaln_single"] = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, 4);
-            blocks["av_ca_v2a_gate_adaln_single"]          = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, 1);
+            if (config.cross_attention_adaln) {
+                blocks["prompt_adaln_single"] = std::make_shared<AdaLayerNormSingle>(config.hidden_size, 2);
+                if (config.has_audio) {
+                    blocks["audio_prompt_adaln_single"] = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, 2);
+                }
+            }
+            if (config.has_audio) {
+                blocks["av_ca_video_scale_shift_adaln_single"] = std::make_shared<AdaLayerNormSingle>(config.hidden_size, 4);
+                blocks["av_ca_a2v_gate_adaln_single"]          = std::make_shared<AdaLayerNormSingle>(config.hidden_size, 1);
+                blocks["av_ca_audio_scale_shift_adaln_single"] = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, 4);
+                blocks["av_ca_v2a_gate_adaln_single"]          = std::make_shared<AdaLayerNormSingle>(config.audio_hidden_size, 1);
+            }
 
             if (config.use_caption_projection) {
                 if (config.caption_proj_before_connector) {
@@ -1400,25 +1426,35 @@ namespace LTXV {
             }
 
             for (int i = 0; i < config.num_layers; i++) {
-                blocks["transformer_blocks." + std::to_string(i)] = std::make_shared<BasicAVTransformerBlock>(config.hidden_size,
-                                                                                                              config.audio_hidden_size,
-                                                                                                              config.num_attention_heads,
-                                                                                                              config.audio_num_attention_heads,
-                                                                                                              config.attention_head_dim,
-                                                                                                              config.audio_attention_head_dim,
-                                                                                                              config.cross_attention_dim,
-                                                                                                              config.audio_cross_attention_dim,
-                                                                                                              config.self_attention_gated || config.cross_attention_gated,
-                                                                                                              config.cross_attention_adaln,
-                                                                                                              config.video_rope_interleaved,
-                                                                                                              config.ff_bias,
-                                                                                                              config.audio_ff_bias);
+                if (config.has_audio) {
+                    blocks["transformer_blocks." + std::to_string(i)] = std::make_shared<BasicAVTransformerBlock>(config.hidden_size,
+                                                                                                                  config.audio_hidden_size,
+                                                                                                                  config.num_attention_heads,
+                                                                                                                  config.audio_num_attention_heads,
+                                                                                                                  config.attention_head_dim,
+                                                                                                                  config.audio_attention_head_dim,
+                                                                                                                  config.cross_attention_dim,
+                                                                                                                  config.audio_cross_attention_dim,
+                                                                                                                  config.self_attention_gated || config.cross_attention_gated,
+                                                                                                                  config.cross_attention_adaln,
+                                                                                                                  config.video_rope_interleaved,
+                                                                                                                  config.ff_bias,
+                                                                                                                  config.audio_ff_bias);
+                } else {
+                    blocks["transformer_blocks." + std::to_string(i)] = std::make_shared<BasicTransformerBlock>(config.hidden_size,
+                                                                                                                config.num_attention_heads,
+                                                                                                                config.attention_head_dim,
+                                                                                                                config.cross_attention_dim,
+                                                                                                                config.video_rope_interleaved);
+                }
             }
 
-            blocks["norm_out"]       = std::make_shared<LayerNorm>(config.hidden_size, 1e-6f, false);
-            blocks["proj_out"]       = std::make_shared<Linear>(config.hidden_size, config.out_channels, true, true);
-            blocks["audio_norm_out"] = std::make_shared<LayerNorm>(config.audio_hidden_size, 1e-6f, false);
-            blocks["audio_proj_out"] = std::make_shared<Linear>(config.audio_hidden_size, config.audio_out_channels, true, true);
+            blocks["norm_out"] = std::make_shared<LayerNorm>(config.hidden_size, 1e-6f, false);
+            blocks["proj_out"] = std::make_shared<Linear>(config.hidden_size, config.out_channels, true, true);
+            if (config.has_audio) {
+                blocks["audio_norm_out"] = std::make_shared<LayerNorm>(config.audio_hidden_size, 1e-6f, false);
+                blocks["audio_proj_out"] = std::make_shared<Linear>(config.audio_hidden_size, config.audio_out_channels, true, true);
+            }
         }
 
         ggml_tensor* patchify_video(GGMLRunnerContext* ctx, ggml_tensor* x, int64_t n) {
@@ -1469,6 +1505,16 @@ namespace LTXV {
                                                                   bool process_audio_context) {
             if (context == nullptr) {
                 return {nullptr, nullptr};
+            }
+
+            if (!config.has_audio) {
+                if (config.use_caption_projection &&
+                    blocks.count("caption_projection") > 0 &&
+                    context->ne[0] == config.caption_channels) {
+                    auto caption_projection = std::dynamic_pointer_cast<PixArtAlphaTextProjection>(blocks["caption_projection"]);
+                    context                 = caption_projection->forward(ctx, context);
+                }
+                return {context, nullptr};
             }
 
             bool is_fully_processed_context =
@@ -1614,15 +1660,16 @@ namespace LTXV {
                                                       ggml_tensor* v_cross_pe,
                                                       ggml_tensor* a_cross_pe,
                                                       ggml_tensor* video_connector_pe,
-                                                      ggml_tensor* audio_connector_pe) {
+                                                      ggml_tensor* audio_connector_pe,
+                                                      ggml_tensor* context_mask) {
             auto patchify_proj       = std::dynamic_pointer_cast<Linear>(blocks["patchify_proj"]);
-            auto audio_patchify_proj = std::dynamic_pointer_cast<Linear>(blocks["audio_patchify_proj"]);
             auto adaln_single        = std::dynamic_pointer_cast<AdaLayerNormSingle>(blocks["adaln_single"]);
-            auto audio_adaln_single  = std::dynamic_pointer_cast<AdaLayerNormSingle>(blocks["audio_adaln_single"]);
             auto norm_out            = std::dynamic_pointer_cast<LayerNorm>(blocks["norm_out"]);
             auto proj_out            = std::dynamic_pointer_cast<Linear>(blocks["proj_out"]);
-            auto audio_norm_out      = std::dynamic_pointer_cast<LayerNorm>(blocks["audio_norm_out"]);
-            auto audio_proj_out      = std::dynamic_pointer_cast<Linear>(blocks["audio_proj_out"]);
+            auto audio_patchify_proj = config.has_audio ? std::dynamic_pointer_cast<Linear>(blocks["audio_patchify_proj"]) : nullptr;
+            auto audio_adaln_single  = config.has_audio ? std::dynamic_pointer_cast<AdaLayerNormSingle>(blocks["audio_adaln_single"]) : nullptr;
+            auto audio_norm_out      = config.has_audio ? std::dynamic_pointer_cast<LayerNorm>(blocks["audio_norm_out"]) : nullptr;
+            auto audio_proj_out      = config.has_audio ? std::dynamic_pointer_cast<Linear>(blocks["audio_proj_out"]) : nullptr;
 
             GGML_ASSERT(vx->ne[3] % config.in_channels == 0);
             int64_t n          = vx->ne[3] / config.in_channels;
@@ -1634,7 +1681,7 @@ namespace LTXV {
             vx = patchify_video(ctx, vx, n);
             vx = patchify_proj->forward(ctx, vx);
             vx = apply_keyframes_abs_pos_embedding(ctx, vx, width * height);
-            if (ax != nullptr && ggml_nelements(ax) > 0 && audio_time > 0) {
+            if (config.has_audio && ax != nullptr && ggml_nelements(ax) > 0 && audio_time > 0) {
                 ax = patchify_audio(ctx, ax);
                 ax = audio_patchify_proj->forward(ctx, ax);
             } else {
@@ -1653,6 +1700,27 @@ namespace LTXV {
             auto v_pair            = adaln_single->forward(ctx, v_timestep_scaled);
             auto v_timestep_mod    = v_pair.first;
             auto v_embedded_time   = v_pair.second;
+
+            if (!config.has_audio) {
+                sd::ggml_graph_cut::mark_graph_cut(vx, "ltxv.prelude", "vx");
+                for (int i = 0; i < config.num_layers; i++) {
+                    auto block = std::dynamic_pointer_cast<BasicTransformerBlock>(blocks["transformer_blocks." + std::to_string(i)]);
+                    vx         = block->forward(ctx,
+                                                vx,
+                                                v_context,
+                                                v_timestep_mod,
+                                                nullptr,
+                                                v_pe,
+                                                context_mask);
+                    sd::ggml_graph_cut::mark_graph_cut(vx, "ltxv.transformer_blocks." + std::to_string(i), "vx");
+                }
+
+                auto v_shift_scale = get_output_scale_shift(ctx, params["scale_shift_table"], v_embedded_time, config.hidden_size);
+                vx                 = norm_out->forward(ctx, vx);
+                vx                 = LTXV::modulate(ctx->ggml_ctx, vx, v_shift_scale[0], v_shift_scale[1]);
+                vx                 = proj_out->forward(ctx, vx);
+                return {unpatchify_video(ctx, vx, width, height, frames), nullptr};
+            }
 
             ggml_tensor* effective_audio_timestep = audio_timestep != nullptr ? audio_timestep : timestep;
             auto a_timestep_scaled                = ggml_ext_scale(ctx->ggml_ctx, effective_audio_timestep, config.timestep_scale_multiplier);
@@ -1755,7 +1823,7 @@ namespace LTXV {
         }
 
         std::string get_desc() override {
-            return "ltxav";
+            return config.has_audio ? "ltxav" : "ltxv-2b";
         }
 
         void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors, const std::string& prefix) override {
@@ -1826,6 +1894,7 @@ namespace LTXV {
         ggml_cgraph* build_graph(const sd::Tensor<float>& x_tensor,
                                  const sd::Tensor<float>& timesteps_tensor,
                                  const sd::Tensor<float>& context_tensor         = {},
+                                 const sd::Tensor<float>& context_mask_tensor    = {},
                                  const sd::Tensor<float>& audio_x_tensor         = {},
                                  const sd::Tensor<float>& audio_timesteps_tensor = {},
                                  int audio_length                                = 0,
@@ -1841,9 +1910,10 @@ namespace LTXV {
 
             ggml_tensor* vx         = make_input(vx_input_cache);
             ggml_tensor* ax         = make_optional_input(ax_input_cache);
-            ggml_tensor* timesteps  = make_input(timesteps_tensor);
-            ggml_tensor* a_timestep = make_optional_input(audio_timesteps_tensor);
-            ggml_tensor* context    = make_optional_input(context_tensor);
+            ggml_tensor* timesteps    = make_input(timesteps_tensor);
+            ggml_tensor* a_timestep   = make_optional_input(audio_timesteps_tensor);
+            ggml_tensor* context      = make_optional_input(context_tensor);
+            ggml_tensor* context_mask = make_optional_input(context_mask_tensor);
 
             ggml_cgraph* gf = new_graph_custom(LTXAV_GRAPH_SIZE);
 
@@ -1980,7 +2050,8 @@ namespace LTXV {
                                             video_cross_pe,
                                             audio_cross_pe,
                                             video_connector_pe,
-                                            audio_connector_pe);
+                                            audio_connector_pe,
+                                            context_mask);
             auto out        = merge_av_latents(compute_ctx, out_pair.first, out_pair.second);
             ggml_build_forward_expand(gf, out);
             return gf;
@@ -1990,13 +2061,14 @@ namespace LTXV {
                                   const sd::Tensor<float>& x,
                                   const sd::Tensor<float>& timesteps,
                                   const sd::Tensor<float>& context         = {},
+                                  const sd::Tensor<float>& context_mask    = {},
                                   const sd::Tensor<float>& audio_x         = {},
                                   const sd::Tensor<float>& audio_timesteps = {},
                                   int audio_length                         = 0,
                                   float frame_rate                         = 24.f,
                                   const sd::Tensor<float>& video_positions = {}) {
             auto get_graph = [&]() -> ggml_cgraph* {
-                return build_graph(x, timesteps, context, audio_x, audio_timesteps, audio_length, frame_rate, video_positions);
+                return build_graph(x, timesteps, context, context_mask, audio_x, audio_timesteps, audio_length, frame_rate, video_positions);
             };
             auto out = restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, false, false, false), x.dim());
             return out;
@@ -2011,6 +2083,7 @@ namespace LTXV {
                            *diffusion_params.x,
                            *diffusion_params.timesteps,
                            tensor_or_empty(diffusion_params.context),
+                           tensor_or_empty(diffusion_params.y),
                            tensor_or_empty(extra->audio_x),
                            tensor_or_empty(extra->audio_timesteps),
                            extra->audio_length,
@@ -2065,7 +2138,7 @@ namespace LTXV {
             }
 
             int64_t t0   = ggml_time_ms();
-            auto out_opt = compute(8, x, timesteps, context, audio_x, audio_timesteps, audio_length);
+            auto out_opt = compute(8, x, timesteps, context, {}, audio_x, audio_timesteps, audio_length);
             int64_t t1   = ggml_time_ms();
 
             GGML_ASSERT(!out_opt.empty());

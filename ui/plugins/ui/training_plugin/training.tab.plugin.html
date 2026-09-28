@@ -2,35 +2,26 @@
     <h2>Train a LoRA or embedding</h2>
     <p id="training-readiness" role="status">Open this tab to check the training runtime.</p>
     <button id="training-refresh" type="button" class="tertiaryButton">Refresh runtime and models</button>
-    <p>Training supports full SD1.5 and SDXL checkpoints. Finish generation and release loaded inference models before starting.</p>
+    <fieldset>
+        <legend>SpriteGPT · 64×64 pixel-space</legend>
+        <p>Separate Python trainer and generator. It trains directly on RGB sprites without a VAE.</p>
+        <p id="training-spritegpt-status" role="status">Checking SpriteGPT runtime…</p>
+        <button id="training-spritegpt-start" type="button" class="tertiaryButton">Start SpriteGPT runtime</button>
+        <button id="training-spritegpt-open" type="button" class="tertiaryButton" disabled>Open SpriteGPT Studio</button>
+        <button id="training-spritegpt-stop" type="button" class="tertiaryButton" disabled>Stop SpriteGPT runtime</button>
+    </fieldset>
+    <p>SD1.5 LoRA uses the native C++ SYCL1 trainer (batch size 1). SD1.5 embeddings are unavailable on this route. SDXL and Anima use the configured Python runtime. Finish generation and release loaded inference models before starting.</p>
     <form id="training-form">
         <fieldset>
-            <legend>1. Prepare images and captions</legend>
-            <p>Place PNG, JPEG, WebP or BMP images in a folder below <code id="training-dataset-root">training/datasets</code>.</p>
+            <legend>1. Load a prepared dataset</legend>
+            <p>Select a dataset submitted from Grabber Gallery under <code id="training-dataset-root">training/datasets</code>.</p>
             <div class="training-grid">
-                <label for="training-dataset">Dataset folder</label>
-                <input id="training-dataset" required placeholder="my-character" autocomplete="off">
+                <label for="training-dataset">Dataset</label>
+                <select id="training-dataset" required><option value="">Load a dataset</option></select>
                 <label for="training-trigger">Trigger word or phrase</label>
                 <input id="training-trigger" placeholder="mycharacter" maxlength="200">
-                <label for="training-tagger">WD14 model</label>
-                <input id="training-tagger" value="wd-v1-4-moat-tagger-v2">
-                <label for="training-threshold">Tag threshold</label>
-                <input id="training-threshold" type="number" min="0" max="1" step="0.01" value="0.35">
-                <label for="training-character-threshold">Character threshold</label>
-                <input id="training-character-threshold" type="number" min="0" max="1" step="0.01" value="0.85">
-                <label for="training-exclude">Exclude tags (comma separated)</label>
-                <input id="training-exclude">
             </div>
-            <p><button id="training-scan" type="button" class="tertiaryButton">Scan dataset</button>
-                <button id="training-autotag" type="button" class="tertiaryButton">Autotag missing captions</button></p>
-            <p id="training-dataset-status">Existing captions are preserved. Review tags before training.</p>
-            <div class="training-grid">
-                <label for="training-image">Review caption</label>
-                <select id="training-image" aria-label="Dataset image"></select>
-                <label for="training-caption">Caption text</label>
-                <textarea id="training-caption" rows="4"></textarea>
-            </div>
-            <button id="training-save-caption" type="button" class="tertiaryButton">Save caption</button>
+            <p id="training-dataset-status" role="status">Choose a prepared dataset to use for training.</p>
         </fieldset>
         <fieldset>
             <legend>2. Training settings</legend>
@@ -38,9 +29,13 @@
                 <label for="training-kind">Train</label>
                 <select id="training-kind"><option value="lora">LoRA</option><option value="embedding">Embedding (textual inversion)</option></select>
                 <label for="training-architecture">Base model family</label>
-                <select id="training-architecture"><option value="sd15">Stable Diffusion 1.5</option><option value="sdxl">SDXL</option></select>
+                <select id="training-architecture"><option value="sd15">Stable Diffusion 1.5</option><option value="sdxl">SDXL</option><option value="anima">Anima</option></select>
                 <label for="training-model">Full checkpoint</label>
                 <select id="training-model" required><option value="">Refresh to load checkpoints</option></select>
+                <label class="anima-training-option" for="training-qwen3">Anima Qwen3 text encoder path</label>
+                <select class="anima-training-option" id="training-qwen3" required><option value="">Loading configured text encoders…</option></select>
+                <label class="anima-training-option" for="training-vae">Anima Qwen-Image VAE path</label>
+                <select class="anima-training-option" id="training-vae" required><option value="">Loading configured VAEs…</option></select>
                 <label for="training-name">Output name</label>
                 <input id="training-name" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,79}" value="my_lora">
                 <label for="training-steps">Training steps</label>
@@ -53,6 +48,14 @@
                 <input id="training-rate" type="number" min="0.00000001" max="0.1" step="any" value="0.0001" required>
                 <label for="training-rank">LoRA rank</label>
                 <input id="training-rank" type="number" min="1" max="128" step="1" value="16">
+                <label class="anima-training-option" for="training-checkpointing">Gradient checkpointing</label>
+                <select class="anima-training-option" id="training-checkpointing"><option value="standard">Standard</option><option value="cpu_offload">CPU offload</option><option value="unsloth">Unsloth asynchronous offload</option><option value="off">Disabled</option></select>
+                <label class="anima-training-option" for="training-blocks-swap">Anima blocks to swap (0–40)</label>
+                <input class="anima-training-option" id="training-blocks-swap" type="number" min="0" max="40" step="1" value="0">
+                <label class="anima-training-option" for="training-optimizer">Optimizer</label>
+                <select class="anima-training-option" id="training-optimizer"><option>AdamW</option><option>AdamW8bit</option></select>
+                <label class="anima-training-option" for="training-cache-text">Cache Anima text encoder outputs</label>
+                <input class="anima-training-option" id="training-cache-text" type="checkbox" checked>
                 <label for="training-vectors">Embedding vectors</label>
                 <input id="training-vectors" type="number" min="1" max="16" step="1" value="4" disabled>
                 <label for="training-init-word">Embedding initialization word</label>
@@ -64,7 +67,7 @@
                 <label for="training-seed">Seed</label>
                 <input id="training-seed" type="number" min="0" max="2147483647" value="42" required>
             </div>
-            <p>LoRA trains the U-Net. Embeddings need a unique single-word trigger. The trigger is added to the training copy of each caption.</p>
+            <p>Anima LoRA captions convert underscores to spaces except in @artist tags. Anima requires separate Qwen3 and Qwen-Image VAE files. Its 2D VAE path, latent caching, and VAE chunking are enabled to reduce preprocessing cost.</p>
             <button id="training-start" type="submit" class="primaryButton" disabled>Start training</button>
         </fieldset>
     </form>

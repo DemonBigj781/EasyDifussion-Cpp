@@ -866,6 +866,7 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_get_split_state(
             case GGML_OP_RMS_NORM:
             case GGML_OP_RMS_NORM_BACK:
             case GGML_OP_GROUP_NORM:
+            case GGML_OP_GROUP_NORM_BACK:
             case GGML_OP_L2_NORM: {
                 split_state = handle_per_row(src_ss);
             } break;

@@ -26,6 +26,7 @@ BACKEND_REVISION = "4e624302e0088e39933b31cbc71f24212e900f5f"
 SCRIPTS = {
     ("lora", "sd15"): "train_network.py",
     ("lora", "sdxl"): "sdxl_train_network.py",
+    ("lora", "anima"): "anima_train_network.py",
     ("embedding", "sd15"): "train_textual_inversion.py",
     ("embedding", "sdxl"): "sdxl_train_textual_inversion.py",
 }
@@ -94,6 +95,18 @@ def read_caption(image: Path) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
+def normalize_anima_caption(caption: str) -> str:
+    """Use Anima's tag spelling: underscores only remain in @artist tags."""
+    tags = []
+    for tag in caption.split(","):
+        tag = tag.strip()
+        if not tag.startswith("@"):
+            tag = tag.replace("_", " ")
+        if tag:
+            tags.append(tag)
+    return ", ".join(tags)
+
+
 def settings(root: Path):
     config_file = root / "training" / "local.json"
     config = json.loads(config_file.read_text()) if config_file.is_file() else {}
@@ -137,9 +150,10 @@ def probe(root: Path):
         return {**result, "detail": "Training runtime is missing. Run python training/trainer.py setup"}
     code = (
         "import json, torch, accelerate, transformers, diffusers, safetensors; "
-        "import train_network, sdxl_train_network, train_textual_inversion, sdxl_train_textual_inversion; "
-        "print(json.dumps({'torch':torch.__version__,'cuda':torch.cuda.is_available(),"
-        "'gpu':torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}))"
+        "import train_network, sdxl_train_network, anima_train_network, train_textual_inversion, sdxl_train_textual_inversion; "
+        "cuda=torch.cuda.is_available(); xpu=hasattr(torch,'xpu') and torch.xpu.is_available(); "
+        "gpu=(torch.cuda.get_device_name(0) if cuda else (torch.xpu.get_device_name(0) if xpu else None)); "
+        "print(json.dumps({'torch':torch.__version__,'cuda':cuda,'xpu':xpu,'gpu':gpu}))"
     )
     try:
         checked = subprocess.run([str(python), "-c", code], cwd=backend, env=child_env(),
@@ -147,8 +161,8 @@ def probe(root: Path):
         if checked.returncode:
             return {**result, "detail": (checked.stderr or checked.stdout)[-3000:]}
         result.update(json.loads(checked.stdout.strip().splitlines()[-1]))
-        result["ready"] = result["cuda"]
-        result["detail"] = "Training runtime ready" if result["ready"] else "A CUDA GPU is required by this runtime"
+        result["ready"] = result["cuda"] or result["xpu"]
+        result["detail"] = "Training runtime ready" if result["ready"] else "A CUDA or Intel XPU GPU is required by this runtime"
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         result["detail"] = str(exc)
     return result
@@ -157,13 +171,15 @@ def probe(root: Path):
 def validate_training(payload):
     spec = dict(payload)
     if (spec.get("kind"), spec.get("architecture")) not in SCRIPTS:
-        raise ValueError("Choose LoRA or embedding and SD1.5 or SDXL")
+        raise ValueError("Choose LoRA or embedding with SD1.5/SDXL, or LoRA with Anima")
+    if spec["architecture"] == "anima" and spec["kind"] != "lora":
+        raise ValueError("Anima currently supports LoRA training only")
     name = spec.get("output_name", "")
     if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", name):
         raise ValueError("Output name must use 1–80 letters, digits, underscores or hyphens")
     for key, default, low, high in (
         ("steps", 1000, 1, 100000), ("batch_size", 1, 1, 16),
-        ("resolution", 512 if spec["architecture"] == "sd15" else 1024, 256, 1536),
+        ("resolution", 512 if spec["architecture"] in {"sd15", "anima"} else 1024, 256, 1536),
         ("rank", 16, 1, 128), ("vectors", 4, 1, 16),
         ("save_every", 100, 1, 10000), ("seed", 42, 0, 2147483647),
     ):
@@ -173,6 +189,16 @@ def validate_training(payload):
         spec[key] = value
     if spec["resolution"] % 64:
         raise ValueError("Resolution must be a multiple of 64")
+    if spec["architecture"] == "anima":
+        if spec.get("checkpointing", "standard") not in {"off", "standard", "cpu_offload", "unsloth"}:
+            raise ValueError("Unsupported Anima gradient checkpointing strategy")
+        blocks = spec.get("blocks_to_swap", 0)
+        if isinstance(blocks, bool) or not isinstance(blocks, int) or not 0 <= blocks <= 40:
+            raise ValueError("Anima block swap must be an integer from 0 to 40")
+        if blocks and spec.get("checkpointing") in {"cpu_offload", "unsloth"}:
+            raise ValueError("Block swapping cannot be combined with CPU-offloaded checkpointing")
+        if spec.get("optimizer_type", "AdamW") not in {"AdamW", "AdamW8bit"}:
+            raise ValueError("Unsupported Anima optimizer")
     rate = spec.get("learning_rate", 0.0001 if spec["kind"] == "lora" else 0.0005)
     if isinstance(rate, bool) or not isinstance(rate, (int, float)) or not math.isfinite(rate) or not 0 < rate <= 0.1:
         raise ValueError("Learning rate must be positive and at most 0.1")
@@ -181,6 +207,9 @@ def validate_training(payload):
     if spec["precision"] not in {"fp16", "bf16", "no"}:
         raise ValueError("Unsupported precision")
     trigger = spec.get("trigger", "").strip()
+    if spec["architecture"] == "anima":
+        if not trigger.startswith("@"):
+            trigger = trigger.replace("_", " ")
     if len(trigger) > 200 or any(c in trigger for c in "\n\r\x00"):
         raise ValueError("Trigger must be a short, single-line phrase")
     if spec["kind"] == "embedding" and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{1,79}", trigger):
@@ -203,12 +232,14 @@ def build_command(spec, backend: Path, python: Path, job_dir: Path):
         "dataset_config": job_dir / "dataset.toml", "output_dir": job_dir / "output",
         "output_name": spec["output_name"], "save_model_as": "safetensors",
         "max_train_steps": spec["steps"], "save_every_n_steps": spec["save_every"],
-        "learning_rate": spec["learning_rate"], "optimizer_type": "AdamW",
+        "learning_rate": spec["learning_rate"],
+        "optimizer_type": spec.get("optimizer_type", "AdamW") if spec["architecture"] == "anima" else "AdamW",
         "lr_scheduler": "constant", "mixed_precision": spec["precision"],
         "seed": spec["seed"], "max_data_loader_n_workers": 0,
     }
     if spec["kind"] == "lora":
-        args.update(network_module="networks.lora", network_dim=spec["rank"],
+        network_module = "networks.lora_anima" if spec["architecture"] == "anima" else "networks.lora"
+        args.update(network_module=network_module, network_dim=spec["rank"],
                     network_alpha=spec["rank"], training_comment=f"Easy Diffusion; trigger: {spec['trigger']}")
         command += ["--network_train_unet_only", "--save_state", "--save_state_on_train_end"]
     else:
@@ -216,7 +247,30 @@ def build_command(spec, backend: Path, python: Path, job_dir: Path):
     if spec.get("resume_state"):
         args["resume"] = spec["resume_state"]
     command += [f"--{key}={value}" for key, value in args.items()]
-    command += ["--sdpa", "--gradient_checkpointing", "--cache_latents"]
+    command += ["--sdpa", "--cache_latents"]
+    if spec["architecture"] != "anima":
+        command.append("--gradient_checkpointing")
+    elif spec.get("checkpointing", "standard") != "off":
+        checkpointing = spec.get("checkpointing", "standard")
+        command.append("--gradient_checkpointing")
+        if checkpointing == "cpu_offload":
+            command.append("--cpu_offload_checkpointing")
+        elif checkpointing == "unsloth":
+            command.append("--unsloth_offload_checkpointing")
+    if spec["architecture"] == "anima":
+        if not spec.get("qwen3") or not spec.get("vae"):
+            raise ValueError("Anima training requires Qwen3 text encoder and Qwen-Image VAE paths")
+        args_for_anima = [f"--qwen3={spec['qwen3']}", f"--vae={spec['vae']}"]
+        # Insert Anima-specific flags before the script arguments' common optimization tail.
+        command += args_for_anima
+        if spec.get("cache_text_encoder_outputs", True):
+            command.append("--cache_text_encoder_outputs")
+        command.extend(["--vae_chunk_size=64", "--qwen_image_vae_2d"])
+        if spec.get("vae_disable_cache"):
+            command.append("--vae_disable_cache")
+        blocks_to_swap = spec.get("blocks_to_swap", 0)
+        if blocks_to_swap:
+            command.append(f"--blocks_to_swap={blocks_to_swap}")
     if spec["architecture"] == "sdxl":
         command += ["--no_half_vae"]
     return command
@@ -224,12 +278,24 @@ def build_command(spec, backend: Path, python: Path, job_dir: Path):
 
 def stage_dataset(spec, job_dir: Path, cancel: threading.Event):
     images = dataset_images(Path(spec["dataset"]))
+    selected = spec.get("images")
+    if selected is not None:
+        if not isinstance(selected, list) or not selected or any(
+            not isinstance(name, str) or Path(name).name != name for name in selected
+        ):
+            raise ValueError("Autotag image selection is invalid")
+        selected_names = set(selected)
+        images = [image for image in images if image.name in selected_names]
+        if {image.name for image in images} != selected_names:
+            raise ValueError("One or more selected images are missing from the autotag dataset")
     target = job_dir / "data"
     target.mkdir()
     for index, path in enumerate(images):
         if cancel.is_set():
             raise Cancelled()
         caption = read_caption(path)
+        if spec.get("architecture") == "anima":
+            caption = normalize_anima_caption(caption)
         if spec["trigger"] and spec["trigger"] not in caption.split(", "):
             caption = ", ".join(filter(None, [spec["trigger"], caption]))
         if not caption:
@@ -312,7 +378,8 @@ def autotag(spec, cancel):
         if cancel.is_set():
             raise Cancelled()
         caption_file = path.with_suffix(".txt")
-        if caption_file.exists():
+        replace_existing = bool(spec.get("replace_existing", False))
+        if caption_file.exists() and not replace_existing:
             skipped += 1
         else:
             payload = {"image": base64.b64encode(path.read_bytes()).decode("ascii"),
@@ -329,13 +396,22 @@ def autotag(spec, cancel):
             caption = ", ".join(filter(None, [spec.get("trigger", "").strip(), tags]))
             if not caption:
                 raise ValueError(f"No tags found for {path.name}; lower the threshold")
-            # Exclusive creation preserves existing and concurrently edited captions.
-            try:
-                with caption_file.open("x", encoding="utf-8") as output:
-                    output.write(caption + "\n")
+            if replace_existing and caption_file.exists():
+                job_name = Path(spec.get("job_dir", "tagging")).name
+                backup = caption_file.with_name(f"{caption_file.name}.{job_name}.original")
+                shutil.copy2(caption_file, backup)
+                temporary = caption_file.with_name(f".{caption_file.name}.{job_name}.tmp")
+                temporary.write_text(caption + "\n", encoding="utf-8")
+                temporary.replace(caption_file)
                 written += 1
-            except FileExistsError:
-                skipped += 1
+            else:
+                # Exclusive creation preserves existing and concurrently edited captions.
+                try:
+                    with caption_file.open("x", encoding="utf-8") as output:
+                        output.write(caption + "\n")
+                    written += 1
+                except FileExistsError:
+                    skipped += 1
         emit("progress", step=index + 1, total=len(images), written=written, skipped=skipped)
     return {"written": written, "skipped": skipped}
 

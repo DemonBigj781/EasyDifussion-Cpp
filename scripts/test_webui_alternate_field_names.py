@@ -78,6 +78,7 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn('event.reqBody.use_vae_model = videoVae.value || null', video_js)
         self.assertIn('event.reqBody.use_text_encoder_model = videoTextEncoder.value || null', video_js)
         self.assertIn('event.reqBody.sampler_name = "euler"', video_js)
+        self.assertIn('event.reqBody.scheduler_name = "linear_quadratic"', video_js)
         self.assertIn('companions[model]', video_js)
 
     def test_sdkit3_receives_absolute_video_checkpoint_paths(self):
@@ -143,6 +144,16 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn('self.request.scheduler_name = "mochi"', render_video_py)
         self.assertIn('self.request.sampler_name = "euler"', render_video_py)
         self.assertIn("Native Mochi currently supports text-to-video only", render_video_py)
+
+    def test_legacy_ltx_video_uses_its_distilled_schedule(self):
+        render_video_py = (
+            self.repo_root / "ui" / "easydiffusion" / "tasks" / "render_video.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('model_class.startswith("ltx_video")', render_video_py)
+        self.assertIn('self.request.scheduler_name = "linear_quadratic"', render_video_py)
+        self.assertIn('self.request.sampler_name = "euler"', render_video_py)
+        self.assertIn('self.request.num_inference_steps = 8', render_video_py)
+        self.assertIn('self.request.guidance_scale = 1.0', render_video_py)
 
     def test_native_video_cpu_offload_flags_are_scoped_to_video_requests(self):
         main_cpp = (self.repo_root / "source" / "sdkit3-port-source" / "src" / "main.cpp").read_text()

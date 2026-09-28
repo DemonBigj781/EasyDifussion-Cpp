@@ -1,10 +1,10 @@
 # Training
 
-The Training tab runs local SD1.5/SDXL LoRA and textual-inversion jobs through
-one `sdkit-trainer` controller. It supports batch WD14 captions, caption review,
-progress/logs, cancellation, saved job history, and interrupted LoRA resume.
-Outputs are safetensors files in the configured LoRA/embedding directory under
-`trained/`. Each filename has a job suffix so previous outputs are preserved.
+The Training tab runs native C++ SD1.5 LoRA jobs on Intel SYCL and routes
+SDXL/Anima LoRA and SD1.5 textual-inversion jobs through the Python controller.
+It supports WD14 captions, progress/logs, cancellation, saved job history, and
+resume for compatible Python LoRA jobs. Web training outputs are safetensors in
+the configured LoRA/embedding directory under `trained/` with unique job suffixes.
 
 ## Setup
 
@@ -18,9 +18,10 @@ training/dist/sdkit-trainer/sdkit-trainer --root "$PWD" probe
 
 `setup` installs the locked Linux x86-64, Python 3.11, PyTorch 2.6/CUDA 12.4
 runtime into `training/runtime/.venv`. It needs several GB of disk space and an
-NVIDIA GPU compatible with that build. Other accelerators and RTX 50-series
-GPUs need a separately validated runtime; set `ED_TRAINER_PYTHON` to its Python
-executable. Easy Diffusion's existing Python environment is not modified.
+NVIDIA GPU compatible with that build. For Intel XPU, use a separately validated
+PyTorch XPU environment and set `ED_TRAINER_PYTHON` to its Python executable;
+the bundled CUDA environment does not install Intel packages. Easy Diffusion's
+existing Python environment is not modified.
 
 `build` uses a separate small uv environment and PyInstaller's directory bundle.
 Distribute the entire `training/dist/sdkit-trainer/` directory, including
@@ -38,8 +39,93 @@ checkout, or create an ignored `training/local.json`:
 The controller checks that revision and never clones, updates, or rewrites the
 checkout. The local requirements are recorded in `runtime/pyproject.toml` and
 `runtime/uv.lock`. Updating the backend requires revalidating those requirements
-and the four training scripts. See the backend's `LICENSE.md` before distributing
+and the five training scripts. See the backend's `LICENSE.md` before distributing
 its source or dependencies.
+
+## SpriteGPT runtime
+
+The Training tab can start the separate SpriteGPT Studio runtime from the provided
+`/mnt/38FEF88DFEF84522/sprite-diffusion` checkout. It uses that checkout’s
+`spritegpt_webui.py` and `sprite-gpt-text64.pt`; this is a Python RGB pixel-space
+trainer at 64×64 and does not use a VAE. Set `SPRITEGPT_ROOT` and
+`SPRITEGPT_PYTHON` in the Easy Diffusion server environment to override the
+checkout or interpreter. Runtime logs go to `training/logs/spritegpt-runtime.log`.
+
+### Native C++ SpriteGPT training
+
+The isolated `sdkit-sprite-gpt` sidecar has a LibTorch rectified-flow training
+loop for the 64×64 RGB model. Build it with `source/Build.sh --sprite-gpt`
+using an environment whose Python package provides LibTorch. The data folder
+must contain supported images (`png`, `jpg`, `jpeg`, `bmp`, or `tga`) with a
+same-basename `.txt` caption beside each image. For XPU, first export the
+TorchScript U-Net and CLIP text encoder with the Intel XPU PyTorch environment
+(`export_sprite_gpt.py --device xpu`); exported TorchScript constants are
+device-specific. Then run:
+
+```sh
+bin/sdkit-sprite-gpt --train \
+  --unet /path/to/sprite-gpt-unet.ts \
+  --clip /path/to/clip-text.ts \
+  --tokenizer /path/to/tokenizer \
+  --dataset training/datasets/my-character \
+  --trigger mycharacter \
+  --output models/sprite-gpt/my-character.ts \
+  --device xpu --steps 10000 --batch-size 1
+```
+
+Training saves an updated TorchScript U-Net and a matching `.safetensors`
+parameter export at periodic intervals and at completion. This native command
+is currently a CLI path; the SpriteGPT Studio button still starts the existing
+Python runtime. The C++ target compiles, but this host's LibTorch package is
+CUDA-only, so an Intel XPU training run has not yet been validated here.
+
+For scraped datasets, create a folder in the Training tab, set [Grabber](https://github.com/Bionus/imgbrd-grabber)
+to download images there, then add/review same-basename `.txt` captions.
+
+## Grabber scrape gallery
+
+The Training tab queries the installed Grabber CLI and groups each search into a
+separate attempt gallery. It provides before/filtered views, select-all download,
+review/delete/tag actions, and archive after captions are present. Still images,
+GIF samples, and video frames are normalized to PNG at no more than 2048×2048 and
+use the MD5 of the resulting PNG plus resolution in the filename. Animated media
+is sampled at intervals no greater than 10 seconds or 600 frames. The near-duplicate
+cutoff defaults to 0.95 and is configurable per attempt. Gallery autotagging saves
+original `.txt` captions beside the images before replacing them. Set `GRABBER_CLI`
+if Grabber's CLI is not at `/home/jack/bin/grabber/Grabber-cli`.
+The website picker reads Grabber's installed source list and hides entries listed in `training/.grabber-source-blacklist` (one exact host per line). ArtStation is hidden by default because its adapter is no longer reliable for image searches.
+
+## Native C++ SD1.5 LoRA
+
+Build and deploy the SYCL trainer from the repository root:
+
+```sh
+source /opt/intel/oneapi/setvars.sh --force
+source/Build.sh --sycl --build-dir /tmp/easy-diffusion-native-sycl \
+  --target sdkit-sd15-trainer --jobs 10 --deploy training/native/sd15-sycl
+```
+
+The build selects sequential oneMKL threading to avoid the broken TBB package
+configuration on this host. The deployed directory includes the trainer and its
+GGML/stable-diffusion shared libraries. The Training service chooses this route
+for SD1.5 LoRA jobs and sets the tested SYCL runtime environment.
+
+A temporary shell launcher is available at `/tmp/train-sd15-native.sh`. It uses
+`training/datasets/cat-sd15` by default, the SD1.5 checkpoint configured in the
+script, 10 CPU threads, rank 16, learning rate `1e-4`, and 512px resolution.
+`EPOCHS=30` means 30 full shuffled passes; the current 16-image prepared dataset
+therefore runs 480 optimizer steps at batch size 1. Override `EPOCHS`, `DATASET`,
+`MODEL`, `TRIGGER`, `OUTPUT_NAME`, or other values as shell environment variables.
+Set `PRINT_CONFIG=1` to inspect settings without starting training. The launcher
+writes weights to `training/outputs/` by default; the Training tab is the route
+that publishes finished weights into the configured LoRA folder automatically.
+
+Captions longer than the SD1.5 CLIP context are truncated to 77 tokens during
+native training. Existing captions should be reviewed before a full run. The
+prepared `cat-sd15` folder is a separate copy of `/mnt/1812FB8512FB6662/cat`; its
+source images were left unchanged, and missing captions were filled by the C++
+WD14 ONNX tagger at threshold 0.35. WD14 can mislabel features, so edit its `.txt`
+files before relying on those labels.
 
 ## Use
 
@@ -49,9 +135,10 @@ its source or dependencies.
    existing local `/tag` endpoint and installed WD14 ONNX/CSV assets. It creates
    missing `.txt` captions; existing files, including empty captions, are skipped.
 3. Scan again to review generated captions, then edit and save individual captions.
-4. Choose a full SD1.5 or SDXL safetensors checkpoint, matching model family,
-   output name and settings. GGUF, standalone diffusion-only weights, and other
-   architectures are not training inputs for this version.
+4. Choose a full SD1.5, SDXL, or Anima safetensors checkpoint and matching model
+   family. Anima additionally needs Qwen3 and Qwen-Image VAE paths inside the
+   configured text-encoder and VAE directories. GGUF and other architectures
+   are not training inputs for this version.
 5. Finish generation and release inference VRAM before starting. Generation
    submissions are blocked during training/autotag jobs. Automatic inference-model
    unloading is not implemented; other GPU applications may also occupy memory.
@@ -59,10 +146,19 @@ its source or dependencies.
    is added to this copy. The final artifact is exported automatically. Refresh
    model selectors to use it.
 
-LoRA trains U-Net adapters with AdamW, SDPA, latent caching and gradient
-checkpointing. Embeddings train the text token and require a unique single-word
-trigger plus an initialization word. Start with batch size 1. SDXL needs more
-VRAM than SD1.5; the UI defaults are starting values, not tuned presets.
+The dataset editor can create folders under `training/datasets`. Point Grabber's
+download target there and provide same-basename `.txt` tag sidecars for each
+image. Anima captions convert underscores to spaces except for tags beginning
+with `@`, which retain artist-name underscores. Anima jobs use `networks.lora_anima`,
+latent caching, SDPA, the Qwen-Image 2D VAE path, and VAE chunking. The UI offers
+standard, CPU-offloaded, or Unsloth checkpointing, block swapping, text-output
+caching, and AdamW/AdamW8bit. Unsloth and 8-bit optimizers require their runtime
+dependencies. Start with batch size 1; settings are not tuned presets.
+SDXL and Anima continue to use the configured Python runtime and Kohya-based
+scripts. Native SD1.5 LoRA training currently requires batch size 1, a resolution
+from 256 through 1024 in multiples of 64, and targets SYCL device `SYCL1`. It
+uses the C++ trainer and does not yet support resume, embeddings, gradient
+checkpointing, or automatic memory offload.
 
 Jobs live in `bucket/training/<job-id>/`: `job.json`, `manifest.json`,
 `events.jsonl`, dataset snapshot/config, output weights and Accelerate state.

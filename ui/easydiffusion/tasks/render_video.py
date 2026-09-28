@@ -55,6 +55,14 @@ class VideoTask(Task):
 
         checkpoint_path = self.models_data.model_paths.get("stable-diffusion")
         model_class = identify_model_type(checkpoint_path) if checkpoint_path else None
+        if model_class and model_class.startswith("ltx_video"):
+            # Original LTX-Video uses the Euler linear/quadratic flow schedule.
+            # Enforce it at the API boundary as well as in the browser UI.
+            self.request.sampler_name = "euler"
+            self.request.scheduler_name = "linear_quadratic"
+            if "distilled" in str(checkpoint_path).lower():
+                self.request.num_inference_steps = 8
+                self.request.guidance_scale = 1.0
         if model_class == "mochi_v1_preview":
             discovered = discover_mochi_companions(checkpoint_path)
             for model_type, model_path in discovered.items():

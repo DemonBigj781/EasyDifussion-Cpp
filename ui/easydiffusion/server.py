@@ -4,16 +4,22 @@ Notes:
 """
 
 import datetime
+import functools
+import glob
 import mimetypes
 import os
 import shlex
 import subprocess
+import time
 import traceback
+from collections import deque
+from threading import Lock
 from typing import List, Union
 
 from easydiffusion import app, task_manager
 from easydiffusion.backend_args import parse_backend_commandline_args
-from ui.plugins.server import ai_image_critic, gallery, model_manager, package_manager, perchance
+from ui.plugins.server import ai_image_critic, gallery, package_manager, perchance
+from ui.plugins.server.Browse_files import model_manager
 from ui.plugins.server.tasks import RenderTask, FilterTask, VideoTask
 from easydiffusion.types import (
     GenerateImageRequest,
@@ -44,7 +50,7 @@ from ui.plugins.server.native_image_tools import (
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Extra
-from starlette.responses import FileResponse, JSONResponse, StreamingResponse
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from pycloudflared import try_cloudflare
 
 log.info(f"started in {app.SD_DIR}")
@@ -135,6 +141,10 @@ def init():
     @server_api.post("/app_config")
     async def set_app_config(req: SetAppConfigRequest):
         return set_app_config_internal(req)
+
+    @server_api.post("/clear-vram")
+    def clear_vram():
+        return clear_vram_internal()
 
     @server_api.get("/get/{key:path}")
     def read_web_data(key: str = None, scan_for_malicious: bool = True):
@@ -346,27 +356,30 @@ def init():
 
     @server_api.get("/files/health")
     def fileparser_health():
-        from ui.plugins.server.file_parser import lora_dir
+        from ui.plugins.server.Browse_files import lora_dir
 
         return {"status": "ok", "lora_dir": str(lora_dir())}
 
     @server_api.post("/files/list_lora")
     def fileparser_list_lora():
-        from ui.plugins.server.file_parser import list_lora_files, scan_lora_metadata
+        from ui.plugins.server.Browse_files import list_lora_files
+        from ui.plugins.server.Metadata import scan_lora_metadata
 
         files = list_lora_files()
         return {"files": files, "meta": scan_lora_metadata(), "count": len(files)}
 
     @server_api.post("/files/list_model")
     def fileparser_list_model():
-        from ui.plugins.server.file_parser import list_checkpoint_files, scan_checkpoint_metadata
+        from ui.plugins.server.Browse_files import list_checkpoint_files
+        from ui.plugins.server.Metadata import scan_checkpoint_metadata
 
         files = list_checkpoint_files()
         return {"files": files, "meta": scan_checkpoint_metadata(), "count": len(files)}
 
     @server_api.post("/files/list_vae")
     def fileparser_list_vae():
-        from ui.plugins.server.file_parser import list_vae_files, scan_vae_metadata
+        from ui.plugins.server.Browse_files import list_vae_files
+        from ui.plugins.server.Metadata import scan_vae_metadata
 
         files = list_vae_files()
         return {"files": files, "meta": scan_vae_metadata(), "count": len(files)}
@@ -380,14 +393,15 @@ def init():
 
     @server_api.post("/files/list_checkpoints")
     def fileparser_list_checkpoints():
-        from ui.plugins.server.file_parser import list_checkpoint_files, scan_checkpoint_metadata
+        from ui.plugins.server.Browse_files import list_checkpoint_files
+        from ui.plugins.server.Metadata import scan_checkpoint_metadata
 
         files = list_checkpoint_files()
         return {"files": files, "meta": scan_checkpoint_metadata(), "count": len(files)}
 
     @server_api.post("/meta/get_triggers")
     def fileparser_get_triggers(payload: dict):
-        from ui.plugins.server.file_parser import extract_lora_metadata
+        from ui.plugins.server.Metadata import extract_lora_metadata
 
         try:
             return {"meta": extract_lora_metadata(payload.get("filepath"), bool(payload.get("include_metadata")))}
@@ -396,14 +410,14 @@ def init():
 
     @server_api.post("/meta/scan_loras")
     def fileparser_scan_loras():
-        from ui.plugins.server.file_parser import scan_lora_metadata
+        from ui.plugins.server.Metadata import scan_lora_metadata
 
         items = scan_lora_metadata()
         return {"meta": items, "count": len(items)}
 
     @server_api.post("/meta/scan_checkpoints")
     def fileparser_scan_checkpoints():
-        from ui.plugins.server.file_parser import scan_checkpoint_metadata
+        from ui.plugins.server.Metadata import scan_checkpoint_metadata
 
         items = scan_checkpoint_metadata()
         return {"meta": items, "count": len(items)}
@@ -441,8 +455,141 @@ def init():
     def get_sha256(obj_path: str):
         return get_sha256_internal(obj_path)
 
+    @functools.lru_cache(maxsize=1)
+    def find_cpp_ui_renderer():
+        configured = os.environ.get("SD_UI_CPP_RENDERER")
+        if configured and os.path.isfile(configured) and os.access(configured, os.X_OK):
+            return configured
+        build_root = os.path.join(app.ROOT_DIR, "source", "sdkit3-port-source", "build")
+        candidates = glob.glob(os.path.join(build_root, "*", "bin", "easy-diffusion-ui-render"))
+        candidates.append(os.path.join(build_root, "bin", "easy-diffusion-ui-render"))
+        for candidate in sorted(candidates):
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return candidate
+        standalone = os.path.join(app.ROOT_DIR, "source", "UI.cpp", "build", "bin", "easy-diffusion-ui-render")
+        if os.path.isfile(standalone) and os.access(standalone, os.X_OK):
+            return standalone
+        return None
+
+    cpp_ui_assets = os.path.join(app.ROOT_DIR, "source", "UI.cpp", "Pages", "assets")
+    if not os.path.isdir(cpp_ui_assets):
+        renderer = find_cpp_ui_renderer()
+        if renderer:
+            cpp_ui_assets = os.path.join(os.path.dirname(renderer), "cpp-ui-assets")
+    if os.path.isdir(cpp_ui_assets):
+        server_api.mount(
+            "/cpp-ui/assets",
+            NoCacheStaticFiles(directory=cpp_ui_assets),
+            name="cpp-ui-assets",
+        )
+    cpp_ui_scripts = os.path.join(app.ROOT_DIR, "source", "UI.cpp", "Pages", "src", "Plugin", "plugin_scripts")
+    if os.path.isdir(cpp_ui_scripts):
+        server_api.mount(
+            "/cpp-ui/scripts",
+            NoCacheStaticFiles(directory=cpp_ui_scripts),
+            name="cpp-ui-scripts",
+        )
+    else:
+        renderer = find_cpp_ui_renderer()
+        if renderer:
+            bundled_scripts = os.path.join(os.path.dirname(renderer), "cpp-ui-scripts")
+            if os.path.isdir(bundled_scripts):
+                server_api.mount(
+                    "/cpp-ui/scripts",
+                    NoCacheStaticFiles(directory=bundled_scripts),
+                    name="cpp-ui-scripts",
+                )
+    cpp_ui_events = deque(maxlen=200)
+    cpp_ui_events_lock = Lock()
+
+    def record_cpp_ui_event(level: str, message: str):
+        event = {
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "level": level,
+            "message": message,
+        }
+        with cpp_ui_events_lock:
+            cpp_ui_events.append(event)
+        getattr(log, level)(f"C++ UI {message}")
+
+    renderer_state = find_cpp_ui_renderer()
+    asset_state = os.path.isfile(os.path.join(cpp_ui_assets, "ui.css"))
+    if renderer_state:
+        record_cpp_ui_event(
+            "info",
+            f"serving enabled routes=16 renderer=ready assets={'ready' if asset_state else 'missing'} path=/cpp-ui",
+        )
+    else:
+        record_cpp_ui_event(
+            "warning",
+            f"serving unavailable routes=16 renderer=missing assets={'ready' if asset_state else 'missing'} path=/cpp-ui",
+        )
+
+    def render_cpp_ui_page(page_path: str):
+        renderer = find_cpp_ui_renderer()
+        if renderer is None:
+            record_cpp_ui_event("warning", f"request unavailable page={page_path} status=503 renderer=missing")
+            raise HTTPException(status_code=503, detail="C++ UI renderer is not built; set SD_UI_CPP_RENDERER or build the SDKit targets")
+        started = time.perf_counter()
+        try:
+            result = subprocess.run(
+                [renderer, page_path],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            record_cpp_ui_event("error", f"render failed page={page_path} error={type(error).__name__} elapsed_ms={elapsed_ms:.1f}")
+            raise HTTPException(status_code=500, detail="C++ UI rendering failed") from error
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        record_cpp_ui_event("info", f"page served page={page_path} status=200 elapsed_ms={elapsed_ms:.1f}")
+        return HTMLResponse(result.stdout, headers=NOCACHE_HEADERS)
+
+    @server_api.get("/cpp-ui/api/events", include_in_schema=False)
+    def read_cpp_ui_events():
+        with cpp_ui_events_lock:
+            events = list(cpp_ui_events)
+        return JSONResponse({"events": events, "count": len(events)})
+
+    cpp_ui_routes = {
+        "/cpp-ui": "/",
+        "/cpp-ui/canvas": "/canvas",
+        "/cpp-ui/perchance/text": "/perchance/text",
+        "/cpp-ui/perchance/image": "/perchance/image",
+        "/cpp-ui/perchance/gallery": "/perchance/gallery",
+        "/cpp-ui/gallery/images": "/gallery/images",
+        "/cpp-ui/gallery/datasets": "/gallery/datasets",
+        "/cpp-ui/tagging": "/tagging",
+        "/cpp-ui/training": "/training",
+        "/cpp-ui/models/download": "/models/download",
+        "/cpp-ui/settings": "/settings",
+        "/cpp-ui/settings/gpu": "/settings/gpu",
+        "/cpp-ui/settings/plugins": "/settings/plugins",
+        "/cpp-ui/stats": "/stats",
+        "/cpp-ui/logs": "/logs",
+        "/cpp-ui/console": "/console",
+    }
+    for route_path, page_path in cpp_ui_routes.items():
+        route_name = route_path.strip("/").replace("/", "-") or "main"
+        server_api.add_api_route(
+            route_path,
+            lambda page_path=page_path: render_cpp_ui_page(page_path),
+            methods=["GET"],
+            include_in_schema=False,
+            name="cpp-ui-" + route_name,
+        )
+
     @server_api.get("/")
     def read_root():
+        if find_cpp_ui_renderer() is not None:
+            return render_cpp_ui_page("/")
+        record_cpp_ui_event("warning", "root page using legacy UI because C++ renderer is unavailable")
+        return FileResponse(os.path.join(app.SD_UI_DIR, "index.html"), headers=NOCACHE_HEADERS)
+
+    @server_api.get("/legacy")
+    def read_legacy_ui():
         return FileResponse(os.path.join(app.SD_UI_DIR, "index.html"), headers=NOCACHE_HEADERS)
 
     @server_api.on_event("shutdown")
@@ -609,7 +756,7 @@ def read_web_data_internal(key: str = None, **kwargs):
             headers=NOCACHE_HEADERS,
         )
     elif key in ("model/metadata", "lora/metadata", "vae/metadata", "tipo/metadata"):
-        from ui.plugins.server.file_parser import (
+        from ui.plugins.server.Metadata import (
             scan_checkpoint_metadata,
             scan_lora_metadata,
             scan_vae_metadata,
@@ -677,6 +824,27 @@ def ping_internal(session_id: str = None):
         response["cloudflare"] = cloudflare.address
 
     return JSONResponse(response, headers=NOCACHE_HEADERS)
+
+
+def clear_vram_internal():
+    from easydiffusion import backend_manager
+
+    try:
+        # This also excludes training while the native process releases its models.
+        with training.generation_guard(), task_manager.backend_maintenance():
+            backend_manager.restart_backend()
+        log.info("VRAM cleared: native generation models unloaded.")
+        return JSONResponse({
+            "status": "OK",
+            "message": "Generation models unloaded. They will reload for the next image or video.",
+        }, headers=NOCACHE_HEADERS)
+    except ConnectionRefusedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.exception("Failed to clear VRAM")
+        raise HTTPException(status_code=500, detail=f"Could not clear VRAM: {exc}") from exc
 
 
 def render_internal(req: dict):

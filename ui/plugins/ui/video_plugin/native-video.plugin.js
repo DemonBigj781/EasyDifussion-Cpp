@@ -72,6 +72,14 @@
         return videoModel.value || ""
     }
 
+    function isLegacyLtxVideo() {
+        return /(?:^|[/\\])ltxv|ltx[-_ ]?video/i.test(selectedModel())
+    }
+
+    function isDistilledLegacyLtxVideo() {
+        return isLegacyLtxVideo() && selectedModel().toLowerCase().includes("distilled")
+    }
+
     function saveState() {
         const model = selectedModel()
         if (model) {
@@ -103,7 +111,9 @@
             : (cache.value === "easycache" ? "EasyCache default threshold: 0.20." : "Caching is disabled; every denoising step is exact.")
         const companionHint = selectedModel().toLowerCase().includes("mochi")
             ? " Mochi auto-detects its sibling VAE and T5 XXL when these fields are blank; it is text-to-video only."
-            : " The Video Model selection overrides the image checkpoint under Options; each video checkpoint keeps its own VAE and text encoder selections."
+            : (isLegacyLtxVideo()
+                ? " Original LTX-Video checkpoints use T5 XXL; official single-file checkpoints already include the VAE. Distilled checkpoints use 8 steps and CFG 1."
+                : " The Video Model selection overrides the image checkpoint under Options; each video checkpoint keeps its own VAE and text encoder selections.")
         byId("native-video-status").textContent = `${defaults}${companionHint} Frames are returned as a numbered strip while MP4 encoding is still being added.`
         saveState()
     }
@@ -166,6 +176,13 @@
         if (selectedModel().toLowerCase().includes("mochi")) {
             event.reqBody.sampler_name = "euler"
             event.reqBody.scheduler_name = "mochi"
+        } else if (isLegacyLtxVideo()) {
+            event.reqBody.sampler_name = "euler"
+            event.reqBody.scheduler_name = "linear_quadratic"
+            if (isDistilledLegacyLtxVideo()) {
+                event.reqBody.num_inference_steps = 8
+                event.reqBody.guidance_scale = 1.0
+            }
         }
     })
 

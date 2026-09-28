@@ -488,7 +488,9 @@ SDVersion ModelLoader::get_sd_version() {
             return VERSION_ERNIE_IMAGE;
         }
         if (tensor_storage.name.find("model.diffusion_model.adaln_single.emb.timestep_embedder.linear_1.bias") != std::string::npos) {
-            return VERSION_LTXAV;
+            return tensor_storage_map.find("model.diffusion_model.audio_patchify_proj.weight") != tensor_storage_map.end()
+                       ? VERSION_LTXAV
+                       : VERSION_LTXV;
         }
         if (tensor_storage.name.find("model.diffusion_model.pos_frequencies") != std::string::npos &&
             tensor_storage_map.find("model.diffusion_model.t5_y_embedder.to_kv.weight") != tensor_storage_map.end() &&

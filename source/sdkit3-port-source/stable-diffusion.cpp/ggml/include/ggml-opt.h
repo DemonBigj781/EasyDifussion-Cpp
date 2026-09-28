@@ -127,6 +127,10 @@ extern "C" {
 
         // only GGML_OPT_OPTIMIZER_TYPE_ADAMW needs m, v momenta per parameter tensor
         enum ggml_opt_optimizer_type optimizer;
+
+        // Capacity for the forward, backward, and optimizer graphs. A value
+        // below one selects GGML_DEFAULT_GRAPH_SIZE.
+        int32_t graph_size;
     };
 
     // get parameters for an optimization context with defaults set where possible

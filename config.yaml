@@ -32,11 +32,10 @@ backend_config:
     - --log-level
     - info
     - --keep-model-loaded
-    - --image-clip-vision-on-cpu
-    - --image-ip-adapter-on-cpu
     - --vae-tiling
+    - --mmap
     - --vae-tiles
-    - '64'
+    - '32'
     - --vae-tiled-overlap
     - '16'
     - --attention
@@ -73,7 +72,7 @@ directories:
     - lighttricks
   tipo: tipo
 model:
-  stable-diffusion: sdxl/fruitHeart_v10
+  stable-diffusion: 1.5/sd-v1-5
 vram_usage_level: balanced
 tipo:
   # The vendored CUDA llama.cpp server offloads all TIPO layers on this RTX 3060.
@@ -83,5 +82,5 @@ gallery:
   directory: /mnt/1812FB8512FB6662/easy-diffusion-save-backup
 perchance:
   gallery_id: ''
-  channel: ai-furry-generator
+  channel: furry-ai
   launcher: ''

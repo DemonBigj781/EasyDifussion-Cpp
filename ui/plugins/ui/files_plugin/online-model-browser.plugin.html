@@ -20,12 +20,110 @@
         <option value="AllTime">All Time</option><option value="Year">Year</option><option value="Month">Month</option><option value="Week">Week</option><option value="Day">Day</option>
     </select>
 </div>
+<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+    <!-- Built-in Civitai enum values keep filters usable while live enums load. -->
+    <label for="civitai-downloader-model-type" style="align-self:center">Tensor type</label>
+    <select id="civitai-downloader-model-type" style="flex:1; min-width:160px" title="Filter Civitai models by resource type">
+        <option value="">All tensor types</option>
+        <option value="Checkpoint">Checkpoint</option>
+        <option value="LORA">LoRA</option>
+        <option value="LoCon">LyCORIS (LoCon)</option>
+        <option value="DoRA">DoRA</option>
+        <option value="TextualInversion">Textual Inversion (Embedding)</option>
+        <option value="Hypernetwork">Hypernetwork</option>
+        <option value="AestheticGradient">Aesthetic Gradient</option>
+        <option value="Controlnet">ControlNet</option>
+        <option value="Upscaler">Upscaler</option>
+        <option value="MotionModule">Motion Module</option>
+        <option value="VAE">VAE</option>
+        <option value="TextEncoder">Text Encoder</option>
+        <option value="UNet">UNet</option>
+        <option value="CLIPVision">CLIP Vision</option>
+        <option value="Poses">Poses</option>
+        <option value="Wildcards">Wildcards</option>
+        <option value="Workflows">Workflows</option>
+        <option value="ComfyWorkflows">ComfyUI Workflows</option>
+        <option value="Detection">Detection</option>
+        <option value="VisionLanguage">Vision Language</option>
+        <option value="CLIP">CLIP</option>
+        <option value="LLM">LLM</option>
+        <option value="Other">Other</option>
+    </select>
+    <label for="civitai-downloader-base-model" style="align-self:center">Base model</label>
+    <select id="civitai-downloader-base-model" style="flex:1; min-width:160px" title="Filter Civitai results by base model">
+        <option value="">All base models</option>
+        <option value="SDXL 1.0">SDXL 1.0</option>
+        <option value="Pony">Pony</option>
+        <option value="Pony V7">Pony V7</option>
+        <option value="Illustrious">Illustrious</option>
+        <option value="NoobAI">NoobAI</option>
+        <option value="Anima">Anima</option>
+        <option value="SD 1.4">SD 1.4</option>
+        <option value="SD 1.5">SD 1.5</option>
+        <option value="SD 1.5 LCM">SD 1.5 LCM</option>
+        <option value="SD 1.5 Hyper">SD 1.5 Hyper</option>
+        <option value="SD 2.0">SD 2.0</option>
+        <option value="SD 2.0 768">SD 2.0 768</option>
+        <option value="SD 2.1">SD 2.1</option>
+        <option value="SD 2.1 768">SD 2.1 768</option>
+        <option value="SD 2.1 Unclip">SD 2.1 Unclip</option>
+        <option value="SD 3">SD 3</option>
+        <option value="SD 3.5">SD 3.5</option>
+        <option value="SD 3.5 Large">SD 3.5 Large</option>
+        <option value="SD 3.5 Large Turbo">SD 3.5 Large Turbo</option>
+        <option value="SD 3.5 Medium">SD 3.5 Medium</option>
+        <option value="SDXL 0.9">SDXL 0.9</option>
+        <option value="SDXL 1.0 LCM">SDXL 1.0 LCM</option>
+        <option value="SDXL Lightning">SDXL Lightning</option>
+        <option value="SDXL Hyper">SDXL Hyper</option>
+        <option value="SDXL Turbo">SDXL Turbo</option>
+        <option value="SDXL Distilled">SDXL Distilled</option>
+        <option value="Flux.1 D">Flux.1 D</option>
+        <option value="Flux.1 S">Flux.1 S</option>
+        <option value="Flux.1 Krea">Flux.1 Krea</option>
+        <option value="Flux.1 Kontext">Flux.1 Kontext</option>
+        <option value="Flux.2 D">Flux.2 D</option>
+        <option value="Flux.2 Klein 9B">Flux.2 Klein 9B</option>
+        <option value="Flux.2 Klein 9B-base">Flux.2 Klein 9B-base</option>
+        <option value="Flux.2 Klein 4B">Flux.2 Klein 4B</option>
+        <option value="Flux.2 Klein 4B-base">Flux.2 Klein 4B-base</option>
+        <option value="Chroma">Chroma</option>
+        <option value="Qwen">Qwen</option>
+        <option value="ZImageTurbo">ZImageTurbo</option>
+        <option value="ZImageBase">ZImageBase</option>
+        <option value="HiDream">HiDream</option>
+        <option value="Lumina">Lumina</option>
+        <option value="Hunyuan 1">Hunyuan 1</option>
+        <option value="Hunyuan Video">Hunyuan Video</option>
+        <option value="LTXV">LTXV</option>
+        <option value="LTXV2">LTXV2</option>
+        <option value="Wan Video">Wan Video</option>
+        <option value="Wan Video 2.2 TI2V-5B">Wan Video 2.2 TI2V-5B</option>
+        <option value="Wan Video 2.2 I2V-A14B">Wan Video 2.2 I2V-A14B</option>
+        <option value="Wan Video 2.2 T2V-A14B">Wan Video 2.2 T2V-A14B</option>
+        <option value="AuraFlow">AuraFlow</option>
+        <option value="Kolors">Kolors</option>
+        <option value="PixArt a">PixArt a</option>
+        <option value="PixArt E">PixArt E</option>
+        <option value="Playground v2">Playground v2</option>
+        <option value="Stable Cascade">Stable Cascade</option>
+        <option value="SVD">SVD</option>
+        <option value="SVD XT">SVD XT</option>
+        <option value="Other">Other</option>
+    </select>
+</div>
 <small id="civitai-downloader-help">Image search uses Civitai's images-v6 query when available and falls back to the public image API.</small>
 <div id="civitai-downloader-imgfilters" style="display:none; gap:6px; margin:8px 0">
     <input id="civitai-downloader-postid" type="number" placeholder="postId (optional)" style="flex:1">
     <input id="civitai-downloader-username" type="text" placeholder="username (optional)" style="flex:1">
 </div>
 <div id="civitai-downloader-status" style="min-height:18px; margin-bottom:6px"></div>
+<details open style="margin-bottom:8px; border:1px solid var(--background-color3); border-radius:6px; padding:5px 7px;">
+    <summary style="cursor:pointer;">Download queue <span id="civitai-downloader-queue-count"></span></summary>
+    <div id="civitai-downloader-queue" style="display:flex; flex-direction:column; gap:4px; margin-top:5px;">
+        <small>No downloads yet.</small>
+    </div>
+</details>
 <div id="civitai-downloader-results" style="max-height:70vh; overflow:auto; display:flex; flex-direction:column; gap:8px"></div>
 <div style="display:flex; justify-content:space-between; margin-top:6px">
     <button class="secondaryButton" id="civitai-downloader-prev" disabled>Prev</button>

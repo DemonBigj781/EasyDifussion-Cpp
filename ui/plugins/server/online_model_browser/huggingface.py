@@ -64,6 +64,8 @@ def _base_model(tags: list[Any], pipeline_tag: str) -> str:
     values = [str(tag).split(":", 1)[1] for tag in tags if str(tag).startswith("base_model:")]
     value = next((item for item in values if "/" in item), values[0] if values else "")
     lowered = " ".join(str(tag).lower() for tag in tags) + " " + value.lower()
+    if re.search(r"(?:^|[\s/_-])anima(?:$|[\s/_-])", lowered):
+        return "Anima"
     if "pony" in lowered or "sdxl" in lowered:
         return "SDXL / Pony"
     if "stable-diffusion-3.5" in lowered or "sd 3.5" in lowered:
@@ -205,7 +207,18 @@ def _destination(target: Dict[str, Any], filename: str) -> Path:
     repo_id = _validate_repo_id(target.get("id"))
     lowered = filename.lower()
 
-    if pipeline.startswith("text-") or pipeline in {"conversational", "feature-extraction"}:
+    if pipeline in {
+        "conversational",
+        "feature-extraction",
+        "fill-mask",
+        "question-answering",
+        "sentence-similarity",
+        "summarization",
+        "text-generation",
+        "text2text-generation",
+        "token-classification",
+        "translation",
+    }:
         relative = Path("LLM") / civ._safe_slug(repo_id.replace("/", "--"))
     elif "vae" in lowered:
         relative = Path("VAE") / civ._base_model_bucket(base_model)
@@ -214,6 +227,8 @@ def _destination(target: Dict[str, Any], filename: str) -> Path:
     elif any(part in lowered for part in ("text_encoder", "text-encoder", "clip_l", "clip_g", "t5")):
         relative = Path("Text-encoder") / civ._base_model_bucket(base_model)
     elif any(part in lowered for part in ("unet", "diffusion_model")):
+        relative = Path("DiffusionModels") / civ._base_model_bucket(base_model)
+    elif civ._is_modular_base_model(base_model):
         relative = Path("DiffusionModels") / civ._base_model_bucket(base_model)
     else:
         relative = Path("checkpoints") / civ._base_model_bucket(base_model)

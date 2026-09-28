@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
@@ -49,18 +50,78 @@ class TrainingService:
             return [str(binary), "--root", str(self.root)]
         return [sys.executable, str(self.root / "training" / "trainer.py"), "--root", str(self.root)]
 
+    def native_sd15_binary(self):
+        configured = os.getenv("ED_SD15_NATIVE_TRAINER")
+        candidates = ([Path(configured).expanduser()] if configured else []) + [
+            self.root / "training" / "native" / "sd15-sycl" / "sdkit-sd15-trainer",
+            self.root / "source" / "sdkit3-port-source" / "build" / "local-linux-x64-sycl" / "bin" / "sdkit-sd15-trainer",
+        ]
+        return next((path.resolve() for path in candidates if path.is_file() and os.access(path, os.X_OK)), None)
+
+    def native_environment(self):
+        env = trainer.child_env()
+        oneapi = Path(os.getenv("ONEAPI_ROOT", "/opt/intel/oneapi"))
+        library_dirs = []
+        for product in ("compiler", "mkl", "tbb", "umf"):
+            versions = sorted((oneapi / product).glob("*/"), reverse=True)
+            for version in versions[:1]:
+                for suffix in ("lib", "lib/x64", "opt/compiler/lib", "lib/intel64/gcc4.8"):
+                    candidate = version / suffix
+                    if candidate.is_dir():
+                        library_dirs.append(str(candidate))
+        existing = [item for item in env.get("LD_LIBRARY_PATH", "").split(":") if item]
+        env["LD_LIBRARY_PATH"] = ":".join(dict.fromkeys(library_dirs + existing))
+        # These optimizations are still unstable in the native backward graph.
+        env["GGML_SYCL_ENABLE_FUSION"] = "0"
+        env["GGML_SYCL_ENABLE_GRAPH"] = "0"
+        return env
+
+    def stage_native_dataset(self, source, destination, trigger):
+        images = trainer.dataset_images(Path(source))
+        destination.mkdir(parents=True, exist_ok=False)
+        for index, image in enumerate(images):
+            caption = trainer.read_caption(image)
+            tags = [tag.strip() for tag in caption.split(",") if tag.strip()]
+            if trigger and trigger not in tags:
+                tags.insert(0, trigger)
+            if not tags:
+                raise ValueError(f"Image has no caption or trigger tag: {image.name}")
+            target = destination / f"{index:06d}{image.suffix.lower()}"
+            shutil.copyfile(image, target)
+            target.with_suffix(".txt").write_text(", ".join(tags) + "\n", encoding="utf-8")
+        return len(images)
+
     def readiness(self):
+        native_binary = self.native_sd15_binary()
+        native = {"ready": native_binary is not None,
+                  "detail": "Native C++ SD1.5 LoRA trainer ready on SYCL1" if native_binary else
+                            "Native C++ SD1.5 trainer is not built; run source/Build.sh --sycl --target sdkit-sd15-trainer --deploy training/native/sd15-sycl",
+                  "binary": str(native_binary) if native_binary else "", "device": "SYCL1"}
         try:
             result = subprocess.run(self.command() + ["probe"], capture_output=True,
                                     text=True, timeout=75)
+            if result.returncode:
+                python_runtime = {"ready": False, "detail": (result.stderr or result.stdout)[-3000:]}
+            else:
+                python_runtime = json.loads(result.stdout.strip().splitlines()[-1])
         except subprocess.TimeoutExpired:
-            return {"ready": False, "detail": "Training runtime check timed out"}
-        if result.returncode:
-            return {"ready": False, "detail": (result.stderr or result.stdout)[-3000:]}
-        return json.loads(result.stdout.strip().splitlines()[-1])
+            python_runtime = {"ready": False, "detail": "Python training runtime check timed out"}
+        except (OSError, ValueError, IndexError) as exc:
+            python_runtime = {"ready": False, "detail": str(exc)}
+        return {"ready": native["ready"] or python_runtime.get("ready", False),
+                "detail": native["detail"] if native["ready"] else
+                          python_runtime.get("detail", "Python training runtime unavailable"),
+                "native_cpp": native, "python_runtime": python_runtime}
 
     def dataset(self, value):
         return trainer.inside(self.dataset_root, value)
+
+    def create_dataset(self, value):
+        if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", value):
+            raise ValueError("Dataset name must use 1–80 letters, digits, underscores or hyphens")
+        destination = self.dataset(value)
+        destination.mkdir(parents=True, exist_ok=False)
+        return {"dataset": value, "path": str(destination)}
 
     def scan(self, value):
         folder = self.dataset(value)
@@ -100,12 +161,55 @@ class TrainingService:
                     result.append({"path": str(resolved), "name": str(path.relative_to(root))})
         return sorted(result, key=lambda item: item["name"].lower())
 
+    def training_assets(self):
+        result = {"text_encoders": [], "vaes": []}
+        for key, output_key, extensions, include_model_dirs in (
+            ("text-encoder", "text_encoders", {".safetensors"}, True),
+            ("vae", "vaes", {".safetensors", ".pth"}, False),
+        ):
+            seen = set()
+            seen_dirs = set()
+            for folder in self.model_dirs(key):
+                root = Path(folder).resolve()
+                if not root.is_dir():
+                    continue
+                for path in root.rglob("*"):
+                    if path.is_symlink():
+                        continue
+                    resolved = path.resolve()
+                    if not resolved.is_relative_to(root) or resolved in seen:
+                        continue
+                    if path.is_file() and path.suffix.lower() in extensions:
+                        seen.add(resolved)
+                        result[output_key].append({"path": str(resolved), "name": str(path.relative_to(root))})
+                        if include_model_dirs and path.parent != root:
+                            directory = path.parent.resolve()
+                            if directory not in seen_dirs:
+                                seen_dirs.add(directory)
+                                result[output_key].append({
+                                    "path": str(directory), "name": f"{path.parent.relative_to(root)} (folder)",
+                                })
+            result[output_key].sort(key=lambda item: item["name"].lower())
+        return result
+
     def resolve_model(self, value):
         path = Path(value).resolve()
         if path.suffix.lower() != ".safetensors" or not path.is_file():
             raise ValueError("Choose a full SD1.5/SDXL .safetensors checkpoint")
         if not any(path.is_relative_to(Path(root).resolve()) for root in self.model_dirs("stable-diffusion")):
             raise ValueError("Model must be inside a configured checkpoint directory")
+        return path
+
+    def resolve_training_asset(self, value, directory_key, extensions, *, allow_directory=False):
+        path = Path(value).expanduser().resolve()
+        roots = [Path(root).resolve() for root in self.model_dirs(directory_key)]
+        if not any(path.is_relative_to(root) for root in roots):
+            raise ValueError(f"Asset must be inside a configured {directory_key} directory")
+        if allow_directory and path.is_dir():
+            return path
+        if not path.is_file() or path.suffix.lower() not in extensions:
+            allowed = ", ".join(sorted(extensions))
+            raise ValueError(f"Choose a file with one of these extensions: {allowed}")
         return path
 
     def check_idle_job(self):
@@ -143,6 +247,8 @@ class TrainingService:
             spec = dict(payload)
             if resume_id:
                 old = self.get(resume_id)
+                if old["spec"].get("native_cpp"):
+                    raise ValueError("Native C++ SD1.5 jobs do not support resume yet; start a new job")
                 if old["status"] not in {"failed", "cancelled", "interrupted"} or old["spec"].get("kind") != "lora":
                     raise ValueError("Resume supports interrupted LoRA jobs with saved state")
                 spec = dict(old["spec"])
@@ -176,10 +282,30 @@ class TrainingService:
             else:
                 spec = trainer.validate_training(spec)
                 spec["model"] = str(self.resolve_model(spec.get("model", "")))
+                if spec["architecture"] == "anima":
+                    spec["qwen3"] = str(self.resolve_training_asset(
+                        spec.get("qwen3", ""), "text-encoder", {".safetensors"}, allow_directory=True))
+                    spec["vae"] = str(self.resolve_training_asset(
+                        spec.get("vae", ""), "vae", {".safetensors", ".pth"}))
+                if spec["architecture"] == "sd15":
+                    if spec["kind"] != "lora":
+                        raise ValueError("Native C++ SD1.5 training currently supports LoRA only")
+                    if spec["batch_size"] != 1:
+                        raise ValueError("Native C++ SD1.5 training currently requires batch size 1")
+                    if spec["resolution"] > 1024:
+                        raise ValueError("Native C++ SD1.5 training supports resolutions up to 1024")
+                    binary = self.native_sd15_binary()
+                    if binary is None:
+                        raise ValueError("Native C++ SD1.5 trainer is not built. Build with source/Build.sh --sycl --target sdkit-sd15-trainer --deploy training/native/sd15-sycl")
+                    spec["native_cpp"] = True
+                    spec["native_binary"] = str(binary)
+                    spec["device"] = "SYCL1"
+                    spec["threads"] = 10
+                else:
+                    ready = self.readiness().get("python_runtime", {"ready": False, "detail": "Python trainer unavailable"})
+                    if not ready["ready"]:
+                        raise ValueError(ready["detail"])
                 spec["command"] = "resume" if resume_id else f"train-{spec['kind']}"
-                ready = self.readiness()
-                if not ready["ready"]:
-                    raise ValueError(ready["detail"])
             job_id = uuid4().hex
             directory = self.job_root / job_id
             directory.mkdir(parents=True)
@@ -222,14 +348,35 @@ class TrainingService:
             with self.lock:
                 if job["status"] == "cancelling":
                     raise trainer.Cancelled()
-                process = subprocess.Popen(self.command(), cwd=self.root, stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1,
-                    start_new_session=True)
+                if job["spec"].get("native_cpp"):
+                    spec = job["spec"]
+                    job_dir = self.job_root / job_id
+                    staged_dataset = job_dir / "data"
+                    count = self.stage_native_dataset(spec["dataset"], staged_dataset, spec["trigger"])
+                    output = job_dir / "output" / f"{spec['output_name']}.safetensors"
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    command = [spec["native_binary"], "--model", spec["model"],
+                               "--dataset", str(staged_dataset), "--output", str(output),
+                               "--trigger", spec["trigger"], "--device", spec["device"],
+                               "--resolution", str(spec["resolution"]), "--steps", str(spec["steps"]),
+                               "--save-every", str(spec["save_every"]), "--rank", str(spec["rank"]),
+                               "--threads", str(spec["threads"]), "--learning-rate", str(spec["learning_rate"]),
+                               "--seed", str(spec["seed"])]
+                    process = subprocess.Popen(command, cwd=self.root, env=self.native_environment(),
+                        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, errors="replace", bufsize=1, start_new_session=True)
+                    backend_pid = process.pid
+                    job["log"].append({"event": "dataset_staged", "images": count})
+                else:
+                    process = subprocess.Popen(self.command(), cwd=self.root, stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1,
+                        start_new_session=True)
                 self.processes[job_id] = process
                 job["status"] = "running"
                 self._save(job)
-                process.stdin.write(json.dumps(job["spec"]) + "\n")
-                process.stdin.flush()
+                if process.stdin is not None:
+                    process.stdin.write(json.dumps(job["spec"]) + "\n")
+                    process.stdin.flush()
             last_saved = 0
             with (self.job_root / job_id / "events.jsonl").open("a", encoding="utf-8") as log:
                 for line in process.stdout:
@@ -269,7 +416,8 @@ class TrainingService:
                 job["error"] = str(exc)
         finally:
             if process:
-                process.stdin.close()
+                if process.stdin is not None:
+                    process.stdin.close()
                 if process.poll() is None:
                     process.terminate()
                     try:

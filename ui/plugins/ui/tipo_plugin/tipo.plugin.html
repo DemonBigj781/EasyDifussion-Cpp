@@ -14,6 +14,23 @@
             <small id="z-tipo-nl-info" style="opacity:.75;">Used by native TIPO models as short/long text conditioning.</small>
         </div>
     </div>
+    <div style="margin-top:10px;display:grid;gap:10px;grid-template-columns:minmax(0,2fr) minmax(160px,1fr) auto;align-items:end;">
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
+            <label for="z-tipo-preset" style="font-size:12px;">Preset</label>
+            <select id="z-tipo-preset">
+                <option value="">Loading available models…</option>
+            </select>
+            <small style="opacity:.75;">Available models are included automatically with their recommended sidecar settings.</small>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
+            <label for="z-tipo-preset-name" style="font-size:12px;">Custom preset name</label>
+            <input id="z-tipo-preset-name" type="text" maxlength="80" spellcheck="false" placeholder="My TIPO settings">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="z-tipo-save-preset" type="button" class="secondaryButton">Save Preset</button>
+            <button id="z-tipo-delete-preset" type="button" class="tertiaryButton" disabled>Delete</button>
+        </div>
+    </div>
     <div style="margin-top:10px;display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr;">
         <div style="display:flex;flex-direction:column;gap:6px;">
             <label style="font-size:12px;">Ban Tags (comma-separated)</label>

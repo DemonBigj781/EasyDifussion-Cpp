@@ -1120,6 +1120,24 @@ void ggml_sycl_gelu(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
     ggml_sycl_op_gelu(ctx, dst);
 }
 
+void ggml_sycl_silu_back(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
+    scope_op_debug_print scope_dbg_print(__func__, dst, /*num_src=*/2);
+    const ggml_tensor * grad = dst->src[0];
+    const ggml_tensor * x = dst->src[1];
+    GGML_ASSERT(grad->type == GGML_TYPE_F32 && x->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32);
+    GGML_ASSERT(ggml_is_contiguous(grad) && ggml_is_contiguous(x) && ggml_is_contiguous(dst));
+    const float * grad_data = (const float *) grad->data;
+    const float * x_data = (const float *) x->data;
+    float * out = (float *) dst->data;
+    const int64_t count = ggml_nelements(dst);
+    ctx.stream()->parallel_for(sycl::range<1>((size_t) count), [=](sycl::id<1> id) {
+        const size_t i = id[0];
+        const float value = x_data[i];
+        const float sigmoid = 1.0f / (1.0f + sycl::exp(-value));
+        out[i] = grad_data[i] * sigmoid * (1.0f + value * (1.0f - sigmoid));
+    });
+}
+
 void ggml_sycl_silu(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
     scope_op_debug_print scope_dbg_print(__func__, dst, /*num_src=*/1);
     ggml_sycl_op_silu(ctx, dst);

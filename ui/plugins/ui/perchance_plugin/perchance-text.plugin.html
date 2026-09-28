@@ -12,15 +12,15 @@
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <select id="perchance-generator-text-preset" style="display:block;flex:1 1 220px;min-width:0;width:100%;">
                 <option value="">Choose a preset…</option>
-                <option value="general-image-expander">General image prompt expander</option>
-                <option value="danbooru-sdxl">Danbooru tags for SDXL</option>
-                <option value="natural-language-sdxl">Natural language for SDXL</option>
-                <option value="cinematic-scene">Cinematic scene enhancer</option>
-                <option value="character-design">Character design builder</option>
-                <option value="negative-prompt">SDXL negative prompt builder</option>
             </select>
             <button id="perchance-generator-apply-text-preset" class="secondaryButton">Insert into Start With</button>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+            <input id="perchance-generator-text-preset-name" type="text" maxlength="80" spellcheck="false" placeholder="Custom starter name" style="flex:1 1 220px;min-width:0;">
+            <button id="perchance-generator-save-text-preset" type="button" class="secondaryButton">Save Starter</button>
+            <button id="perchance-generator-delete-text-preset" type="button" class="tertiaryButton" disabled>Delete</button>
+        </div>
+        <small style="display:block;opacity:.75;margin-top:6px;">Use <code>%positive%</code> or <code>%negative%</code> in a starter or text prompt to insert the current Easy Diffusion prompts.</small>
     </div>
     <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;margin-top:8px;">
         <button id="perchance-generator-import-text-prompt" class="secondaryButton" style="justify-self:start;">Import Prompt</button>

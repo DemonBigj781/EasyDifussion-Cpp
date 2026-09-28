@@ -819,6 +819,7 @@ struct ggml_backend_sched {
     size_t context_buffer_size;
 
     bool op_offload;
+    bool allow_cpu_fallback;
 
     int debug;
 
@@ -1204,10 +1205,16 @@ void ggml_backend_sched_split_graph(ggml_backend_sched_t sched, struct ggml_cgra
             continue;
         }
         int * node_backend_id = &tensor_backend_id(node);
+        if (!sched->allow_cpu_fallback && *node_backend_id == sched->n_backends - 1) {
+            // A tensor may carry a pre-existing CPU assignment. Training graphs
+            // must reassign it to an accelerator or report that no GPU op exists.
+            *node_backend_id = -1;
+        }
         if (*node_backend_id == -1) {
             // unassigned node: find the backend with the most supported inputs
             int n_supported_best = -1;
-            for (int b = 0; b < sched->n_backends; b++) {
+            const int n_op_backends = sched->n_backends - (sched->allow_cpu_fallback ? 0 : 1);
+            for (int b = 0; b < n_op_backends; b++) {
                 if (ggml_backend_supports_op(sched->backends[b], node)) {
                     int n_supported = 0;
                     for (int j = 0; j < GGML_MAX_SRC; j++) {
@@ -1277,10 +1284,14 @@ void ggml_backend_sched_split_graph(ggml_backend_sched_t sched, struct ggml_cgra
             }
         }
         // if the node is still unassigned, assign it to the first backend that supports it
-        for (int b = 0; b < sched->n_backends && *cur_backend_id == -1; b++) {
+        const int n_op_backends = sched->n_backends - (sched->allow_cpu_fallback ? 0 : 1);
+        for (int b = 0; b < n_op_backends && *cur_backend_id == -1; b++) {
             ggml_backend_sched_set_if_supported(sched, node, b, cur_backend_id);
         }
-        GGML_ASSERT(*cur_backend_id != -1);
+        if (*cur_backend_id == -1) {
+            GGML_LOG_ERROR("no allowed backend supports op %s for tensor %s", ggml_op_name(node->op), node->name);
+            GGML_ABORT("backend scheduler cannot place graph op without CPU fallback");
+        }
     }
 
     // pass 5: split graph, find tensors that need to be copied
@@ -1801,6 +1812,7 @@ ggml_backend_sched_t ggml_backend_sched_new(
     sched->debug_realloc = GGML_SCHED_DEBUG_REALLOC ? atoi(GGML_SCHED_DEBUG_REALLOC) : sched->debug_realloc;
 
     sched->n_backends = n_backends;
+    sched->allow_cpu_fallback = true;
     sched->n_copies = parallel ? GGML_SCHED_MAX_COPIES : 1;
 
     // initialize hash table
@@ -2015,6 +2027,11 @@ size_t ggml_backend_sched_get_buffer_size(ggml_backend_sched_t sched, ggml_backe
     GGML_ASSERT(backend_index >= 0 && backend_index < sched->n_backends);
 
     return ggml_gallocr_get_buffer_size(sched->galloc, backend_index);
+}
+
+void ggml_backend_sched_set_allow_cpu_fallback(ggml_backend_sched_t sched, bool allow) {
+    GGML_ASSERT(sched);
+    sched->allow_cpu_fallback = allow;
 }
 
 void ggml_backend_sched_set_tensor_backend(ggml_backend_sched_t sched, struct ggml_tensor * node, ggml_backend_t backend) {

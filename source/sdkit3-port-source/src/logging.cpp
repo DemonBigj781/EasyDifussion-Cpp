@@ -1,5 +1,7 @@
 #include "logging.h"
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
@@ -8,6 +10,42 @@
 
 static LogLevel current_log_level = LogLevel::Info;
 static std::mutex log_mutex;
+static thread_local bool generation_out_of_vram = false;
+
+void reset_sd_generation_error() {
+    generation_out_of_vram = false;
+}
+
+std::string sd_generation_error_message(const std::string& fallback) {
+    // A lost Vulkan device is a driver/device failure, not proof of exhausted VRAM.
+    if (fallback.find("ErrorDeviceLost") != std::string::npos ||
+        fallback.find("VK_ERROR_DEVICE_LOST") != std::string::npos) {
+        return "Vulkan GPU device lost (ErrorDeviceLost). Use Settings > Clear VRAM to restart the backend, "
+               "then retry with a smaller image or another VAE device.";
+    }
+    if (generation_out_of_vram) {
+        return "Out of VRAM: the GPU ran out of memory. Reduce image size or batch size, or enable VAE tiling.";
+    }
+    return fallback;
+}
+
+static bool is_gpu_out_of_memory(const std::string& message) {
+    std::string lower = message;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (lower.find("host") != std::string::npos) {
+        return false;
+    }
+    if (lower.find("vk_error_out_of_device_memory") != std::string::npos ||
+        lower.find("erroroutofdevicememory") != std::string::npos ||
+        lower.find("cuda_error_out_of_memory") != std::string::npos ||
+        lower.find("hiperroroutofmemory") != std::string::npos) {
+        return true;
+    }
+    return lower.find("out of memory") != std::string::npos &&
+           (lower.find("cuda") != std::string::npos || lower.find("hip") != std::string::npos ||
+            lower.find("vulkan") != std::string::npos || lower.find("gpu") != std::string::npos);
+}
 
 const char* log_level_to_string(LogLevel level) {
     switch (level) {
@@ -133,7 +171,10 @@ void sd_log_cb(sd_log_level_t level, const char* log, void* data) {
     }
 
     // Forward to our logging system (remove trailing newline if present)
-    std::string msg = log;
+    std::string msg = log ? log : "";
+    if ((level == SD_LOG_ERROR || level == SD_LOG_WARN) && is_gpu_out_of_memory(msg)) {
+        generation_out_of_vram = true;
+    }
     if (!msg.empty() && msg.back() == '\n') {
         msg.pop_back();
     }

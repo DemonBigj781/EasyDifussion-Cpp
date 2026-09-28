@@ -112,6 +112,9 @@ private:
 public:
     ~ModelManager() override;
 
+    // Explicitly release backend buffers while runner tensor contexts are alive.
+    void release_registered_storage() { release_all(); }
+
     ModelLoader& loader() { return model_loader_; }
     const ModelLoader& loader() const { return model_loader_; }
 

@@ -47,6 +47,7 @@
 #include "model/diffusion/pid.hpp"
 #include "model/diffusion/qwen_image.hpp"
 #include "model/diffusion/unet.hpp"
+#include "model/diffusion/sd15_lora_trainer.hpp"
 #include "model/diffusion/wan.hpp"
 #include "model/diffusion/z_image.hpp"
 #include "model/upscaler/esrgan.hpp"
@@ -113,6 +114,7 @@ const char* model_version_to_str[] = {
     "Anima",
     "Flux.2",
     "Flux.2 klein",
+    "LTX Video",
     "LTXAV",
     "MiniMax-H3",
     "HiDream O1",
@@ -1266,6 +1268,19 @@ public:
                                                                      version,
                                                                      model_manager,
                                                                      sd_ctx_params->model_args);
+            } else if (sd_version_is_ltxv(version)) {
+                auto ltxv_conditioner = std::make_shared<T5CLIPEmbedder>(backend_for(SDBackendModule::TE),
+                                                                         tensor_storage_map,
+                                                                         true,
+                                                                         0,
+                                                                         false,
+                                                                         model_manager);
+                ltxv_conditioner->chunk_len = 256;
+                cond_stage_model            = ltxv_conditioner;
+                diffusion_model             = std::make_shared<LTXV::LTXAVRunner>(backend_for(SDBackendModule::DIFFUSION),
+                                                                                  tensor_storage_map,
+                                                                                  "model.diffusion_model",
+                                                                                  model_manager);
             } else if (sd_version_is_ltxav(version)) {
                 conditioner_backend_module = SDBackendModule::LLM;
                 cond_stage_model = std::make_shared<LTXAVEmbedder>(backend_for(conditioner_backend_module),
@@ -1701,7 +1716,7 @@ public:
             }
 
             auto create_tae = [&](bool decode_only) -> std::shared_ptr<VAE> {
-                if (sd_version_uses_wan_vae(version) || sd_version_is_hunyuan_video(version) || sd_version_is_ltxav(version) || sd_version_is_minimax_h3(version)) {
+                if (sd_version_uses_wan_vae(version) || sd_version_is_hunyuan_video(version) || sd_version_is_ltx_video(version) || sd_version_is_minimax_h3(version)) {
                     return std::make_shared<TinyVideoAutoEncoder>(backend_for(SDBackendModule::VAE),
                                                                   tensor_storage_map,
                                                                   "decoder",
@@ -1736,7 +1751,7 @@ public:
                                                                    tensor_storage_map,
                                                                    "first_stage_model",
                                                                    model_manager);
-                } else if (sd_version_is_ltxav(version)) {
+                } else if (sd_version_is_ltx_video(version)) {
                     return std::make_shared<LTXVideoVAE>(backend_for(SDBackendModule::VAE),
                                                          tensor_storage_map,
                                                          "first_stage_model",
@@ -2226,7 +2241,7 @@ public:
                            sd_version_is_flux2(version) ||
                            sd_version_is_longcat(version) ||
                            sd_version_is_lens(version) ||
-                           sd_version_is_ltxav(version) ||
+                           sd_version_is_ltx_video(version) ||
                            sd_version_is_krea2(version)) {
                     pred_type = FLUX_FLOW_PRED;
 
@@ -2268,8 +2283,8 @@ public:
                     denoiser = std::make_shared<EDMVDenoiser>();
                     break;
                 case FLOW_PRED: {
-                    if (sd_version_is_ltxav(version)) {
-                        LOG_INFO("running in LTXAV FLOW mode");
+                    if (sd_version_is_ltx_video(version)) {
+                        LOG_INFO("running in LTX FLOW mode");
                         denoiser = std::make_shared<FluxFlowDenoiser>();
                     } else if (sd_version_is_minimax_h3(version)) {
                         LOG_INFO("running in MiniMax H3 AV FLOW mode");
@@ -2724,7 +2739,7 @@ public:
                     latent_rgb_proj = flux2_latent_rgb_proj;
                     latent_rgb_bias = flux2_latent_rgb_bias;
                     patch_sz        = 2;
-                } else if (version == VERSION_LTXAV) {
+                } else if (sd_version_is_ltx_video(version)) {
                     latent_rgb_proj = ltxav_latent_rgb_proj;
                     latent_rgb_bias = ltxav_latent_rgb_bias;
                 } else {
@@ -3108,13 +3123,13 @@ public:
             std::vector<float> base_timesteps_vec = prepare_sample_timesteps(sigma, shifted_timestep);
             std::vector<float> timesteps_vec      = base_timesteps_vec;
             sd::Tensor<float> audio_timesteps_tensor;
-            if (sd_version_is_ltxav(version) && !denoise_mask.empty()) {
+            if (sd_version_is_ltx_video(version) && !denoise_mask.empty()) {
                 timesteps_vec          = process_ltxav_video_timesteps(base_timesteps_vec, sampling_init_latent, denoise_mask);
                 audio_timesteps_tensor = sd::Tensor<float>({static_cast<int64_t>(base_timesteps_vec.size())}, base_timesteps_vec);
             } else {
                 timesteps_vec = process_timesteps(timesteps_vec, sampling_init_latent, denoise_mask, step);
             }
-            const std::vector<float>& scaling_timesteps_vec = (sd_version_is_ltxav(version) && !denoise_mask.empty())
+            const std::vector<float>& scaling_timesteps_vec = (sd_version_is_ltx_video(version) && !denoise_mask.empty())
                                                                   ? base_timesteps_vec
                                                                   : timesteps_vec;
             adjust_sample_step_scalings(shifted_timestep, scaling_timesteps_vec, c_in, &c_skip, &c_out);
@@ -3126,7 +3141,7 @@ public:
                 hunyuan_timestep_r_tensor = sd::Tensor<float>::from_vector({sigmas[step + 1]});
             }
             sd::Tensor<float> noised_input = x * c_in;
-            if (!denoise_mask.empty() && (version == VERSION_WAN2_2_TI2V || sd_version_is_ltxav(version) || sd_version_is_lingbot_video(version))) {
+            if (!denoise_mask.empty() && (version == VERSION_WAN2_2_TI2V || sd_version_is_ltx_video(version) || sd_version_is_lingbot_video(version))) {
                 noised_input = noised_input * denoise_mask + sampling_init_latent * (1.0f - denoise_mask);
             }
 
@@ -3246,7 +3261,7 @@ public:
                         audio_length,
                         std::isfinite(active_flow_shift) ? active_flow_shift : 12.f,
                         3.f};
-                } else if (sd_version_is_ltxav(version)) {
+                } else if (sd_version_is_ltx_video(version)) {
                     diffusion_params.extra = LTXAVDiffusionExtra{
                         nullptr,
                         audio_timesteps_tensor.empty() ? nullptr : &audio_timesteps_tensor,
@@ -3452,7 +3467,7 @@ public:
     int get_latent_channel() {
         int latent_channel = 4;
         if (sd_version_is_dit(version)) {
-            if (sd_version_is_ltxav(version)) {
+            if (sd_version_is_ltx_video(version)) {
                 latent_channel = 128;
             } else if (sd_version_is_minimax_h3(version)) {
                 latent_channel = 24;
@@ -3703,7 +3718,7 @@ public:
 
     int video_frames_to_latent_frames(int frames) {
         int latent_frames = frames;
-        if (sd_version_is_ltxav(version)) {
+        if (sd_version_is_ltx_video(version)) {
             latent_frames = ((frames - 1) / 8) + 1;
         } else if (sd_version_is_minimax_h3(version)) {
             latent_frames = frames <= 5 ? 2 : ((frames - 5) / 17) * 5 + 2;
@@ -3719,7 +3734,7 @@ public:
         if (latent_frames <= 0) {
             return latent_frames;
         }
-        if (sd_version_is_ltxav(version)) {
+        if (sd_version_is_ltx_video(version)) {
             return (latent_frames - 1) * 8 + 1;
         }
         if (sd_version_is_minimax_h3(version)) {
@@ -4758,7 +4773,7 @@ struct sd_ctx_t {
 static bool sd_version_supports_video_generation(SDVersion version) {
     return version == VERSION_SVD || sd_version_is_wan(version) || sd_version_is_mochi(version) ||
            sd_version_is_hunyuan_video(version) || sd_version_is_lingbot_video(version) ||
-           sd_version_is_ltxav(version) || sd_version_is_minimax_h3(version);
+           sd_version_is_ltx_video(version) || sd_version_is_minimax_h3(version);
 }
 
 static bool sd_version_supports_image_generation(SDVersion version) {
@@ -4910,6 +4925,8 @@ enum scheduler_t sd_get_default_scheduler(const sd_ctx_t* sd_ctx, enum sample_me
         return FLUX_SCHEDULER;
     } else if (sd_ctx != nullptr && sd_ctx->sd != nullptr && sd_version_is_flux2(sd_ctx->sd->version)) {
         return FLUX2_SCHEDULER;
+    } else if (sd_ctx != nullptr && sd_ctx->sd != nullptr && sd_version_is_ltxv(sd_ctx->sd->version)) {
+        return LINEAR_QUADRATIC_SCHEDULER;
     } else if (sd_ctx != nullptr && sd_ctx->sd != nullptr && sd_version_is_ltxav(sd_ctx->sd->version)) {
         return LTX2_SCHEDULER;
     } else if (sd_ctx != nullptr && sd_ctx->sd != nullptr && sd_version_is_mochi(sd_ctx->sd->version)) {
@@ -5311,7 +5328,7 @@ struct SamplePlan {
                                                       sample_params->scheduler,
                                                       sample_method);
             int sample_seq_len    = sd_ctx->sd->get_image_seq_len(request->height, request->width);
-            if (sd_version_is_ltxav(sd_ctx->sd->version) && request->frames > 0) {
+            if (sd_version_is_ltx_video(sd_ctx->sd->version) && request->frames > 0) {
                 int latent_frames = ((request->frames - 1) / 8) + 1;
                 sample_seq_len *= latent_frames;
             } else if (sd_version_is_minimax_h3(sd_ctx->sd->version) && request->frames > 0) {
@@ -7284,7 +7301,7 @@ static std::optional<ImageGenerationLatents> prepare_video_generation_latents(sd
         latents.audio_latent = make_ltxav_empty_audio_latent(latents.audio_length);
     }
 
-    if (sd_version_is_ltxav(sd_ctx->sd->version)) {
+    if (sd_version_is_ltx_video(sd_ctx->sd->version)) {
         if (sd_vid_gen_params->control_frames_size > 0) {
             LOG_ERROR("LTXAV control_frames are not implemented");
             return std::nullopt;
@@ -7337,7 +7354,7 @@ static std::optional<ImageGenerationLatents> prepare_video_generation_latents(sd
                                                                      request->fps,
                                                                      request->vae_scale_factor,
                                                                      8,
-                                                                     true);
+                                                                     sd_version_is_ltxav(sd_ctx->sd->version));
                 return true;
             };
 

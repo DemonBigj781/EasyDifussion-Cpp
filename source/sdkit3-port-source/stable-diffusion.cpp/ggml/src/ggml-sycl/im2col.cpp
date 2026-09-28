@@ -176,6 +176,68 @@ void ggml_sycl_op_im2col(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
     }
 }
 
+
+static void im2col_back_kernel(const float * grad_out, float * grad_in, int64_t IW, int64_t IH,
+                               int64_t IC, int64_t N, int64_t OW, int64_t OH, int64_t KW,
+                               int64_t KH, int s0, int s1, int p0, int p1, int d0, int d1,
+                               bool is_2D, int64_t total, int64_t index) {
+    if (index >= total) return;
+    int64_t v = index;
+    const int64_t iiw = v % IW; v /= IW;
+    const int64_t iih = is_2D ? v % IH : 0;
+    if (is_2D) v /= IH;
+    const int64_t ic = v % IC; v /= IC;
+    const int64_t n = v;
+    float sum = 0.0f;
+    for (int64_t kh = 0; kh < KH; ++kh) {
+        for (int64_t kw = 0; kw < KW; ++kw) {
+            const int64_t tmpw = iiw + p0 - kw * d0;
+            if (tmpw % s0 != 0) continue;
+            const int64_t iow = tmpw / s0;
+            int64_t ioh = 0;
+            if (is_2D) {
+                const int64_t tmph = iih + p1 - kh * d1;
+                if (tmph % s1 != 0) continue;
+                ioh = tmph / s1;
+            }
+            if (iow < 0 || iow >= OW || ioh < 0 || ioh >= OH) continue;
+            const int64_t out = ((n * OH + ioh) * OW + iow) * (IC * KH * KW)
+                              + ic * (KH * KW) + kh * KW + kw;
+            sum += grad_out[out];
+        }
+    }
+    grad_in[index] = sum;
+}
+
+void ggml_sycl_op_im2col_back(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * src0 = dst->src[0];
+    const ggml_tensor * src1 = dst->src[1];
+    GGML_ASSERT(src0->type == GGML_TYPE_F32);
+    GGML_ASSERT(src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);
+    GGML_ASSERT(dst->type == GGML_TYPE_F32);
+    GGML_ASSERT(ggml_is_contiguous(src0) && ggml_is_contiguous(dst));
+    const int32_t * params = (const int32_t *) dst->op_params;
+    const int s0 = params[0], s1 = params[1], p0 = params[2], p1 = params[3];
+    const int d0 = params[4], d1 = params[5];
+    const bool is_2D = params[6] == 1;
+    const int64_t IW = dst->ne[0];
+    const int64_t IH = is_2D ? dst->ne[1] : 1;
+    const int64_t IC = is_2D ? dst->ne[2] : dst->ne[1];
+    const int64_t N = is_2D ? dst->ne[3] : dst->ne[2];
+    const int64_t KH = is_2D ? src1->ne[1] : 1;
+    const int64_t KW = src1->ne[0];
+    const int64_t OH = is_2D ? src0->ne[2] : 1;
+    const int64_t OW = src0->ne[1];
+    const int64_t total = ggml_nelements(dst);
+    const float * grad_out = (const float *) src0->data;
+    float * grad_in = (float *) dst->data;
+    auto stream = ctx.stream();
+    stream->parallel_for(sycl::range<1>((size_t) total), [=](sycl::id<1> id) {
+        im2col_back_kernel(grad_out, grad_in, IW, IH, IC, N, OW, OH, KW, KH,
+                           s0, s1, p0, p1, d0, d1, is_2D, total, (int64_t) id[0]);
+    });
+}
+
 // [N*IC, ID, IH, IW] => [N*OD, OH, OW, IC * KD * KH * KW]
 template <typename T>
 static  void im2col_3d_kernel(
@@ -220,6 +282,7 @@ static  void im2col_3d_kernel(
         }
     }
 }
+
 
 // [N*IC, ID, IH, IW] => [N*OD, OH, OW, IC * KD * KH * KW]
 template <typename T>

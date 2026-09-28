@@ -81,6 +81,15 @@ int main() {
         require_close(lq_sigmas[i], expected_lq[i], 1e-5f, "Linear Quadratic reference curve");
     }
 
+    const auto ltxv_sigmas = linear_quadratic.get_sigmas(
+        8, 0.f, 1.f, [](float timestep) { return timestep; });
+    const std::vector<float> expected_ltxv = {
+        1.f, 0.99375f, 0.9875f, 0.98125f, 0.975f, 0.909375f, 0.725f, 0.421875f, 0.f};
+    require(ltxv_sigmas.size() == expected_ltxv.size(), "LTX-Video schedule emits eight steps plus zero");
+    for (size_t i = 0; i < expected_ltxv.size(); ++i) {
+        require_close(ltxv_sigmas[i], expected_ltxv[i], 1e-6f, "LTX-Video distilled reference schedule");
+    }
+
     const sd::Tensor<float> initial({1}, {5.f});
     const std::vector<float> positive_sigmas = {5.f, 4.f, 3.f, 2.f, 1.f};
 

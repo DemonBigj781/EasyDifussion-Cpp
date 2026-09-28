@@ -320,7 +320,6 @@ void print_usage(const char* program_name) {
     std::cerr << "  --control-net-sd1-path <path>      Uni-ControlNet weights for automatic SD1.x routing" << std::endl;
     std::cerr << "  --control-net-sdxl-path <path>     ControlNet Union weights for automatic SDXL routing" << std::endl;
     std::cerr << "  --text-encoder-dir <path>          Text encoder models directory" << std::endl;
-    std::cerr << "  --image-vae-on-cpu                 Keep image-generation VAE on CPU (default: false)" << std::endl;
     std::cerr << "  --no-half                          Force all model weights to F32 (high memory use)" << std::endl;
     std::cerr << "  --no-half-vae                      Force VAE weights to F32" << std::endl;
     std::cerr << "  --vae-tiling                       Enable VAE tiling (default: false)" << std::endl;
@@ -346,16 +345,6 @@ void print_usage(const char* program_name) {
     std::cerr << "  --stream-layers                   Stream model layers within the --max-vram budget" << std::endl;
     std::cerr << "  --cuda-malloc                     Use the flushable legacy cudaMalloc pool instead of CUDA VMM" << std::endl;
     std::cerr << "  --cuda-unified-memory             Let CUDA spill allocations into system RAM (slow)" << std::endl;
-    std::cerr << "  --control-net-cpu                  Keep ControlNet on CPU (default: false)" << std::endl;
-    std::cerr << "  --image-clip-on-cpu                Keep image-generation text encoders on CPU (default: false)"
-              << std::endl;
-    std::cerr << "  --image-clip-vision-on-cpu         Keep CLIP Vision on CPU; otherwise it uses the GPU (default: false)"
-              << std::endl;
-    std::cerr << "  --image-ip-adapter-on-cpu          Keep IP-Adapter projection on CPU; otherwise it uses the GPU (default: false)"
-              << std::endl;
-    std::cerr << "  --video-clip-on-cpu                Keep native-video text encoders on CPU (default: false)"
-              << std::endl;
-    std::cerr << "  --video-vae-on-cpu                 Keep native-video VAE on CPU (default: false)" << std::endl;
     std::cerr << "  --video-offload-to-cpu             Offload native-video parameters to CPU (default: false)"
               << std::endl;
     std::cerr << "  --video-max-vram <GiB>             Native-video graph VRAM budget" << std::endl;

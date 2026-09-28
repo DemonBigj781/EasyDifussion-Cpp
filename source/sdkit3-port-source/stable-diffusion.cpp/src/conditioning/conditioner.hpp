@@ -244,6 +244,9 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
     std::map<std::string, std::string> embedding_map;
     int32_t num_custom_embeddings   = 0;
     int32_t num_custom_embeddings_2 = 0;
+    // Training graphs use a fixed CLIP context; truncate long captions to that
+    // context instead of expanding into incompatible extra token chunks.
+    bool truncate_long_prompts = false;
     std::vector<uint8_t> token_embed_custom;
     std::map<std::string, std::pair<int, int>> embedding_pos_map;
 
@@ -632,7 +635,8 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
         if (!text_model) {
             return {};
         }
-        auto tokens_and_weights     = tokenize(conditioner_params.text, text_model->model.n_token, text_model->model.n_token, true);
+        auto tokens_and_weights     = tokenize(conditioner_params.text, text_model->model.n_token,
+                                               text_model->model.n_token, !truncate_long_prompts);
         std::vector<int>& tokens    = tokens_and_weights.first;
         std::vector<float>& weights = tokens_and_weights.second;
         std::pair<std::vector<int>, std::vector<float>> tokens_and_weights2;
@@ -643,7 +647,7 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
                                                 conditioner_params.text,
                                                 text_model2->model.n_token,
                                                 text_model2->model.n_token,
-                                                true);
+                                                !truncate_long_prompts);
             tokens2  = &tokens_and_weights2.first;
             weights2 = &tokens_and_weights2.second;
         }

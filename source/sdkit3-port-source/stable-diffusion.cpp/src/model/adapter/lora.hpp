@@ -2,6 +2,7 @@
 #define __SD_MODEL_ADAPTER_LORA_HPP__
 
 #include <mutex>
+#include <random>
 #include "core/ggml_extend.hpp"
 #include "model_loader.h"
 #include "model_manager.h"
@@ -805,11 +806,11 @@ struct LoraModel : public GGMLRunner {
 
             ggml_tensor* lx;
             if (!is_conv2d) {
-                lx = ggml_ext_linear(ctx, x, lora_down, nullptr, forward_params.linear.force_prec_f32, forward_params.linear.scale);
+                lx = ggml_ext_linear(ctx, x, lora_down, nullptr, forward_params.linear.force_prec_f32, forward_params.linear.scale, forward_params.training_graph);
                 if (lora_mid) {
-                    lx = ggml_ext_linear(ctx, lx, lora_mid, nullptr, forward_params.linear.force_prec_f32, forward_params.linear.scale);
+                    lx = ggml_ext_linear(ctx, lx, lora_mid, nullptr, forward_params.linear.force_prec_f32, forward_params.linear.scale, forward_params.training_graph);
                 }
-                lx = ggml_ext_linear(ctx, lx, lora_up, nullptr, forward_params.linear.force_prec_f32, forward_params.linear.scale);
+                lx = ggml_ext_linear(ctx, lx, lora_up, nullptr, forward_params.linear.force_prec_f32, forward_params.linear.scale, forward_params.training_graph);
             } else {  // OP_CONV2D
                 lx = ggml_ext_conv_2d(ctx,
                                       x,
@@ -1027,9 +1028,145 @@ struct MultiLoraAdapter : public WeightAdapter {
 protected:
     std::vector<std::shared_ptr<LoraModel>> lora_models;
 
+    struct TrainableLora {
+        ggml_context* ctx = nullptr;
+        ggml_backend_buffer_t buffer = nullptr;
+        ggml_tensor* down = nullptr;
+        ggml_tensor* up = nullptr;
+
+        ~TrainableLora() {
+            if (buffer != nullptr) {
+                ggml_backend_buffer_free(buffer);
+            }
+            if (ctx != nullptr) {
+                ggml_free(ctx);
+            }
+        }
+        TrainableLora(const TrainableLora&) = delete;
+        TrainableLora& operator=(const TrainableLora&) = delete;
+        TrainableLora() = default;
+    };
+
+    std::unordered_map<std::string, std::unique_ptr<TrainableLora>> trainable_loras;
+    int trainable_lora_rank = 0;
+    float trainable_lora_scale = 1.0f;
+    uint32_t trainable_lora_seed = 0x51D15u;
+
+    bool is_trainable_attention_projection(const std::string& prefix) const {
+        if (prefix.find("attn") == std::string::npos) {
+            return false;
+        }
+        return prefix.find(".to_q") != std::string::npos ||
+               prefix.find(".to_k") != std::string::npos ||
+               prefix.find(".to_v") != std::string::npos ||
+               prefix.find(".to_out.0") != std::string::npos;
+    }
+
+    TrainableLora* get_or_create_trainable_lora(ggml_backend_t backend,
+                                                ggml_tensor* x,
+                                                ggml_tensor* w,
+                                                const std::string& prefix) {
+        if (trainable_lora_rank <= 0 || backend == nullptr || x == nullptr || w == nullptr ||
+            !is_trainable_attention_projection(prefix) || ggml_n_dims(w) != 2) {
+            return nullptr;
+        }
+        auto found = trainable_loras.find(prefix);
+        if (found != trainable_loras.end()) {
+            return found->second.get();
+        }
+
+        const int64_t input_dim = w->ne[0];
+        const int64_t output_dim = w->ne[1];
+        if (input_dim <= 0 || output_dim <= 0 || x->ne[0] != input_dim) {
+            LOG_ERROR("invalid trainable LoRA dimensions for %s", prefix.c_str());
+            return nullptr;
+        }
+
+        auto lora = std::make_unique<TrainableLora>();
+        ggml_init_params params = {
+            /*.mem_size =*/ 8 * ggml_tensor_overhead(),
+            /*.mem_buffer =*/ nullptr,
+            /*.no_alloc =*/ true,
+        };
+        lora->ctx = ggml_init(params);
+        if (lora->ctx == nullptr) {
+            LOG_ERROR("could not allocate trainable LoRA context for %s", prefix.c_str());
+            return nullptr;
+        }
+        const int64_t down_shape[] = {input_dim, trainable_lora_rank};
+        const int64_t up_shape[] = {trainable_lora_rank, output_dim};
+        lora->down = ggml_new_tensor(lora->ctx, GGML_TYPE_F32, 2, down_shape);
+        lora->up = ggml_new_tensor(lora->ctx, GGML_TYPE_F32, 2, up_shape);
+        if (lora->down == nullptr || lora->up == nullptr) {
+            LOG_ERROR("could not allocate trainable LoRA tensors for %s", prefix.c_str());
+            return nullptr;
+        }
+        const std::string weight_name = prefix + "weight";
+        ggml_set_name(lora->down, ("lora." + weight_name + ".lora_down").c_str());
+        ggml_set_name(lora->up, ("lora." + weight_name + ".lora_up").c_str());
+        ggml_set_param(lora->down);
+        ggml_set_param(lora->up);
+        lora->buffer = ggml_backend_alloc_ctx_tensors(lora->ctx, backend);
+        if (lora->buffer == nullptr) {
+            LOG_ERROR("could not allocate trainable LoRA backend storage for %s", prefix.c_str());
+            return nullptr;
+        }
+
+        std::mt19937 rng(trainable_lora_seed++);
+        const float bound = 1.0f / std::sqrt(static_cast<float>(input_dim));
+        std::uniform_real_distribution<float> init(-bound, bound);
+        std::vector<float> down_values(static_cast<size_t>(input_dim * trainable_lora_rank));
+        std::vector<float> up_values(static_cast<size_t>(trainable_lora_rank * output_dim), 0.0f);
+        for (float& value : down_values) {
+            value = init(rng);
+        }
+        ggml_backend_tensor_set(lora->down, down_values.data(), 0, down_values.size() * sizeof(float));
+        ggml_backend_tensor_set(lora->up, up_values.data(), 0, up_values.size() * sizeof(float));
+        auto* result = lora.get();
+        trainable_loras.emplace(prefix, std::move(lora));
+        LOG_INFO("created trainable SD attention LoRA %s rank=%d input=%" PRId64 " output=%" PRId64,
+                 prefix.c_str(), trainable_lora_rank, input_dim, output_dim);
+        return result;
+    }
+
 public:
     explicit MultiLoraAdapter(const std::vector<std::shared_ptr<LoraModel>>& lora_models)
         : lora_models(lora_models) {
+    }
+
+    // Enable a persistent set of F32 LoRA A/B parameters for UNet attention.
+    // Call before building a training graph; the factors are allocated lazily
+    // on the graph backend and remain owned by this adapter across graph resets.
+    bool enable_trainable_attention_lora(int rank, float alpha = -1.0f, uint32_t seed = 0x51D15u) {
+        if (rank <= 0 || !trainable_loras.empty() || !std::isfinite(alpha)) {
+            return false;
+        }
+        trainable_lora_rank = rank;
+        if (alpha < 0.0f) {
+            alpha = static_cast<float>(rank);
+        }
+        trainable_lora_scale = alpha / static_cast<float>(rank);
+        trainable_lora_seed = seed;
+        return true;
+    }
+
+    std::vector<ggml_tensor*> trainable_parameters() const {
+        std::vector<ggml_tensor*> parameters;
+        parameters.reserve(trainable_loras.size() * 2);
+        for (const auto& entry : trainable_parameter_map()) {
+            parameters.push_back(entry.second);
+        }
+        return parameters;
+    }
+
+    std::map<std::string, ggml_tensor*> trainable_parameter_map() const {
+        std::map<std::string, ggml_tensor*> parameters;
+        for (const auto& entry : trainable_loras) {
+            const std::string weight_name = entry.first + "weight";
+            parameters["lora." + weight_name + ".lora_down"] = entry.second->down;
+            parameters["lora." + weight_name + ".lora_up"] = entry.second->up;
+        }
+        return parameters;
     }
 
     ggml_tensor* patch_weight(ggml_context* ctx, ggml_backend_t backend, ggml_tensor* weight, const std::string& weight_name, bool with_lora_and_lokr) {
@@ -1064,7 +1201,7 @@ public:
         }
         ggml_tensor* out;
         if (forward_params.op_type == ForwardParams::op_type_t::OP_LINEAR) {
-            out = ggml_ext_linear(ctx, x, w, b, forward_params.linear.force_prec_f32, forward_params.linear.scale);
+            out = ggml_ext_linear(ctx, x, w, b, forward_params.linear.force_prec_f32, forward_params.linear.scale, forward_params.training_graph);
         } else {  // OP_CONV2D
             out = ggml_ext_conv_2d(ctx,
                                    x,
@@ -1079,14 +1216,36 @@ public:
                                    forward_params.conv2d.direct,
                                    forward_params.conv2d.circular_x,
                                    forward_params.conv2d.circular_y,
-                                   forward_params.conv2d.scale);
+                                   forward_params.conv2d.scale,
+                                   forward_params.training_graph);
         }
         for (auto& lora_model : lora_models) {
             ggml_tensor* out_diff = lora_model->get_out_diff(ctx, backend, x, w, forward_params, prefix + "weight");
             if (out_diff == nullptr) {
                 continue;
             }
-            out = ggml_add_inplace(ctx, out, out_diff);
+            out = forward_params.training_graph ? ggml_add(ctx, out, out_diff) : ggml_add_inplace(ctx, out, out_diff);
+        }
+        if (forward_params.training_graph && forward_params.op_type == ForwardParams::op_type_t::OP_LINEAR) {
+            TrainableLora* trainable = get_or_create_trainable_lora(backend, x, w, prefix);
+            if (trainable != nullptr) {
+                ggml_tensor* low_rank = ggml_ext_linear(ctx,
+                                                        x,
+                                                        trainable->down,
+                                                        nullptr,
+                                                        forward_params.linear.force_prec_f32,
+                                                        forward_params.linear.scale,
+                                                        true);
+                ggml_tensor* delta = ggml_ext_linear(ctx,
+                                                     low_rank,
+                                                     trainable->up,
+                                                     nullptr,
+                                                     forward_params.linear.force_prec_f32,
+                                                     forward_params.linear.scale,
+                                                     true);
+                delta = ggml_scale(ctx, delta, trainable_lora_scale);
+                out = ggml_add(ctx, out, delta);
+            }
         }
         return out;
     }
@@ -1107,13 +1266,35 @@ public:
                                                         weight_diff,
                                                         nullptr,
                                                         forward_params.linear.force_prec_f32,
-                                                        forward_params.linear.scale);
-                output                = ggml_add_inplace(ctx, output, out_diff);
+                                                        forward_params.linear.scale,
+                                                        forward_params.training_graph);
+                output                = forward_params.training_graph ? ggml_add(ctx, output, out_diff) : ggml_add_inplace(ctx, output, out_diff);
             }
 
             ggml_tensor* out_diff = lora_model->get_out_diff(ctx, backend, x, w, forward_params, prefix + "weight");
             if (out_diff != nullptr) {
-                output = ggml_add_inplace(ctx, output, out_diff);
+                output = forward_params.training_graph ? ggml_add(ctx, output, out_diff) : ggml_add_inplace(ctx, output, out_diff);
+            }
+        }
+        if (forward_params.training_graph && forward_params.op_type == ForwardParams::op_type_t::OP_LINEAR) {
+            TrainableLora* trainable = get_or_create_trainable_lora(backend, x, w, prefix);
+            if (trainable != nullptr) {
+                ggml_tensor* low_rank = ggml_ext_linear(ctx,
+                                                        x,
+                                                        trainable->down,
+                                                        nullptr,
+                                                        forward_params.linear.force_prec_f32,
+                                                        forward_params.linear.scale,
+                                                        true);
+                ggml_tensor* delta = ggml_ext_linear(ctx,
+                                                     low_rank,
+                                                     trainable->up,
+                                                     nullptr,
+                                                     forward_params.linear.force_prec_f32,
+                                                     forward_params.linear.scale,
+                                                     true);
+                delta = ggml_scale(ctx, delta, trainable_lora_scale);
+                output = ggml_add(ctx, output, delta);
             }
         }
         return output;
@@ -1124,7 +1305,7 @@ public:
         for (auto& lora_model : lora_models) {
             lora_tensor_num += lora_model->lora_tensors.size();
         }
-        return LORA_GRAPH_BASE_SIZE + lora_tensor_num * 10;
+        return LORA_GRAPH_BASE_SIZE + lora_tensor_num * 10 + trainable_loras.size() * 16;
     }
 };
 

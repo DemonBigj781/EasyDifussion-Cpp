@@ -92,8 +92,8 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn('flag: "--video-offload-to-cpu"', parameters)
         self.assertIn('flag: "--no-half"', parameters)
         self.assertIn('flag: "--no-half-vae"', parameters)
-        self.assertIn('flag: "--image-clip-vision-on-cpu"', parameters)
-        self.assertIn('flag: "--image-ip-adapter-on-cpu"', parameters)
+        self.assertNotIn('flag: "--image-clip-vision-on-cpu"', parameters)
+        self.assertNotIn('flag: "--image-ip-adapter-on-cpu"', parameters)
         self.assertIn("validateNativeBackendArgumentEditor()", parameters)
         self.assertIn("splitNativeBackendArguments", parameters)
         self.assertIn("native-backend-additional-arguments", parameters)
@@ -182,6 +182,61 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
                 root = self.plugin_root / "perchance_plugin"
                 self.assertTrue((root / f"{filename}.js").is_file())
                 self.assertTrue((root / f"{filename}.html").is_file())
+
+    def test_perchance_text_supports_saved_starters_and_prompt_tokens(self):
+        root = self.plugin_root / "perchance_plugin"
+        plugin = (root / "perchance-text.plugin.js").read_text(encoding="utf-8")
+        html = (root / "perchance-text.plugin.html").read_text(encoding="utf-8")
+        for control in (
+            "perchance-generator-text-preset-name",
+            "perchance-generator-save-text-preset",
+            "perchance-generator-delete-text-preset",
+        ):
+            self.assertIn(f'id="{control}"', html)
+        self.assertIn("textCustomPresets", plugin)
+        self.assertIn("Saved custom starters", plugin)
+        self.assertIn('document.getElementById("prompt")', plugin)
+        self.assertIn('document.getElementById("negative_prompt")', plugin)
+        self.assertIn("%positive%", html)
+        self.assertIn("%negative%", html)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js is required for prompt token tests")
+    def test_perchance_text_prompt_tokens_expand_from_main_ui(self):
+        plugin = (
+            self.plugin_root / "perchance_plugin" / "perchance-text.plugin.js"
+        ).read_text(encoding="utf-8")
+        start = plugin.index("    function expandPromptTokens")
+        end = plugin.index("\n    function attach", start)
+        function_source = plugin[start:end]
+        expression = (
+            'const document = { getElementById: (id) => ({ value: '
+            '(id === "prompt" ? "sunset city" : "blurry") }) };\n'
+            'console.log(expandPromptTokens("Keep %positive%; avoid %negative%."));'
+        )
+        result = subprocess.run(
+            ["node", "-e", expression + "\n" + function_source],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.stdout.strip(), "Keep sunset city; avoid blurry.")
+
+    def test_tipo_presets_include_available_models_and_response_formats(self):
+        root = self.plugin_root / "tipo_plugin"
+        plugin = (root / "tipo.plugin.js").read_text(encoding="utf-8")
+        html = (root / "tipo.plugin.html").read_text(encoding="utf-8")
+        for control in (
+            "z-tipo-preset",
+            "z-tipo-preset-name",
+            "z-tipo-save-preset",
+            "z-tipo-delete-preset",
+        ):
+            self.assertIn(f'id="{control}"', html)
+        self.assertIn('modelGroup.label = "Available model defaults"', plugin)
+        self.assertIn("availableModels = models", plugin)
+        self.assertIn("presets: customPresets", plugin)
+        self.assertIn("format: formatEl.value", plugin)
+        self.assertIn("formatEl.value = preset.format", plugin)
 
     def test_perchance_release_launcher_is_auto_discovered(self):
         backend = (
@@ -279,7 +334,7 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         server_root = self.repo_root / "ui" / "plugins" / "server"
         packages = (
             "online_model_browser", "tipo", "model_manager", "easydb", "tasks", "utils",
-            "file_parser", "gallery", "model_tools", "native_image_tools", "package_manager",
+            "Metadata", "gallery", "model_tools", "native_image_tools", "package_manager",
             "perchance", "wd14_tagger",
         )
         for package in packages:

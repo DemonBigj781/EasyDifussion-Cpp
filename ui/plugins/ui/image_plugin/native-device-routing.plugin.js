@@ -179,7 +179,7 @@
                 text-align: left;
                 width: 100%;
             }
-            .native-device-routing-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 12px; min-width: 0; width: 100%; }
+            .native-device-routing-settings { display: flex !important; flex-direction: column !important; gap: 12px; min-width: 0; width: 100%; }
             .native-device-routing-group { margin: 0; padding: 10px; border: 1px solid var(--background-color3, #444); border-radius: var(--input-border-radius, 6px); }
             .native-device-routing-title { display: block; margin-bottom: 8px; }
             .native-device-routing-grid { display: grid; grid-template-columns: minmax(145px, auto) minmax(180px, 1fr); gap: 7px 10px; align-items: center; }

@@ -77,6 +77,8 @@ class RenderTask(Task):
 
         task_manager.current_state = task_manager.ServerStates.LoadingModel
         model_manager.resolve_model_paths(self.models_data)
+        from easydiffusion.sprite_gpt import prepare_request
+        prepare_request(self.render_request, self.models_data, self.task_data)
 
         models_to_force_reload = []
         if runtime.set_vram_optimizations(context) or self.has_param_changed(context, "clip_skip"):

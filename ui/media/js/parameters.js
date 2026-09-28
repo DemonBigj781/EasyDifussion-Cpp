@@ -31,27 +31,18 @@ let installExtrasTable = document.querySelector("#system-settings-install-extras
  * @property {boolean?} saveInAppConfig
  */
 
+const NATIVE_BACKEND_ATTENTION_MODES = ["split", "flash", "xformers", "sage"]
+
 const NATIVE_BACKEND_BOOLEAN_OPTIONS = [
-    { flag: "--diffusion-fa", label: "Diffusion flash attention", group: "performance" },
-    { flag: "--flash-attention", label: "Flash attention for all modules", group: "performance" },
-    { flag: "--sage-attention", label: "SageAttention SM80", group: "performance" },
-    { flag: "--xformers", label: "xFormers-compatible fused attention", group: "performance" },
     { flag: "--cuda-malloc", label: "Legacy cudaMalloc pool", group: "performance" },
     { flag: "--cuda-unified-memory", label: "CUDA system-RAM fallback (slow)", group: "performance" },
     { flag: "--keep-model-loaded", label: "Keep model weights loaded", group: "performance" },
-    { flag: "--offload-to-cpu", label: "Image/model parameter CPU offload", group: "image" },
-    { flag: "--image-clip-on-cpu", label: "Image text encoder on CPU", group: "image" },
-    { flag: "--image-clip-vision-on-cpu", label: "CLIP Vision on CPU (off = GPU)", group: "image" },
-    { flag: "--image-ip-adapter-on-cpu", label: "IP-Adapter projection on CPU (off = GPU)", group: "image" },
-    { flag: "--image-vae-on-cpu", label: "Image VAE on CPU", group: "image" },
+    { flag: "--offload-to-cpu", label: "Store model weights in system RAM", group: "image" },
     { flag: "--no-half", label: "No half model (F32, high memory)", group: "image" },
     { flag: "--no-half-vae", label: "No half VAE (F32)", group: "image" },
-    { flag: "--control-net-cpu", label: "ControlNet on CPU", group: "image" },
     { flag: "--vae-tiling", label: "VAE tiling", group: "image" },
     { flag: "--stream-layers", label: "Stream image/model layers", group: "image" },
-    { flag: "--video-clip-on-cpu", label: "Video text encoder on CPU", group: "video" },
-    { flag: "--video-vae-on-cpu", label: "Video VAE on CPU", group: "video" },
-    { flag: "--video-offload-to-cpu", label: "Video diffusion CPU offload", group: "video" },
+    { flag: "--video-offload-to-cpu", label: "Store video weights in system RAM", group: "video" },
     { flag: "--video-stream-layers", label: "Stream video diffusion layers", group: "video" },
 ]
 
@@ -180,6 +171,13 @@ function renderNativeBackendArgumentsEditor(parameter) {
     ].join("")
     return `<div id="native-backend-arguments-editor" class="native-backend-arguments-editor">
         <input id="${parameter.id}" name="${parameter.id}" type="hidden">
+        <label class="native-backend-argument-value" for="native-backend-arg-attention">
+            <span>Attention pipeline<small>--attention &lt;type&gt;</small></span>
+            <select id="native-backend-arg-attention">
+                <option value="">Default (split)</option>
+                ${NATIVE_BACKEND_ATTENTION_MODES.map((mode) => `<option value="${mode}">${mode}</option>`).join("")}
+            </select>
+        </label>
         <label class="native-backend-argument-value" for="native-backend-arg-log_level">
             <span>Log level<small>--log-level</small></span>
             <select id="native-backend-arg-log_level">
@@ -199,6 +197,7 @@ function renderNativeBackendArgumentsEditor(parameter) {
                 <option value="--no-mmap">Disabled</option>
             </select>
         </label>
+        <small>Choose CPU or GPU execution in Native compute devices below. Weight storage in system RAM controls memory use separately.</small>
         <details open><summary>Performance</summary><div class="native-backend-argument-grid">${optionsFor("performance")}</div></details>
         <details open><summary>Image and shared memory</summary><div class="native-backend-argument-grid">${optionsFor("image")}</div></details>
         <details open><summary>Native video memory</summary><div class="native-backend-argument-grid">${optionsFor("video")}</div></details>
@@ -437,9 +436,11 @@ var PARAMETERS = [
         saveInAppConfig: true,
         default: "auto",
         options: [
-            { value: "auto", label: "Auto" },
+            { value: "auto", label: "Auto (CUDA / ROCm first, otherwise Vulkan; one backend only)" },
+            { value: "auto-cuda", label: "Auto CUDA" },
+            { value: "auto-vulkan", label: "Auto Vulkan" },
             { value: "cuda", label: "NVIDIA CUDA" },
-            { value: "cuda-vulkan", label: "NVIDIA CUDA + Vulkan (mixed GPUs, local build)" },
+            { value: "rocm", label: "AMD ROCm" },
             { value: "sycl", label: "Intel oneAPI / SYCL (local build)" },
             { value: "vulkan", label: "Vulkan (experimental)" },
         ],
@@ -682,6 +683,7 @@ function initNativeBackendArgumentEditor() {
 
     const additional = document.getElementById("native-backend-additional-arguments")
     const preview = document.getElementById("native-backend-arguments-preview")
+    const attention = document.getElementById("native-backend-arg-attention")
     const logLevel = document.getElementById("native-backend-arg-log_level")
     const mmapMode = document.getElementById("native-backend-arg-mmap_mode")
     const booleanOptions = new Map(NATIVE_BACKEND_BOOLEAN_OPTIONS.map((option) => [option.flag, option]))
@@ -696,6 +698,7 @@ function initNativeBackendArgumentEditor() {
         if (applyingSavedArguments) return
         validateNativeBackendArgumentEditor()
         const tokens = []
+        if (attention.value) tokens.push("--attention", attention.value)
         if (logLevel.value) tokens.push("--log-level", logLevel.value)
         for (const option of NATIVE_BACKEND_BOOLEAN_OPTIONS) {
             if (document.getElementById(nativeBackendArgumentId(option.flag)).checked) tokens.push(option.flag)
@@ -718,6 +721,7 @@ function initNativeBackendArgumentEditor() {
         for (const option of NATIVE_BACKEND_VALUE_OPTIONS) {
             document.getElementById(nativeBackendArgumentId(option.flag)).value = ""
         }
+        attention.value = ""
         logLevel.value = ""
         mmapMode.value = ""
 
@@ -732,6 +736,19 @@ function initNativeBackendArgumentEditor() {
                 document.getElementById(nativeBackendArgumentId(flag)).checked = true
             } else if ((flag === "--mmap" || flag === "--no-mmap") && inlineValue === null) {
                 mmapMode.value = flag
+            } else if (flag === "--attention" && (inlineValue !== null || index + 1 < tokens.length)) {
+                const mode = inlineValue !== null ? inlineValue : tokens[++index]
+                if (NATIVE_BACKEND_ATTENTION_MODES.includes(mode)) attention.value = mode
+                else extras.push(token, mode)
+            } else if (["--opt-split-attention", "--diffusion-fa", "--flash-attention", "--xformers", "--sage-attention"].includes(flag) && inlineValue === null) {
+                const legacyModes = {
+                    "--opt-split-attention": "split",
+                    "--diffusion-fa": "flash",
+                    "--flash-attention": "flash",
+                    "--xformers": "xformers",
+                    "--sage-attention": "sage",
+                }
+                attention.value = legacyModes[flag]
             } else if (flag === "--log-level" && (inlineValue !== null || index + 1 < tokens.length)) {
                 logLevel.value = inlineValue !== null ? inlineValue : tokens[++index]
             } else if (valueOptions.has(flag) && (inlineValue !== null || index + 1 < tokens.length)) {
@@ -1136,6 +1153,9 @@ saveSettingsBtn.addEventListener("click", function () {
     }
     const updateAppConfigRequest = {
         render_devices: getCurrentRenderDeviceSelection(),
+    }
+    if (backendPlatformField) {
+        updateAppConfigRequest.backend_platform = backendPlatformField.value
     }
 
     document.querySelectorAll("#system-settings [data-setting-id]").forEach((parameterRow) => {

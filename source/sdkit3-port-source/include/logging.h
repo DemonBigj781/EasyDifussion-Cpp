@@ -21,6 +21,10 @@ void set_log_level(const std::string& level_str);
 #define LOG_WARNING(...) log_message(LogLevel::Warning, __VA_ARGS__)
 #define LOG_ERROR(...) log_message(LogLevel::Error, __VA_ARGS__)
 
+// Native generation and allocation logs run synchronously on the request thread.
+void reset_sd_generation_error();
+std::string sd_generation_error_message(const std::string& fallback);
+
 // SD callback for stable-diffusion.cpp integration
 void sd_log_cb(sd_log_level_t level, const char* log, void* data);
 

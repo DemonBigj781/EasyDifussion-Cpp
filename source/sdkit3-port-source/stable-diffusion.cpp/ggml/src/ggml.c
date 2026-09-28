@@ -1114,9 +1114,11 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "GLU",
 
     "QUANTIZE_I8_CONVROT",
+
+    "GROUP_NORM_BACK",
 };
 
-static_assert(GGML_OP_COUNT == 102, "GGML_OP_COUNT != 102");
+static_assert(GGML_OP_COUNT == 103, "GGML_OP_COUNT != 103");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1231,9 +1233,11 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "glu(x)",
 
     "quantize_i8_convrot(x)",
+
+    "group_norm_back(grad, input)",
 };
 
-static_assert(GGML_OP_COUNT == 102, "GGML_OP_COUNT != 102");
+static_assert(GGML_OP_COUNT == 103, "GGML_OP_COUNT != 103");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -3250,6 +3254,29 @@ struct ggml_tensor * ggml_group_norm_inplace(
         int                   n_groups,
         float                 eps) {
     return ggml_group_norm_impl(ctx, a, n_groups, eps, true);
+}
+
+struct ggml_tensor * ggml_group_norm_back(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * grad,
+        struct ggml_tensor  * input,
+        int                   n_groups,
+        float                 eps) {
+    GGML_ASSERT(ggml_are_same_shape(grad, input));
+    GGML_ASSERT(n_groups > 0 && input->ne[2] >= n_groups);
+    GGML_ASSERT(eps >= 0.0f);
+    GGML_ASSERT(grad->type == GGML_TYPE_F32 && input->type == GGML_TYPE_F32);
+
+    grad  = ggml_cont(ctx, grad);
+    input = ggml_cont(ctx, input);
+
+    struct ggml_tensor * result = ggml_dup_tensor(ctx, input);
+    ggml_set_op_params_i32(result, 0, n_groups);
+    ggml_set_op_params_f32(result, 1, eps);
+    result->op     = GGML_OP_GROUP_NORM_BACK;
+    result->src[0] = grad;
+    result->src[1] = input;
+    return result;
 }
 
 // ggml_l2_norm
@@ -6710,6 +6737,8 @@ static void ggml_sub_or_set(
     ggml_build_forward_expand(cgraph, cgraph->grads[isrc]);
 }
 
+static struct ggml_tensor * ggml_new_f32_graph_constant(struct ggml_context * ctx, float value);
+
 static void ggml_compute_backward(
         struct ggml_context * ctx, struct ggml_cgraph * cgraph, int i, const bool * grads_needed) {
     struct ggml_tensor * tensor = cgraph->nodes[i];
@@ -6851,11 +6880,73 @@ static void ggml_compute_backward(
                 ggml_add_or_set(ctx, cgraph, isrc0, ggml_repeat(ctx, grad, src0));
             }
         } break;
+        case GGML_OP_CONCAT: {
+            const int32_t dim = ggml_get_op_params_i32(tensor, 0);
+            GGML_ASSERT(dim >= 0 && dim < GGML_MAX_DIMS);
+
+            struct ggml_tensor * grad_cont = ggml_cont(ctx, grad);
+            const size_t offset_b = (size_t) src0->ne[dim] * grad_cont->nb[dim];
+
+            if (src0_needs_grads) {
+                struct ggml_tensor * grad_a = ggml_view_4d(ctx, grad_cont,
+                    src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3],
+                    grad_cont->nb[1], grad_cont->nb[2], grad_cont->nb[3], 0);
+                ggml_add_or_set(ctx, cgraph, isrc0, ggml_cont(ctx, grad_a));
+            }
+            if (src1_needs_grads) {
+                struct ggml_tensor * grad_b = ggml_view_4d(ctx, grad_cont,
+                    src1->ne[0], src1->ne[1], src1->ne[2], src1->ne[3],
+                    grad_cont->nb[1], grad_cont->nb[2], grad_cont->nb[3], offset_b);
+                ggml_add_or_set(ctx, cgraph, isrc1, ggml_cont(ctx, grad_b));
+            }
+        } break;
+        case GGML_OP_NORM: {
+            if (src0_needs_grads) {
+                const int64_t n_rows = src0->ne[1] * src0->ne[2];
+                GGML_ASSERT(n_rows > 0 && n_rows <= INT32_MAX);
+                struct ggml_tensor * grad_rows = ggml_reshape_4d(ctx, grad,
+                    src0->ne[0], 1, n_rows, src0->ne[3]);
+                struct ggml_tensor * input_rows = ggml_reshape_4d(ctx, src0,
+                    src0->ne[0], 1, n_rows, src0->ne[3]);
+                const float eps = ggml_get_op_params_f32(tensor, 0);
+                struct ggml_tensor * dx_rows = ggml_group_norm_back(ctx,
+                    grad_rows, input_rows, (int)n_rows, eps);
+                ggml_add_or_set(ctx, cgraph, isrc0,
+                    ggml_reshape(ctx, dx_rows, src0));
+            }
+        } break;
         case GGML_OP_RMS_NORM: {
             if (src0_needs_grads) {
                 float eps;
                 memcpy(&eps, tensor->op_params, sizeof(float));
                 ggml_add_or_set(ctx, cgraph, isrc0, ggml_rms_norm_back(ctx, grad, src0, eps));
+            }
+        } break;
+        case GGML_OP_GROUP_NORM: {
+            if (src0_needs_grads) {
+                const int n_groups = ggml_get_op_params_i32(tensor, 0);
+                const float eps = ggml_get_op_params_f32(tensor, 1);
+                ggml_add_or_set(ctx, cgraph, isrc0,
+                    ggml_group_norm_back(ctx, grad, src0, n_groups, eps));
+            }
+        } break;
+        case GGML_OP_UPSCALE: {
+            if (src0_needs_grads) {
+                const int32_t mode = ggml_get_op_params_i32(tensor, 0);
+                GGML_ASSERT(mode == GGML_SCALE_MODE_NEAREST &&
+                    "backward pass for upscale currently supports nearest-neighbor only");
+                GGML_ASSERT(src0->ne[2] == tensor->ne[2] && src0->ne[3] == tensor->ne[3]);
+                GGML_ASSERT(tensor->ne[0] % src0->ne[0] == 0 && tensor->ne[1] % src0->ne[1] == 0);
+                const int64_t scale_x = tensor->ne[0] / src0->ne[0];
+                const int64_t scale_y = tensor->ne[1] / src0->ne[1];
+                GGML_ASSERT(scale_x > 0 && scale_y > 0);
+                GGML_ASSERT(scale_x <= INT32_MAX && scale_y <= INT32_MAX);
+
+                struct ggml_tensor * pooled = ggml_pool_2d(ctx, grad, GGML_OP_POOL_AVG,
+                    (int) scale_x, (int) scale_y, (int) scale_x, (int) scale_y, 0.0f, 0.0f);
+                struct ggml_tensor * summed = ggml_scale(ctx, pooled, (float)(scale_x * scale_y));
+                GGML_ASSERT(ggml_are_same_shape(summed, src0));
+                ggml_add_or_set(ctx, cgraph, isrc0, summed);
             }
         } break;
         case GGML_OP_MUL_MAT: {
@@ -6961,10 +7052,10 @@ static void ggml_compute_backward(
             // same as cpy
             if (src0_needs_grads) {
                 GGML_ASSERT(!cgraph->grads[isrc0] || ggml_is_contiguous(cgraph->grads[isrc0]));
-                GGML_ASSERT(ggml_is_contiguous(grad));
+                struct ggml_tensor * grad_cont = ggml_is_contiguous(grad) ? grad : ggml_cont(ctx, grad);
                 GGML_ASSERT(ggml_nelements(tensor) == ggml_nelements(src0));
                 ggml_add_or_set(ctx, cgraph, isrc0,
-                    ggml_are_same_shape(tensor, src0) ? grad : ggml_reshape(ctx, grad, src0));
+                    ggml_are_same_shape(tensor, src0) ? grad_cont : ggml_reshape(ctx, grad_cont, src0));
             }
         } break;
         case GGML_OP_RESHAPE: {
@@ -7135,6 +7226,42 @@ static void ggml_compute_backward(
                 case GGML_UNARY_OP_SILU: {
                     if (src0_needs_grads) {
                         ggml_add_or_set(ctx, cgraph, isrc0, ggml_silu_back(ctx, grad, src0));
+                    }
+                } break;
+                case GGML_UNARY_OP_GELU: {
+                    if (src0_needs_grads) {
+                        // ggml_gelu_f32 uses the tanh approximation:
+                        // 0.5*x*(1+tanh(sqrt(2/pi)*x*(1+0.044715*x*x))).
+                        const float a = 0.044715f;
+                        const float c = 0.7978845608028654f; // sqrt(2/pi)
+                        struct ggml_tensor * x2 = ggml_mul(ctx, src0, src0);
+                        struct ggml_tensor * x3 = ggml_mul(ctx, x2, src0);
+                        struct ggml_tensor * u = ggml_scale(ctx,
+                            ggml_add(ctx, src0, ggml_scale(ctx, x3, a)), c);
+                        struct ggml_tensor * t = ggml_tanh(ctx, u);
+                        struct ggml_tensor * du = ggml_scale(ctx,
+                            ggml_add(ctx, ggml_scale(ctx, x2, 3.0f * a),
+                            ggml_repeat(ctx, ggml_new_f32_graph_constant(ctx, 1.0f), x2)), c);
+                        struct ggml_tensor * one = ggml_repeat(ctx, ggml_new_f32_graph_constant(ctx, 1.0f), src0);
+                        struct ggml_tensor * one_plus_t = ggml_add(ctx, t, one);
+                        struct ggml_tensor * one_minus_t2 = ggml_sub(ctx,
+                            ggml_repeat(ctx, ggml_new_f32_graph_constant(ctx, 1.0f), t), ggml_mul(ctx, t, t));
+                        struct ggml_tensor * derivative = ggml_scale(ctx,
+                            ggml_add(ctx, one_plus_t,
+                                ggml_mul(ctx, src0, ggml_mul(ctx, one_minus_t2, du))), 0.5f);
+                        ggml_add_or_set(ctx, cgraph, isrc0, ggml_mul(ctx, grad, derivative));
+                    }
+                } break;
+                case GGML_UNARY_OP_GELU_QUICK: {
+                    if (src0_needs_grads) {
+                        // ggml_gelu_quick_f32(x) = x * sigmoid(1.702*x).
+                        const float k = 1.702f;
+                        struct ggml_tensor * s = ggml_sigmoid(ctx, ggml_scale(ctx, src0, k));
+                        struct ggml_tensor * derivative = ggml_add(ctx, s,
+                            ggml_mul(ctx, ggml_scale(ctx, src0, k),
+                                ggml_mul(ctx, s, ggml_sub(ctx,
+                                    ggml_repeat(ctx, ggml_new_f32_graph_constant(ctx, 1.0f), s), s))));
+                        ggml_add_or_set(ctx, cgraph, isrc0, ggml_mul(ctx, grad, derivative));
                     }
                 } break;
                 case GGML_UNARY_OP_EXP: {
@@ -7377,6 +7504,16 @@ void ggml_build_backward_expand(
         }
 
         // inplace operations are currently not supported
+        if (node->view_src && node->op != GGML_OP_CPY && node->op != GGML_OP_VIEW &&
+            node->op != GGML_OP_RESHAPE && node->op != GGML_OP_PERMUTE && node->op != GGML_OP_TRANSPOSE) {
+            fprintf(stderr,
+                    "ggml autodiff encountered unsupported in-place node '%s' op=%s view_src='%s' src0='%s' src1='%s'\n",
+                    node->name,
+                    ggml_op_name(node->op),
+                    node->view_src->name,
+                    node->src[0] ? node->src[0]->name : "",
+                    node->src[1] ? node->src[1]->name : "");
+        }
         GGML_ASSERT(!node->view_src || node->op == GGML_OP_CPY || node->op == GGML_OP_VIEW ||
             node->op == GGML_OP_RESHAPE || node->op == GGML_OP_PERMUTE || node->op == GGML_OP_TRANSPOSE);
 
@@ -7609,6 +7746,22 @@ void ggml_graph_clear(struct ggml_cgraph * cgraph) {
     cgraph->n_leafs = 0;
     cgraph->n_nodes = 0;
     ggml_hash_set_reset(&cgraph->visited_hash_set);
+}
+
+// Backward graph construction for large no-allocation compute graphs still
+// needs a few scalar constants (for example the GELU derivative's 1.0). Give
+// those scalar leaves storage in the context arena while keeping all generated
+// activation tensors metadata-only for backend scheduler allocation.
+static struct ggml_tensor * ggml_new_f32_graph_constant(struct ggml_context * ctx, float value) {
+    const bool no_alloc = ggml_get_no_alloc(ctx);
+    if (no_alloc) {
+        ggml_set_no_alloc(ctx, false);
+    }
+    struct ggml_tensor * result = ggml_new_f32(ctx, value);
+    if (no_alloc) {
+        ggml_set_no_alloc(ctx, true);
+    }
+    return result;
 }
 
 int ggml_graph_size(struct ggml_cgraph * cgraph) {

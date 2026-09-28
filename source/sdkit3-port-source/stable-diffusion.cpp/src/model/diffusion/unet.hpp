@@ -258,7 +258,7 @@ public:
         auto t_emb = ggml_ext_timestep_embedding(ctx->ggml_ctx, num_frames, static_cast<int>(in_channels), max_time_embed_period);  // [N, in_channels]
 
         auto emb = time_pos_embed_0->forward(ctx, t_emb);
-        emb      = ggml_silu_inplace(ctx->ggml_ctx, emb);
+        emb      = ctx->training_graph ? ggml_silu(ctx->ggml_ctx, emb) : ggml_silu_inplace(ctx->ggml_ctx, emb);
         emb      = time_pos_embed_2->forward(ctx, emb);                             // [N, in_channels]
         emb      = ggml_reshape_3d(ctx->ggml_ctx, emb, emb->ne[0], 1, emb->ne[1]);  // [N, 1, in_channels]
 
@@ -591,7 +591,7 @@ public:
         auto t_emb = ggml_ext_timestep_embedding(ctx->ggml_ctx, timesteps, model_channels);  // [N, model_channels]
 
         auto emb = time_embed_0->forward(ctx, t_emb);
-        emb      = ggml_silu_inplace(ctx->ggml_ctx, emb);
+        emb      = ctx->training_graph ? ggml_silu(ctx->ggml_ctx, emb) : ggml_silu_inplace(ctx->ggml_ctx, emb);
         emb      = time_embed_2->forward(ctx, emb);  // [N, time_embed_dim]
 
         // SDXL/SVD
@@ -600,7 +600,7 @@ public:
             auto label_embed_2 = std::dynamic_pointer_cast<Linear>(blocks["label_emb.0.2"]);
 
             auto label_emb = label_embed_0->forward(ctx, y);
-            label_emb      = ggml_silu_inplace(ctx->ggml_ctx, label_emb);
+            label_emb      = ctx->training_graph ? ggml_silu(ctx->ggml_ctx, label_emb) : ggml_silu_inplace(ctx->ggml_ctx, label_emb);
             label_emb      = label_embed_2->forward(ctx, label_emb);  // [N, time_embed_dim]
 
             emb = ggml_add(ctx->ggml_ctx, emb, label_emb);  // [N, time_embed_dim]
@@ -772,7 +772,7 @@ public:
 
         // out
         h = out_0->forward(ctx, h);
-        h = ggml_silu_inplace(ctx->ggml_ctx, h);
+        h = ctx->training_graph ? ggml_silu(ctx->ggml_ctx, h) : ggml_silu_inplace(ctx->ggml_ctx, h);
         h = out_2->forward(ctx, h);
         ggml_set_name(h, "bench-end");
         return h;  // [N, out_channels, h, w]

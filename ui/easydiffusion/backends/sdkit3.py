@@ -274,7 +274,15 @@ def get_target():
         else:
             return machine
 
-    platform_name = backend_config.get("platform", get_platform_name())
+    platform_name = backend_config.get("platform")
+    # Resolve an explicit "auto" value as well as a missing setting. Auto
+    # always selects one runtime platform; CUDA/ROCm take priority over Vulkan.
+    if platform_name == "auto-cuda":
+        platform_name = "cuda"
+    elif platform_name == "auto-vulkan":
+        platform_name = "vulkan"
+    elif not platform_name or platform_name == "auto":
+        platform_name = get_platform_name()
     variant_name = backend_config.get("variant", get_variant_name(platform_name))
 
     target = f"{get_os()}-{get_arch()}-{platform_name}-{variant_name}"
@@ -296,7 +304,13 @@ def get_platform_name():
     if torch_platform == "cpu":
         return "cpu"
 
-    if torch_platform.startswith("cu"):
+    normalized_platform = str(torch_platform).lower()
+    if normalized_platform.startswith("rocm") or normalized_platform.startswith("hip"):
+        return "rocm"
+
+    # If a GPU supports both CUDA and Vulkan, torchruntime reports CUDA here;
+    # keep Automatic exclusive to that single backend.
+    if normalized_platform.startswith("cu") or normalized_platform.startswith("cuda"):
         return "cuda"
 
     return "vulkan"
@@ -317,3 +331,65 @@ def get_variant_name(platform_name):
                 return f"sm{arch}"
 
     return "any"
+
+
+# Sprite-GPT occupies the ordinary image model slot but runs in its own native
+# process. Never send its manifest to stable-diffusion.cpp as a checkpoint.
+def load_model(context, model_type, **kwargs):
+    from easydiffusion import sprite_gpt
+
+    model_path = context.model_paths.get(model_type)
+    if model_type == "stable-diffusion":
+        sprite_gpt.unload_model(context)
+        if sprite_gpt.is_sprite_model(model_path):
+            sprite_gpt.load_model(context, model_path, os.path.join(get_backend_dir(), "sdkit-sprite-gpt"))
+            context.sprite_gpt_restart_required = bool(webui_common.curr_models[model_type])
+            webui_common.curr_models[model_type] = None
+            return
+    return webui_common.load_model(context, model_type, **kwargs)
+
+
+def unload_model(context, model_type, **kwargs):
+    if model_type == "stable-diffusion":
+        from easydiffusion import sprite_gpt
+        sprite_gpt.unload_model(context)
+    return webui_common.unload_model(context, model_type, **kwargs)
+
+
+def flush_model_changes(context):
+    if getattr(context, "sprite_gpt_model", None):
+        # The native server applies model options lazily. Clear its selection
+        # and restart once when switching from a retained diffusion checkpoint
+        # so that checkpoint does not keep the GPU memory needed by Sprite-GPT.
+        response = webui_common.webui_post("/sdapi/v1/options", json={
+            "sd_model_checkpoint": None, "forge_additional_modules": [],
+        })
+        response.raise_for_status()
+        if getattr(context, "sprite_gpt_restart_required", False):
+            from easydiffusion.backend_manager import restart_backend
+            restart_backend()
+            context.sprite_gpt_restart_required = False
+        return
+    return webui_common.flush_model_changes(context)
+
+
+def set_options(context, **kwargs):
+    if getattr(context, "sprite_gpt_model", None):
+        context.sprite_gpt_options = kwargs
+        return
+    return webui_common.set_options(context, **kwargs)
+
+
+def generate_images(context, **kwargs):
+    if getattr(context, "sprite_gpt_model", None):
+        from easydiffusion import sprite_gpt
+        return sprite_gpt.generate_images(context, **kwargs)
+    return webui_common.generate_images(context, **kwargs)
+
+
+def stop_rendering(context):
+    if getattr(context, "sprite_gpt_model", None):
+        from easydiffusion import sprite_gpt
+        sprite_gpt.stop_rendering(context)
+        return
+    return webui_common.stop_rendering(context)

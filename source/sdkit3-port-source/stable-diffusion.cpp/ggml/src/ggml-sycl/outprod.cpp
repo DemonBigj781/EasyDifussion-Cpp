@@ -1,12 +1,14 @@
 #include "outprod.hpp"
 #include "convert.hpp"
 
+#include <algorithm>
+
 void ggml_sycl_op_out_prod(ggml_backend_sycl_context& ctx, ggml_tensor* dst) {
     scope_op_debug_print scope_dbg_print(__func__, dst, /*num_src=*/2);
     const ggml_tensor *src0 = dst->src[0];
     const ggml_tensor *src1 = dst->src[1];
 
-    GGML_ASSERT(src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_Q1_0);
+    GGML_ASSERT(src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || src0->type == GGML_TYPE_Q1_0);
     GGML_ASSERT(src1->type == GGML_TYPE_F32);
     GGML_ASSERT(dst->type == GGML_TYPE_F32);
     GGML_ASSERT(ggml_is_contiguous(src0));
@@ -34,9 +36,9 @@ void ggml_sycl_op_out_prod(ggml_backend_sycl_context& ctx, ggml_tensor* dst) {
     ggml_sycl_pool_alloc<float> src0_as_f32(ctx.pool());
     int64_t src0_nb02 = nb02;
     int64_t src0_nb03 = nb03;
-    if (src0->type == GGML_TYPE_Q1_0) {
+    if (src0->type != GGML_TYPE_F32) {
         scope_op_debug_print scope_dbg_print(__func__, "/to_fp32_sycl", dst, /*num_src=*/2,
-                                             " : converting src0 Q1_0 to fp32");
+                                             " : converting src0 to fp32");
         src0_d = src0_as_f32.alloc(ne00 * ne01 * ne02 * ne03);
         const to_fp32_sycl_t to_fp32_sycl = ggml_get_to_fp32_sycl(src0->type, dst);
         GGML_ASSERT(to_fp32_sycl != nullptr);
@@ -54,7 +56,11 @@ void ggml_sycl_op_out_prod(ggml_backend_sycl_context& ctx, ggml_tensor* dst) {
     // Handle transposition of src1
     const bool src1_T = ggml_is_transposed(src1);
     const oneapi::mkl::transpose src1_op = src1_T ? oneapi::mkl::transpose::nontrans : oneapi::mkl::transpose::trans;
-    const int64_t ldb = (src1_T ? nb10 : nb11) / sizeof(float);
+    // A singleton dimension may have a stride of one element even though
+    // BLAS still requires the leading dimension to cover the full matrix row.
+    const int64_t ldb = src1_T
+                            ? std::max<int64_t>(nb10 / sizeof(float), ne11)
+                            : std::max<int64_t>(nb11 / sizeof(float), ne10);
 
     const int64_t r2 = ne2 / ne02;
     const int64_t r3 = ne3 / ne03;

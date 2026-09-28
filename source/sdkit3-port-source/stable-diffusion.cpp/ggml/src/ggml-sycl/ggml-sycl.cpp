@@ -77,6 +77,7 @@
 #include "ggml-sycl/gated_delta_net.hpp"
 #include "ggml-sycl/pool.hpp"
 #include "ggml-sycl/cross_entropy_loss.hpp"
+#include "ggml-sycl/optimizer.hpp"
 
 #define MEM_SIZE_2M	0x00200000
 #define MEM_SIZE_1G	0x40000000
@@ -1329,7 +1330,7 @@ static const char * ggml_backend_sycl_split_buffer_type_get_name(ggml_backend_bu
 }
 
 static bool ggml_backend_buffer_is_sycl_split(ggml_backend_buffer_t buffer) {
-   return buffer->buft->iface.get_name == ggml_backend_sycl_split_buffer_type_get_name;
+   return buffer && buffer->buft->iface.get_name == ggml_backend_sycl_split_buffer_type_get_name;
 }
 
 static ggml_backend_buffer_t ggml_backend_sycl_split_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
@@ -3336,6 +3337,11 @@ static void ggml_sycl_group_norm(ggml_backend_sycl_context & ctx, ggml_tensor * 
     ggml_sycl_op_group_norm(ctx, dst);
 }
 
+static void ggml_sycl_group_norm_back(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
+    scope_op_debug_print scope_dbg_print(__func__, dst, /*num_src=*/2);
+    ggml_sycl_op_group_norm_back(ctx, dst);
+}
+
 static void ggml_sycl_mul_mat_vec_p021(ggml_backend_sycl_context & ctx, const ggml_tensor *src0,
                                        const ggml_tensor *src1,
                                        ggml_tensor *dst) try {
@@ -4836,6 +4842,11 @@ static void ggml_sycl_im2col(ggml_backend_sycl_context & ctx, ggml_tensor * dst)
     ggml_sycl_op_im2col(ctx, dst);
 }
 
+static void ggml_sycl_im2col_back(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
+    scope_op_debug_print scope_dbg_print(__func__, dst, /*num_src=*/2);
+    ggml_sycl_op_im2col_back(ctx, dst);
+}
+
 static void ggml_sycl_im2col_3d(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
     scope_op_debug_print scope_dbg_print(__func__, dst, /*num_src=*/2);
     ggml_sycl_op_im2col_3d(ctx, dst);
@@ -4984,6 +4995,9 @@ static bool ggml_sycl_compute_forward(ggml_backend_sycl_context & ctx, struct gg
         case GGML_OP_DIV:
             ggml_sycl_div(ctx, dst);
             break;
+        case GGML_OP_SILU_BACK:
+            ggml_sycl_silu_back(ctx, dst);
+            break;
         case GGML_OP_UNARY:
             switch (ggml_get_unary_op(dst)) {
                 case GGML_UNARY_OP_NEG:
@@ -5104,6 +5118,15 @@ static bool ggml_sycl_compute_forward(ggml_backend_sycl_context & ctx, struct gg
         case GGML_OP_RMS_NORM_BACK:
             ggml_sycl_rms_norm_back(ctx, dst);
             break;
+        case GGML_OP_GROUP_NORM_BACK:
+            ggml_sycl_group_norm_back(ctx, dst);
+            break;
+        case GGML_OP_OPT_STEP_ADAMW:
+            ggml_sycl_op_opt_step_adamw(ctx, dst);
+            break;
+        case GGML_OP_OPT_STEP_SGD:
+            ggml_sycl_op_opt_step_sgd(ctx, dst);
+            break;
         case GGML_OP_RMS_NORM:
             ggml_sycl_rms_norm(ctx, dst);
             break;
@@ -5183,6 +5206,9 @@ static bool ggml_sycl_compute_forward(ggml_backend_sycl_context & ctx, struct gg
             break;
         case GGML_OP_IM2COL:
             ggml_sycl_im2col(ctx, dst);
+            break;
+        case GGML_OP_IM2COL_BACK:
+            ggml_sycl_im2col_back(ctx, dst);
             break;
         case GGML_OP_IM2COL_3D:
             ggml_sycl_im2col_3d(ctx, dst);
@@ -5407,6 +5433,9 @@ static void ggml_backend_sycl_graph_compute_impl(ggml_backend_sycl_context * syc
         if ((node->flags & GGML_TENSOR_FLAG_COMPUTE) == 0) {
             continue;
         }
+
+        GGML_SYCL_DEBUG("[SYCL][GRAPH] node=%d name='%s' op=%s src0=%p src1=%p\n",
+            i, node->name, ggml_op_name(node->op), (void *) node->src[0], (void *) node->src[1]);
 
         const int nodes_to_skip = ggml_sycl_fuse(*sycl_ctx, cgraph, i);
         if (nodes_to_skip != 0) {
@@ -5694,6 +5723,10 @@ static bool do_ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, cons
         case GGML_OP_CONV_2D_DW:
         case GGML_OP_CONV_TRANSPOSE_2D:
             return true;
+        case GGML_OP_SILU_BACK:
+            return op->type == GGML_TYPE_F32 && op->src[0] && op->src[1] &&
+                   op->src[0]->type == GGML_TYPE_F32 && op->src[1]->type == GGML_TYPE_F32 &&
+                   ggml_is_contiguous(op->src[0]) && ggml_is_contiguous(op->src[1]) && ggml_is_contiguous(op);
         case GGML_OP_UNARY:
             switch (ggml_get_unary_op(op)) {
                 case GGML_UNARY_OP_SGN:
@@ -5764,9 +5797,9 @@ static bool do_ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, cons
         case GGML_OP_OUT_PROD:
             return op->type == GGML_TYPE_F32 &&
                    (op->src[0]->type == GGML_TYPE_F32 ||
-                    (op->src[0]->type == GGML_TYPE_Q1_0 && op->src[0]->ne[2] == op->src[1]->ne[2] &&
-                     op->src[0]->ne[3] == op->src[1]->ne[3])) &&
-                   op->src[1]->type == GGML_TYPE_F32;
+                    ((op->src[0]->type == GGML_TYPE_F16 || op->src[0]->type == GGML_TYPE_Q1_0) &&
+                     op->src[0]->ne[2] == op->src[1]->ne[2] && op->src[0]->ne[3] == op->src[1]->ne[3])) &&
+                   op->src[1]->type == GGML_TYPE_F32 && ggml_is_contiguous(op->src[0]) && ggml_is_contiguous(op);
         case GGML_OP_GET_ROWS:
             {
                 switch (op->src[0]->type) {
@@ -5971,6 +6004,24 @@ static bool do_ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, cons
             return true;
         case GGML_OP_RMS_NORM_BACK:
             return ggml_is_contiguous(op->src[0]);
+        case GGML_OP_GROUP_NORM_BACK:
+            return op->src[0]->type == GGML_TYPE_F32 &&
+                   op->src[1]->type == GGML_TYPE_F32 &&
+                   op->type == GGML_TYPE_F32 &&
+                   ggml_is_contiguous(op->src[0]) &&
+                   ggml_is_contiguous(op->src[1]);
+        case GGML_OP_OPT_STEP_ADAMW:
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                   op->src[1]->type == GGML_TYPE_F32 && op->src[2]->type == GGML_TYPE_F32 &&
+                   op->src[3]->type == GGML_TYPE_F32 && op->src[4]->type == GGML_TYPE_F32 &&
+                   ggml_is_contiguous(op) && ggml_is_contiguous(op->src[0]) &&
+                   ggml_is_contiguous(op->src[1]) && ggml_is_contiguous(op->src[2]) &&
+                   ggml_is_contiguous(op->src[3]) && ggml_is_contiguous(op->src[4]);
+        case GGML_OP_OPT_STEP_SGD:
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                   op->src[1]->type == GGML_TYPE_F32 && op->src[2]->type == GGML_TYPE_F32 &&
+                   ggml_is_contiguous(op) && ggml_is_contiguous(op->src[0]) &&
+                   ggml_is_contiguous(op->src[1]) && ggml_is_contiguous(op->src[2]);
         case GGML_OP_SCALE:
             return true;
         case GGML_OP_CONT:
@@ -5991,6 +6042,11 @@ static bool do_ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, cons
             memcpy(&max_bias, (const float *) op->op_params + 1, sizeof(float));
             return max_bias == 0.0f;
         }
+        case GGML_OP_IM2COL_BACK:
+            return op->type == GGML_TYPE_F32 && op->src[0] && op->src[1] &&
+                   op->src[0]->type == GGML_TYPE_F32 &&
+                   (op->src[1]->type == GGML_TYPE_F32 || op->src[1]->type == GGML_TYPE_F16) &&
+                   ggml_is_contiguous(op->src[0]) && ggml_is_contiguous(op);
         case GGML_OP_ROPE:
         case GGML_OP_ROPE_BACK:
         case GGML_OP_IM2COL:

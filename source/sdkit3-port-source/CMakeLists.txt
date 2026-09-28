@@ -19,7 +19,19 @@ set(CMAKE_PLATFORM_NO_VERSIONED_SONAME ON)
 option(SDKIT_BUILD_TOOLS "Build sdkit tools" OFF)
 option(SDKIT_BUILD_TESTS "Build sdkit regression tests" OFF)
 option(SDKIT_BUILD_NATIVE_VISION "Build the isolated LibTorch YOLO sidecar" OFF)
+option(SDKIT_BUILD_SPRITE_GPT "Build the isolated native Sprite-GPT sidecar" OFF)
 option(SDKIT_BUILD_IMAGE_TOOLS "Build lightweight native image helpers" ON)
+option(SDKIT_BUILD_SD15_TRAINER "Build the native C++ SD 1.5 LoRA trainer" ON)
+file(GLOB SDKIT_BUNDLED_ORT_LIBS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../.venv/lib/python*/site-packages/onnxruntime/capi/libonnxruntime.so*")
+file(GLOB SDKIT_BUNDLED_ORT_PROVIDER_LIBS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../.venv/lib/python*/site-packages/onnxruntime/capi/libonnxruntime_providers_shared.so*")
+set(_SDKIT_WD14_DEFAULT OFF)
+if(SDKIT_BUNDLED_ORT_LIBS)
+    set(_SDKIT_WD14_DEFAULT ON)
+endif()
+option(SDKIT_BUILD_WD14_TAGGER "Build the native WD14 ONNX tagger sidecar" ${_SDKIT_WD14_DEFAULT})
+set(SDKIT_ONNXRUNTIME_LIBRARY "" CACHE FILEPATH "ONNX Runtime shared library used by the native WD14 tagger")
 option(SDKIT_BUILD_LLAMA_RUNTIME
     "Build llama-server beside sdkit as an isolated GGML runtime" OFF)
 set(SDKIT_LLAMA_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp" CACHE PATH
@@ -33,6 +45,12 @@ set(SDKIT_TORCH_CUDART "" CACHE FILEPATH
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# Build the C++ page renderer alongside SDKit for the FastAPI /cpp-ui routes.
+add_subdirectory(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../UI.cpp/Shared_Core"
+    "${CMAKE_CURRENT_BINARY_DIR}/ui-cpp"
+)
 
 # Set flags for shared library builds
 set(BUILD_SHARED_LIBS ON CACHE BOOL "Build ggml as a shared library")
@@ -61,6 +79,19 @@ target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp)
+add_dependencies(sdkit easy-diffusion-ui-render)
+
+add_custom_command(TARGET sdkit POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/../UI.cpp/Pages/assets"
+        "$<TARGET_FILE_DIR:sdkit>/cpp-ui-assets"
+    COMMENT "Bundling C++ UI assets with SDKit")
+
+add_custom_command(TARGET sdkit POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/../UI.cpp/Pages/src/Plugin/plugin_scripts"
+        "$<TARGET_FILE_DIR:sdkit>/cpp-ui-scripts"
+    COMMENT "Bundling C++ UI scripts with SDKit")
 
 # Suppress Unicode character warnings from Crow library headers on Windows
 if(MSVC)
@@ -69,6 +100,13 @@ endif()
 
 # Find Threads package for multithreading support
 find_package(Threads REQUIRED)
+
+if(SDKIT_BUILD_TESTS)
+    add_executable(generation-error-test tests/test_generation_error.cpp src/logging.cpp)
+    target_include_directories(generation-error-test PRIVATE include stable-diffusion.cpp/include)
+    target_link_libraries(generation-error-test PRIVATE Threads::Threads)
+    add_test(NAME generation-error-test COMMAND generation-error-test)
+endif()
 
 # Set RPATH for Linux/Unix to find shared libraries in the same directory as the executable
 if(UNIX AND NOT APPLE)
@@ -91,6 +129,25 @@ endif()
 target_link_libraries(sdkit PRIVATE ggml)
 target_link_libraries(sdkit PRIVATE stable-diffusion)
 target_link_libraries(sdkit PRIVATE Threads::Threads)
+
+if(SDKIT_BUILD_SD15_TRAINER)
+    add_executable(sdkit-sd15-trainer tools/sd15_lora_train.cpp)
+    target_include_directories(sdkit-sd15-trainer PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
+    # The parent executable includes sdkit headers which rely on the enlarged
+    # name size configured by stable-diffusion.cpp's build.
+    target_compile_definitions(sdkit-sd15-trainer PRIVATE GGML_MAX_NAME=160)
+    target_link_libraries(sdkit-sd15-trainer PRIVATE stable-diffusion ggml Threads::Threads)
+    add_dependencies(sdkit sdkit-sd15-trainer)
+    if(UNIX AND NOT APPLE)
+        set_target_properties(sdkit-sd15-trainer PROPERTIES
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+            INSTALL_RPATH_USE_LINK_PATH FALSE)
+    endif()
+endif()
 
 # stable-diffusion.cpp and llama.cpp intentionally pin different ggml
 # revisions. Linking both ggml libraries into one process would interpose
@@ -183,11 +240,9 @@ if(SDKIT_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
-# Ultralytics-compatible inference is a separate process so loading LibTorch
-# and detector weights never consumes the diffusion server's RAM. Models are
-# exported once to TorchScript; this executable contains only clean C++ image
-# preparation, YOLO decoding, and NMS code.
-if(SDKIT_BUILD_NATIVE_VISION)
+# LibTorch sidecars remain separate processes so their runtime and model
+# allocations never increase the diffusion server's steady-state memory use.
+if(SDKIT_BUILD_NATIVE_VISION OR SDKIT_BUILD_SPRITE_GPT)
     find_package(Torch REQUIRED)
     # Python LibTorch wheels are built against the CUDA runtime bundled with
     # the wheel.  Some systems also have an older /usr/lib CUDA runtime, which
@@ -202,6 +257,11 @@ if(SDKIT_BUILD_NATIVE_VISION)
                 IMPORTED_LOCATION_RELEASE "${SDKIT_TORCH_CUDART}")
         endif()
     endif()
+endif()
+
+# Ultralytics-compatible models are exported once to TorchScript; this
+# executable contains only clean C++ image preparation, decoding, and NMS.
+if(SDKIT_BUILD_NATIVE_VISION)
     add_executable(sdkit-vision tools/native_vision.cpp)
     target_include_directories(sdkit-vision PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
@@ -218,6 +278,29 @@ if(SDKIT_BUILD_NATIVE_VISION)
     endif()
 endif()
 
+# Sprite-GPT uses LibTorch for native inference and rectified-flow training.
+# Safetensors are used for exported training weights; OpenCV is not required by
+# this target because the bundled stb image code handles its PNG/JPEG inputs.
+if(SDKIT_BUILD_SPRITE_GPT)
+    find_package(ICU REQUIRED COMPONENTS uc)
+    add_executable(sdkit-sprite-gpt tools/sprite_gpt.cpp)
+    target_include_directories(sdkit-sprite-gpt PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+    target_link_libraries(sdkit-sprite-gpt PRIVATE ${TORCH_LIBRARIES} ICU::uc)
+    if(SDKIT_TORCH_CUDART)
+        target_link_libraries(sdkit-sprite-gpt PRIVATE "${SDKIT_TORCH_CUDART}")
+    endif()
+    if(UNIX AND NOT APPLE)
+        set_target_properties(sdkit-sprite-gpt PROPERTIES
+            BUILD_RPATH_USE_ORIGIN TRUE
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+            INSTALL_RPATH_USE_LINK_PATH FALSE)
+    endif()
+    add_dependencies(sdkit sdkit-sprite-gpt)
+endif()
+
 # Lightweight helpers intentionally have no LibTorch/OpenCV dependency.  The
 # text-mask process exits after each request and therefore cannot add to the
 # diffusion server's steady-state RAM use.
@@ -225,4 +308,47 @@ if(SDKIT_BUILD_IMAGE_TOOLS)
     add_executable(sdkit-image-tools tools/native_image_tools.cpp)
     target_include_directories(sdkit-image-tools PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
+endif()
+
+# The tagger runs as a persistent sidecar so one loaded ONNX session serves all
+# images in an autotag batch. Its public headers are pinned to ONNX Runtime 1.23.2.
+if(SDKIT_BUILD_WD14_TAGGER)
+    if(NOT SDKIT_ONNXRUNTIME_LIBRARY)
+        if(SDKIT_BUNDLED_ORT_LIBS)
+            list(GET SDKIT_BUNDLED_ORT_LIBS 0 SDKIT_ONNXRUNTIME_LIBRARY)
+        else()
+            find_library(SDKIT_ONNXRUNTIME_LIBRARY NAMES onnxruntime
+                HINTS "$ENV{ONNXRUNTIME_ROOT}/lib" "$ENV{ONNXRUNTIME_ROOT}/lib64")
+        endif()
+    endif()
+    if(NOT EXISTS "${SDKIT_ONNXRUNTIME_LIBRARY}")
+        message(FATAL_ERROR "SDKIT_BUILD_WD14_TAGGER requires ONNX Runtime 1.23.2; set SDKIT_ONNXRUNTIME_LIBRARY")
+    endif()
+    add_executable(sdkit-wd14-tagger tools/wd14_tagger.cpp)
+    add_dependencies(sdkit sdkit-wd14-tagger)
+    target_include_directories(sdkit-wd14-tagger PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include)
+    target_link_libraries(sdkit-wd14-tagger PRIVATE "${SDKIT_ONNXRUNTIME_LIBRARY}")
+    if(UNIX AND NOT APPLE)
+        set_target_properties(sdkit-wd14-tagger PROPERTIES
+            BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
+    endif()
+    add_custom_command(TARGET sdkit-wd14-tagger POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SDKIT_ONNXRUNTIME_LIBRARY}" "$<TARGET_FILE_DIR:sdkit-wd14-tagger>"
+        COMMENT "Bundling ONNX Runtime with the native WD14 tagger")
+    foreach(SDKIT_ORT_PROVIDER_LIBRARY IN LISTS SDKIT_BUNDLED_ORT_PROVIDER_LIBS)
+        add_custom_command(TARGET sdkit-wd14-tagger POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${SDKIT_ORT_PROVIDER_LIBRARY}" "$<TARGET_FILE_DIR:sdkit-wd14-tagger>")
+    endforeach()
+    if(UNIX AND NOT APPLE)
+        get_filename_component(SDKIT_ORT_LIBRARY_NAME "${SDKIT_ONNXRUNTIME_LIBRARY}" NAME)
+        add_custom_command(TARGET sdkit-wd14-tagger POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:sdkit-wd14-tagger>/libonnxruntime.so.1"
+            COMMAND ${CMAKE_COMMAND} -E create_symlink "${SDKIT_ORT_LIBRARY_NAME}"
+                "$<TARGET_FILE_DIR:sdkit-wd14-tagger>/libonnxruntime.so.1")
+    endif()
 endif()

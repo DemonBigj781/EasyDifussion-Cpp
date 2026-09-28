@@ -343,6 +343,64 @@ static void group_norm_f32_sycl(const float* x, float* dst,
     }
 }
 
+static void group_norm_back_f32_sycl(const float* grad, const float* input, float* dst,
+    const int64_t elements_per_channel, const int64_t channels, const int64_t samples,
+    const int n_groups, const float eps, queue_ptr stream, int device) {
+    const int64_t channels_per_group = (channels + n_groups - 1) / n_groups;
+    const int64_t jobs = (int64_t)n_groups * samples;
+    const int device_max_wg = ggml_sycl_info().max_work_group_sizes[device];
+    const int max_wg = device_max_wg > 0 ? std::min(256, device_max_wg) : 256;
+    const int block_size = std::max(WARP_SIZE, (max_wg / WARP_SIZE) * WARP_SIZE);
+
+    stream->submit([&](sycl::handler& cgh) {
+        cgh.parallel_for(
+            sycl::nd_range<3>(sycl::range<3>(1, 1, jobs) * sycl::range<3>(1, 1, block_size),
+                              sycl::range<3>(1, 1, block_size)),
+            [=](sycl::nd_item<3> item_ct1) [[sycl::reqd_sub_group_size(WARP_SIZE)]] {
+                const int64_t job = item_ct1.get_group(2);
+                const int64_t sample = job / n_groups;
+                const int group = (int)(job % n_groups);
+                const int64_t channel_start = (int64_t)group * channels_per_group;
+                if (channel_start >= channels) {
+                    return;
+                }
+                const int64_t channel_end = sycl::min(channel_start + channels_per_group, channels);
+                const int64_t group_size = (channel_end - channel_start) * elements_per_channel;
+                const int64_t base = sample * channels * elements_per_channel + channel_start * elements_per_channel;
+                const int tid = item_ct1.get_local_id(2);
+
+                float sum_x = 0.0f;
+                for (int64_t i = tid; i < group_size; i += block_size) sum_x += input[base + i];
+                const float mean_x = sycl::reduce_over_group(item_ct1.get_group(), sum_x, sycl::plus<float>()) / (float)group_size;
+
+                float sum_sq = 0.0f;
+                for (int64_t i = tid; i < group_size; i += block_size) {
+                    const float centered = input[base + i] - mean_x;
+                    sum_sq += centered * centered;
+                }
+                const float inv_std = sycl::rsqrt(
+                    sycl::reduce_over_group(item_ct1.get_group(), sum_sq, sycl::plus<float>()) / (float)group_size + eps);
+
+                float sum_g = 0.0f;
+                for (int64_t i = tid; i < group_size; i += block_size) sum_g += grad[base + i];
+                const float mean_g = sycl::reduce_over_group(item_ct1.get_group(), sum_g, sycl::plus<float>()) / (float)group_size;
+
+                float sum_g_norm = 0.0f;
+                for (int64_t i = tid; i < group_size; i += block_size) {
+                    const float normalized = (input[base + i] - mean_x) * inv_std;
+                    sum_g_norm += grad[base + i] * normalized;
+                }
+                const float mean_g_norm = sycl::reduce_over_group(
+                    item_ct1.get_group(), sum_g_norm, sycl::plus<float>()) / (float)group_size;
+
+                for (int64_t i = tid; i < group_size; i += block_size) {
+                    const float normalized = (input[base + i] - mean_x) * inv_std;
+                    dst[base + i] = inv_std * (grad[base + i] - mean_g - normalized * mean_g_norm);
+                }
+            });
+    });
+}
+
 static void rms_norm_f32_sycl(const float* x, float* dst, const int ncols, const int nrows, const int nchannels, const int nsamples,
     const int64_t src_stride_col, const int64_t src_stride_row, const int64_t src_stride_channel, const int64_t src_stride_sample,
     const int64_t dst_stride_col, const int64_t dst_stride_row, const int64_t dst_stride_channel, const int64_t dst_stride_sample,
@@ -540,6 +598,25 @@ void ggml_sycl_op_group_norm(ggml_backend_sycl_context& ctx, ggml_tensor* dst) {
 
     int group_size = dst->src[0]->ne[0] * dst->src[0]->ne[1] * ((dst->src[0]->ne[2] + num_groups - 1) / num_groups);
     group_norm_f32_sycl(src0_dd, dst_dd, num_groups, eps, group_size, dst->src[0]->ne[0] * dst->src[0]->ne[1] * dst->src[0]->ne[2], main_stream, ctx.device);
+}
+
+void ggml_sycl_op_group_norm_back(ggml_backend_sycl_context& ctx, ggml_tensor* dst) {
+    GGML_ASSERT(dst->src[0]->type == GGML_TYPE_F32);
+    GGML_ASSERT(dst->src[1]->type == GGML_TYPE_F32);
+    GGML_ASSERT(dst->type == GGML_TYPE_F32);
+    GGML_ASSERT(ggml_is_contiguous(dst->src[0]) && ggml_is_contiguous(dst->src[1]) && ggml_is_contiguous(dst));
+    GGML_ASSERT(ggml_are_same_shape(dst->src[0], dst->src[1]) && ggml_are_same_shape(dst->src[1], dst));
+
+    const int n_groups = ggml_get_op_params_i32(dst, 0);
+    const float eps = ggml_get_op_params_f32(dst, 1);
+    GGML_ASSERT(n_groups > 0 && dst->ne[2] >= n_groups && eps >= 0.0f);
+
+    SYCL_CHECK(ggml_sycl_set_device(ctx.device));
+    group_norm_back_f32_sycl(static_cast<const float*>(dst->src[0]->data),
+                             static_cast<const float*>(dst->src[1]->data),
+                             static_cast<float*>(dst->data),
+                             dst->ne[0] * dst->ne[1], dst->ne[2], dst->ne[3],
+                             n_groups, eps, ctx.stream(), ctx.device);
 }
 
 void ggml_sycl_op_rms_norm(ggml_backend_sycl_context & ctx, ggml_tensor * dst) {
