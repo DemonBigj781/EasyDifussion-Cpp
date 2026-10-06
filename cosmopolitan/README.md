@@ -9,7 +9,7 @@ dispatch and llama orchestration use C; existing C++ and Rust implementations
 remain linked in the same process.
 
 **Status: experimental native integration.** Application API parity,
-end-to-end image/training validation, LibTorch/ONNX tools, remaining Python
+full training validation, LibTorch/ONNX tools, remaining Python
 replacements and hardware acceleration have separate completion gates.
 The recorded CI artifact passed direct WebGPU scalar-reference graphs and
 sixteen-token trained-model inference on Windows and Linux, using unchanged
@@ -18,6 +18,12 @@ decoding. The [validation record](../COSMOPOLITAN_WEBGPU_VALIDATION.md) identifi
 the exact artifact, launch modes, results and limits. Earlier CPU-only
 application and standalone software-Vulkan records retain their original scope.
 The full scope is in [PORTING.md](PORTING.md).
+
+The native `image` command now loads a complete diffusion checkpoint and
+writes a PNG through the shared engine. The portable Generate page uses the
+native checkpoint, generation, progress and task-specific interruption APIs.
+See [native image inference](inference/README.md) for model requirements,
+commands, supported controls, request ownership and validation scope.
 
 ## Build
 
@@ -125,6 +131,7 @@ Other commands:
 ggml-test                    Run scalar-reference CPU tensor checks
 webgpu-test                  Run direct WebGPU tensor and trained-model checks
 llama --help                 Text generation options
+image --help                 Native checkpoint-to-PNG inference options
 sdkit --help                 Existing native server/tool options
 sdkit --list-devices          List the linked backend devices
 train --help                 Supported partial native training options
@@ -141,8 +148,10 @@ displays the UI.
 all-layer offload to the linked WebGPU device and requires actual backend
 dispatch/readback evidence; an unavailable WebGPU device is an error. The
 server accepts `sdkit --backend webgpu --port 8188` and routes that selection
-through the same shared registry. This routing alone does not establish
-complete diffusion-model or training support.
+through the same shared registry. The image verifier requires actual WebGPU
+work between completed denoising steps, with CPU fallback allowed for
+unsupported operations. This does not establish every diffusion architecture
+or training operation.
 
 The current WebGPU device is **software execution on the CPU** through
 lavapipe and LLVM. It exercises the real WebGPU command/shader path but does

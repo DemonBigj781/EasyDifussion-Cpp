@@ -37,7 +37,7 @@ EXPECTED_GREEDY_IDS = [432, 383, 286, 261, 376, 298, 315, 421,
 SELFTEST_MARKERS = (
     "GGML_SELFTEST PASS", "SHARED_GGML_SELFTEST PASS", "LLAMA_SELFTEST PASS", "TRAINING_MATH_SELFTEST PASS",
     "DIFFUSION_SELFTEST PASS", "WEBGPU_GGML_SELFTEST PASS", "WEBGPU_LLAMA_SELFTEST PASS",
-    "COSMOPOLITAN_SELFTEST PASS",
+    "WEBGPU_INPLACE_SELFTEST PASS", "COSMOPOLITAN_SELFTEST PASS",
 )
 
 
@@ -121,6 +121,59 @@ def validate_webgpu_output(text):
             "scalar_readback_checks": len(checks), "llama_execution": inference,
             "llama_decode_execution": {"steps": 16, **decode_execution},
             "llama_greedy_token_ids": EXPECTED_GREEDY_IDS, "independent_reference_match": True}
+
+
+def validate_inplace_output(text):
+    """Require real mixed-backend and preallocated-device alias regressions."""
+    lines = text.splitlines()
+    cases = {}
+    for line in (line for line in lines if line.startswith("WEBGPU_INPLACE_EXECUTION")):
+        match = re.fullmatch(
+            r"WEBGPU_INPLACE_EXECUTION owner=(scheduler|preallocated|preallocated-webgpu) iteration=([01]) "
+            r"alias_nodes=(\d+) alias_backend=(CPU|WebGPU) consumer_backend=WebGPU consumer_host_buffer=0 "
+            r"cpu_fallback=([01]) graphs=(\d+) submissions=(\d+) dispatches=(\d+) matmuls=(\d+) "
+            r"readbacks=(\d+) native_loader_opens=0 PASS", line)
+        if not match:
+            raise RuntimeError("Invalid in-place storage execution record")
+        owner, iteration = match.group(1), int(match.group(2))
+        gpu_owner = owner == "preallocated-webgpu"
+        if (int(match.group(3)), match.group(4), int(match.group(5))) != (
+                2 if gpu_owner else 5, "WebGPU" if gpu_owner else "CPU", 0 if gpu_owner else 1):
+            raise RuntimeError("In-place owner placement/fallback differs from the required case")
+        counters = dict(zip(("graphs", "submissions", "dispatches", "matmuls", "readbacks"),
+                            map(int, match.groups()[5:])))
+        if any(value <= 0 for value in counters.values()) or counters["matmuls"] > counters["dispatches"]:
+            raise RuntimeError("In-place regression lacks actual WebGPU execution/readback")
+        key = (owner, iteration)
+        if key in cases:
+            raise RuntimeError("Duplicate in-place storage case")
+        cases[key] = {"owner": owner, "iteration": iteration, "cpu_fallback": not gpu_owner, **counters}
+    expected = {(owner, iteration) for owner in ("scheduler", "preallocated", "preallocated-webgpu")
+                for iteration in (0, 1)}
+    if set(cases) != expected:
+        raise RuntimeError("Missing scheduler-allocated or preallocated in-place storage cases")
+    stages = {"cpu-alias-activation": 128, "webgpu-projection-f16": 24,
+              "webgpu-owner-silu": 128, "webgpu-owner-projection-f16": 24}
+    checks = set()
+    for line in (line for line in lines if line.startswith("WEBGPU_INPLACE_CHECK")):
+        match = re.fullmatch(r"WEBGPU_INPLACE_CHECK owner=(scheduler|preallocated) iteration=([01]) "
+                             r"stage=(\S+) values=(\d+) max_error=([0-9.eE+-]+) PASS", line)
+        if not match or stages.get(match.group(3)) != int(match.group(4)):
+            raise RuntimeError("Invalid in-place numerical readback record")
+        error = float(match.group(5))
+        if not math.isfinite(error) or error < 0:
+            raise RuntimeError("Non-finite in-place numerical error")
+        key = (match.group(1), int(match.group(2)), match.group(3))
+        if key in checks:
+            raise RuntimeError("Duplicate in-place numerical check")
+        checks.add(key)
+    expected_checks = {(owner, iteration, stage) for owner in ("scheduler", "preallocated")
+                       for iteration in (0, 1) for stage in ("cpu-alias-activation", "webgpu-projection-f16")}
+    expected_checks |= {("preallocated", iteration, stage) for iteration in (0, 1)
+                        for stage in ("webgpu-owner-silu", "webgpu-owner-projection-f16")}
+    if checks != expected_checks or lines.count("WEBGPU_INPLACE_SELFTEST PASS") != 1:
+        raise RuntimeError("Incomplete in-place scalar-reference regression")
+    return {"cases": [cases[key] for key in sorted(cases)], "scalar_readback_checks": len(checks)}
 
 
 def sha256(path):
@@ -273,6 +326,10 @@ def http_checks(root, isolate, logs):
                 ("/", "text/html", b"/cpp-ui/assets/ui.css"),
                 ("/cpp-ui/training", "text/html", b"page-content"),
                 ("/cpp-ui/assets/ui.css", "text/css", b"{"),
+                ("/cpp-ui/scripts/generate.js", "text/javascript", b"/v1/sdapi/v1/txt2img"),
+                ("/cpp-ui/scripts/kiosk.js", "text/javascript", b"cosmopolitan-capabilities"),
+                ("/v1/sdapi/v1/cosmopolitan-capabilities", "application/json", b"native-single-user"),
+                ("/v1/sdapi/v1/checkpoints", "application/json", b"models"),
                 ("/v1/sdapi/v1/backend-devices", "application/json", b"cpu"),
             ]:
                 status, headers, body = fetch(route)
@@ -335,10 +392,12 @@ def verify(args):
             result["greedy_token_ids"] = EXPECTED_GREEDY_IDS
             result["independent_reference_match"] = True
             result["webgpu"] = validate_webgpu_output(text)
+            result["inplace_storage"] = validate_inplace_output(text)
             report["tests"].append(result)
             for label, arguments in [
                 ("devices", ["sdkit", "--list-devices"]),
                 ("diffusion-command", ["sdkit", "--help"]),
+                ("image-command", ["image", "--help"]),
                 ("training-command", ["train", "--help"]),
             ]:
                 text, result = run_command(root, arguments, args.isolate, logs, label)
@@ -351,6 +410,15 @@ def verify(args):
             if "Missing value for native trainer option" not in text:
                 raise RuntimeError("Trainer did not reject an unmatched option before starting work")
             report["tests"].append(result)
+            for label, arguments, required in [
+                ("image-unmatched-option", ["image", "--model"], "unknown, duplicate, or incomplete option"),
+                ("image-invalid-dimensions", ["image", "--width", "65"], "invalid value for --width"),
+                ("image-invalid-backend", ["image", "--backend", "missing"], "invalid value for --backend"),
+            ]:
+                text, result = run_command(root, arguments, args.isolate, logs, label, expected_exit=2)
+                if required not in text:
+                    raise RuntimeError(f"{label} did not reject the invalid request before model loading")
+                report["tests"].append(result)
             report["tests"].append(http_checks(root, args.isolate, logs))
             if sha256(root / APPLICATION) != original:
                 raise RuntimeError("Application changed while running")

@@ -57,6 +57,29 @@ and their assets are packaged. Many controls still target Python application
 APIs. Functional acceptance must exercise the control, its request, the
 native operation and the resulting state or file.
 
+### Portable text-to-image integration
+
+The Cosmopolitan resource overrides now connect the Generate page to native
+checkpoint selection, text-to-image generation, progress, task-specific
+interruption and PNG download. The page uses the existing DOM and two native
+scripts in `cosmopolitan/resources/cpp-ui/scripts`; packaging replaces the
+corresponding ZIP entries without changing the standard application's scripts.
+
+[`inference/README.md`](../inference/README.md) documents the supported form
+and HTTP contract. `0004-native-inference-requests.patch` adds indexed model
+listing, a shared image/video/options request gate, nonpersistent checkpoint
+overrides, unique task ownership and interruption checks. A cancelled task
+retains its last completed sampling step. Model-loading cancellation, a
+general job queue and feature parity across the other pages remain separate
+work. The original route inventory above retains its stated baseline; it
+does not count these later staged changes.
+
+`verify_inference.py` exercises real checkpoint-to-PNG generation and
+denoising-only WebGPU counters. `verify_inference_api.py` exercises a real
+native HTTP request, decoded image, progress, interruption, busy responses,
+invalid requests and option persistence. These are specific acceptance
+checks, not a claim that all application controls or model families work.
+
 ## One shared runtime and explicit ownership
 
 One GGML implementation gives llama.cpp, diffusion and the custom trainer a

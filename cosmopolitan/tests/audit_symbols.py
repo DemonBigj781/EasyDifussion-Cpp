@@ -42,8 +42,10 @@ def main():
     names = Counter(line.split()[0] for line in symbols.splitlines() if line.strip())
     required = ("ggml_init", "ggml_new_tensor", "ggml_backend_cpu_init", "ggml_backend_dev_count",
                 "llama_model_load_from_file", "new_sd_ctx", "cosmo_train_main", "cosmo_sdkit_main",
+                "cosmo_image_generate", "cosmo_image_create_context", "cosmo_image_generate_pixels",
+                "generate_image", "free_sd_images", "sd_set_sample_progress_callback",
                 "ggml_backend_webgpu_init", "ggml_backend_webgpu_reg", "cosmo_webgpu_initialize",
-                "cosmo_webgpu_selftest", "cosmo_llama_webgpu_selftest",
+                "cosmo_webgpu_selftest", "cosmo_llama_webgpu_selftest", "cosmo_webgpu_inplace_selftest",
                 "wgpuCreateInstance", "wgpuQueueSubmit", "wgpuComputePassEncoderDispatchWorkgroups",
                 "wgpuBufferGetConstMappedRange", "cosmo_wgpu_lavapipe_register",
                 "lvp_GetInstanceProcAddr", "LLVMCreateMCJITCompilerForModule")

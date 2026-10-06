@@ -63,6 +63,9 @@ def resources(software_notices=None):
     mappings = [
         (ROOT / "source/UI.cpp/Pages/assets", "cpp-ui/assets"),
         (ROOT / "source/UI.cpp/Pages/src/Plugin/plugin_scripts", "cpp-ui/scripts"),
+        # Portable application scripts use the native server's inference API.
+        # Apply them after the original UI assets so each ZIP name stays unique.
+        (HERE / "resources/cpp-ui/scripts", "cpp-ui/scripts"),
         (ROOT / "ui/media", "media"),
         (ROOT / "ui/plugins/ui", "plugins/ui"),
         (ROOT / "plugins/ui", "plugins/optional-ui"),

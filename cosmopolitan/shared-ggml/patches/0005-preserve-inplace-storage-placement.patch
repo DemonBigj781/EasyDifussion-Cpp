@@ -1,0 +1,159 @@
+--- a/src/ggml-backend.cpp
++++ b/src/ggml-backend.cpp
+@@ -21,6 +21,7 @@
+ #include <string.h>
+ #include <algorithm>
+ #include <vector>
++#include <unordered_map>
+ 
+ #ifdef __APPLE__
+ #include <sys/types.h>
+@@ -1057,6 +1058,139 @@
+     if (ggml_backend_supports_op(sched->backends[cur_backend_id], node)) {
+         *node_backend_id = cur_backend_id;
+         SET_CAUSE(node, "2.sup");
++    }
++}
++
++// In-place compute nodes alias their view owner's storage, even when an input
++// copy changes src[]. Placing only the compute node on another device would
++// leave its destination in the original buffer. Resolve whole storage groups
++// before pass 5 creates copies; ordinary view-only groups need no new policy.
++static void ggml_backend_sched_preserve_inplace_storage(ggml_backend_sched_t sched, struct ggml_cgraph * graph) {
++    struct alias_group {
++        ggml_tensor * owner;
++        std::vector<ggml_tensor *> members;
++    };
++    std::unordered_map<ggml_tensor *, ggml_tensor *> owners;
++    std::unordered_map<ggml_tensor *, size_t> group_ids;
++    std::vector<alias_group> groups;
++    std::vector<ggml_tensor *> chain;
++    const size_t graph_size = (size_t) graph->n_nodes + graph->n_leafs;
++    owners.reserve(graph_size);
++
++    // Memoize canonical owners so grouping nested views is linear in the
++    // reachable tensor/view edges, rather than rescanning the graph per group.
++    auto owner_of = [&](ggml_tensor * tensor) {
++        chain.clear();
++        ggml_tensor * owner = tensor;
++        while (true) {
++            auto known = owners.find(owner);
++            if (known != owners.end()) {
++                owner = known->second;
++                break;
++            }
++            chain.push_back(owner);
++            if (owner->view_src == nullptr) {
++                break;
++            }
++            GGML_ASSERT(chain.size() <= graph_size + 1);
++            owner = owner->view_src;
++        }
++        for (ggml_tensor * member : chain) {
++            owners[member] = owner;
++        }
++        return owner;
++    };
++
++    for (int i = 0; i < graph->n_nodes; ++i) {
++        ggml_tensor * node = graph->nodes[i];
++        if (node->view_src == nullptr || node->op == GGML_OP_NONE || ggml_is_view_op(node->op)) {
++            continue;
++        }
++        ggml_tensor * owner = owner_of(node);
++        if (group_ids.emplace(owner, groups.size()).second) {
++            groups.push_back({owner, {owner}});
++        }
++    }
++    if (groups.empty()) {
++        return;
++    }
++
++    auto add_member = [&](ggml_tensor * tensor) {
++        ggml_tensor * owner = owner_of(tensor);
++        auto group = group_ids.find(owner);
++        if (group != group_ids.end() && tensor != owner) {
++            groups[group->second].members.push_back(tensor);
++        }
++    };
++    for (int i = 0; i < graph->n_nodes; ++i) {
++        add_member(graph->nodes[i]);
++    }
++    for (int i = 0; i < graph->n_leafs; ++i) {
++        add_member(graph->leafs[i]);
++    }
++
++    // Match passes 3/4: the final backend is the CPU fallback slot when the
++    // caller disables fallback. This helper must not relax that policy.
++    const int n_op_backends = sched->n_backends - (sched->allow_cpu_fallback ? 0 : 1);
++    for (const alias_group & group : groups) {
++        for (ggml_tensor * member : group.members) {
++            if (member->buffer != nullptr && member->buffer != group.owner->buffer) {
++                GGML_ABORT("in-place tensor '%s' has a different preallocated buffer from owner '%s'",
++                           member->name, group.owner->name);
++            }
++        }
++        auto compatible = [&](int backend_id) {
++            if (backend_id < 0 || backend_id >= n_op_backends) {
++                return false;
++            }
++            ggml_backend_t backend = sched->backends[backend_id];
++            // Only the canonical owner's raw pointer proves host storage.
++            // A not-yet-initialized view can have data derived from its GPU
++            // owner while its own buffer field is still null.
++            if (group.owner->data != nullptr && group.owner->buffer == nullptr &&
++                !ggml_backend_buft_is_host(sched->bufts[backend_id])) {
++                return false;
++            }
++            for (ggml_tensor * member : group.members) {
++                // Include the owner's producing operation: moving an alias
++                // alone is invalid, and moving its producer must be supported.
++                if (!ggml_backend_supports_op(backend, member)) {
++                    return false;
++                }
++                if (member->buffer != nullptr &&
++                    !ggml_backend_supports_buft(backend, ggml_backend_buffer_get_type(member->buffer))) {
++                    return false;
++                }
++            }
++            return true;
++        };
++
++        // Preserve the owner's existing placement if the whole group can use
++        // it. Otherwise try allowed backends in priority order. Storage
++        // correctness takes precedence over conflicting placement hints/pins.
++        int selected = tensor_backend_id(group.owner);
++        if (!compatible(selected)) {
++            selected = -1;
++            for (int backend_id = 0; backend_id < n_op_backends; ++backend_id) {
++                if (compatible(backend_id)) {
++                    selected = backend_id;
++                    break;
++                }
++            }
++        }
++        if (selected < 0) {
++            for (ggml_tensor * member : group.members) {
++                GGML_LOG_ERROR("in-place storage owner '%s': tensor '%s', op %s, buffer %s\n",
++                               group.owner->name, member->name, ggml_op_name(member->op),
++                               member->buffer ? ggml_backend_buffer_name(member->buffer) : "unallocated");
++            }
++            GGML_ABORT("no allowed backend preserves in-place storage owned by '%s' (CPU fallback %s)",
++                       group.owner->name, sched->allow_cpu_fallback ? "allowed" : "disabled");
++        }
++        for (ggml_tensor * member : group.members) {
++            tensor_backend_id(member) = selected;
++            SET_CAUSE(member, "4.alias");
++        }
+     }
+ }
+ 
+@@ -1301,6 +1435,8 @@
+             GGML_ABORT("backend scheduler cannot place graph op without CPU fallback");
+         }
+     }
++
++    ggml_backend_sched_preserve_inplace_storage(sched, graph);
+ 
+     // pass 5: split graph, find tensors that need to be copied
+     {

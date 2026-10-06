@@ -1,0 +1,460 @@
+--- a/include/options_manager.h
++++ b/include/options_manager.h
+@@ -18,7 +18,11 @@
+     bool save();
+ 
+     // Get all options as JSON
+-    crow::json::wvalue getOptions();
++    crow::json::wvalue getOptions(bool include_request_overrides = true);
++
++    // A generation request sees an in-memory overlay; saved options never change.
++    void beginRequestOverrides(const crow::json::rvalue& overrides);
++    void endRequestOverrides();
+ 
+     // Set options from JSON
+     bool setOptions(const crow::json::rvalue& options);
+@@ -26,6 +30,7 @@
+    private:
+     std::string options_file_;
+     crow::json::wvalue options_data_;
++    std::string request_options_json_;
+     std::mutex mutex_;
+ };
+ 
+--- a/src/options_manager.cpp
++++ b/src/options_manager.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include <fstream>
+ #include <iostream>
++#include <stdexcept>
+ 
+ OptionsManager::OptionsManager(const std::string& options_file) : options_file_(options_file) {}
+ 
+@@ -98,14 +99,16 @@
+     return true;
+ }
+ 
+-crow::json::wvalue OptionsManager::getOptions() {
++crow::json::wvalue OptionsManager::getOptions(bool include_request_overrides) {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     // Return a copy of the options
+     crow::json::wvalue result;
+ 
+     //  Manually copy each key
+-    std::string json_str = options_data_.dump();
++    std::string json_str = include_request_overrides && !request_options_json_.empty()
++                               ? request_options_json_
++                               : options_data_.dump();
+     auto parsed = crow::json::load(json_str);
+ 
+     for (const auto& key : parsed.keys()) {
+@@ -138,8 +141,40 @@
+     return result;
+ }
+ 
++void OptionsManager::beginRequestOverrides(const crow::json::rvalue& overrides) {
++    std::lock_guard<std::mutex> lock(mutex_);
++    if (!request_options_json_.empty()) {
++        throw std::runtime_error("A request options overlay is already active");
++    }
++    if (overrides.t() != crow::json::type::Object) {
++        throw std::invalid_argument("override_settings must be an object");
++    }
++    crow::json::wvalue merged(crow::json::load(options_data_.dump()));
++    for (const auto& key : overrides.keys()) {
++        if (key == "sd_model_checkpoint" && overrides[key].t() == crow::json::type::String) {
++            merged[key] = overrides[key].s();
++        } else if (key == "forge_additional_modules" && overrides[key].t() == crow::json::type::List &&
++                   overrides[key].size() == 0) {
++            merged[key] = std::vector<std::string>{};
++        } else if (key == "live_previews_enable" && overrides[key].t() == crow::json::type::False) {
++            merged[key] = false;
++        } else {
++            throw std::invalid_argument("Unsupported request override: " + key);
++        }
++    }
++    request_options_json_ = merged.dump();
++}
++
++void OptionsManager::endRequestOverrides() {
++    std::lock_guard<std::mutex> lock(mutex_);
++    request_options_json_.clear();
++}
++
+ bool OptionsManager::setOptions(const crow::json::rvalue& options) {
+     std::lock_guard<std::mutex> lock(mutex_);
++    if (!request_options_json_.empty()) {
++        return false;
++    }
+ 
+     // Update options_data_ with new values
+     for (const auto& key : options.keys()) {
+--- a/include/server.h
++++ b/include/server.h
+@@ -2,6 +2,8 @@
+ #define __SERVER_H__
+ 
+ #include <memory>
++#include <mutex>
++#include <cstdint>
+ #include <string>
+ 
+ #include "crow.h"
+@@ -59,6 +61,7 @@
+     // Route handlers
+     crow::response handlePing();
+     crow::response handleBackendDevices();
++    crow::response handleCheckpoints();
+     crow::response handleGetOptions();
+     crow::response handlePostOptions(const crow::request& req);
+     crow::response handleTxt2Img(const crow::request& req);
+@@ -75,6 +78,8 @@
+     // Helper methods
+     crow::response generateImage(const crow::json::rvalue& json_body, bool is_img2img);
+     crow::response generateVideo(const crow::json::rvalue& json_body, bool is_img2video);
++    void validateCheckpoint(const crow::json::rvalue& value, bool allow_empty = false);
++    class GenerationRequestGuard;
+ 
+     ServerParams params_;
+     int port_;
+@@ -84,6 +89,10 @@
+     std::shared_ptr<SdkitModelIndex> model_manager_;
+     std::unique_ptr<ImageGenerator> image_generator_;
+     std::shared_ptr<ImageFilters> image_filters_;
++    std::mutex generation_mutex_;
++    std::mutex active_task_mutex_;
++    std::string active_task_id_;
++    uint64_t request_sequence_ = 0;
+     bool should_stop_;
+ };
+ 
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -5,7 +5,9 @@
+ #include <cctype>
+ #include <chrono>
+ #include <cmath>
++#include <cstdio>
+ #include <sstream>
++#include <stdexcept>
+ #include <thread>
+ #include <unordered_map>
+ #include <vector>
+@@ -184,6 +186,109 @@
+     return std::round(static_cast<double>(dimension) / 64.0) * 64;
+ }
+ 
++static crow::response request_error(int status, const std::string& message) {
++    crow::json::wvalue error;
++    error["message"] = message;
++    return crow::response(status, error);
++}
++
++class NativeRequestConflict : public std::runtime_error {
++   public:
++    using std::runtime_error::runtime_error;
++};
++
++class Server::GenerationRequestGuard {
++   public:
++    explicit GenerationRequestGuard(Server& server)
++        : server_(server), lock_(server.generation_mutex_, std::try_to_lock) {}
++
++    bool acquired() const { return lock_.owns_lock(); }
++    const std::string& taskId() const { return task_id_; }
++
++    void start(const crow::json::rvalue& body, const char* kind) {
++        if (body.t() != crow::json::type::Object) {
++            throw std::invalid_argument("Generation request must be an object");
++        }
++        if (body.has("force_task_id")) {
++            if (body["force_task_id"].t() != crow::json::type::String) {
++                throw std::invalid_argument("force_task_id must be a string");
++            }
++            task_id_ = std::string(body["force_task_id"].s());
++            if (task_id_.empty() || task_id_.size() > 128 || task_id_.find('\0') != std::string::npos) {
++                throw std::invalid_argument("force_task_id must contain 1..128 bytes without NUL");
++            }
++            if (server_.task_state_manager_->taskExists(task_id_)) {
++                throw NativeRequestConflict("force_task_id has already been used");
++            }
++        } else {
++            do {
++                task_id_ = std::string("native-") + kind + "-" + std::to_string(++server_.request_sequence_);
++            } while (server_.task_state_manager_->taskExists(task_id_));
++        }
++
++        const auto overrides = body.has("override_settings")
++                                   ? body["override_settings"]
++                                   : crow::json::load("{}");
++        if (overrides.t() != crow::json::type::Object) {
++            throw std::invalid_argument("override_settings must be an object");
++        }
++        if (overrides.has("sd_model_checkpoint")) {
++            server_.validateCheckpoint(overrides["sd_model_checkpoint"]);
++        }
++        server_.options_manager_->beginRequestOverrides(overrides);
++        overrides_active_ = true;
++        server_.task_state_manager_->createTask(task_id_);
++        task_created_ = true;
++        std::lock_guard<std::mutex> state_lock(server_.active_task_mutex_);
++        server_.active_task_id_ = task_id_;
++        active_ = true;
++    }
++
++    ~GenerationRequestGuard() noexcept {
++        try {
++            if (active_) {
++                std::lock_guard<std::mutex> state_lock(server_.active_task_mutex_);
++                server_.active_task_id_.clear();
++            }
++            if (task_created_ &&
++                !server_.task_state_manager_->getTaskProgressState(task_id_, false, -1).completed) {
++                server_.task_state_manager_->completeTask(
++                    task_id_, {}, "{\"message\":\"Generation ended without a result\"}");
++            }
++        } catch (...) {
++            std::fputs("Failed to finalize native generation task\n", stderr);
++        }
++        try {
++            if (overrides_active_) server_.options_manager_->endRequestOverrides();
++        } catch (...) {
++            std::fputs("Failed to clear native request options\n", stderr);
++        }
++    }
++
++    GenerationRequestGuard(const GenerationRequestGuard&) = delete;
++    GenerationRequestGuard& operator=(const GenerationRequestGuard&) = delete;
++
++   private:
++    Server& server_;
++    std::unique_lock<std::mutex> lock_;
++    std::string task_id_;
++    bool overrides_active_ = false;
++    bool task_created_ = false;
++    bool active_ = false;
++};
++
++void Server::validateCheckpoint(const crow::json::rvalue& value, bool allow_empty) {
++    if (value.t() != crow::json::type::String) {
++        throw std::invalid_argument("sd_model_checkpoint must be an indexed checkpoint name");
++    }
++    const std::string name = value.s();
++    if (allow_empty && name.empty()) return;
++    const auto names = model_manager_->getModelNamesByType(ModelType::CHECKPOINT);
++    if (name.empty() || std::find(names.begin(), names.end(), name) == names.end()) {
++        throw std::invalid_argument("Checkpoint is not in the native model index");
++    }
++}
++
+ Server::Server(const ServerParams& params)
+     : params_(params), port_(params.port), model_manager_(params.model_manager), should_stop_(false) {
+     // Set up custom logger to filter out unnecessary requests
+@@ -214,6 +319,10 @@
+ 
+     CROW_ROUTE(app_, "/v1/sdapi/v1/backend-devices").methods("GET"_method)([this]() {
+         return handleBackendDevices();
++    });
++
++    CROW_ROUTE(app_, "/v1/sdapi/v1/checkpoints").methods("GET"_method)([this]() {
++        return handleCheckpoints();
+     });
+ 
+     // Options endpoints
+@@ -319,7 +428,7 @@
+ 
+ crow::response Server::handleGetOptions() {
+     try {
+-        auto options = options_manager_->getOptions();
++        auto options = options_manager_->getOptions(false);
+         return crow::response(200, options);
+     } catch (const std::exception& e) {
+         crow::json::wvalue error;
+@@ -329,14 +438,21 @@
+ }
+ 
+ crow::response Server::handlePostOptions(const crow::request& req) {
++    std::unique_lock<std::mutex> generation_lock(generation_mutex_, std::try_to_lock);
++    if (!generation_lock.owns_lock()) {
++        return request_error(409, "A native generation request is active");
++    }
+     try {
+         auto json_body = crow::json::load(req.body);
+-        if (!json_body) {
++        if (!json_body || json_body.t() != crow::json::type::Object) {
+             crow::json::wvalue error;
+             error["message"] = "Invalid JSON";
+             return crow::response(400, error);
+         }
+ 
++        if (json_body.has("sd_model_checkpoint")) {
++            validateCheckpoint(json_body["sd_model_checkpoint"], true);
++        }
+         if (options_manager_->setOptions(json_body)) {
+             return crow::response(200, "OK");
+         } else {
+@@ -344,10 +460,28 @@
+             error["message"] = "Failed to save options";
+             return crow::response(500, error);
+         }
++    } catch (const std::invalid_argument& e) {
++        return request_error(400, e.what());
+     } catch (const std::exception& e) {
+         crow::json::wvalue error;
+         error["message"] = std::string("Failed to set options: ") + e.what();
+         return crow::response(500, error);
++    }
++}
++
++crow::response Server::handleCheckpoints() {
++    try {
++        crow::json::wvalue::list models;
++        for (const auto& name : model_manager_->getModelNamesByType(ModelType::CHECKPOINT)) {
++            crow::json::wvalue model;
++            model["name"] = name;
++            models.emplace_back(std::move(model));
++        }
++        crow::json::wvalue response;
++        response["models"] = std::move(models);
++        return crow::response(200, response);
++    } catch (const std::exception& e) {
++        return request_error(500, std::string("Failed to list checkpoints: ") + e.what());
+     }
+ }
+ 
+@@ -418,13 +552,13 @@
+ }
+ 
+ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool is_img2video) {
+-    reset_sd_generation_error();
+-    std::string task_id = json_body.has("force_task_id")
+-                              ? std::string(json_body["force_task_id"].s())
+-                              : "default_video_task";
+-    task_state_manager_->createTask(task_id);
+-
+-    try {
++    GenerationRequestGuard request(*this);
++    if (!request.acquired()) return request_error(409, "A native generation request is active");
++    std::string task_id;
++    try {
++        request.start(json_body, "video");
++        task_id = request.taskId();
++        reset_sd_generation_error();
+         VideoGenerationParams params;
+         if (json_body.has("audio_vae_path")) {
+             if (json_body["audio_vae_path"].t() != crow::json::type::String) {
+@@ -570,9 +704,14 @@
+         task_state_manager_->completeTask(task_id, {}, info.dump());
+         crow::json::wvalue response;
+         response["frames"] = frames;
++        response["task_id"] = task_id;
+         response["fps"]    = params.fps;
+         response["info"]   = std::move(info);
+         return crow::response(200, response);
++    } catch (const NativeRequestConflict& e) {
++        return request_error(409, e.what());
++    } catch (const std::invalid_argument& e) {
++        return request_error(400, e.what());
+     } catch (const std::exception& e) {
+         const std::string message = sd_generation_error_message(std::string("Video generation failed: ") + e.what());
+         LOG_ERROR("%s", message.c_str());
+@@ -584,17 +723,13 @@
+ }
+ 
+ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool is_img2img) {
+-    reset_sd_generation_error();
+-    // Extract task_id
+-    std::string task_id = "default_task";
+-    if (json_body.has("force_task_id")) {
+-        task_id = json_body["force_task_id"].s();
+-    }
+-
+-    // Create task
+-    task_state_manager_->createTask(task_id);
+-
+-    try {
++    GenerationRequestGuard request(*this);
++    if (!request.acquired()) return request_error(409, "A native generation request is active");
++    std::string task_id;
++    try {
++        request.start(json_body, "image");
++        task_id = request.taskId();
++        reset_sd_generation_error();
+         // Parse generation parameters
+         ImageGenerationParams params;
+         if (json_body.has("backend")) {
+@@ -907,10 +1042,15 @@
+         // Return response
+         crow::json::wvalue response;
+         response["images"] = images;
++        response["task_id"] = task_id;
+         response["info"] = info;
+ 
+         return crow::response(200, response);
+ 
++    } catch (const NativeRequestConflict& e) {
++        return request_error(409, e.what());
++    } catch (const std::invalid_argument& e) {
++        return request_error(400, e.what());
+     } catch (const std::exception& e) {
+         const std::string message = sd_generation_error_message(std::string("Generation failed: ") + e.what());
+         LOG_ERROR("%s", message.c_str());
+@@ -963,6 +1103,7 @@
+ 
+         crow::json::wvalue response;
+         response["completed"] = state.completed;
++        response["interrupted"] = state.interrupted;
+         response["progress"] = state.progress;
+         response["current_step"] = state.current_step;
+         response["total_steps"] = state.total_steps;
+@@ -979,12 +1120,25 @@
+ 
+ crow::response Server::handleInterrupt(const crow::request& req) {
+     try {
+-        // Interrupt the image generator
+-        if (image_generator_) {
+-            image_generator_->interrupt();
+-            LOG_INFO("Image or video generation interrupt forwarded");
+-        }
+-
++        auto json_body = crow::json::load(req.body);
++        if (!json_body || json_body.t() != crow::json::type::Object ||
++            !json_body.has("id_task") || json_body["id_task"].t() != crow::json::type::String) {
++            return request_error(400, "A string id_task is required");
++        }
++        const std::string task_id = json_body["id_task"].s();
++        // Hold the identity lock through forwarding so completion cannot admit a
++        // new task between checking the ID and selecting the native context.
++        std::lock_guard<std::mutex> state_lock(active_task_mutex_);
++        if (task_id.empty() || active_task_id_.empty() || task_id != active_task_id_) {
++            return request_error(409, "id_task does not identify the active generation");
++        }
++        const auto state = task_state_manager_->getTaskProgressState(task_id, false, -1);
++        if (state.completed || state.current_step <= 0) {
++            return request_error(409, "Generation is preparing or already finished; cancellation is unavailable");
++        }
++        image_generator_->interrupt();
++        task_state_manager_->interruptTask(task_id);
++        LOG_INFO("Matched image or video generation interrupt forwarded");
+         return crow::response(200, "OK");
+     } catch (const std::exception& e) {
+         crow::json::wvalue error;
+--- a/src/task_state.cpp
++++ b/src/task_state.cpp
+@@ -47,9 +47,11 @@
+     auto it = tasks_.find(task_id);
+     if (it != tasks_.end()) {
+         it->second.completed = true;
+-        it->second.progress = 1.0f;
+-        if (it->second.total_steps > 0) {
+-            it->second.current_step = it->second.total_steps;
++        if (!it->second.interrupted) {
++            it->second.progress = 1.0f;
++            if (it->second.total_steps > 0) {
++                it->second.current_step = it->second.total_steps;
++            }
+         }
+         it->second.result_images = images;
+         it->second.info = info;

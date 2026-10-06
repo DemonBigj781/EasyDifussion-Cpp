@@ -3,12 +3,34 @@
 
 #include <cstdio>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace {
 
+std::string native_generate_scripts(std::string html) {
+    const std::string prefix = "<script defer src=\"";
+    size_t position = 0;
+    while ((position = html.find(prefix, position)) != std::string::npos) {
+        const size_t name_start = position + prefix.size();
+        const size_t name_end = html.find('"', name_start);
+        const size_t end = html.find("</script>", name_end);
+        if (name_end == std::string::npos || end == std::string::npos) break;
+        const std::string name = html.substr(name_start, name_end - name_start);
+        if (name == "/cpp-ui/scripts/kiosk.js" || name == "/cpp-ui/scripts/generate.js") {
+            position = end + 9;
+        } else {
+            html.erase(position, end + 9 - position);
+        }
+    }
+    return html;
+}
+
 crow::response page(const std::string &path) {
     try {
-        crow::response result(easy_diffusion::ui::pages::render(path).render());
+        std::string html = easy_diffusion::ui::pages::render(path).render();
+        if (path == "/") html = native_generate_scripts(std::move(html));
+        crow::response result(std::move(html));
         result.set_header("Content-Type", "text/html; charset=utf-8");
         return result;
     } catch (const std::out_of_range &) {
@@ -52,6 +74,39 @@ crow::response resource(const std::string &prefix, const std::string &path) {
 } // namespace
 
 void cosmo_register_ui_routes(crow::SimpleApp &app) {
+    CROW_ROUTE(app, "/v1/sdapi/v1/cosmopolitan-capabilities").methods("GET"_method)([] {
+        crow::json::wvalue capabilities;
+        capabilities["protocol"] = 1;
+        capabilities["mode"] = "native-single-user";
+        capabilities["kiosk_supported"] = false;
+        capabilities["kiosk_enabled"] = false;
+        capabilities["txt2img"] = true;
+        capabilities["img2img_ui"] = false;
+        capabilities["full_checkpoint_required"] = true;
+        capabilities["companion_models_ui"] = false;
+        capabilities["generation_plugins_ui"] = false;
+        capabilities["output_formats"] = std::vector<std::string>{"png"};
+        capabilities["max_concurrent_generations"] = 1;
+        capabilities["cancel_during_model_load"] = false;
+        crow::response response(capabilities);
+        response.set_header("Cache-Control", "no-store");
+        return response;
+    });
+    CROW_ROUTE(app, "/kiosk").methods("GET"_method)([] {
+        crow::json::wvalue policy;
+        policy["mode"] = "native-single-user";
+        policy["supported"] = false;
+        policy["enabled"] = false;
+        policy["allowed_models"] = std::vector<std::string>{};
+        crow::response response(policy);
+        response.set_header("Cache-Control", "no-store");
+        return response;
+    });
+    CROW_ROUTE(app, "/kiosk").methods("POST"_method)([] {
+        crow::json::wvalue error;
+        error["message"] = "Kiosk configuration is unavailable in this native build. No setting was changed.";
+        return crow::response(501, error);
+    });
     CROW_ROUTE(app, "/")([] { return page("/"); });
     // Crow reserves the slashless path as a redirect for a trailing-slash route.
     CROW_ROUTE(app, "/cpp-ui/")([] { return page("/"); });

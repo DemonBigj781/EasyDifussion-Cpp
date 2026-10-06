@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 180
     outputs:
       executable_sha256: ${{ steps.package.outputs.executable_sha256 }}
+      model_sha256: ${{ steps.package.outputs.model_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -65,6 +66,9 @@ jobs:
             cosmopolitan/out/sdk
             cosmopolitan/out/tools
           key: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
+      - name: Check the native Generate adapter's asynchronous behavior
+        shell: bash
+        run: node cosmopolitan/tests/verify_inference_ui.js
       - name: Restore the pinned software WebGPU dependency build
         id: software-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -106,6 +110,10 @@ jobs:
           python3 cosmopolitan/tests/audit_symbols.py --out cosmopolitan/out
           cp cosmopolitan/tests/verify_runtime.py cosmopolitan/out/verify_runtime.py
           cp cosmopolitan/tests/verify_bootstrap.py cosmopolitan/out/verify_bootstrap.py
+          cp cosmopolitan/tests/verify_inference.py cosmopolitan/out/verify_inference.py
+          cp cosmopolitan/tests/verify_inference_api.py cosmopolitan/out/verify_inference_api.py
+          cp cosmopolitan/inference/fetch_model.py cosmopolitan/out/fetch_inference_model.py
+          cp cosmopolitan/inference/PIN.json cosmopolitan/out/PIN.json
           python3 - <<'PY'
           import hashlib, json, os, sys
           from pathlib import Path
@@ -113,13 +121,15 @@ jobs:
           from verify_runtime import verify_package
           directory = Path('cosmopolitan/out')
           digest = verify_package(directory, None)
+          model_pin = json.loads((directory / 'PIN.json').read_text())
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write(f'executable_sha256={digest}\n')
+              output.write(f'model_sha256={model_pin["sha256"]}\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
               summary.write('### One application artifact\n\n')
               summary.write(f'SHA-256: `{digest}`\n\n')
               summary.write('Windows and Linux execute this file without rebuilding it. ')
-              summary.write('The executable contains wgpu-native, Mesa lavapipe and LLVM. Runtime jobs require actual shared-GGML WebGPU compute and model execution, alongside the existing CPU, training-math and UI checks.\n')
+              summary.write('The executable contains wgpu-native, Mesa lavapipe and LLVM. Runtime jobs require trained text and image inference, WebGPU dispatch during denoising, and native generation API lifecycle checks, alongside the existing CPU, training-math and UI checks. The pinned SD 1.5 weights are external test data.\n')
           PY
       - name: Upload the application for both operating systems
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -133,6 +143,10 @@ jobs:
             cosmopolitan/out/software-webgpu/LINK.json
             cosmopolitan/out/verify_runtime.py
             cosmopolitan/out/verify_bootstrap.py
+            cosmopolitan/out/verify_inference.py
+            cosmopolitan/out/verify_inference_api.py
+            cosmopolitan/out/fetch_inference_model.py
+            cosmopolitan/out/PIN.json
           if-no-files-found: error
           retention-days: 30
       - name: Preserve build diagnostics
@@ -155,7 +169,7 @@ jobs:
     name: Linux application in an empty filesystem
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 75
     env:
       EXPECTED_SHA256: ${{ needs.build.outputs.executable_sha256 }}
     steps:
@@ -176,6 +190,36 @@ jobs:
           set -euo pipefail
           python3 artifact/verify_bootstrap.py --artifact-dir "$PWD/artifact" \
             --expected-sha256 "$EXPECTED_SHA256"
+      - name: Restore the external pinned diffusion checkpoint
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: artifact/inference-models
+          key: cosmo-sd15-inference-v1-${{ needs.build.outputs.model_sha256 }}
+          enableCrossOsArchive: true
+      - name: Fetch and verify the external trained checkpoint
+        timeout-minutes: 20
+        shell: bash
+        run: python3 artifact/fetch_inference_model.py --model-dir artifact/inference-models
+      - name: Generate images on CPU and embedded software WebGPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, subprocess, sys
+          from pathlib import Path
+          directory = Path('artifact').resolve()
+          pin = json.loads((directory / 'PIN.json').read_text())
+          model = directory / 'inference-models' / pin['filename']
+          for backend in ('cpu', 'webgpu'):
+              subprocess.run([sys.executable, str(directory / 'verify_inference.py'),
+                              '--artifact-dir', str(directory), '--model', str(model),
+                              '--backend', backend, '--timeout', '1800',
+                              '--steps', '2' if backend == 'webgpu' else '4',
+                              '--output-dir', str(directory / ('results-inference-' + backend))], check=True)
+          subprocess.run([sys.executable, str(directory / 'verify_inference_api.py'),
+                          '--artifact-dir', str(directory), '--model', str(model),
+                          '--output-dir', str(directory / 'results-inference-api')], check=True)
+          PY
       - name: Preserve Linux results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -184,6 +228,9 @@ jobs:
           path: |
             artifact/results-linux-isolated
             artifact/results-linux-bootstrap
+            artifact/results-inference-cpu
+            artifact/results-inference-webgpu
+            artifact/results-inference-api
           if-no-files-found: ignore
           retention-days: 30
 
@@ -191,7 +238,7 @@ jobs:
     name: Windows native PE with the identical application
     needs: build
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: 75
     env:
       EXPECTED_SHA256: ${{ needs.build.outputs.executable_sha256 }}
     steps:
@@ -205,11 +252,43 @@ jobs:
           $ErrorActionPreference = 'Stop'
           python artifact/verify_runtime.py --artifact-dir artifact
           if ($LASTEXITCODE -ne 0) { throw 'Native Windows runtime verification failed' }
+      - name: Restore the external pinned diffusion checkpoint
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: artifact/inference-models
+          key: cosmo-sd15-inference-v1-${{ needs.build.outputs.model_sha256 }}
+          enableCrossOsArchive: true
+      - name: Fetch and verify the external trained checkpoint
+        timeout-minutes: 20
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python artifact/fetch_inference_model.py --model-dir artifact/inference-models
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned diffusion checkpoint verification failed' }
+      - name: Generate images on CPU and embedded software WebGPU
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $modelPin = Get-Content artifact/PIN.json -Raw | ConvertFrom-Json
+          $modelPath = Join-Path artifact/inference-models $modelPin.filename
+          foreach ($backend in @('cpu', 'webgpu')) {
+            $sampleSteps = if ($backend -eq 'webgpu') { 2 } else { 4 }
+            python artifact/verify_inference.py --artifact-dir artifact --model $modelPath `
+              --backend $backend --steps $sampleSteps --timeout 1800 --output-dir "artifact/results-inference-$backend"
+            if ($LASTEXITCODE -ne 0) { throw "Native Windows $backend image inference failed" }
+          }
+          python artifact/verify_inference_api.py --artifact-dir artifact --model $modelPath `
+            --output-dir artifact/results-inference-api
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows inference API lifecycle verification failed' }
       - name: Preserve Windows results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cosmopolitan-windows-results
-          path: artifact/results-windows
+          path: |
+            artifact/results-windows
+            artifact/results-inference-cpu
+            artifact/results-inference-webgpu
+            artifact/results-inference-api
           if-no-files-found: ignore
           retention-days: 30
