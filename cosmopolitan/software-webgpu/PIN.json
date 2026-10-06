@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "repository": "https://github.com/DemonBigj781/cosmopolitan-lua.git",
+  "revision": "c2a7b3f8c871e44ae1e3fc8db36759c7b1829326",
+  "paths": [
+    "third_party/llvm_cosmo",
+    "third_party/lavapipe",
+    "third_party/wgpu_native",
+    "third_party/rust_ape",
+    "LICENSE"
+  ],
+  "archive_sha256": "e7a9f22763e6d7b5777dd200ad00ab31a6d9c8afa877fec0b145ff8bb8d730be",
+  "wgpu_native_version": "29.0.1.1",
+  "mesa_version": "25.2.8",
+  "llvm_version": "19.1.7",
+  "cosmocc_version": "4.0.2",
+  "rust_toolchain": "nightly-2026-07-28"
+}

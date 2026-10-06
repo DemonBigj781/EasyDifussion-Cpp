@@ -145,21 +145,26 @@ def prepare_source(out):
     stamp = source / "application.fingerprint"
     if not stamp.is_file() or stamp.read_text().strip() != fingerprint:
         source.mkdir(parents=True, exist_ok=True)
-        for path in paths:
-            dest = source / Path(path).name
-            if dest.exists():
-                shutil.rmtree(dest)
-        for name in names:
-            original = ROOT / name
-            target = source / Path(name).relative_to("source")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if original.is_symlink():
-                target.symlink_to(os.readlink(original))
-            else:
-                shutil.copy2(original, target)
-        for patch in patches:
-            working = source / "sdkit3-port-source" if patch.parent.name == "app-patches" else source
-            run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", patch], cwd=working)
+        # Construct and patch a fresh tree before replacing any active inputs.
+        # An interrupted preparation cannot mix pristine and patched files.
+        with tempfile.TemporaryDirectory(prefix="application-source-", dir=out) as staging:
+            stage = Path(staging)
+            for name in names:
+                original = ROOT / name
+                target = stage / Path(name).relative_to("source")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                if original.is_symlink():
+                    target.symlink_to(os.readlink(original))
+                else:
+                    shutil.copy2(original, target)
+            for patch in patches:
+                working = stage / "sdkit3-port-source" if patch.parent.name == "app-patches" else stage
+                run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", patch], cwd=working)
+            for path in paths:
+                dest = source / Path(path).name
+                if dest.exists():
+                    shutil.rmtree(dest)
+                (stage / Path(path).name).replace(dest)
         stamp.write_text(fingerprint + "\n")
     shared = source / "shared-ggml"
     prepare = HERE / "shared-ggml/prepare.py"
@@ -191,7 +196,13 @@ def main():
     parser.add_argument("--jobs", type=int, default=int(os.environ.get("COSMO_BUILD_JOBS", "2")))
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--libraries-only", action="store_true")
+    parser.add_argument("--dependencies-only", action="store_true",
+                        help="complete the static software WebGPU closure before compiling application targets")
     parser.add_argument("--skip-package", action="store_true")
+    parser.add_argument("--software-webgpu-out", type=Path,
+                        help="cache for the pinned static WGPU/Mesa/LLVM dependencies")
+    parser.add_argument("--foundation-source", type=Path,
+                        help="local Git object source for the exact pinned software WebGPU commit")
     args = parser.parse_args()
     if args.jobs < 1:
         parser.error("--jobs must be positive")
@@ -204,8 +215,21 @@ def main():
     wrappers = make_wrappers(out, sdk)
     source, shared, fingerprint = prepare_source(out)
     shutil.copy2(sdk / "bin/ape-x86_64.elf", out / "ape-x86_64.elf")
+    software_out = (args.software_webgpu_out or out / "software-webgpu").resolve()
+    software_command = [sys.executable, HERE / "software-webgpu/prepare.py",
+                        "--out", software_out, "--sdk", sdk, "--jobs", args.jobs]
+    if args.foundation_source:
+        software_command.extend(["--foundation-source", args.foundation_source.resolve()])
     if args.prepare_only:
+        run([*software_command, "--stage", "prepare"])
         print("Prepared source: " + str(source))
+        return
+    # A missing/failed backend is a build failure; never emit a CPU-only
+    # application under the all-in-one backend build's name.
+    run(software_command)
+    software_metadata = software_out / "LINK.json"
+    if args.dependencies_only:
+        print("Prepared static software WebGPU dependencies: " + str(software_metadata))
         return
     env = dict(os.environ, COSMO_SDK=str(sdk), COSMO_BUILD_TOOLS=str(wrappers))
     env["PATH"] = str(wrappers) + os.pathsep + str(out / "tools/bin") + os.pathsep + env["PATH"]
@@ -214,6 +238,7 @@ def main():
          "-DCMAKE_TOOLCHAIN_FILE=" + str(HERE / "cmake/cosmocc.cmake"),
          "-DCMAKE_MAKE_PROGRAM=" + str(ninja), "-DCMAKE_BUILD_TYPE=Release",
          "-DCOSMO_SOURCE_ROOT=" + str(source), "-DCOSMO_SHARED_GGML=" + str(shared),
+         "-DCOSMO_SOFTWARE_WEBGPU_METADATA=" + str(software_metadata),
          "-DCOSMO_BUILD_APP=" + ("OFF" if args.libraries_only else "ON")], env=env)
     targets = ["llama", "stable-diffusion", "easy-diffusion-ui"] if args.libraries_only else ["easy-diffusion"]
     run([cmake, "--build", build, "--parallel", args.jobs, "--target", *targets], env=env)
@@ -230,9 +255,11 @@ def main():
                 "llama_revision": LLAMA_REVISION, "source_fingerprint": fingerprint,
                 "cpu_baseline": "x86-64; no AVX requirement", "shared_ggml": True,
                 "openmp": False, "dynamic_backends": False,
-                "vocabulary_translation_units": 12}
+                "vocabulary_translation_units": 12,
+                "software_webgpu": json.loads(software_metadata.read_text()),
+                "software_webgpu_metadata_sha256": digest(software_metadata)}
     recipe_files = [HERE / "build.py", HERE / "build.sh", HERE / "CMakeLists.txt"]
-    for directory in ("cmake", "patches", "app-patches"):
+    for directory in ("cmake", "patches", "app-patches", "software-webgpu", "backend"):
         recipe_files.extend(p for p in (HERE / directory).rglob("*") if p.is_file())
     metadata["build_recipe_sha256"] = {
         str(p.relative_to(HERE)): digest(p) for p in sorted(recipe_files)}

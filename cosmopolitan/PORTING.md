@@ -23,7 +23,8 @@ or bundled collection of subprocesses does not by itself complete it.
   repository's custom operations, optimization and training work.
 - Theory documentation reference:
   `aa54da093aeeb9fa9ce34163f73d5797c31c316d`.
-- Previously verified Cosmopolitan software-Vulkan foundation:
+- Pinned Cosmopolitan software-Vulkan foundation, independently verified before
+  this application integration:
   [cosmopolitan-lua/webgpu-cpu](https://github.com/DemonBigj781/cosmopolitan-lua/tree/c2a7b3f8c871e44ae1e3fc8db36759c7b1829326).
 
 The two existing GGML snapshots are inputs to reconciliation. The final
@@ -40,6 +41,53 @@ second model runtime.
 The [application services and API audit](docs/application-api.md) records the
 existing route declarations, UI dependencies and remaining native service
 work, including LibTorch/ONNX ownership and removal of deployed Python.
+
+## Implemented software WebGPU integration
+
+The build now links the existing WebGPU backend from the authoritative shared
+GGML, a narrow C++ adapter over the native C API, wgpu-native, Mesa lavapipe
+and LLVM into the application. Both model engines use this same GGML registry
+and allocator contract. Original WGSL kernels remain responsible for WebGPU
+computations; the adapter does not emulate them with the CPU tensor backend.
+The application selects the embedded Vulkan provider before backend discovery
+and fails initialization if that provider is unavailable. It does not load an
+OS-native Vulkan library on this software path.
+
+[software-webgpu/PIN.json](software-webgpu/PIN.json) records the exact foundation
+commit and archive hash: wgpu-native 29.0.1.1, Mesa 25.2.8, LLVM 19.1.7,
+Cosmocc 4.0.2 and Rust `nightly-2026-07-28`. The build compiles the patched
+Rust runtime and C compatibility objects, static driver and LLVM archives,
+and the original C/C++ application sources. Python, Rust/C/C++ compilers,
+CMake/Ninja, Mesa's generators and its host shader compiler are build-time
+dependencies. Runtime shader compilation uses embedded LLVM. The recipe
+requires this dependency set and cannot silently emit a CPU-only application
+if it fails. The [build instructions](README.md#build) describe supported
+staging, dependency-cache and compilation options.
+
+This path performs software compute on the CPU. It supplies a real WebGPU
+command and shader implementation without requiring a GPU driver or display
+server; it is not hardware acceleration. The ordinary GGML CPU backend is
+also linked. `llama --backend cpu|webgpu` explicitly chooses between them,
+and `sdkit --backend webgpu` routes the server through the shared WebGPU
+device. The routing change is not proof of every diffusion graph's support.
+Hardware Vulkan and the CUDA, Metal, SYCL and other accelerator paths remain
+separate integration work.
+
+The original WebGPU matrix kernels require `ShaderF16`, including when their
+input tensors are F32. An adapter without that capability is not registered
+as a usable WebGPU device. The pinned native C implementation does not expose
+standard subgroup support or subgroup-size information, so the backend uses
+its workgroup kernels and rejects subgroup-dependent flash attention.
+Dawn-only experimental subgroup matrices and toggles are omitted; packed
+integer-dot kernels and optional GPU timestamp profiling are disabled.
+Existing operator, shape and type checks remain authoritative, including the
+shared-GGML restrictions for custom RoPE offsets and SSM history. See
+[backend/README.md](backend/README.md) for exact API and capability limits.
+
+The implementation and translation-unit checks are in place. Runtime shader,
+numerical, model and same-artifact Windows/Linux validation of this application
+integration are still pending. The earlier CPU-only application evidence and
+standalone foundation results retain their original scope.
 
 ## Full application inventory
 
@@ -80,6 +128,13 @@ their own native work and validation.
 Small backward/optimizer regression tests protect the shared GGML merge.
 They do not prove a full training run, checkpoint quality, GPU sampling,
 or compatibility with every prepared training recipe.
+
+The portable trainer defaults explicitly to the CPU backend. Linking WebGPU
+does not add implementations for all custom backward operations, F8 tensor
+types or optimizer kernels. Its operation capability checks and explicit
+no-fallback behavior must continue to reject unsupported training graphs.
+The new WebGPU inference tests do not certify full SD 1.5 training, native
+resume, selectable mixed precision, AdamW8bit or any additional training family.
 
 ## LibTorch, Transformers and OpenAPI
 
@@ -122,10 +177,43 @@ licenses and a small validation model. Large user models, datasets, outputs and
 configuration remain data. A host browser may display the local UI.
 
 Build-time Python/CMake tooling is distinct from a deployed Python runtime.
-The final application must not require Python, PyTorch Python wheels, shell
-launchers, externally compiled backend executables or the source checkout to
-perform its supported native features. System GPU drivers remain a separate
-hardware dependency.
+The final application must not require Python, PyTorch Python wheels,
+externally compiled backend executables or the source checkout to perform its
+supported native features. Windows invokes the PE directly. Linux's `/bin/sh`
+entry point extracts the bundled APE loader temporarily using ordinary host
+utilities; the separate isolated test uses an explicit APE loader. The
+application's bytes remain unchanged in both launch modes. The embedded
+software path has no external Mesa/Vulkan dependency; a future hardware path
+would still require suitable system GPU drivers.
+
+The mandatory WebGPU completion gate is execution, not enumeration:
+
+- Direct shared-GGML WebGPU graphs run F32 and Q4_0 matmul followed by bias,
+  RMSNorm, SiLU and softmax for two input variants each. All twelve readbacks
+  are compared with independent scalar references. The probe uses WebGPU
+  buffers and direct backend computation, without a CPU scheduler fallback,
+  and checks that an unsupported backward operation is rejected.
+- The trained embedded llama fixture must tokenize, prefill and decode sixteen
+  steps with WebGPU selected, finite logits and the independently established
+  greedy-token sequence. Ordinary model scheduling may still use supported
+  CPU operations; the inference check additionally requires actual WebGPU
+  matrix dispatches during inference, not a claim of universal offload. A
+  separate snapshot after synchronized prefill must show positive graph,
+  submission, dispatch, matrix-dispatch and readback deltas for the sixteen
+  decode steps themselves; prefill activity cannot satisfy that requirement.
+- Each test requires real graph/submission/dispatch/matrix/readback counter
+  deltas, an explicitly identified software adapter and zero native Vulkan
+  library opens. Counters accompany numerical output and are not sufficient
+  evidence by themselves.
+- `webgpu-test` runs this tensor/model pair. `--self-test` requires both in
+  addition to the existing CPU, shared-GGML, training-math and application
+  regressions. Windows direct-PE and Linux isolated/bootstrap jobs must pass
+  these checks using the same packaged executable hash.
+
+The direct tensor inputs are exactly representable in f16 because the original
+matrix kernels use half-precision staging. Their scalar checks establish the
+tested operations' correctness, not arbitrary-F32 numerical equivalence to
+the CPU backend or coverage of all operators and model architectures.
 
 Completion requires all of the following:
 

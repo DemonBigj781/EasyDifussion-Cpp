@@ -59,7 +59,7 @@ def source_info():
     return {"repository": "DemonBigj781/EasyDifussion-Cpp", "commit": commit, "dirty": dirty}
 
 
-def resources():
+def resources(software_notices=None):
     mappings = [
         (ROOT / "source/UI.cpp/Pages/assets", "cpp-ui/assets"),
         (ROOT / "source/UI.cpp/Pages/src/Plugin/plugin_scripts", "cpp-ui/scripts"),
@@ -70,6 +70,10 @@ def resources():
         (HERE / "licenses", "licenses/cosmopolitan-integration"),
         (ROOT / "source/llama.cpp/licenses", "licenses/llama-vendor"),
     ]
+    if software_notices is not None:
+        if not software_notices.is_dir() or not any(software_notices.rglob("*")):
+            raise RuntimeError("Missing software WebGPU dependency notices")
+        mappings.append((software_notices, "licenses/software-webgpu"))
     result = {}
     for directory, prefix in mappings:
         for file in sorted(directory.rglob("*")):
@@ -141,9 +145,11 @@ def main():
     with args.input.open("rb") as file:
         if file.read(2) != b"MZ":
             raise RuntimeError("Expected a Windows-loadable APE input")
-    files = resources()
-    files["models/" + MODEL["filename"]] = model
     manifest = json.loads(args.metadata.read_text()) if args.metadata else {}
+    software_notices = (Path(manifest["software_webgpu"]["licenses"])
+                        if "software_webgpu" in manifest else None)
+    files = resources(software_notices)
+    files["models/" + MODEL["filename"]] = model
     manifest.update({
         "source": source_info(),
         "target": "x86_64 Cosmopolitan APE",

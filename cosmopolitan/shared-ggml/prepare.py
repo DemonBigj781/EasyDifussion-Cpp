@@ -80,8 +80,19 @@ def prepare(output):
         if digest(patch.read_bytes()) != expected:
             raise RuntimeError("Shared GGML patch hash mismatch: " + name)
         patches.append(patch)
+    adapter_root = HERE.parent / "backend"
+    adapter = {
+        "source": "cosmopolitan/backend",
+        "compile_definition": "GGML_WEBGPU_COSMO",
+        "files": {
+            path: digest((adapter_root / path).read_bytes())
+            for path in ("CMakeLists.txt", "wgpu_adapter.cpp", "include/cosmo-webgpu.h",
+                         "include/webgpu/webgpu_cpp.h")
+        },
+    }
     fingerprint = stable_hash({
         "pin": pin, "prepare_sha256": digest(Path(__file__).read_bytes()),
+        "webgpu_adapter": adapter,
     })
     protected = (ROOT / "source", HERE)
     if (output.is_symlink() or output == ROOT or
@@ -135,6 +146,7 @@ def prepare(output):
             "llama_revision": pin["llama_revision"],
             "ggml_max_name": pin["ggml_max_name"],
             "patches": pin["patches"],
+            "webgpu_adapter": adapter,
             "required_compile_definitions": {
                 "all_consumers": ["GGML_MAX_NAME=160"],
                 "ggml": ["GGML_COSMO_STATIC_ONLY"],

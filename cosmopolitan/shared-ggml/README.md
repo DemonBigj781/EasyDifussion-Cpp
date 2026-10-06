@@ -2,7 +2,7 @@
 
 The authoritative source is the customized GGML already bundled with
 `source/sdkit3-port-source/stable-diffusion.cpp`. The preparation script copies
-that complete tracked tree and applies the reviewed patch in this directory.
+that complete tracked tree and applies the reviewed patches in this directory.
 Both stable-diffusion.cpp and llama.cpp consume that single CMake `ggml` target.
 The original application snapshots remain the source of provenance.
 
@@ -112,3 +112,20 @@ compared the actual enum values in both pinned headers; `gguf.cpp` reads and
 writes tensor types as 32-bit integers using those values. It establishes
 numeric format compatibility for these snapshots, separately from numerical
 operator support and model-level validation.
+
+## Static WebGPU backend
+
+Patch `0004-wgpu-native-c-api-backend.patch` connects this same authoritative
+GGML's existing WebGPU implementation to the pinned Cosmopolitan wgpu-native
+C API adapter. It keeps the backend's WGSL kernels and C registration API, fixes
+repeat-registration device counts and repeated device creation, and removes
+Dawn-only feature requests for this build. `WebGPU0` identifies the WebGPU buffer
+and scheduling device; its description explicitly identifies embedded software
+Vulkan and the physical CPU adapter. See [the adapter contract](../backend/README.md)
+for required features, operation limitations and numerical proof requirements.
+
+Preparation records the adapter implementation/header hashes in
+`COSMOPOLITAN_SHARED_GGML.json` as well as the GGML patch hashes. CPU support for
+the custom extensions remains available in the same runtime. Adding WebGPU does
+not change the existing restrictions on its unsupported custom operations,
+backward graphs or native trainer fallback policy.

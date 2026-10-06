@@ -34,11 +34,19 @@ def main():
             ggml_sources.append(path.relative_to(shared).as_posix())
     if not ggml_sources:
         raise RuntimeError("No authoritative shared GGML sources were compiled")
+    webgpu_sources = [name for name in ggml_sources if name.startswith("ggml-webgpu/")]
+    if webgpu_sources.count("ggml-webgpu/ggml-webgpu.cpp") != 1:
+        raise RuntimeError("Expected the original WebGPU backend from the authoritative shared GGML")
     symbols = subprocess.check_output(["nm", "--defined-only", "--format=posix",
                                        str(out / "easy-diffusion.com.dbg")], text=True)
     names = Counter(line.split()[0] for line in symbols.splitlines() if line.strip())
     required = ("ggml_init", "ggml_new_tensor", "ggml_backend_cpu_init", "ggml_backend_dev_count",
-                "llama_model_load_from_file", "new_sd_ctx", "cosmo_train_main", "cosmo_sdkit_main")
+                "llama_model_load_from_file", "new_sd_ctx", "cosmo_train_main", "cosmo_sdkit_main",
+                "ggml_backend_webgpu_init", "ggml_backend_webgpu_reg", "cosmo_webgpu_initialize",
+                "cosmo_webgpu_selftest", "cosmo_llama_webgpu_selftest",
+                "wgpuCreateInstance", "wgpuQueueSubmit", "wgpuComputePassEncoderDispatchWorkgroups",
+                "wgpuBufferGetConstMappedRange", "cosmo_wgpu_lavapipe_register",
+                "lvp_GetInstanceProcAddr", "LLVMCreateMCJITCompilerForModule")
     for name in required:
         if names[name] != 1:
             raise RuntimeError(f"Expected exactly one definition of {name}, found {names[name]}")
@@ -46,6 +54,7 @@ def main():
     if legacy:
         raise RuntimeError("Unexpected alternate GGML implementation symbols")
     report = {"status": "passed", "shared_ggml_sources": sorted(set(ggml_sources)),
+              "shared_ggml_webgpu_sources": sorted(set(webgpu_sources)),
               "required_symbol_counts": {name: names[name] for name in required},
               "legacy_versioned_ggml_symbols": 0,
               "scope": "Source and symbol identity; numerical correctness is tested separately"}

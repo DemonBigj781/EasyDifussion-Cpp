@@ -27,6 +27,7 @@ from verify_runtime import (
     EXPECTED_GREEDY_IDS,
     SELFTEST_MARKERS,
     sha256,
+    validate_webgpu_output,
     verify_package,
 )
 
@@ -131,7 +132,9 @@ def verify(args):
                 raise RuntimeError(f"Shell bootstrap self-test exited with code {result.returncode}")
             if not report["hash_unchanged"]:
                 raise RuntimeError("Application bytes changed during shell bootstrap")
-            report["greedy_token_ids"] = validate_selftest_output(log.read_text(errors="replace"))
+            text = log.read_text(errors="replace")
+            report["greedy_token_ids"] = validate_selftest_output(text)
+            report["webgpu"] = validate_webgpu_output(text)
             report["independent_reference_match"] = True
             report["bundled_loader"] = extracted_loader(runtime)
             report["runtime_entries_after"] = sorted(path.name for path in runtime.iterdir())

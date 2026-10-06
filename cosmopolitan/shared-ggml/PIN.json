@@ -17,6 +17,7 @@
   "patches": {
     "0001-shared-llama-api-and-cpu-kernels.patch": "65aaf969d92b5f945283e6497cfeea80a04efc70b03bb30401a7da5ae87a8791",
     "0002-built-in-backend-registry.patch": "a5e7169c1eeb02ca7e149db025913f8000bb6ee360dfe77b8fb7fd9803cb28ea",
-    "0003-preserve-rope-offset-in-gradient-graph.patch": "ef03ba4290888aa19b6c86e73e34f381668b6d664b59803d0d060873a9a29859"
+    "0003-preserve-rope-offset-in-gradient-graph.patch": "ef03ba4290888aa19b6c86e73e34f381668b6d664b59803d0d060873a9a29859",
+    "0004-wgpu-native-c-api-backend.patch": "4b774204f4f21a55a8602407eb68794401f3ba08c0cebd21a1fd4fb7819d31dc"
   }
 }

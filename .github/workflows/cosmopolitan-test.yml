@@ -13,15 +13,20 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_BUILD_JOBS: 2
+  LLVM_COSMO_JOBS: 2
+  LAVAPIPE_JOBS: 2
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build one static shared-GGML application
+    name: Build one application with shared GGML and embedded WebGPU
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 180
     outputs:
       executable_sha256: ${{ steps.package.outputs.executable_sha256 }}
     steps:
@@ -31,7 +36,9 @@ jobs:
       - name: Install host build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3 python3-venv unzip patch binutils
+          sudo apt-get install -y --no-install-recommends \
+            bison build-essential ca-certificates clang cmake curl file flex git \
+            libclang-dev ninja-build patch pkg-config python3 python3-venv unzip binutils
       - name: Restore the pinned SDK and host tools
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -40,6 +47,24 @@ jobs:
             cosmopolitan/out/sdk
             cosmopolitan/out/tools
           key: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
+      - name: Restore the pinned software WebGPU dependency build
+        id: software-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: cosmopolitan/out/software-webgpu
+          key: cosmo-easydiffusion-webgpu-ubuntu24-v1-${{ hashFiles('cosmopolitan/software-webgpu/**') }}
+      - name: Build and validate the pinned software WebGPU dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cosmopolitan/out
+          python3 cosmopolitan/build.py --dependencies-only --jobs 2 2>&1 | tee cosmopolitan/out/software-dependencies.log
+      - name: Save the validated driver and compiler before the application build
+        if: steps.software-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: cosmopolitan/out/software-webgpu
+          key: ${{ steps.software-cache.outputs.cache-primary-key }}
       - name: Compile and embed application resources
         shell: bash
         run: |
@@ -67,7 +92,7 @@ jobs:
               summary.write('### One application artifact\n\n')
               summary.write(f'SHA-256: `{digest}`\n\n')
               summary.write('Windows and Linux execute this file without rebuilding it. ')
-              summary.write('This validates the native integration milestone; full application, image generation and end-to-end training parity remain separately tracked.\n')
+              summary.write('The executable contains wgpu-native, Mesa lavapipe and LLVM. Runtime jobs require actual shared-GGML WebGPU compute and model execution, alongside the existing CPU, training-math and UI checks.\n')
           PY
       - name: Upload the application for both operating systems
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -78,6 +103,7 @@ jobs:
             cosmopolitan/out/ape-x86_64.elf
             cosmopolitan/out/BUILD.json
             cosmopolitan/out/SYMBOLS.json
+            cosmopolitan/out/software-webgpu/LINK.json
             cosmopolitan/out/verify_runtime.py
             cosmopolitan/out/verify_bootstrap.py
           if-no-files-found: error
@@ -89,8 +115,12 @@ jobs:
           name: cosmopolitan-build-diagnostics
           path: |
             cosmopolitan/out/build.log
+            cosmopolitan/out/software-dependencies.log
             cosmopolitan/out/easy-diffusion.com.dbg
             cosmopolitan/out/build/CMakeFiles/CMakeConfigureLog.yaml
+            cosmopolitan/out/software-webgpu/*.log
+            cosmopolitan/out/software-webgpu/foundation/o/llvm-cosmo/*.log
+            cosmopolitan/out/software-webgpu/foundation/o/lavapipe/*.log
           if-no-files-found: ignore
           retention-days: 14
 
@@ -98,7 +128,7 @@ jobs:
     name: Linux application in an empty filesystem
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       EXPECTED_SHA256: ${{ needs.build.outputs.executable_sha256 }}
     steps:
@@ -106,7 +136,7 @@ jobs:
         with:
           name: easy-diffusion-cosmopolitan-x86_64
           path: artifact
-      - name: Run inference, training math, server and UI without host libraries
+      - name: Run shared-GGML WebGPU inference, CPU math, server and UI without host libraries
         shell: bash
         run: |
           set -euo pipefail
@@ -134,7 +164,7 @@ jobs:
     name: Windows native PE with the identical application
     needs: build
     runs-on: windows-2022
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       EXPECTED_SHA256: ${{ needs.build.outputs.executable_sha256 }}
     steps:

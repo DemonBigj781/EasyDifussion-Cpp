@@ -8,6 +8,8 @@ extern "C" {
 int cosmo_ggml_selftest(void);
 int cosmo_shared_ggml_selftest(void);
 int cosmo_llama_selftest(void);
+int cosmo_llama_webgpu_selftest(void);
+int cosmo_webgpu_selftest(void);
 int cosmo_llama_generate(int argc, char **argv);
 int cosmo_diffusion_selftest(void);
 int cosmo_ui_selftest(void);

@@ -11,6 +11,7 @@ import argparse
 from contextlib import contextmanager
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -35,8 +36,91 @@ EXPECTED_GREEDY_IDS = [432, 383, 286, 261, 376, 298, 315, 421,
                        395, 317, 426, 338, 401, 396, 267, 337]
 SELFTEST_MARKERS = (
     "GGML_SELFTEST PASS", "SHARED_GGML_SELFTEST PASS", "LLAMA_SELFTEST PASS", "TRAINING_MATH_SELFTEST PASS",
-    "DIFFUSION_SELFTEST PASS", "COSMOPOLITAN_SELFTEST PASS",
+    "DIFFUSION_SELFTEST PASS", "WEBGPU_GGML_SELFTEST PASS", "WEBGPU_LLAMA_SELFTEST PASS",
+    "COSMOPOLITAN_SELFTEST PASS",
 )
+
+
+def validate_webgpu_output(text):
+    """Require scoped GGML dispatch/readback and actual trained-model inference."""
+    lines = text.splitlines()
+    expected_cases = {(kind, iteration) for kind in ("F32", "Q4_0") for iteration in (0, 1)}
+    counter_pattern = (r"graphs=(\d+) submissions=(\d+) dispatches=(\d+) "
+                       r"matmuls=(\d+) readbacks=(\d+) native_loader_opens=0")
+
+    def counters(match, start, minimum_readbacks):
+        names = ("graphs", "submissions", "dispatches", "matmuls", "readbacks")
+        result = dict(zip(names, map(int, match.groups()[start:])))
+        if any(result[name] <= 0 for name in names) or result["readbacks"] < minimum_readbacks:
+            raise RuntimeError("WebGPU execution lacks graph, dispatch, submission or readback evidence")
+        if result["matmuls"] > result["dispatches"]:
+            raise RuntimeError("WebGPU matmul count exceeds actual dispatch count")
+        return result
+
+    cases = {}
+    for line in (line for line in lines if line.startswith("WEBGPU_GGML_EXECUTION")):
+        match = re.fullmatch(r"WEBGPU_GGML_EXECUTION type=(F32|Q4_0) iteration=([01]) "
+                             r"provider=embedded software=1 " + counter_pattern + r" cpu_fallback=0", line)
+        if not match:
+            raise RuntimeError("Invalid or non-embedded WebGPU GGML execution result")
+        key = (match.group(1), int(match.group(2)))
+        if key in cases:
+            raise RuntimeError("Duplicate WebGPU graph execution result")
+        cases[key] = {"type": key[0], "iteration": key[1], **counters(match, 2, 3)}
+    if set(cases) != expected_cases:
+        raise RuntimeError("Missing actual WebGPU F32/Q4 graph execution cases")
+
+    checks = set()
+    for line in (line for line in lines if line.startswith("WEBGPU_CHECK")):
+        match = re.fullmatch(r"WEBGPU_CHECK type=(F32|Q4_0) iteration=([01]) "
+                             r"stage=(matmul|bias-rmsnorm-silu|softmax) values=143 "
+                             r"max_error=([0-9.eE+-]+) PASS", line)
+        if not match:
+            raise RuntimeError("Invalid WebGPU numerical readback result")
+        error = float(match.group(4))
+        if not math.isfinite(error) or error < 0:
+            raise RuntimeError("Non-finite WebGPU numerical error")
+        key = (match.group(1), int(match.group(2)), match.group(3))
+        if key in checks:
+            raise RuntimeError("Duplicate WebGPU numerical readback result")
+        checks.add(key)
+    if checks != {(kind, iteration, stage) for kind, iteration in expected_cases
+                  for stage in ("matmul", "bias-rmsnorm-silu", "softmax")}:
+        raise RuntimeError("Missing WebGPU scalar-reference readback checks")
+    unsupported = [line for line in lines if line.startswith("WEBGPU_UNSUPPORTED")]
+    if unsupported != ["WEBGPU_UNSUPPORTED op=SILU_BACK supported=0"]:
+        raise RuntimeError("WebGPU unsupported-operator rejection check is missing")
+
+    id_lines = [line for line in lines if line.startswith("WEBGPU_LLAMA_GREEDY_IDS")]
+    match = re.fullmatch(r"WEBGPU_LLAMA_GREEDY_IDS ([0-9]+(?:,[0-9]+)*)", id_lines[0]) if len(id_lines) == 1 else None
+    if not match or [int(token) for token in match.group(1).split(",")] != EXPECTED_GREEDY_IDS:
+        raise RuntimeError("WebGPU llama differs from the independent 16-token reference")
+    detail = "WEBGPU_LLAMA_SELFTEST prompt_tokens=5 decode_steps=16 vocab=512 finite_logits=1 threads=1"
+    if lines.count(detail) != 1:
+        raise RuntimeError("WebGPU llama did not complete the required finite-logit decode steps")
+    execution = [line for line in lines if line.startswith("WEBGPU_LLAMA_EXECUTION")]
+    match = re.fullmatch(r"WEBGPU_LLAMA_EXECUTION provider=embedded software=1 " + counter_pattern,
+                         execution[0]) if len(execution) == 1 else None
+    if not match:
+        raise RuntimeError("Missing actual embedded WebGPU llama execution")
+    inference = counters(match, 0, 1)
+    decode = [line for line in lines if line.startswith("WEBGPU_LLAMA_DECODE_EXECUTION")]
+    match = re.fullmatch(r"WEBGPU_LLAMA_DECODE_EXECUTION steps=16 graphs=(\d+) "
+                         r"submissions=(\d+) dispatches=(\d+) matmuls=(\d+) readbacks=(\d+)",
+                         decode[0]) if len(decode) == 1 else None
+    if not match:
+        raise RuntimeError("Missing WebGPU llama execution scoped to the sixteen decode steps")
+    decode_execution = counters(match, 0, 1)
+    if any(decode_execution[name] > inference[name] for name in decode_execution):
+        raise RuntimeError("WebGPU decode count exceeds the full inference count")
+    for marker in ("WEBGPU_GGML_SELFTEST PASS", "WEBGPU_LLAMA_SELFTEST PASS"):
+        if lines.count(marker) != 1:
+            raise RuntimeError(f"Expected one WebGPU success result: {marker}")
+    return {"provider": "embedded", "software_adapter": True, "native_loader_opens": 0,
+            "graph_cpu_fallback": False, "graph_cases": [cases[key] for key in sorted(cases)],
+            "scalar_readback_checks": len(checks), "llama_execution": inference,
+            "llama_decode_execution": {"steps": 16, **decode_execution},
+            "llama_greedy_token_ids": EXPECTED_GREEDY_IDS, "independent_reference_match": True}
 
 
 def sha256(path):
@@ -250,6 +334,7 @@ def verify(args):
                 raise RuntimeError("Trained llama fixture differs from the independent 16-token reference")
             result["greedy_token_ids"] = EXPECTED_GREEDY_IDS
             result["independent_reference_match"] = True
+            result["webgpu"] = validate_webgpu_output(text)
             report["tests"].append(result)
             for label, arguments in [
                 ("devices", ["sdkit", "--list-devices"]),

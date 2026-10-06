@@ -1,0 +1,48 @@
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -232,8 +232,8 @@
+ static bool build_compute_backend_spec(const CommandLineArgs& args, std::string& spec, std::string& error) {
+     const std::string backend = lowercase(args.compute_backend);
+     if (backend != "auto" && backend != "cpu" && backend != "cuda" && backend != "sycl" &&
+-        backend != "vulkan") {
+-        error = "invalid --backend '" + args.compute_backend + "' (expected auto, cpu, cuda, sycl, or vulkan)";
++        backend != "vulkan" && backend != "webgpu") {
++        error = "invalid --backend '" + args.compute_backend + "' (expected auto, cpu, cuda, sycl, vulkan, or webgpu)";
+         return false;
+     }
+ 
+@@ -241,8 +241,8 @@
+     if (args.backend_devices_set && !parse_device_ids(args.backend_devices, ids, error)) {
+         return false;
+     }
+-    if (!ids.empty() && backend != "cuda" && backend != "sycl" && backend != "vulkan") {
+-        error = "--device/--devices requires --backend cuda, sycl, or vulkan";
++    if (!ids.empty() && backend != "cuda" && backend != "sycl" && backend != "vulkan" && backend != "webgpu") {
++        error = "--device/--devices requires --backend cuda, sycl, vulkan, or webgpu";
+         return false;
+     }
+ 
+@@ -253,7 +253,7 @@
+     if (ids.empty()) {
+         spec = backend;
+     } else {
+-        const std::string prefix = backend == "cuda" ? "CUDA" : (backend == "sycl" ? "SYCL" : "Vulkan");
++        const std::string prefix = backend == "cuda" ? "CUDA" : (backend == "sycl" ? "SYCL" : (backend == "webgpu" ? "WebGPU" : "Vulkan"));
+         for (int id : ids) {
+             if (!spec.empty()) {
+                 spec.push_back('&');
+@@ -301,10 +301,10 @@
+     std::cerr << "  --port <port>                      Server port (default: 8188)" << std::endl;
+     std::cerr << "  --log-level <level>                Log level: verbose, debug, info, warning, error (default: info)"
+               << std::endl;
+-    std::cerr << "  --backend <name>                   Compute backend: auto, cpu, cuda, sycl, or vulkan (default: auto)"
+-              << std::endl;
+-    std::cerr << "  --device <index>                   CUDA/SYCL/Vulkan device index" << std::endl;
+-    std::cerr << "  --devices <i,j,...>                CUDA/SYCL/Vulkan devices for layer splitting" << std::endl;
++    std::cerr << "  --backend <name>                   Compute backend: auto, cpu, cuda, sycl, vulkan, or webgpu (default: auto)"
++              << std::endl;
++    std::cerr << "  --device <index>                   CUDA/SYCL/Vulkan/WebGPU device index" << std::endl;
++    std::cerr << "  --devices <i,j,...>                CUDA/SYCL/Vulkan/WebGPU devices for layer splitting" << std::endl;
+     std::cerr << "  --list-devices, --backend-info     List backend devices, memory, and capabilities, then exit"
+               << std::endl;
+     std::cerr << "  --parent-pid <pid>                 Parent process PID" << std::endl;

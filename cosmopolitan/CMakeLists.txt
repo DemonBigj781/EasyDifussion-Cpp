@@ -33,7 +33,7 @@ foreach(option IN ITEMS
         GGML_SSE42 GGML_AVX GGML_AVX2 GGML_AVX_VNNI GGML_BMI2 GGML_FMA GGML_F16C
         GGML_AVX512 GGML_AVX512_VBMI GGML_AVX512_VNNI GGML_AVX512_BF16
         GGML_AMX_TILE GGML_AMX_INT8 GGML_AMX_BF16 GGML_BLAS GGML_ACCELERATE
-        GGML_CUDA GGML_HIP GGML_METAL GGML_VULKAN GGML_WEBGPU GGML_OPENCL
+        GGML_CUDA GGML_HIP GGML_METAL GGML_VULKAN GGML_OPENCL
         GGML_RPC GGML_SYCL GGML_MUSA GGML_BUILD_TESTS GGML_BUILD_EXAMPLES
         LLAMA_BUILD_COMMON LLAMA_BUILD_TOOLS LLAMA_BUILD_EXAMPLES LLAMA_BUILD_TESTS
         LLAMA_BUILD_SERVER LLAMA_BUILD_APP LLAMA_BUILD_UI LLAMA_BUILD_MTMD
@@ -42,6 +42,10 @@ foreach(option IN ITEMS
         SD_WEBP SD_WEBM SD_CUDA SD_HIPBLAS SD_METAL SD_VULKAN SD_OPENCL SD_SYCL SD_MUSA)
     set(${option} OFF CACHE BOOL "" FORCE)
 endforeach()
+set(GGML_WEBGPU ON CACHE BOOL "Use the shared GGML WebGPU backend" FORCE)
+set(GGML_WEBGPU_COSMO ON CACHE BOOL "Use the pinned static Cosmopolitan WebGPU stack" FORCE)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/software-webgpu.cmake")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/backend" backend)
 add_compile_definitions(GGML_MAX_NAME=160)
 add_subdirectory("${COSMO_SHARED_GGML}" shared-ggml)
 target_compile_definitions(ggml PUBLIC GGML_MAX_NAME=160)
@@ -82,8 +86,10 @@ if(COSMO_BUILD_APP)
         "${CMAKE_CURRENT_SOURCE_DIR}/src" "${SD_SOURCE}/src" "${SD_SOURCE}/thirdparty"
         "${SD_SOURCE}" "${COSMO_SHARED_GGML}/src")
     target_compile_definitions(easy-diffusion PRIVATE
+        COSMO_WEBGPU_BACKEND=1
         COSMO_TRAINER_SOURCE="${SDKIT_SOURCE}/tools/sd15_lora_train.cpp"
         COSMO_BACKWARD_TEST_SOURCE="${SDKIT_SOURCE}/tests/backward_math_test.cpp"
         COSMO_OPTIMIZER_TEST_SOURCE="${SDKIT_SOURCE}/tests/text_encoder_optimizer_test.cpp")
-    target_link_libraries(easy-diffusion PRIVATE llama cosmo-sdkit stable-diffusion ggml easy-diffusion-ui)
+    target_link_libraries(easy-diffusion PRIVATE llama cosmo-sdkit stable-diffusion ggml
+        easy-diffusion-ui cosmo-ggml-webgpu-adapter)
 endif()

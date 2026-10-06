@@ -1,0 +1,7 @@
+if(NOT TARGET cosmo-software-webgpu)
+    message(FATAL_ERROR "The pinned static software WebGPU foundation is required")
+endif()
+add_library(cosmo-ggml-webgpu-adapter STATIC wgpu_adapter.cpp)
+target_include_directories(cosmo-ggml-webgpu-adapter PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(cosmo-ggml-webgpu-adapter PUBLIC cosmo-software-webgpu)
+target_compile_features(cosmo-ggml-webgpu-adapter PUBLIC cxx_std_17)

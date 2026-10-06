@@ -8,35 +8,25 @@ on:
         description: Build workflow run containing the application artifact
         required: true
         type: string
-        default: '37511033658'
       executable_sha256:
         description: Expected SHA-256 of easy-diffusion.exe (not the artifact ZIP)
         required: true
         type: string
-        default: f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734
       source_commit:
         description: Clean source commit recorded by the original build
         required: true
         type: string
-        default: 00e3cb3094db2ac548933268109d9b909e018171
-  push:
-    branches: [cosmopolitan-test]
-    paths:
-      - .github/workflows/cosmopolitan-runtime-test.yml
-      - cosmopolitan/tests/verify_runtime.py
-      - cosmopolitan/tests/verify_bootstrap.py
 
 permissions:
   contents: read
   actions: read
 
-# The initial defaults deliberately identify the first CI build. This workflow
-# changes only the host verifier; it never rebuilds or modifies the executable.
-# For a later artifact, dispatch with all three matching provenance values.
+# Supply matching provenance for an artifact built with the current backend
+# contract. This workflow never rebuilds or modifies that executable.
 env:
-  BUILD_RUN_ID: ${{ inputs.build_run_id || '37511033658' }}
-  EXPECTED_SHA256: ${{ inputs.executable_sha256 || 'f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734' }}
-  EXPECTED_SOURCE_COMMIT: ${{ inputs.source_commit || '00e3cb3094db2ac548933268109d9b909e018171' }}
+  BUILD_RUN_ID: ${{ inputs.build_run_id }}
+  EXPECTED_SHA256: ${{ inputs.executable_sha256 }}
+  EXPECTED_SOURCE_COMMIT: ${{ inputs.source_commit }}
 
 jobs:
   runtime:
@@ -50,7 +40,7 @@ jobs:
           - target: Windows
             runner: windows-2022
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
