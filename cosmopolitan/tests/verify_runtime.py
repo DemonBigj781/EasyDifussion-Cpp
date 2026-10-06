@@ -137,10 +137,17 @@ def run_command(root, arguments, isolate, logs, label, timeout=240, expected_exi
                                 stdin=subprocess.DEVNULL, stdout=output,
                                 stderr=errors, timeout=timeout)
     text = path.read_text(errors="replace")
-    if result.returncode != expected_exit:
+    # The pinned SDK's Windows _Exit passes (exitcode << 8) to process
+    # termination. Compare exact native status; do not normalize failures.
+    # https://github.com/jart/cosmopolitan/blob/4.0.2/libc/intrin/exit.c#L87-L105
+    expected_host_status = expected_exit << 8 if os.name == "nt" else expected_exit
+    if result.returncode != expected_host_status:
         print(text[-18000:])
-        raise RuntimeError(f"{label} failed with exit code {result.returncode}; see {path}")
+        raise RuntimeError(f"{label} failed with native exit status {result.returncode}; "
+                           f"expected {expected_host_status} for application exit code {expected_exit}; see {path}")
     return text, {"name": label, "arguments": arguments, "exit_code": result.returncode,
+                  "expected_application_exit_code": expected_exit,
+                  "expected_host_exit_status": expected_host_status,
                   "elapsed_seconds": round(time.monotonic() - started, 3), "log": path.name,
                   "stdout_log": path.with_suffix(".stdout.log").name,
                   "stderr_log": path.with_suffix(".stderr.log").name}

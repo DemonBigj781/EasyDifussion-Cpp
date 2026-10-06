@@ -23,6 +23,8 @@ on:
     branches: [cosmopolitan-test]
     paths:
       - .github/workflows/cosmopolitan-runtime-test.yml
+      - cosmopolitan/tests/verify_runtime.py
+      - cosmopolitan/tests/verify_bootstrap.py
 
 permissions:
   contents: read

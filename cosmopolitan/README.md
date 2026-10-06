@@ -116,6 +116,16 @@ and uses each cursor for explicit-offset
 The application does not infer handle aliasing from matching file names or
 inodes, which would conflate deliberately independent opens of the same file.
 
+### Native Windows exit-status encoding
+
+Cosmopolitan 4.0.2's [exit implementation](https://github.com/jart/cosmopolitan/blob/4.0.2/libc/intrin/exit.c)
+stores the application's exit code shifted left by eight bits in the native
+Windows process status. A native Windows parent therefore observes `512`
+when the application returns `2` for invalid arguments; Linux reports `2`.
+Zero still means success on both systems. The verifier checks the exact
+expected native status and records the application code separately; it does
+not accept an arbitrary nonzero result as the expected failure.
+
 ## One shared GGML
 
 The authoritative runtime starts with the custom diffusion GGML tree and
