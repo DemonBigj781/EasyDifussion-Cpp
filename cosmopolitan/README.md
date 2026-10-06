@@ -92,6 +92,30 @@ not an image checkpoint or a production assistant. User models, datasets,
 configuration and generated outputs remain external data. A host browser
 displays the UI.
 
+### Windows redirected logging with SDK 4.0.2
+
+If a native Windows launcher supplies stdout and stderr handles for the same
+regular file, the pinned runtime can overwrite one stream with the other.
+This occurred in the initial CI harness with Python's `stderr=STDOUT`:
+the application returned success, but some earlier self-test output was lost.
+It is a runtime logging limitation, not merely a verifier parsing issue.
+
+For file capture, use separate destinations. For example, in `cmd.exe`:
+
+```bat
+easy-diffusion.exe --self-test >self-test.stdout.log 2>self-test.stderr.log
+```
+
+The host verifier now captures distinct files and combines labeled diagnostic
+sections only after the child exits; those sections do not represent a merged
+chronological stream. All numerical, token, exit-code and integrity checks
+remain enforced. SDK 4.0.2 initializes the inherited descriptors with separate
+[cursors](https://github.com/jart/cosmopolitan/blob/4.0.2/libc/intrin/fds.c)
+and uses each cursor for explicit-offset
+[Windows writes](https://github.com/jart/cosmopolitan/blob/4.0.2/libc/calls/readwrite-nt.c).
+The application does not infer handle aliasing from matching file names or
+inodes, which would conflate deliberately independent opens of the same file.
+
 ## One shared GGML
 
 The authoritative runtime starts with the custom diffusion GGML tree and
@@ -120,6 +144,13 @@ the PE directly. Linux checks both the shell bootstrap and operation in a
 fresh filesystem containing only the application, the explicit APE loader
 and a temporary directory. The host Python verifier is not copied into the
 isolated application filesystem.
+
+The separate `Cosmopolitan existing-artifact verification` workflow can run
+the current host verifier against an earlier application artifact without
+rebuilding it. Its dispatch inputs pin the build run, executable SHA-256 and
+clean source commit; each platform checks that provenance before execution.
+The initial defaults identify build run `37511033658`. Use matching values
+from a later build when rechecking a different executable.
 
 The checks cover:
 

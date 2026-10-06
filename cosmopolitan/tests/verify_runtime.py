@@ -8,6 +8,7 @@ security boundary for untrusted programs.
 """
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -107,20 +108,42 @@ def command_for(root, arguments, isolate):
     return [str(root / LOADER), str(root / APPLICATION), *arguments]
 
 
+@contextmanager
+def capture_logs(path):
+    # On Windows, aliased regular-file stdout/stderr handles can acquire
+    # independent offsets in the child and overwrite each other's output.
+    # Capture separate files and assemble diagnostics only in the parent.
+    # The combined log groups streams; it does not claim chronological order.
+    stdout_path = path.with_suffix(".stdout.log")
+    stderr_path = path.with_suffix(".stderr.log")
+    try:
+        with stdout_path.open("wb") as output, stderr_path.open("wb") as errors:
+            yield output, errors
+    finally:
+        with path.open("wb") as combined:
+            for label, source in ((b"stdout", stdout_path), (b"stderr", stderr_path)):
+                combined.write(b"\n--- " + label + b" ---\n")
+                if source.is_file():
+                    with source.open("rb") as stream:
+                        shutil.copyfileobj(stream, combined)
+
+
 def run_command(root, arguments, isolate, logs, label, timeout=240, expected_exit=0):
     started = time.monotonic()
     path = logs / (label + ".log")
-    with path.open("wb") as output:
+    with capture_logs(path) as (output, errors):
         result = subprocess.run(command_for(root, arguments, isolate),
                                 cwd=root / "tmp", env=runtime_environment(root / "tmp"),
                                 stdin=subprocess.DEVNULL, stdout=output,
-                                stderr=subprocess.STDOUT, timeout=timeout)
+                                stderr=errors, timeout=timeout)
     text = path.read_text(errors="replace")
     if result.returncode != expected_exit:
         print(text[-18000:])
         raise RuntimeError(f"{label} failed with exit code {result.returncode}; see {path}")
     return text, {"name": label, "arguments": arguments, "exit_code": result.returncode,
-                  "elapsed_seconds": round(time.monotonic() - started, 3), "log": path.name}
+                  "elapsed_seconds": round(time.monotonic() - started, 3), "log": path.name,
+                  "stdout_log": path.with_suffix(".stdout.log").name,
+                  "stderr_log": path.with_suffix(".stderr.log").name}
 
 
 def http_checks(root, isolate, logs):
@@ -136,10 +159,10 @@ def http_checks(root, isolate, logs):
             return response.status, response.headers, response.read()
 
     path = logs / "server.log"
-    with path.open("wb") as output:
+    with capture_logs(path) as (output, errors):
         process = subprocess.Popen(command_for(root, ["sdkit", "--backend", "cpu", "--port", str(port)], isolate),
                                    cwd=root / "tmp", env=runtime_environment(root / "tmp"),
-                                   stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT)
+                                   stdin=subprocess.DEVNULL, stdout=output, stderr=errors)
         try:
             deadline = time.monotonic() + 45
             while True:
@@ -175,7 +198,9 @@ def http_checks(root, isolate, logs):
                 raise RuntimeError("Embedded asset route accepted parent traversal")
             return {"name": "native-server-and-embedded-ui", "ping_status": 200,
                     "checks": checks, "parent_traversal_status": status,
-                    "log": path.name}
+                    "log": path.name,
+                    "stdout_log": path.with_suffix(".stdout.log").name,
+                    "stderr_log": path.with_suffix(".stderr.log").name}
         finally:
             if process.poll() is None:
                 process.terminate()

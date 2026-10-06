@@ -1,0 +1,111 @@
+name: Cosmopolitan existing-artifact verification
+run-name: Recheck one unchanged Easy Diffusion APE
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Build workflow run containing the application artifact
+        required: true
+        type: string
+        default: '37511033658'
+      executable_sha256:
+        description: Expected SHA-256 of easy-diffusion.exe (not the artifact ZIP)
+        required: true
+        type: string
+        default: f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734
+      source_commit:
+        description: Clean source commit recorded by the original build
+        required: true
+        type: string
+        default: 00e3cb3094db2ac548933268109d9b909e018171
+  push:
+    branches: [cosmopolitan-test]
+    paths:
+      - .github/workflows/cosmopolitan-runtime-test.yml
+
+permissions:
+  contents: read
+  actions: read
+
+# The initial defaults deliberately identify the first CI build. This workflow
+# changes only the host verifier; it never rebuilds or modifies the executable.
+# For a later artifact, dispatch with all three matching provenance values.
+env:
+  BUILD_RUN_ID: ${{ inputs.build_run_id || '37511033658' }}
+  EXPECTED_SHA256: ${{ inputs.executable_sha256 || 'f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734' }}
+  EXPECTED_SOURCE_COMMIT: ${{ inputs.source_commit || '00e3cb3094db2ac548933268109d9b909e018171' }}
+
+jobs:
+  runtime:
+    name: Same artifact on ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: Linux
+            runner: ubuntu-24.04
+          - target: Windows
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the original application without rebuilding
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: easy-diffusion-cosmopolitan-x86_64
+          path: artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+      - name: Verify the original artifact and source identity
+        shell: python
+        run: |
+          import json, os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'cosmopolitan/tests')
+          from verify_runtime import verify_package
+          directory = Path('artifact')
+          digest = verify_package(directory, os.environ['EXPECTED_SHA256'])
+          manifest = json.loads((directory / 'BUILD.json').read_text())
+          source = manifest['source']
+          if source['commit'] != os.environ['EXPECTED_SOURCE_COMMIT'] or source['dirty']:
+              raise RuntimeError('Artifact does not have the expected clean source provenance')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('### Existing artifact, current host verifier\n\n')
+              summary.write(f"Build run: `{os.environ['BUILD_RUN_ID']}`\n\n")
+              summary.write(f"Application source: `{source['commit']}`\n\n")
+              summary.write(f"Verifier source: `{os.environ['GITHUB_SHA']}`\n\n")
+              summary.write(f'SHA-256: `{digest}`\n')
+      - name: Verify Linux inference, training math, server and UI in an empty filesystem
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x artifact/ape-x86_64.elf artifact/easy-diffusion.exe
+          sudo python3 cosmopolitan/tests/verify_runtime.py --artifact-dir "$PWD/artifact" \
+            --expected-sha256 "$EXPECTED_SHA256" --isolate
+      - name: Verify the single-file Linux bootstrap
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cosmopolitan/tests/verify_bootstrap.py --artifact-dir "$PWD/artifact" \
+            --expected-sha256 "$EXPECTED_SHA256"
+      - name: Verify the Windows PE directly from a clean application directory
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python cosmopolitan/tests/verify_runtime.py --artifact-dir artifact
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows runtime verification failed' }
+      - name: Preserve runtime reports and separate output streams
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-recheck-${{ matrix.target }}-results
+          path: artifact/results-*
+          if-no-files-found: ignore
+          retention-days: 30
