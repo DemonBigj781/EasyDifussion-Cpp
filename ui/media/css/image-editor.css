@@ -123,19 +123,27 @@
 	text-align: center;
 }
 
-.image_editor_brush_size .editor-options-container {
+.editor-brush-size-controls {
+	display: flex;
 	align-items: center;
-	column-gap: 4px;
+	gap: 10px;
+	min-width: 160px;
 }
 
-.image_editor_brush_size .editor-options-container > * {
-	flex: 0 0 auto !important;
+.editor-brush-size-controls input[type="range"] {
+	flex: 1;
+	min-width: 0;
+	width: 100%;
+	min-height: 32px;
+	margin: 0;
+	cursor: pointer;
 }
 
-.image_editor_brush_size .editor-options-container > * > * {
-	flex: none;
-	aspect-ratio: 1 / 1;
-	border-radius: 50% !important;
+.editor-brush-size-controls output {
+	flex: 0 0 auto;
+	min-width: 5ch;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 
 .editor-controls-center {

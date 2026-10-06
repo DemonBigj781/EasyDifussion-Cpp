@@ -13,6 +13,10 @@ and local model tooling:
   under `/meta/*`, plus modern Base64 bucket compatibility.
 - Built-in Perchance image, text, and public-gallery APIs under `/perchance/*`,
   including persistent gallery image/URL ID and generator channel settings.
+- [Kiosk mode](docs/kiosk-mode.md) for base-checkpoint-only selection, no LoRAs,
+  G-filtered Perchance images, and a Destockd-only main gallery.
+- [Shared Plugin Manager](docs/plugin-manager.md) in the legacy and C++ UIs,
+  with the same optional-plugin catalog and browser preferences.
 - An Online Model Browser for Civitai and Hugging Face, using separate
   `/civitai-api` and `/huggingface-api` routes.
 - A de-gitted llama.cpp source snapshot, a CUDA-capable local `llama-server`

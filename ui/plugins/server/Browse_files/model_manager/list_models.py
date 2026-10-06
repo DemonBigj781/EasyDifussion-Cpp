@@ -7,6 +7,7 @@ from easydiffusion.utils.model_identifier import (
     identify_ip_adapter_compatibility,
     identify_model_type,
     identify_vae_latent_family,
+    identify_controlnet_lllite_compatibility,
 )
 
 PREFILLED_MODELS = {
@@ -155,6 +156,11 @@ def set_model_metadata(model_type, models, exts):
                 vae_family = None
             if vae_family:
                 m["tags"].append(f"vae_{vae_family}")
+        elif model_type == "controlnet-lllite":
+            try:
+                m["lllite_compatibility"] = identify_controlnet_lllite_compatibility(m["abs_path"])
+            except (OSError, ValueError, KeyError, TypeError):
+                m["lllite_compatibility"] = None
         elif model_type == "ip-adapter":
             try:
                 compatibility = identify_ip_adapter_compatibility(m["abs_path"])
@@ -179,6 +185,8 @@ def set_model_metadata(model_type, models, exts):
                         f"clip_projection_{compatibility['projection_dim']}",
                     ]
                 )
+                if compatibility.get("kind"):
+                    m["tags"].append(compatibility["kind"])
 
 
 def strip_null_models(models):
@@ -195,7 +203,7 @@ def include_prefilled_models(models, prefilled_models):
     model_ids = set(m["model"] for m in models)
     for m in prefilled_models:
         if m["model"] not in model_ids:
-            models.append(m)
+            models.append({**m, "installed": False})
 
 
 def is_native_video_model(model, dedicated_folders):
@@ -213,7 +221,7 @@ def is_native_video_model(model, dedicated_folders):
     if rel_path.startswith(dedicated_prefixes):
         return True
 
-    return model_class.startswith(("wan_", "ltx_video", "mochi_"))
+    return model_class.startswith(("wan_", "ltx_video", "ltx2", "mochi_", "svd"))
 
 
 def is_selectable_checkpoint(model):

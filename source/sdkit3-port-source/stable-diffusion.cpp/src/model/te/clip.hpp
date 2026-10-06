@@ -32,9 +32,9 @@ public:
 
         x = fc1->forward(ctx, x);
         if (use_gelu) {
-            x = ggml_ext_gelu(ctx->ggml_ctx, x, true);
+            x = ggml_ext_gelu(ctx->ggml_ctx, x, true, ctx->training_graph);
         } else {
-            x = ggml_ext_gelu_quick(ctx->ggml_ctx, x, true);
+            x = ggml_ext_gelu_quick(ctx->ggml_ctx, x, !ctx->training_graph);
         }
         x = fc2->forward(ctx, x);
         return x;

@@ -20,6 +20,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 #include "conditioning/conditioner.hpp"
 #include "core/rng.hpp"
@@ -90,63 +92,9 @@ static sd::Tensor<float> load_rgb_square(const fs::path& path, int resolution) {
     return image;
 }
 
-static std::string json_escape(const std::string& value) {
-    std::string out;
-    for (char c : value) {
-        if (c == '"' || c == '\\') { out.push_back('\\'); out.push_back(c); }
-        else if (c == '\n') out += "\\n";
-        else if (c == '\r') out += "\\r";
-        else if (static_cast<unsigned char>(c) >= 0x20) out.push_back(c);
-    }
-    return out;
-}
-
-static bool save_lora(const fs::path& path, const std::map<std::string, ggml_tensor*>& params,
-                      ggml_backend_t backend, const std::string& trigger, int step) {
-    struct Entry { std::string name; std::vector<int64_t> shape; std::vector<float> data; size_t begin, end; };
-    std::vector<Entry> entries;
-    size_t offset = 0;
-    for (const auto& [name, tensor] : params) {
-        if (!tensor || ggml_n_dims(tensor) != 2 || tensor->type != GGML_TYPE_F32) continue;
-        Entry entry;
-        entry.name = name;
-        entry.shape = {tensor->ne[1], tensor->ne[0]}; // GGML uses fastest dimension first.
-        entry.begin = offset;
-        entry.data.resize(static_cast<size_t>(ggml_nelements(tensor)));
-        ggml_backend_tensor_get(tensor, entry.data.data(), 0, entry.data.size() * sizeof(float));
-        offset += entry.data.size() * sizeof(float);
-        entry.end = offset;
-        entries.push_back(std::move(entry));
-    }
-    if (entries.empty()) return false;
-    std::ostringstream header;
-    header << "{\"__metadata__\":{\"format\":\"pt\",\"ss_training_step\":\"" << step
-           << "\",\"ss_tag_frequency\":\"{\\\"" << json_escape(trigger)
-           << "\\\":1}\",\"ss_trigger\":\"" << json_escape(trigger) << "\"}";
-    for (const auto& entry : entries) {
-        header << ",\"" << json_escape(entry.name) << "\":{\"dtype\":\"F32\",\"shape\":["
-               << entry.shape[0] << "," << entry.shape[1] << "],\"data_offsets\":["
-               << entry.begin << "," << entry.end << "]}";
-    }
-    header << "}";
-    std::string json = header.str();
-    while (json.size() % 8) json.push_back(' ');
-    fs::create_directories(path.parent_path());
-    const fs::path temporary = path.string() + ".tmp";
-    std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
-    if (!out) return false;
-    const uint64_t header_size = json.size();
-    out.write(reinterpret_cast<const char*>(&header_size), sizeof(header_size));
-    out.write(json.data(), static_cast<std::streamsize>(json.size()));
-    for (const auto& entry : entries) out.write(reinterpret_cast<const char*>(entry.data.data()),
-                                                  static_cast<std::streamsize>(entry.data.size() * sizeof(float)));
-    out.close();
-    if (!out) { fs::remove(temporary); return false; }
-    std::error_code ec;
-    fs::rename(temporary, path, ec);
-    if (ec) { fs::remove(temporary); return false; }
-    return true;
-}
+#include "sd15_lora_export.hpp"
+#include "sd15_training_schedule.hpp"
+#include "sd15_epoch_sampling.hpp"
 
 static ggml_backend_t backend_by_name(const std::string& name) {
     for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
@@ -196,6 +144,14 @@ int main(int argc, char** argv) {
         if (it == args.end() || it->second.empty()) throw std::runtime_error(std::string("missing argument ") + key);
         return it->second;
     };
+    auto integer_option = [&](const char* key, int fallback) {
+        auto it = args.find(key);
+        if (it == args.end()) return fallback;
+        size_t used = 0;
+        const int value = std::stoi(it->second, &used);
+        if (used != it->second.size()) throw std::invalid_argument(std::string(key) + " must be an integer");
+        return value;
+    };
     try {
         const fs::path checkpoint = need("--model");
         const fs::path dataset = need("--dataset");
@@ -203,16 +159,36 @@ int main(int argc, char** argv) {
         const std::string trigger = args.count("--trigger") ? args["--trigger"] : "";
         const std::string backend_name = args.count("--device") ? args["--device"] : "SYCL1";
         const int resolution = args.count("--resolution") ? std::stoi(args["--resolution"]) : 256;
-        const int steps = args.count("--steps") ? std::stoi(args["--steps"]) : 1000;
+        const auto image_paths = images_in(dataset);
+        const SD15EpochSchedule epoch_schedule(image_paths.size(), integer_option("--dataset-repeats", 1),
+                                               integer_option("--epochs", 0), integer_option("--steps", 1000));
+        const int steps = epoch_schedule.steps;
         const int save_every = args.count("--save-every") ? std::stoi(args["--save-every"]) : 100;
+        const std::string save_step_zero_arg = args.count("--save-step-zero") ? args["--save-step-zero"] : "0";
+        if (save_step_zero_arg != "0" && save_step_zero_arg != "1")
+            throw std::runtime_error("--save-step-zero must be 0 or 1");
+        const bool save_step_zero = save_step_zero_arg == "1";
         const int rank = args.count("--rank") ? std::stoi(args["--rank"]) : 16;
+        size_t alpha_used = 0;
+        const float network_alpha = args.count("--network-alpha") ? std::stof(args["--network-alpha"], &alpha_used) : static_cast<float>(rank);
+        if (args.count("--network-alpha") && alpha_used != args["--network-alpha"].size())
+            throw std::runtime_error("LoRA alpha must be a number");
+        if (!std::isfinite(network_alpha) || network_alpha <= 0.0f || network_alpha > 128.0f)
+            throw std::runtime_error("LoRA alpha must be finite, positive and at most 128");
+        const std::string lr_scheduler = args.count("--lr-scheduler") ? args["--lr-scheduler"] : "constant";
+        const int warmup_steps = integer_option("--lr-warmup-steps", 0);
+        const int cycles = integer_option("--lr-scheduler-num-cycles", 1);
+        const SD15TrainingSchedule schedule(lr_scheduler, steps, warmup_steps, cycles);
         const int threads = args.count("--threads") ? std::stoi(args["--threads"]) : 10;
         const float learning_rate = args.count("--learning-rate") ? std::stof(args["--learning-rate"]) : 1e-4f;
+        const float text_encoder_learning_rate = args.count("--text-encoder-learning-rate")
+            ? std::stof(args["--text-encoder-learning-rate"]) : 0.0f;
+        if (!std::isfinite(learning_rate) || learning_rate <= 0.0f || learning_rate > 0.1f ||
+            !std::isfinite(text_encoder_learning_rate) || text_encoder_learning_rate < 0.0f || text_encoder_learning_rate > 0.1f)
+            throw std::runtime_error("invalid UNet or text encoder learning rate");
         const uint32_t seed = args.count("--seed") ? static_cast<uint32_t>(std::stoul(args["--seed"])) : 42;
         if (resolution < 128 || resolution > 1024 || resolution % 64 || steps < 1 || rank < 1 || rank > 128 || save_every < 1)
             throw std::runtime_error("invalid resolution, steps, rank, or save interval");
-        const auto image_paths = images_in(dataset);
-        if (image_paths.empty()) throw std::runtime_error("dataset has no supported images");
 
         ggml_backend_load_all();
         ggml_backend_t backend = backend_by_name(backend_name);
@@ -227,7 +203,12 @@ int main(int argc, char** argv) {
                   << "\",\"device_name\":\"" << json_escape(ggml_backend_dev_name(ggml_backend_get_device(backend)))
                   << "\",\"resolution\":" << resolution << ",\"steps\":" << steps
                   << ",\"rank\":" << rank << ",\"learning_rate\":" << learning_rate
+                  << ",\"network_alpha\":" << network_alpha
+                  << ",\"lr_scheduler\":\"" << lr_scheduler << "\",\"lr_warmup_steps\":" << warmup_steps
+                  << ",\"lr_scheduler_num_cycles\":" << cycles
+                  << ",\"text_encoder_learning_rate\":" << text_encoder_learning_rate
                   << ",\"threads\":" << threads << ",\"images\":" << image_paths.size()
+                  << ",\"steps_per_epoch\":" << epoch_schedule.steps_per_epoch
                   << ",\"trigger\":\"" << json_escape(trigger) << "\"}" << std::endl;
         std::cout << "Trainer build: " << __DATE__ << " " << __TIME__
                   << " | device: " << ggml_backend_dev_name(ggml_backend_get_device(backend))
@@ -248,16 +229,17 @@ int main(int argc, char** argv) {
         const auto& tensor_map = loader.get_tensor_storage_map();
 
         unet = std::make_shared<SD15LoraTrainingRunner>(backend, tensor_map, "model.diffusion_model", rank,
-                                                        static_cast<float>(rank), seed, weight_manager);
+                                                        network_alpha, seed, weight_manager, text_encoder_learning_rate);
         clip = std::make_shared<FrozenCLIPEmbedderWithCustomWords>(backend, tensor_map,
             std::map<std::string, std::string>{}, VERSION_SD1, weight_manager);
         clip->truncate_long_prompts = true;
         vae = std::make_shared<AutoEncoderKL>(backend, tensor_map, "first_stage_model", false, false,
                                               VERSION_SD1, weight_manager);
         cleanup.registered_unet = manager.register_runner_params("SD15 trainer UNet", *unet, "model.diffusion_model", ModelManager::ResidencyMode::ParamBackend, backend, backend);
-        cleanup.registered_clip = manager.register_runner_params("SD15 trainer CLIP", *clip, ModelManager::ResidencyMode::ParamBackend, backend, backend);
+        if (text_encoder_learning_rate == 0.0f)
+            cleanup.registered_clip = manager.register_runner_params("SD15 trainer CLIP", *clip, ModelManager::ResidencyMode::ParamBackend, backend, backend);
         cleanup.registered_vae = manager.register_runner_params("SD15 trainer VAE", *vae, ModelManager::ResidencyMode::ParamBackend, backend, backend);
-        if (!cleanup.registered_unet || !cleanup.registered_clip || !cleanup.registered_vae ||
+        if (!cleanup.registered_unet || (text_encoder_learning_rate == 0.0f && !cleanup.registered_clip) || !cleanup.registered_vae ||
             !manager.validate_registered_tensors()) throw std::runtime_error("failed to register checkpoint model tensors");
 
         const int latent_size = resolution / 8;
@@ -266,6 +248,7 @@ int main(int argc, char** argv) {
         auto rng = std::make_shared<STDDefaultRNG>();
         rng->manual_seed(seed);
         std::vector<Sample> samples;
+        std::string sample_prompt;
         samples.reserve(image_paths.size());
         for (size_t i = 0; i < image_paths.size(); ++i) {
             fs::path caption_path = image_paths[i];
@@ -273,21 +256,32 @@ int main(int argc, char** argv) {
             std::string caption = read_text(caption_path);
             const bool caption_file_found = !caption.empty();
             if (!trigger.empty() && caption.find(trigger) == std::string::npos) caption += (caption.empty() ? "" : ", ") + trigger;
+            if (caption.empty()) throw std::runtime_error("empty caption: " + caption_path.string());
+            if (i == 0) sample_prompt = caption;
             auto image = load_rgb_square(image_paths[i], resolution);
             auto posterior = vae->encode(threads, image, {});
             auto latents = vae->vae_output_to_latents(posterior, rng);
             // SD 1.x diffusion operates on scaled VAE latents (0.18215), not
             // the raw posterior sample. Match the conversion used at inference.
             latents = vae->vae_to_diffusion_latents(latents);
-            ConditionerParams cp; cp.text = caption; cp.width = resolution; cp.height = resolution;
-            auto condition = clip->get_learned_condition(threads, cp);
-            if (latents.empty() || condition.c_crossattn.empty() || latents.values().size() != static_cast<size_t>(graph.latent_features) ||
-                condition.c_crossattn.values().size() != 77u * 768u) throw std::runtime_error("VAE/CLIP preprocessing failed for " + image_paths[i].string());
+            std::vector<float> context;
+            if (text_encoder_learning_rate > 0.0f) {
+                // Captions are literal training text, not inference prompt markup.
+                // Cache only token IDs: CLIP must run again after every update.
+                auto tokens = clip->tokenizer.tokenize(caption, nullptr, true, 77, 77, false);
+                context.assign(tokens.begin(), tokens.end());
+            } else {
+                ConditionerParams cp; cp.text = caption; cp.width = resolution; cp.height = resolution;
+                context = clip->get_learned_condition(threads, cp).c_crossattn.values();
+            }
+            const size_t expected_context = text_encoder_learning_rate > 0.0f ? 77u : 77u * 768u;
+            if (latents.empty() || latents.values().size() != static_cast<size_t>(graph.latent_features) ||
+                context.size() != expected_context) throw std::runtime_error("VAE/CLIP preprocessing failed for " + image_paths[i].string());
             const auto& latent_values = latents.values();
             const auto [latent_min, latent_max] = std::minmax_element(latent_values.begin(), latent_values.end());
             const double latent_mean = std::accumulate(latent_values.begin(), latent_values.end(), 0.0) /
                                        static_cast<double>(latent_values.size());
-            samples.push_back({latent_values, condition.c_crossattn.values()});
+            samples.push_back({latent_values, std::move(context)});
             log_event_prefix("dataset_image");
             std::cout << ",\"done\":" << (i + 1) << ",\"total\":" << image_paths.size()
                       << ",\"file\":\"" << json_escape(image_paths[i].filename().string())
@@ -298,10 +292,15 @@ int main(int argc, char** argv) {
 
         const auto trainable = unet->trainable_parameter_map();
         size_t trainable_values = 0;
+        size_t text_encoder_tensors = 0;
         for (const auto& item : trainable) trainable_values += static_cast<size_t>(ggml_nelements(item.second));
+        for (const auto& item : trainable) if (starts_with(item.first, "lora.cond_stage_model.")) ++text_encoder_tensors;
+        if (text_encoder_learning_rate > 0.0f && text_encoder_tensors != 96)
+            throw std::runtime_error("expected 96 CLIP attention LoRA tensors");
         log_event_prefix("optimizer_ready");
         std::cout << ",\"trainable_tensors\":" << trainable.size()
-                  << ",\"trainable_values\":" << trainable_values << "}" << std::endl;
+                  << ",\"trainable_values\":" << trainable_values
+                  << ",\"text_encoder_tensors\":" << text_encoder_tensors << "}" << std::endl;
 
         std::mt19937 random(seed);
         std::vector<size_t> sample_order(samples.size());
@@ -310,7 +309,7 @@ int main(int argc, char** argv) {
         std::normal_distribution<float> normal(0.0f, 1.0f);
         std::vector<float> packed(static_cast<size_t>(graph.packed_features));
         std::vector<float> target(static_cast<size_t>(graph.latent_features));
-        std::array<double, 1001> alpha{};
+        std::array<double, 1000> alpha{};
         double product = 1.0;
         for (int t = 0; t < 1000; ++t) {
             const double f = static_cast<double>(t) / 999.0;
@@ -321,8 +320,71 @@ int main(int argc, char** argv) {
         log_event_prefix("noise_schedule");
         std::cout << ",\"type\":\"scaled_linear_sd15\",\"beta_start\":0.00085"
                   << ",\"beta_end\":0.012,\"alpha_cumprod_last\":" << alpha[999] << "}" << std::endl;
+        std::vector<float> negative_context;
+        if (text_encoder_learning_rate > 0.0f) {
+            auto tokens = clip->tokenizer.tokenize("", nullptr, true, 77, 77, false);
+            negative_context.assign(tokens.begin(), tokens.end());
+        } else {
+            ConditionerParams cp; cp.text = ""; cp.width = resolution; cp.height = resolution;
+            negative_context = clip->get_learned_condition(threads, cp).c_crossattn.values();
+        }
+        if (negative_context.size() != samples.front().context.size())
+            throw std::runtime_error("invalid unconditional sampling context");
+        auto sample_epoch = [&](int step) {
+            const int epoch = step / epoch_schedule.steps_per_epoch;
+            log_event_prefix("sample_start");
+            std::cout << ",\"step\":" << step << ",\"epoch\":" << epoch
+                      << ",\"prompt\":\"" << json_escape(sample_prompt) << "\",\"seed\":" << seed
+                      << ",\"sampler\":\"ddim\",\"sampling_steps\":25,\"guidance\":7.5}" << std::endl;
+            auto values = sd15_ddim_sample(static_cast<size_t>(graph.latent_features), seed, 25, 7.5f, alpha,
+                [&](const std::vector<float>& latent, int timestep, bool positive) {
+                    std::vector<float> inputs(static_cast<size_t>(graph.packed_features));
+                    std::copy(latent.begin(), latent.end(), inputs.begin());
+                    inputs[latent.size()] = static_cast<float>(timestep);
+                    const auto& context = positive ? samples.front().context : negative_context;
+                    std::copy(context.begin(), context.end(), inputs.begin() + latent.size() + 1);
+                    return unet->predict_noise(inputs);
+                });
+            auto latent = sd::Tensor<float>::from_vector(values);
+            latent.reshape_({latent_size, latent_size, 4, 1});
+            auto image = vae->decode(threads, vae->diffusion_to_vae_latents(latent), {});
+            if (image.empty() || image.values().size() != static_cast<size_t>(resolution * resolution * 3))
+                throw std::runtime_error("epoch sample VAE decode failed");
+            std::vector<unsigned char> pixels(static_cast<size_t>(resolution * resolution * 3));
+            for (int y = 0; y < resolution; ++y) for (int x = 0; x < resolution; ++x) for (int c = 0; c < 3; ++c) {
+                const float value = image.index(x, y, c, 0);
+                if (!std::isfinite(value)) throw std::runtime_error("non-finite epoch sample pixel");
+                pixels[(y * resolution + x) * 3 + c] = static_cast<unsigned char>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
+            }
+            const auto directory = output.parent_path() / "samples";
+            fs::create_directories(directory);
+            const auto path = directory / (output.stem().string() + "-epoch-" + std::to_string(epoch) + ".png");
+            const auto temporary = path.string() + ".tmp";
+            if (!stbi_write_png(temporary.c_str(), resolution, resolution, 3, pixels.data(), resolution * 3))
+                throw std::runtime_error("could not write epoch sample");
+            fs::rename(temporary, path);
+            std::ofstream caption(path.parent_path() / (path.stem().string() + ".txt"));
+            caption << sample_prompt << '\n';
+            caption.close();
+            if (!caption) throw std::runtime_error("could not write epoch sample caption");
+            log_event_prefix("sample_saved");
+            std::cout << ",\"step\":" << step << ",\"epoch\":" << epoch
+                      << ",\"path\":\"" << json_escape(fs::absolute(path).string()) << "\"}" << std::endl;
+        };
+        // Optional diagnostic snapshot: no optimizer update has happened yet.
+        if (save_step_zero) {
+            const fs::path initial_path = output.parent_path() /
+                (output.stem().string() + "-0" + output.extension().string());
+            if (!save_lora(initial_path, unet->trainable_parameter_map(), trigger, 0, rank, network_alpha))
+                throw std::runtime_error("failed to save step-zero LoRA checkpoint");
+            log_event_prefix("saved");
+            std::cout << ",\"path\":\"" << json_escape(fs::absolute(initial_path).string())
+                      << "\",\"step\":0}" << std::endl;
+        }
         const auto training_started = std::chrono::steady_clock::now();
         for (int step = 1; step <= steps; ++step) {
+            const float lr_factor = schedule.factor(step - 1);
+            unet->set_learning_rate(learning_rate * lr_factor);
             const size_t position = static_cast<size_t>(step - 1) % sample_order.size();
             if (position == 0) std::shuffle(sample_order.begin(), sample_order.end(), random);
             const Sample& sample = samples[sample_order[position]];
@@ -342,16 +404,23 @@ int main(int argc, char** argv) {
             const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - training_started).count();
             log_event_prefix("progress");
             std::cout << ",\"step\":" << step << ",\"total\":" << steps << ",\"loss\":" << loss
+                      << ",\"learning_rate\":" << learning_rate * lr_factor
+                      << ",\"text_encoder_learning_rate\":" << text_encoder_learning_rate * lr_factor
                       << ",\"step_seconds\":" << elapsed / step
                       << ",\"elapsed_seconds\":" << elapsed
                       << ",\"eta_seconds\":" << (elapsed / step) * (steps - step) << "}" << std::endl;
-            if (step % save_every == 0 || step == steps) {
+            if (step % save_every == 0 || step == steps || epoch_schedule.epoch_end(step)) {
                 fs::path save_path = output;
                 if (step != steps) save_path = output.parent_path() / (output.stem().string() + "-" + std::to_string(step) + output.extension().string());
-                if (!save_lora(save_path, unet->trainable_parameter_map(), backend, trigger, step)) throw std::runtime_error("failed to save LoRA checkpoint");
+                if (!save_lora(save_path, unet->trainable_parameter_map(), trigger, step, rank, network_alpha)) throw std::runtime_error("failed to save LoRA checkpoint");
                 log_event_prefix("saved");
                 std::cout << ",\"path\":\"" << json_escape(fs::absolute(save_path).string())
                           << "\",\"step\":" << step << "}" << std::endl;
+            }
+            if (epoch_schedule.epoch_end(step)) {
+                log_event_prefix("epoch_end");
+                std::cout << ",\"step\":" << step << ",\"epoch\":" << step / epoch_schedule.steps_per_epoch << "}" << std::endl;
+                sample_epoch(step);
             }
         }
         log_event_prefix("completed");

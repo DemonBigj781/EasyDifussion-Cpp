@@ -328,6 +328,14 @@ compile_count_guard acquire_compile_slot() {
     // wait until fewer than N compiles are in progress.
     // 16 is an arbitrary limit, the goal is to avoid "failed to create pipe" errors.
     uint32_t N = std::max(1u, std::min(16u, std::thread::hardware_concurrency()));
+    // Shader compiler subprocesses must respect the enclosing build's budget.
+    if (const char * limit = std::getenv("CMAKE_BUILD_PARALLEL_LEVEL")) {
+        char * end = nullptr;
+        const unsigned long jobs = std::strtoul(limit, &end, 10);
+        if (end != limit && *end == '\0' && jobs > 0 && jobs < N) {
+            N = static_cast<uint32_t>(jobs);
+        }
+    }
     std::unique_lock<std::mutex> guard(compile_count_mutex);
     compile_count_cond.wait(guard, [N] { return compile_count < N; });
     compile_count++;

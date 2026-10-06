@@ -16,6 +16,25 @@ target_link_libraries(clip-vision-architecture-test PRIVATE stable-diffusion)
 target_compile_definitions(clip-vision-architecture-test PRIVATE GGML_MAX_NAME=160)
 add_test(NAME clip-vision-architecture-test COMMAND clip-vision-architecture-test)
 
+add_executable(siglip2-parity siglip2_parity.cpp)
+target_link_libraries(siglip2-parity PRIVATE stable-diffusion)
+target_compile_definitions(siglip2-parity PRIVATE GGML_MAX_NAME=160)
+
+add_executable(anima-ip-parity anima_ip_parity.cpp)
+target_link_libraries(anima-ip-parity PRIVATE stable-diffusion)
+target_compile_definitions(anima-ip-parity PRIVATE GGML_MAX_NAME=160)
+
+add_executable(anima-lllite-parity anima_lllite_parity.cpp)
+target_link_libraries(anima-lllite-parity PRIVATE stable-diffusion)
+target_compile_definitions(anima-lllite-parity PRIVATE GGML_MAX_NAME=160)
+
+add_executable(anima-ip-integration anima_ip_integration.cpp)
+target_link_libraries(anima-ip-integration PRIVATE stable-diffusion)
+target_compile_definitions(anima-ip-integration PRIVATE GGML_MAX_NAME=160)
+
+add_executable(anima-ip-generation anima_ip_generation.cpp)
+target_link_libraries(anima-ip-generation PRIVATE stable-diffusion)
+
 add_executable(backend-assignment-test backend_assignment_test.cpp)
 target_link_libraries(backend-assignment-test PRIVATE stable-diffusion)
 add_test(NAME backend-assignment-test COMMAND backend-assignment-test)

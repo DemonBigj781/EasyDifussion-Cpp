@@ -2333,6 +2333,16 @@ static void ggml_cuda_mul_mat_cublas(ggml_backend_cuda_context & ctx, const ggml
         }
     }
 
+#if !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA)
+    // SGEMM otherwise inherits the handle's TF32 mode even when this operation
+    // explicitly requests F32. Preserve the caller's mode for subsequent ops.
+    cublasMath_t previous_math_mode = CUBLAS_DEFAULT_MATH;
+    const bool precise_f32 = dst->op_params[0] == GGML_PREC_F32;
+    if (precise_f32) {
+        CUBLAS_CHECK(cublasGetMathMode(ctx.cublas_handle(), &previous_math_mode));
+        CUBLAS_CHECK(cublasSetMathMode(ctx.cublas_handle(), CUBLAS_PEDANTIC_MATH));
+    }
+#endif
     switch (compute_type) {
         case GGML_TYPE_F32:
             ggml_cuda_mul_mat_cublas_impl<GGML_TYPE_F32>(ctx, src0, src1, dst);
@@ -2346,6 +2356,11 @@ static void ggml_cuda_mul_mat_cublas(ggml_backend_cuda_context & ctx, const ggml
         default:
             GGML_ABORT("fatal error");
     }
+#if !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA)
+    if (precise_f32) {
+        CUBLAS_CHECK(cublasSetMathMode(ctx.cublas_handle(), previous_math_mode));
+    }
+#endif
 }
 
 static bool ggml_cuda_should_fuse_mul_mat(const ggml_tensor * ffn_up,
@@ -2527,7 +2542,10 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
     // Therefore, in such cases use cuBLAS.
     const bool bad_padding_clear = ggml_backend_buffer_get_usage(src0->buffer) == GGML_BACKEND_BUFFER_USAGE_COMPUTE
         && ggml_nbytes(src0) != ggml_backend_buffer_get_alloc_size(src0->buffer, src0) && src0->view_src;
-    if (bad_padding_clear || src1->type != GGML_TYPE_F32 || dst->type != GGML_TYPE_F32) {
+    // The small-batch tensor-core MMF path rounds F32 inputs to a reduced
+    // precision. An explicit F32 request must also bypass that dispatch.
+    if (bad_padding_clear || src1->type != GGML_TYPE_F32 || dst->type != GGML_TYPE_F32 ||
+        (src0->type == GGML_TYPE_F32 && dst->op_params[0] == GGML_PREC_F32)) {
         ggml_cuda_mul_mat_cublas(ctx, src0, src1, dst);
         return;
     }

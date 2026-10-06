@@ -235,7 +235,8 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 
     // Video checkpoints use the same context loader and options model selector.
     // Empty adapter/control paths deliberately release image-only extensions.
-    if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true, params.backend)) {
+    if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true, params.backend,
+                           params.audio_vae_path, params.embeddings_connectors_path)) {
         throw std::runtime_error("Failed to load video model from options");
     }
 
@@ -977,8 +978,16 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        const std::string& latent_interposer_decode_model_path,
                                        sd_vae_format_t latent_interposer_vae_format,
                                        bool native_video_request,
-                                       const std::string& request_compute_backend) {
+                                       const std::string& request_compute_backend,
+                                       const std::string& audio_vae_path,
+                                       const std::string& embeddings_connectors_path) {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    for (const auto& path : {audio_vae_path, embeddings_connectors_path}) {
+        if (!path.empty() && !fs::is_regular_file(path)) {
+            throw std::invalid_argument("Video companion file not found: " + path);
+        }
+    }
 
     // Get options
     auto options_wvalue = options_manager_->getOptions();
@@ -1126,6 +1135,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
         clip_vision_path_str,
         t5xxl_path_str,
         llm_path_str,
+        audio_vae_path,
+        embeddings_connectors_path,
         controlnet_path_str,
         automatic_control_net_sd1_path,
         automatic_control_net_sdxl_path,
@@ -1257,6 +1268,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.ip_adapter_path = ip_adapter_model_path.empty() ? nullptr : ip_adapter_model_path.c_str();
     params.t5xxl_path = t5xxl_path_str.empty() ? nullptr : t5xxl_path_str.c_str();
     params.llm_path = llm_path_str.empty() ? nullptr : llm_path_str.c_str();
+    params.audio_vae_path = audio_vae_path.empty() ? nullptr : audio_vae_path.c_str();
+    params.embeddings_connectors_path = embeddings_connectors_path.empty() ? nullptr : embeddings_connectors_path.c_str();
     params.taesd_path = nullptr;
     params.control_net_path = controlnet_path_str.empty() ? nullptr : controlnet_path_str.c_str();
     params.control_net_sd1_path = automatic_control_net_sd1_path.empty() ? nullptr : automatic_control_net_sd1_path.c_str();

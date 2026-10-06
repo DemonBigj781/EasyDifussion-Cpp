@@ -4,10 +4,18 @@ Node options() {
     return Node::element("section", {{"class", "panel-box"}}, {
         Node::element("h3", {}, {Node::text("Generation Options")}),
         Node::element("label", {{"for", "stable_diffusion_model"}}, {Node::text("Checkpoint"),
-            Node::element("select", {{"id", "stable_diffusion_model"}, {"name", "stable_diffusion_model"}}, {
-                Node::element("option", {{"value", ""}}, {Node::text("Loading checkpoints…")})
-            })}),
+            Node::element("input", {{"id", "stable_diffusion_model"}, {"name", "stable_diffusion_model"},
+                {"type", "text"}, {"class", "model-filter"}, {"data-path", ""}, {"autocomplete", "off"},
+                {"placeholder", "Search checkpoints…"}})}),
         Node::element("p", {{"id", "generation-model-status"}, {"role", "status"}}, {}),
+        Node::element("label", {{"for", "vae_model"}}, {Node::text("VAE (optional for full checkpoints)"),
+            Node::element("input", {{"id", "vae_model"}, {"type", "text"}, {"class", "model-filter"},
+                {"data-path", ""}, {"autocomplete", "off"}, {"placeholder", "Use checkpoint VAE"}})}),
+        Node::element("label", {{"for", "text_encoder_model"}}, {Node::text("Text encoder (optional for full checkpoints)"),
+            Node::element("input", {{"id", "text_encoder_model"}, {"type", "text"}, {"class", "model-filter"},
+                {"data-path", ""}, {"autocomplete", "off"}, {"placeholder", "Use checkpoint text encoder"}})}),
+        Node::element("p", {{"id", "generation-companion-status"}, {"role", "status"}}, {
+            Node::text("Split models require separate components. For Anima, select its Qwen3 text encoder and Qwen Image VAE.")}),
         Node::element("label", {{"for", "num_images"}}, {Node::text("Images"),
             Node::element("input", {{"id", "num_images"}, {"name", "num_images"}, {"type", "number"}, {"min", "1"}, {"max", "8"}, {"value", "1"}}, {})}),
         Node::element("label", {{"for", "seed"}}, {Node::text("Seed (-1 for random)"),

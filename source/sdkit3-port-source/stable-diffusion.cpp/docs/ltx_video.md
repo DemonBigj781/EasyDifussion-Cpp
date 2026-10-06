@@ -19,8 +19,13 @@ steps with the `linear_quadratic` scheduler reproduce the model's native schedul
 The scheduler is selected automatically for detected LTX-Video 0.9.x checkpoints,
 but it is included explicitly below for clarity.
 
-In Easy Diffusion, select the checkpoint and T5-XXL file under **Video Options** and
-leave the VAE set to **Auto-detect / embedded**. Checkpoints whose filenames contain
+In Easy Diffusion's legacy UI, select the checkpoint under **Options → Model**.
+Video mode activates automatically and selects an installed T5-XXL encoder under
+**Options → Text Encoder**, leaving **VAE** empty to use the embedded weights.
+You can override these companion selections in Options; **Video Options** contains
+the frame count, FPS, cache, and end-frame controls, not a second model selector.
+If no compatible installed encoder is found, the panel reports the missing resource.
+Checkpoints whose filenames contain
 `distilled` automatically select Euler, `linear_quadratic`, eight steps, and guidance 1.
 
 ```bash

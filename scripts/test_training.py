@@ -49,6 +49,9 @@ class TrainerTests(unittest.TestCase):
             self.assertEqual((job / "data/000000.txt").read_text(), "mything, blue sky\n")
             config = tomllib.loads((job / "dataset.toml").read_text())
             self.assertEqual(config["datasets"][0]["subsets"][0]["image_dir"], str(job / "data"))
+            prompts = json.loads((job / "sample-prompts.json").read_text())
+            self.assertEqual(prompts[0]["prompt"], "mything, blue sky")
+            self.assertEqual(prompts[0]["seed"], 42)
 
     def test_colliding_images_and_symlink_captions_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -72,14 +75,15 @@ class TrainerTests(unittest.TestCase):
     def test_four_backends_have_matching_training_flags(self):
         for (kind, architecture), script in trainer.SCRIPTS.items():
             with self.subTest(kind=kind, architecture=architecture):
-                command = trainer.build_command(spec(kind=kind, architecture=architecture),
+                command = trainer.build_command(spec(kind=kind, architecture=architecture,
+                    qwen3="/models/qwen3.safetensors", vae="/models/qwen-image.safetensors"),
                     Path("/backend"), Path("/venv/bin/python"), Path("/job"))
                 self.assertIn(f"/backend/{script}", command)
                 self.assertIn("--save_model_as=safetensors", command)
-                self.assertEqual("--network_module=networks.lora" in command, kind == "lora")
+                self.assertEqual("--network_module=networks.lora" in command, kind == "lora" and architecture != "anima")
                 self.assertEqual("--token_string=mything" in command, kind == "embedding")
                 self.assertEqual("--no_half_vae" in command, architecture == "sdxl")
-                self.assertNotIn("--cache_text_encoder_outputs", command)
+                self.assertEqual("--cache_text_encoder_outputs" in command, architecture == "anima")
 
     def test_cancellation_terminates_backend_process_group(self):
         cancel = threading.Event()
@@ -194,8 +198,8 @@ class ServiceTests(unittest.TestCase):
             "print(json.dumps({'event':'completed'}),flush=True)"
         )
         with patch.object(self.service, "command", return_value=[sys.executable, "-c", code]), \
-             patch.object(self.service, "readiness", return_value={"ready": True}):
-            started = self.service.start(spec(dataset="example", model=str(self.model)))
+             patch.object(self.service, "readiness", return_value={"python_runtime": {"ready": True}}):
+            started = self.service.start(spec(architecture="sdxl", dataset="example", model=str(self.model)))
             job = self.wait_finished(started["id"])
         self.assertEqual(job["status"], "completed", job)
         self.assertEqual(Path(job["output"]).read_bytes(), b"test weights")
@@ -221,7 +225,7 @@ class ServiceTests(unittest.TestCase):
         snapshot = old_dir / "data"
         snapshot.mkdir(parents=True)
         (snapshot / "one.png").touch()
-        settings = spec(dataset=str(self.dataset), model=str(self.model))
+        settings = spec(architecture="sdxl", dataset=str(self.dataset), model=str(self.model))
         self.service.jobs[old_id] = {"id": old_id, "status": "interrupted", "spec": settings,
                                      "kind": "lora", "created": 0, "log": []}
         complete = old_dir / "output" / "example-step00000100-state"
@@ -232,7 +236,7 @@ class ServiceTests(unittest.TestCase):
         incomplete = old_dir / "output" / "example-step00000200-state"
         incomplete.mkdir()
         (incomplete / "optimizer.bin").write_bytes(b"partial")
-        with patch.object(self.service, "readiness", return_value={"ready": True}), \
+        with patch.object(self.service, "readiness", return_value={"python_runtime": {"ready": True}}), \
              patch("training.service.threading.Thread.start"):
             result = self.service.start({}, resume_id=old_id)
         self.assertEqual(result["spec"]["resume_state"], str(complete))
@@ -246,6 +250,52 @@ class ServiceTests(unittest.TestCase):
         (directory / "job.json").write_text(json.dumps({"id": old_id, "status": "running", "created": 0}))
         reloaded = TrainingService(self.root, self.service.model_dirs, lambda: True)
         self.assertEqual(reloaded.get(old_id)["status"], "interrupted")
+
+    def test_native_job_passes_and_persists_both_learning_rates(self):
+        (self.dataset / "photo.txt").write_text("cat")
+        fake = self.root / "fake-trainer"
+        captured = self.root / "arguments.json"
+        fake.write_text(
+            f"#!{sys.executable}\n"
+            "import json,sys,pathlib\n"
+            "args=dict(zip(sys.argv[1::2],sys.argv[2::2]))\n"
+            f"pathlib.Path({str(captured)!r}).write_text(json.dumps(args))\n"
+            "pathlib.Path(args['--output']).write_bytes(b'test weights')\n"
+            "print(json.dumps({'event':'completed'}),flush=True)\n"
+        )
+        fake.chmod(0o700)
+        with patch.object(self.service, "native_sd15_binary", return_value=fake):
+            job = self.service.start(spec(dataset="example", model=str(self.model),
+                learning_rate=5e-5, text_encoder_learning_rate=5e-6, steps=1200,
+                rank=32, network_alpha=16, lr_scheduler="cosine_with_restarts",
+                lr_warmup_steps=20, lr_scheduler_num_cycles=3))
+            final = self.wait_finished(job["id"])
+        self.assertEqual(final["status"], "completed", final)
+        command = json.loads(captured.read_text())
+        self.assertEqual(float(command["--learning-rate"]), 5e-5)
+        self.assertEqual(float(command["--text-encoder-learning-rate"]), 5e-6)
+        self.assertEqual(command["--steps"], "1200")
+        self.assertEqual(float(command["--network-alpha"]), 16)
+        self.assertEqual(command["--lr-scheduler"], "cosine_with_restarts")
+        self.assertEqual(command["--lr-warmup-steps"], "20")
+        self.assertEqual(command["--lr-scheduler-num-cycles"], "3")
+        restored = TrainingService(self.root, self.service.model_dirs, lambda: True).get(job["id"])
+        self.assertEqual(restored["spec"]["text_encoder_learning_rate"], 5e-6)
+        self.assertEqual(restored["spec"]["network_alpha"], 16)
+        self.assertEqual(restored["spec"]["lr_scheduler_num_cycles"], 3)
+
+    def test_native_optimizer_does_not_silently_substitute(self):
+        with self.assertRaisesRegex(ValueError, "AdamW8bit is not implemented"):
+            self.service.start(spec(dataset="example", model=str(self.model), optimizer_type="AdamW8bit"))
+
+    def test_explicit_python_backend_bypasses_native_sd15(self):
+        with patch.object(self.service, "readiness", return_value={"python_runtime": {"ready": True}}), \
+             patch.object(self.service, "native_sd15_binary", side_effect=AssertionError("must not select native")), \
+             patch("training.service.threading.Thread"):
+            job = self.service.start(spec(dataset="example", model=str(self.model), backend="python", batch_size=2))
+        self.assertEqual(job["spec"]["backend"], "python")
+        self.assertFalse(job["spec"]["native_cpp"])
+        self.assertEqual(job["spec"]["batch_size"], 2)
 
     def test_api_rejects_bad_requests_and_maps_conflicts(self):
         from fastapi import FastAPI
@@ -261,6 +311,29 @@ class ServiceTests(unittest.TestCase):
             response = client.post("/training/dataset/caption", json={"dataset": "example", "image": "photo.png", "caption": "new", "previous": "stale"})
             self.assertEqual(response.status_code, 409)
             self.assertEqual(client.get("/training/jobs/missing").status_code, 404)
+            response = client.post("/training/jobs", json={"dataset": "example", "model": str(self.model),
+                "output_name": "example", "text_encoder_learning_rate": -1})
+            self.assertEqual(response.status_code, 422)
+
+    def test_api_preserves_alpha_and_scheduler_fields(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from ui.plugins.server import training as api
+        app = FastAPI()
+        app.include_router(api.router, prefix="/training")
+        payload = {"dataset": "example", "model": str(self.model), "output_name": "example",
+                   "rank": 32, "network_alpha": 16, "lr_scheduler": "cosine_with_restarts",
+                   "lr_warmup_steps": 20, "lr_scheduler_num_cycles": 3}
+        with patch.object(api, "service", return_value=self.service), TestClient(app) as client:
+            with patch.object(self.service, "start", return_value={"id": "not-a-real-job"}) as start:
+                self.assertEqual(client.post("/training/jobs", json=payload).status_code, 200)
+                submitted = start.call_args.args[0]
+                for key in ("rank", "network_alpha", "lr_scheduler", "lr_warmup_steps", "lr_scheduler_num_cycles"):
+                    self.assertEqual(submitted[key], payload[key])
+            for invalid in ({"network_alpha": 0}, {"network_alpha": True}, {"lr_warmup_steps": True},
+                            {"lr_scheduler": "typo"}, {"lr_scheduler_num_cycles": 1.5}):
+                with self.subTest(invalid=invalid):
+                    self.assertEqual(client.post("/training/jobs", json={**payload, **invalid}).status_code, 422)
 
 
 if __name__ == "__main__":

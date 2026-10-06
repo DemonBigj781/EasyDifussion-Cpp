@@ -1359,7 +1359,8 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_attention_ext(ggml_context* ctx,
                                                       bool skip_reshape = false,
                                                       uint8_t flash_attn = 0,
                                                       float kv_scale    = 1.0f,
-                                                      bool training_graph = false) {  // avoid overflow
+                                                      bool training_graph = false,
+                                                      enum ggml_prec value_precision = GGML_PREC_DEFAULT) {  // avoid overflow
     int64_t L_q;
     int64_t L_k;
     int64_t C;
@@ -1478,6 +1479,7 @@ __STATIC_INLINE__ ggml_tensor* ggml_ext_attention_ext(ggml_context* ctx,
         kq = training_graph ? ggml_soft_max(ctx, kq) : ggml_soft_max_inplace(ctx, kq);
 
         kqv = ggml_mul_mat(ctx, v, kq);  // [N * n_head, L_q, d_head]
+        ggml_mul_mat_set_prec(kqv, value_precision);
 
         kqv = ggml_reshape_4d(ctx, kqv, d_head, L_q, n_head, N);  // [N, n_head, L_q, d_head]
         kqv = ggml_permute(ctx, kqv, 0, 2, 1, 3);                 // [N, L_q, n_head, d_head]
@@ -4292,7 +4294,8 @@ public:
             v = v_proj->forward(ctx, x);
         }
 
-        x = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k, v, n_head, mask, false);  // [N, n_token, embed_dim]
+        x = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k, v, n_head, mask, false,
+                                   0, 1.0f, ctx->training_graph);  // [N, n_token, embed_dim]
 
         x = out_proj->forward(ctx, x);  // [N, n_token, embed_dim]
         return x;

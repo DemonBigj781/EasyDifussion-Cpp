@@ -7748,20 +7748,12 @@ void ggml_graph_clear(struct ggml_cgraph * cgraph) {
     ggml_hash_set_reset(&cgraph->visited_hash_set);
 }
 
-// Backward graph construction for large no-allocation compute graphs still
-// needs a few scalar constants (for example the GELU derivative's 1.0). Give
-// those scalar leaves storage in the context arena while keeping all generated
-// activation tensors metadata-only for backend scheduler allocation.
+// Backward graph scalars (for example GELU's 1.0) must be materialized on the
+// selected backend. Host-data leaves without a backend buffer can leave device
+// storage uninitialized when a no-allocation training graph is scheduled.
 static struct ggml_tensor * ggml_new_f32_graph_constant(struct ggml_context * ctx, float value) {
-    const bool no_alloc = ggml_get_no_alloc(ctx);
-    if (no_alloc) {
-        ggml_set_no_alloc(ctx, false);
-    }
-    struct ggml_tensor * result = ggml_new_f32(ctx, value);
-    if (no_alloc) {
-        ggml_set_no_alloc(ctx, true);
-    }
-    return result;
+    struct ggml_tensor * zero = ggml_arange(ctx, 0.0f, 1.0f, 1.0f);
+    return ggml_scale_bias(ctx, zero, 0.0f, value);
 }
 
 int ggml_graph_size(struct ggml_cgraph * cgraph) {

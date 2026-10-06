@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "model/adapter/anima_ip_adapter.hpp"
+#include "model/adapter/anima_lllite.hpp"
 #include "model/common/block.hpp"
 #include "model/common/rope.hpp"
 #include "model/diffusion/flux.hpp"
@@ -174,6 +176,8 @@ namespace Anima {
 
     struct AnimaAttention : public GGMLBlock {
     protected:
+        std::string lllite_prefix;
+        void init_params(ggml_context*, const String2TensorStorage&, std::string prefix) override { lllite_prefix = prefix; }
         int64_t num_heads;
         int64_t head_dim;
         std::string out_proj_name;
@@ -199,7 +203,10 @@ namespace Anima {
                              ggml_tensor* hidden_states,
                              ggml_tensor* encoder_hidden_states = nullptr,
                              ggml_tensor* pe_q                  = nullptr,
-                             ggml_tensor* pe_k                  = nullptr) {
+                             ggml_tensor* pe_k                  = nullptr,
+                             AnimaIP::Adapter* ip_adapter       = nullptr,
+                             int ip_block                       = 0,
+                             ggml_tensor** ip_query             = nullptr) {
             if (encoder_hidden_states == nullptr) {
                 encoder_hidden_states = hidden_states;
             }
@@ -211,9 +218,23 @@ namespace Anima {
             auto k_norm   = std::dynamic_pointer_cast<RMSNorm>(blocks["k_norm"]);
             auto out_proj = std::dynamic_pointer_cast<Linear>(blocks[out_proj_name]);
 
-            auto q = q_proj->forward(ctx, hidden_states);
-            auto k = k_proj->forward(ctx, encoder_hidden_states);
-            auto v = v_proj->forward(ctx, encoder_hidden_states);
+            auto q_input = hidden_states;
+            auto k_input = encoder_hidden_states;
+            auto v_input = encoder_hidden_states;
+            if (ctx->attention_qkv_patch) {
+                q_input = ctx->attention_qkv_patch(lllite_prefix + "q_proj", q_input);
+                k_input = ctx->attention_qkv_patch(lllite_prefix + "k_proj", k_input);
+                v_input = ctx->attention_qkv_patch(lllite_prefix + "v_proj", v_input);
+            }
+            auto q = q_proj->forward(ctx, q_input);
+            auto k = k_proj->forward(ctx, k_input);
+            auto v = v_proj->forward(ctx, v_input);
+
+            if (ip_adapter != nullptr) {
+                q = ggml_add(ctx->ggml_ctx, q, ip_adapter->lora(ctx, ip_block, "q_proj", q_input));
+                k = ggml_add(ctx->ggml_ctx, k, ip_adapter->lora(ctx, ip_block, "k_proj", k_input));
+                v = ggml_add(ctx->ggml_ctx, v, ip_adapter->lora(ctx, ip_block, "v_proj", v_input));
+            }
 
             int64_t N   = q->ne[2];
             int64_t L_q = q->ne[1];
@@ -225,6 +246,9 @@ namespace Anima {
 
             q4 = q_norm->forward(ctx, q4);
             k4 = k_norm->forward(ctx, k4);
+            if (ip_query != nullptr) {
+                *ip_query = ggml_reshape_3d(ctx->ggml_ctx, q4, head_dim * num_heads, L_q, N);
+            }
 
             ggml_tensor* attn_out = nullptr;
             if (pe_q != nullptr || pe_k != nullptr) {
@@ -259,11 +283,17 @@ namespace Anima {
                                                      ctx->flash_attn_enabled);
             }
 
-            return out_proj->forward(ctx, attn_out);
+            auto output = out_proj->forward(ctx, attn_out);
+            if (ip_adapter != nullptr) {
+                output = ggml_add(ctx->ggml_ctx, output, ip_adapter->lora(ctx, ip_block, "output_proj", attn_out));
+            }
+            return output;
         }
     };
 
     struct AnimaMLP : public GGMLBlock {
+        std::string lllite_prefix;
+        void init_params(ggml_context*, const String2TensorStorage&, std::string prefix) override { lllite_prefix = prefix; }
     public:
         AnimaMLP(int64_t dim, int64_t hidden_dim) {
             blocks["layer1"] = std::make_shared<Linear>(dim, hidden_dim, false);
@@ -274,6 +304,7 @@ namespace Anima {
             auto layer1 = std::dynamic_pointer_cast<Linear>(blocks["layer1"]);
             auto layer2 = std::dynamic_pointer_cast<Linear>(blocks["layer2"]);
 
+            if (ctx->attention_qkv_patch) x = ctx->attention_qkv_patch(lllite_prefix + "layer1", x);
             x = layer1->forward(ctx, x);
             x = ggml_ext_gelu(ctx->ggml_ctx, x, true);
             x = layer2->forward(ctx, x);
@@ -408,7 +439,12 @@ namespace Anima {
                              ggml_tensor* encoder_hidden_states,
                              ggml_tensor* embedded_timestep,
                              ggml_tensor* temb,
-                             ggml_tensor* image_pe) {
+                             ggml_tensor* image_pe,
+                             AnimaIP::Adapter* ip_adapter = nullptr,
+                             int ip_block = 0,
+                             ggml_tensor* ip_tokens = nullptr,
+                             float ip_strength = 0.f,
+                             bool ip_lora = false) {
             auto norm1 = std::dynamic_pointer_cast<AdaLayerNormZero>(blocks["adaln_modulation_self_attn"]);
             auto attn1 = std::dynamic_pointer_cast<AnimaAttention>(blocks["self_attn"]);
             auto norm2 = std::dynamic_pointer_cast<AdaLayerNormZero>(blocks["adaln_modulation_cross_attn"]);
@@ -421,12 +457,20 @@ namespace Anima {
             hidden_states         = ggml_add(ctx->ggml_ctx, hidden_states, apply_gate(ctx->ggml_ctx, h, gate1));
 
             auto [normed2, gate2] = norm2->forward(ctx, hidden_states, embedded_timestep, temb);
-            h                     = attn2->forward(ctx, normed2, encoder_hidden_states, nullptr, nullptr);
+            ggml_tensor* ip_query = nullptr;
+            h                     = attn2->forward(ctx, normed2, encoder_hidden_states, nullptr, nullptr,
+                                                   ip_lora ? ip_adapter : nullptr, ip_block,
+                                                   ip_tokens != nullptr ? &ip_query : nullptr);
             hidden_states         = ggml_add(ctx->ggml_ctx, hidden_states, apply_gate(ctx->ggml_ctx, h, gate2));
 
             auto [normed3, gate3] = norm3->forward(ctx, hidden_states, embedded_timestep, temb);
             h                     = mlp->forward(ctx, normed3);
             hidden_states         = ggml_add(ctx->ggml_ctx, hidden_states, apply_gate(ctx->ggml_ctx, h, gate3));
+
+            if (ip_adapter != nullptr && ip_tokens != nullptr && ip_strength != 0.f) {
+                auto residual = ip_adapter->image_attention(ctx, ip_block, ip_query, ip_tokens, embedded_timestep, ip_strength);
+                hidden_states = ggml_add(ctx->ggml_ctx, hidden_states, residual);
+            }
 
             return hidden_states;
         }
@@ -488,7 +532,11 @@ namespace Anima {
                              ggml_tensor* t5_weights               = nullptr,
                              ggml_tensor* adapter_q_pe             = nullptr,
                              ggml_tensor* adapter_k_pe             = nullptr,
-                             std::vector<ggml_tensor*> ref_latents = {}) {
+                             std::vector<ggml_tensor*> ref_latents = {},
+                             AnimaIP::Adapter* ip_adapter = nullptr,
+                             ggml_tensor* ip_tokens = nullptr,
+                             float ip_strength = 0.f,
+                             bool ip_lora = false) {
             GGML_ASSERT(x->ne[3] == 1);
 
             auto x_embedder       = std::dynamic_pointer_cast<XEmbedder>(blocks["x_embedder"]);
@@ -549,7 +597,8 @@ namespace Anima {
 
             for (int i = 0; i < config.num_layers; i++) {
                 auto block = std::dynamic_pointer_cast<TransformerBlock>(blocks["blocks." + std::to_string(i)]);
-                x          = block->forward(ctx, x, encoder_hidden_states, embedded_timestep, temb, image_pe);
+                x          = block->forward(ctx, x, encoder_hidden_states, embedded_timestep, temb, image_pe,
+                                             ip_adapter, i, ip_tokens, ip_strength, ip_lora);
                 sd::ggml_graph_cut::mark_graph_cut(x, "anima.blocks." + std::to_string(i), "x");
             }
             x = ggml_ext_slice(ctx->ggml_ctx, x, 1, 0, img_len);
@@ -569,6 +618,8 @@ namespace Anima {
         std::vector<float> adapter_k_pe_vec;
         AnimaConfig config;
         AnimaNet net;
+        std::unique_ptr<AnimaIP::Adapter> ip_adapter;
+        std::unique_ptr<AnimaLLLite::Adapter> lllite;
 
         AnimaRunner(ggml_backend_t backend,
                     const String2TensorStorage& tensor_storage_map      = {},
@@ -578,6 +629,21 @@ namespace Anima {
               config(AnimaConfig::detect_from_weights(tensor_storage_map, prefix + ".net")) {
             net = AnimaNet(config);
             net.init(params_ctx, tensor_storage_map, prefix + ".net");
+            if (tensor_storage_map.count("lllite.lllite_conditioning1.conv1.weight")) {
+                lllite = std::make_unique<AnimaLLLite::Adapter>();
+                lllite->init(params_ctx, tensor_storage_map);
+            }
+            if (tensor_storage_map.count("anima_ip.blocks.0.ip_k_proj.weight") != 0) {
+                if (!sd_backend_is_cpu(backend) && !sd_backend_is(backend, "CUDA")) {
+                    throw std::invalid_argument("Anima IP-Adapter requires CPU or CUDA diffusion; Vulkan remains available for ordinary Anima generation");
+                }
+                if (config.num_layers != 28 || config.hidden_size != 2048 ||
+                    config.num_heads != 16 || config.head_dim != 128 || config.text_embed_dim != 1024) {
+                    throw std::invalid_argument("Anima IP-Adapter requires the 28-block Anima architecture");
+                }
+                ip_adapter = std::make_unique<AnimaIP::Adapter>();
+                ip_adapter->init(params_ctx, tensor_storage_map, "anima_ip");
+            }
         }
 
         std::string get_desc() override {
@@ -586,6 +652,8 @@ namespace Anima {
 
         void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors, const std::string& prefix) override {
             net.get_param_tensors(tensors, prefix + ".net");
+            if (ip_adapter) ip_adapter->get_param_tensors(tensors, "anima_ip");
+            if (lllite) lllite->get_param_tensors(tensors);
         }
 
         static std::vector<float> gen_1d_rope_pe_vec(int64_t seq_len, int dim, float theta = 10000.f) {
@@ -639,7 +707,12 @@ namespace Anima {
                                  const sd::Tensor<float>& context_tensor                  = {},
                                  const sd::Tensor<int32_t>& t5_ids_tensor                 = {},
                                  const sd::Tensor<float>& t5_weights_tensor               = {},
-                                 const std::vector<sd::Tensor<float>>& ref_latents_tensor = {}) {
+                                 const std::vector<sd::Tensor<float>>& ref_latents_tensor = {},
+                                 const sd::Tensor<float>& ip_tokens_tensor = {},
+                                 float ip_strength = 0.f,
+                                 bool ip_lora = false,
+                                 const sd::Tensor<float>& lllite_image = {},
+                                 float lllite_strength = 0.f) {
             ggml_tensor* x          = make_input(x_tensor);
             ggml_tensor* timesteps  = make_input(timesteps_tensor);
             ggml_tensor* context    = make_optional_input(context_tensor);
@@ -691,6 +764,12 @@ namespace Anima {
             }
 
             auto runner_ctx = get_context();
+            if (lllite && !lllite_image.empty() && lllite_strength != 0.f) {
+                auto condition = lllite->encode(&runner_ctx, make_input(lllite_image));
+                runner_ctx.attention_qkv_patch = [this, &runner_ctx, condition, lllite_strength](const std::string& name, ggml_tensor* value) {
+                    return lllite->apply(&runner_ctx, name, value, condition, lllite_strength);
+                };
+            }
             auto out        = net.forward(&runner_ctx,
                                           x,
                                           timesteps,
@@ -700,7 +779,11 @@ namespace Anima {
                                           t5_weights,
                                           adapter_q_pe,
                                           adapter_k_pe,
-                                          ref_latents);
+                                          ref_latents,
+                                          ip_adapter.get(),
+                                          make_optional_input(ip_tokens_tensor),
+                                          ip_strength,
+                                          ip_lora);
 
             ggml_build_forward_expand(gf, out);
             return gf;
@@ -713,9 +796,21 @@ namespace Anima {
                                   const sd::Tensor<int32_t>& t5_ids                 = {},
                                   const sd::Tensor<float>& t5_weights               = {},
                                   const std::vector<sd::Tensor<float>>& ref_latents = {},
-                                  const RefImageParams& ref_image_params            = REF_IMAGE_PRESETS.at("cosmos_reference")) {
+                                  const RefImageParams& ref_image_params            = REF_IMAGE_PRESETS.at("cosmos_reference"),
+                                  const sd::Tensor<float>& ip_tokens = {},
+                                  float ip_strength = 0.f,
+                                  bool ip_lora = false,
+                                  const sd::Tensor<float>& lllite_image = {},
+                                  float lllite_strength = 0.f) {
+            if (!lllite_image.empty() && !lllite) throw std::invalid_argument("Anima LLLite conditioning supplied without Anima LLLite weights");
+            if ((!ip_tokens.empty() || ip_lora) && !ip_adapter) {
+                throw std::invalid_argument("Anima image conditioning requested without an adapter");
+            }
+            if (!ip_tokens.empty() && ip_tokens.shape() != std::vector<int64_t>{768, 1024}) {
+                throw std::invalid_argument("Anima IP-Adapter expects 1024 SigLIP2 tokens of width 768");
+            }
             auto get_graph = [&]() -> ggml_cgraph* {
-                return build_graph(x, timesteps, context, t5_ids, t5_weights, ref_latents);
+                return build_graph(x, timesteps, context, t5_ids, t5_weights, ref_latents, ip_tokens, ip_strength, ip_lora, lllite_image, lllite_strength);
             };
             return restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, false, false, false), x.dim());
         }
@@ -733,7 +828,12 @@ namespace Anima {
                            tensor_or_empty(extra->t5_ids),
                            tensor_or_empty(extra->t5_weights),
                            diffusion_params.ref_latents && diffusion_params.ref_image_params.pass_to_dit ? *diffusion_params.ref_latents : empty_ref_latents,
-                           diffusion_params.ref_image_params);
+                           diffusion_params.ref_image_params,
+                           tensor_or_empty(extra->ip_context),
+                           extra->ip_strength,
+                           extra->ip_lora,
+                           tensor_or_empty(extra->lllite_condition),
+                           extra->lllite_strength);
         }
     };
 }  // namespace Anima

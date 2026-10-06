@@ -89,6 +89,67 @@ def apply_backend_config_env_overrides(backend_config: dict, env=None) -> None:
         _set("FORCE_FULL_PRECISION", backend_config["FORCE_FULL_PRECISION"])
 
 
+def read_linux_pci_output_from_sysfs(sysfs_root=Path("/sys/bus/pci/devices")) -> str:
+    """Return PCI IDs without invoking lspci or reading PCI config space."""
+
+    lines = []
+    try:
+        devices = sorted(sysfs_root.iterdir())
+    except OSError as error:
+        print(f"Warning: unable to enumerate PCI devices: {error}", flush=True)
+        return ""
+
+    for device in devices:
+        try:
+            vendor_id = (device / "vendor").read_text(encoding="ascii").strip().removeprefix("0x")
+            device_id = (device / "device").read_text(encoding="ascii").strip().removeprefix("0x")
+        except OSError:
+            continue
+
+        if len(vendor_id) == 4 and len(device_id) == 4:
+            lines.append(f"{device.name} [{vendor_id}:{device_id}]")
+
+    return "\n".join(lines)
+
+
+def install_safe_linux_pci_probe(device_db_module=None, sysfs_root=Path("/sys/bus/pci/devices")) -> None:
+    """Make TorchRuntime use bounded sysfs reads instead of potentially blocking lspci."""
+
+    if platform.system() != "Linux":
+        return
+
+    if device_db_module is None:
+        from torchruntime import device_db as device_db_module
+
+    device_db_module.get_linux_output = lambda: read_linux_pci_output_from_sysfs(sysfs_root)
+
+
+def configure_torchruntime(torchruntime_module, backend_config=None) -> None:
+    """Configure TorchRuntime after replacing its Linux PCI subprocess probe."""
+
+    if platform.system() != "Linux":
+        torchruntime_module.configure()
+        return
+
+    install_safe_linux_pci_probe()
+
+    configured_platform = str((backend_config or {}).get("platform", "")).strip().lower()
+    if configured_platform and configured_platform not in ("auto", "rocm"):
+        print(
+            f"Skipping TorchRuntime hardware detection for the explicitly configured "
+            f"{configured_platform} backend.",
+            flush=True,
+        )
+        return
+
+    torchruntime_module.configure()
+
+
+def should_run_torchruntime_info(backend_config=None) -> bool:
+    configured_platform = str((backend_config or {}).get("platform", "")).strip().lower()
+    return configured_platform in ("", "auto")
+
+
 def version(module_name: str) -> str:
     try:
         return pkg_version(module_name)
@@ -191,19 +252,25 @@ def launch_uvicorn():
 
     import torchruntime
 
-    torchruntime.configure()
+    configure_torchruntime(torchruntime, config.get("backend_config", {}))
 
-    # print info in a non-blocking thread
-    def print_torchruntime_info():
-        if hasattr(torchruntime, "info"):
-            torchruntime.info()
+    backend_config = config.get("backend_config", {})
 
-    info_thread = threading.Thread(target=print_torchruntime_info)
-    info_thread.start()
+    # TorchRuntime's information report repeats PCI detection. Explicit backend
+    # configurations already identify the runtime and do not need this probe.
+    if should_run_torchruntime_info(backend_config):
+        def print_torchruntime_info():
+            if hasattr(torchruntime, "info"):
+                torchruntime.info()
+
+        info_thread = threading.Thread(target=print_torchruntime_info, daemon=True)
+        info_thread.start()
+    else:
+        print("Skipping the TorchRuntime hardware report for the explicitly configured backend.", flush=True)
 
     # allow a user to override the HSA_OVERRIDE_GFX_VERSION and HIP_VISIBLE_DEVICES variables
     # until ED gets process-based multi-GPU support (which will allow different processes to use different GPUs)
-    apply_backend_config_env_overrides(config.get("backend_config", {}))
+    apply_backend_config_env_overrides(backend_config)
 
     python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     os.environ["PYTHONPATH"] = str(Path(sys.prefix, "lib", python_version, "site-packages"))

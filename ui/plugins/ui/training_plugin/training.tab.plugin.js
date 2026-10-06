@@ -86,6 +86,7 @@
     el("scrape-archive").textContent = "Submit selected to training dataset"
     el("scrape-search").textContent = "Search and download"
     let ready = false
+    const modelPicker = new ModelDropdown(el("model"), null, "Select a checkpoint")
     let nativeReady = false
     let active = false
     let selectedJob = ""
@@ -153,8 +154,18 @@
     function controls() {
         const isAnima = el("architecture").value === "anima"
         const isSd15 = el("architecture").value === "sd15"
-        if ((isAnima || isSd15) && el("kind").value === "embedding") el("kind").value = "lora"
-        const nativeSd15 = isSd15 && el("kind").value === "lora"
+        el("backend").querySelector('option[value="native"]').disabled = !isSd15
+        if (!isSd15) el("backend").value = "python"
+        const nativeSd15 = el("backend").value === "native"
+        if ((isAnima || nativeSd15) && el("kind").value === "embedding") el("kind").value = "lora"
+        if (nativeSd15) el("optimizer").value = "AdamW"
+        el("text-encoder-rate").disabled = !isSd15 || el("kind").value !== "lora"
+        document.querySelectorAll(".native-training-option").forEach(field => { field.hidden = !nativeSd15; if (field.matches("input")) field.disabled = !nativeSd15 })
+        el("steps").disabled = nativeSd15 && el("epochs").value.trim() !== ""
+        el("alpha").disabled = el("kind").value !== "lora"
+        const constant = el("scheduler").value === "constant"
+        el("warmup").disabled = constant
+        el("cycles").disabled = constant
         el("start").disabled = !(nativeSd15 ? nativeReady : ready) || active || spriteRunning || !el("dataset").value
         document.querySelectorAll(".scrape-image-tag").forEach((button) => { button.disabled = active || spriteRunning })
         document.querySelectorAll(".anima-training-option").forEach((field) => {
@@ -162,7 +173,7 @@
             const control = field.matches("input, select, textarea") ? field : null
             if (control) control.disabled = !isAnima
         })
-        el("kind").querySelector('option[value="embedding"]').disabled = isAnima || isSd15
+        el("kind").querySelector('option[value="embedding"]').disabled = isAnima || nativeSd15
         el("qwen3").required = isAnima
         el("vae").required = isAnima
         if (nativeSd15) el("batch").value = "1"
@@ -190,7 +201,7 @@
             await refreshSpriteGPT()
             if (results[0].status === "fulfilled") {
                 const state = results[0].value
-                ready = state.ready
+                ready = Boolean(state.python_runtime?.ready)
                 nativeReady = Boolean(state.native_cpp?.ready)
                 el("readiness").textContent = state.detail + (state.gpu ? ` — ${state.gpu}` : "")
                 el("dataset-root").textContent = state.dataset_root
@@ -201,10 +212,10 @@
                 showError(results[0].reason)
             }
             if (results[1].status === "fulfilled") {
-                const current = el("model").value
-                el("model").replaceChildren(new Option("Choose checkpoint", ""))
-                results[1].value.models.forEach((model) => el("model").add(new Option(model.name, model.path)))
-                el("model").value = current
+                const current = modelPicker.value
+                modelPicker.inputModels = buildTree(results[1].value.models.map(model => ({model: model.path})))
+                modelPicker.populateModels()
+                modelPicker.value = current || ""
             } else showError(results[1].reason)
             if (results[2].status === "rejected") showError(results[2].reason)
             if (results[3].status === "fulfilled") {
@@ -682,6 +693,9 @@
         refreshJobs().catch(showError)
     })
     el("dataset").addEventListener("change", controls)
+    el("scheduler").addEventListener("change", controls)
+    el("backend").addEventListener("change", controls)
+    el("epochs").addEventListener("input", controls)
     el("architecture").addEventListener("change", () => {
         el("resolution").value = el("architecture").value === "sdxl" ? "1024" : "512"
         controls()
@@ -691,7 +705,7 @@
         el("rank").disabled = embedding
         el("vectors").disabled = !embedding
         el("init-word").disabled = !embedding
-        el("rate").value = embedding ? "0.0005" : "0.0001"
+        el("rate").value = embedding ? "0.0005" : "0.00005"
         controls()
     })
     el("form").addEventListener("submit", async (event) => {
@@ -701,13 +715,20 @@
         try {
             await acceptJob(await api("/jobs", {
                 dataset: el("dataset").value.trim(), kind: el("kind").value,
-                architecture: el("architecture").value, model: el("model").value,
+                architecture: el("architecture").value, model: modelPicker.value, backend: el("backend").value,
                 qwen3: el("qwen3").value.trim(), vae: el("vae").value.trim(),
                 output_name: el("name").value, trigger: el("trigger").value.trim(),
                 init_word: el("init-word").value, precision: el("precision").value,
                 steps: Number(el("steps").value), resolution: Number(el("resolution").value),
+                epochs: el("epochs").disabled || el("epochs").value.trim() === "" ? null : Number(el("epochs").value),
+                dataset_repeats: el("repeats").disabled ? 1 : Number(el("repeats").value),
                 batch_size: Number(el("batch").value), rank: Number(el("rank").value),
+                network_alpha: el("alpha").disabled || el("alpha").value.trim() === "" ? null : Number(el("alpha").value),
+                lr_scheduler: el("scheduler").value,
+                lr_warmup_steps: el("warmup").disabled ? 0 : Number(el("warmup").value),
+                lr_scheduler_num_cycles: el("cycles").disabled ? 1 : Number(el("cycles").value),
                 vectors: Number(el("vectors").value), learning_rate: Number(el("rate").value),
+                text_encoder_learning_rate: el("text-encoder-rate").disabled ? 0 : Number(el("text-encoder-rate").value),
                 save_every: Number(el("save-every").value), seed: Number(el("seed").value),
                 checkpointing: el("checkpointing").value,
                 blocks_to_swap: Number(el("blocks-swap").value),

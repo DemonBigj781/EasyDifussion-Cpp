@@ -16,7 +16,7 @@ from collections import deque
 from threading import Lock
 from typing import List, Union
 
-from easydiffusion import app, task_manager
+from easydiffusion import app, task_manager, kiosk
 from easydiffusion.backend_args import parse_backend_commandline_args
 from ui.plugins.server import ai_image_critic, gallery, package_manager, perchance
 from ui.plugins.server.Browse_files import model_manager
@@ -63,7 +63,7 @@ NOCACHE_HEADERS = {
     "Pragma": "no-cache",
     "Expires": "0",
 }
-PROTECTED_CONFIG_KEYS = ("block_nsfw",)  # can't change these via the HTTP API
+PROTECTED_CONFIG_KEYS = ("block_nsfw", "kiosk_mode")  # kiosk changes use the dedicated, validated endpoint
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -103,6 +103,41 @@ def init():
     mimetypes.init()
     mimetypes.add_type("text/css", ".css")
     gallery.migrate_legacy_settings()
+
+    @server_api.middleware("http")
+    async def kiosk_policy(request, call_next):
+        try:
+            active_at_start = kiosk.enabled()
+            if active_at_start and kiosk.blocked_route(request.url.path, request.method):
+                return JSONResponse({"detail": "This operation is unavailable in kiosk mode."}, status_code=403, headers=NOCACHE_HEADERS)
+        except HTTPException as error:
+            return JSONResponse({"detail": error.detail}, status_code=error.status_code, headers=NOCACHE_HEADERS)
+        response = await call_next(request)
+        if (not active_at_start and kiosk.enabled()
+                and request.url.path.startswith(("/gallery", "/perchance", "/get/"))):
+            return JSONResponse({"detail": "Kiosk mode changed; reload this request."}, status_code=409, headers=NOCACHE_HEADERS)
+        if request.url.path.startswith(("/gallery", "/perchance")):
+            response.headers.update(NOCACHE_HEADERS)
+        return response
+
+    @server_api.get("/kiosk")
+    def kiosk_status():
+        return JSONResponse(kiosk.status(), headers=NOCACHE_HEADERS)
+
+    @server_api.post("/kiosk")
+    def kiosk_setting(payload: dict):
+        value = payload.get("enabled")
+        if type(value) is not bool:
+            raise HTTPException(status_code=400, detail="enabled must be a boolean.")
+        if value:
+            try:
+                with training.generation_guard(), task_manager.backend_maintenance():
+                    if perchance.PERCHANCE_LOCK.locked():
+                        raise HTTPException(status_code=409, detail="Wait for Perchance to finish before enabling kiosk mode.")
+                    return JSONResponse(kiosk.set_enabled(True), headers=NOCACHE_HEADERS)
+            except ConnectionRefusedError as error:
+                raise HTTPException(status_code=409, detail=str(error)) from error
+        return JSONResponse(kiosk.set_enabled(False), headers=NOCACHE_HEADERS)
 
     from ui.plugins.server.online_model_browser import (
         huggingface_router,
@@ -553,6 +588,30 @@ def init():
             events = list(cpp_ui_events)
         return JSONResponse({"events": events, "count": len(events)})
 
+    @server_api.get("/cpp-ui/api/logs", include_in_schema=False)
+    def read_cpp_ui_logs(lines: int = 500):
+        from easydiffusion.diagnostics import read_log_tail
+        try:
+            return JSONResponse(read_log_tail(app.DEBUG_LOG_PATH, lines), headers=NOCACHE_HEADERS)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except OSError as error:
+            raise HTTPException(status_code=503, detail="Application log is unavailable") from error
+
+    @server_api.get("/cpp-ui/api/files", include_in_schema=False)
+    def read_cpp_ui_files(path: str = ".", offset: int = 0):
+        from easydiffusion.diagnostics import inspect_path
+        try:
+            return JSONResponse(inspect_path(app.ROOT_DIR, path, offset), headers=NOCACHE_HEADERS)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Path does not exist") from error
+        except PermissionError as error:
+            raise HTTPException(status_code=403, detail="Permission denied") from error
+        except OSError as error:
+            raise HTTPException(status_code=400, detail="Could not inspect this path") from error
+
     cpp_ui_routes = {
         "/cpp-ui": "/",
         "/cpp-ui/canvas": "/canvas",
@@ -741,8 +800,11 @@ def read_web_data_internal(key: str = None, **kwargs):
             from easydiffusion.backend_manager import backend
 
             backend.refresh_models()
+        models = [] if key == "lora" and kiosk.enabled() else model_manager.list_models([selector_types[key]])
+        if key == "model":
+            models = kiosk.filter_models(models)
         return JSONResponse(
-            {"models": model_manager.list_models([selector_types[key]])},
+            {"models": models},
             headers=NOCACHE_HEADERS,
         )
     elif key == "tipo":
@@ -750,6 +812,8 @@ def read_web_data_internal(key: str = None, **kwargs):
 
         return JSONResponse({"models": selector_models()}, headers=NOCACHE_HEADERS)
     elif key == "other":
+        if kiosk.enabled():
+            return JSONResponse({"models": []}, headers=NOCACHE_HEADERS)
         selector_types = {"stable-diffusion", "lora", "vae"}
         return JSONResponse(
             {"models": model_manager.list_models(set(model_manager.LISTABLE_MODEL_TYPES) - selector_types)},
@@ -777,7 +841,7 @@ def read_web_data_internal(key: str = None, **kwargs):
 
         backend.refresh_models()
 
-        return JSONResponse({"models": model_manager.list_models()}, headers=NOCACHE_HEADERS)
+        return JSONResponse({"models": kiosk.filter_models(model_manager.list_models())}, headers=NOCACHE_HEADERS)
     elif key == "modifiers":
         return JSONResponse(app.get_image_modifiers(), headers=NOCACHE_HEADERS)
     elif key == "ui_plugins":
@@ -849,6 +913,7 @@ def clear_vram_internal():
 
 def render_internal(req: dict):
     try:
+        kiosk.validate_render(req)
         req = convert_legacy_render_req_to_new(req)
 
         # separate out the request data into rendering and task-specific data

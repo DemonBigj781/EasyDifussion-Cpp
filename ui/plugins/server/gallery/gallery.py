@@ -10,7 +10,7 @@ import os
 import threading
 import time
 
-from easydiffusion import app
+from easydiffusion import app, kiosk, destockd
 from fastapi import HTTPException
 
 try:
@@ -100,6 +100,8 @@ def migrate_legacy_settings() -> None:
 
 
 def get_settings() -> dict:
+    if kiosk.enabled():
+        return {"source": "destockd", "gallery_directory": "", "exists": True, "readonly": True}
     directory = configured_directory()
     return {
         "gallery_directory": str(directory),
@@ -109,6 +111,8 @@ def get_settings() -> dict:
 
 
 def save_settings(payload: dict) -> dict:
+    if kiosk.enabled():
+        raise HTTPException(status_code=403, detail="The gallery uses Destockd in kiosk mode.")
     raw = str(payload.get("gallery_directory", "")).strip() if isinstance(payload, dict) else ""
     if not raw:
         directory = _default_directory()
@@ -124,6 +128,8 @@ def save_settings(payload: dict) -> dict:
 
 
 def _resolve_gallery_path(relative_path: str, require_ready: bool) -> Path:
+    if kiosk.enabled():
+        raise HTTPException(status_code=403, detail="Local gallery files are unavailable in kiosk mode.")
     root = configured_directory()
     unresolved = root / relative_path
     if unresolved.is_symlink():
@@ -201,6 +207,8 @@ def create_thumbnail(source: Path) -> Path:
 
 
 def list_images(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> dict:
+    if kiosk.enabled():
+        return destockd.list_images(page, page_size)
     page = max(int(page), 1)
     page_size = min(max(int(page_size), 1), MAX_PAGE_SIZE)
     root = configured_directory()

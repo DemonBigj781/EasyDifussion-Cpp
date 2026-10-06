@@ -252,6 +252,7 @@ class TrainingService:
                 if old["status"] not in {"failed", "cancelled", "interrupted"} or old["spec"].get("kind") != "lora":
                     raise ValueError("Resume supports interrupted LoRA jobs with saved state")
                 spec = dict(old["spec"])
+                spec["backend"] = "python"
                 states = []
                 for state in (self.job_root / resume_id / "output").glob("*-state"):
                     required = ("model.safetensors", "optimizer.bin", "scheduler.bin", "random_states_0.pkl", "train_state.json")
@@ -270,7 +271,7 @@ class TrainingService:
                 spec["dataset"] = str(self.job_root / resume_id / "data")
             else:
                 spec["dataset"] = str(self.dataset(spec.get("dataset", "")))
-            trainer.dataset_images(Path(spec["dataset"]))
+            images = trainer.dataset_images(Path(spec["dataset"]))
             if spec.get("command") == "autotag":
                 spec["port"] = port
                 for name, default in (("threshold", .35), ("character_threshold", .85)):
@@ -280,6 +281,11 @@ class TrainingService:
                 if len(spec.get("trigger", "")) > 200:
                     raise ValueError("Trigger is too long")
             else:
+                requested_backend = spec.get("backend") or ("native" if spec.get("architecture") == "sd15" else "python")
+                if requested_backend == "native":
+                    spec = trainer.native_epoch_options(spec, len(images))
+                elif spec.get("epochs") is not None or spec.get("dataset_repeats", 1) != 1:
+                    raise ValueError("Epoch sampling settings currently apply only to native SD1.5")
                 spec = trainer.validate_training(spec)
                 spec["model"] = str(self.resolve_model(spec.get("model", "")))
                 if spec["architecture"] == "anima":
@@ -287,7 +293,10 @@ class TrainingService:
                         spec.get("qwen3", ""), "text-encoder", {".safetensors"}, allow_directory=True))
                     spec["vae"] = str(self.resolve_training_asset(
                         spec.get("vae", ""), "vae", {".safetensors", ".pth"}))
-                if spec["architecture"] == "sd15":
+                spec["native_cpp"] = spec["backend"] == "native"
+                if spec["native_cpp"]:
+                    if spec.get("optimizer_type", "AdamW") != "AdamW":
+                        raise ValueError("Native C++ SD1.5 training supports AdamW only; AdamW8bit is not implemented")
                     if spec["kind"] != "lora":
                         raise ValueError("Native C++ SD1.5 training currently supports LoRA only")
                     if spec["batch_size"] != 1:
@@ -360,8 +369,14 @@ class TrainingService:
                                "--trigger", spec["trigger"], "--device", spec["device"],
                                "--resolution", str(spec["resolution"]), "--steps", str(spec["steps"]),
                                "--save-every", str(spec["save_every"]), "--rank", str(spec["rank"]),
+                               "--network-alpha", str(spec["network_alpha"]),
+                               "--lr-scheduler", spec["lr_scheduler"],
+                               "--lr-warmup-steps", str(spec["lr_warmup_steps"]),
+                               "--lr-scheduler-num-cycles", str(spec["lr_scheduler_num_cycles"]),
                                "--threads", str(spec["threads"]), "--learning-rate", str(spec["learning_rate"]),
+                               "--text-encoder-learning-rate", str(spec["text_encoder_learning_rate"]),
                                "--seed", str(spec["seed"])]
+                    command += ["--dataset-repeats", str(spec.get("dataset_repeats", 1))]
                     process = subprocess.Popen(command, cwd=self.root, env=self.native_environment(),
                         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                         text=True, errors="replace", bufsize=1, start_new_session=True)

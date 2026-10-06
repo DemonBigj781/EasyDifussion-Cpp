@@ -1,14 +1,16 @@
-(() => {
+(async () => {
   "use strict"
+  if (!window.LocalPluginPreferences?.isEnabled("prompt-assist") || window.__promptAssistLoaded) return;
+  if (!document.getElementById("prompt")) return;
+  window.__promptAssistLoaded = true;
   const GITHUB_PAGE = "https://gitlab.com/SoliDissipation/sd-ui-plugins"
   const VERSION = "1.7.3";
   const ID_PREFIX = "spell-tokenizer-plugin";
   const GITHUB_ID = "solidissipation-plugins"
   if (!document.getElementById("prompt-assist-settings-template")) {
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      loadRequiredPluginHTML("/plugins/core/prompt_plugin/prompt-assist.plugin.html")
-    );
+    const response = await fetch("/plugins/core/prompt_plugin/prompt-assist.plugin.html");
+    if (!response.ok) { window.__promptAssistLoaded = false; throw new Error(`Prompt assistance template: HTTP ${response.status}`); }
+    document.body.insertAdjacentHTML("beforeend", await response.text());
   }
   if (localStorage.getItem(`${ID_PREFIX}_autocomplete_suggestions`) === null) {
     localStorage.setItem(`${ID_PREFIX}_autocomplete_suggestions`, "true");
@@ -535,7 +537,17 @@
   textEncoderRoot?.addEventListener('input', refreshTokenLimit);
   textEncoderRoot?.addEventListener('change', refreshTokenLimit);
   document.getElementById('prompt').dispatchEvent(new Event('input', { bubbles: true }));
-  const settingsTable = document.getElementsByClassName('parameters-table')[0];
+  let settingsTable = document.getElementsByClassName('parameters-table')[0];
+  if (!settingsTable) {
+    const settings = document.createElement("details");
+    settings.className = "panel-box";
+    const summary = document.createElement("summary");
+    summary.textContent = "Prompt assistance settings";
+    settingsTable = document.createElement("div");
+    settingsTable.className = "parameters-table";
+    settings.append(summary, settingsTable);
+    document.getElementById("prompt").closest("section").append(settings);
+  }
   settingsTable.appendChild(document.getElementById("prompt-assist-settings-template").content.cloneNode(true));
   const duplicateToggle = document.getElementById(`${ID_PREFIX}_duplicate_token_highlight`);
   const autocompleteToggle = document.getElementById(`${ID_PREFIX}_autocomplete_suggestions`);
@@ -564,6 +576,13 @@
     localStorage.setItem(`${ID_PREFIX}_taglist_sfw_setting`, 'true');
   }
   const updateSpellcheck = () => {
+    const standalone = window.CppBrowserSpellcheck && window.LocalPluginPreferences?.isEnabled("toggle-spellcheck");
+    spellcheckToggle.disabled = Boolean(standalone);
+    spellcheckToggle.title = standalone ? "Managed by the Browser spellcheck toggle plugin." : "";
+    if (standalone) {
+      window.CppBrowserSpellcheck.apply();
+      return;
+    }
     const enabled = spellcheckToggle.checked;
     [document.getElementById("prompt"), document.getElementById("negative_prompt"), document.getElementById("custom-modifiers-input")]
       .filter(Boolean)
@@ -572,6 +591,9 @@
   spellcheckToggle.addEventListener("input", () => {
     localStorage.setItem("prompt-assist_spellcheck", spellcheckToggle.checked);
     updateSpellcheck();
+  });
+  window.addEventListener("local-plugin-preferences-changed", () => {
+    if (window.LocalPluginPreferences?.isEnabled("prompt-assist")) updateSpellcheck();
   });
   updateSpellcheck();
   if (typeof prettifyInputs === "function") prettifyInputs(settingsTable);

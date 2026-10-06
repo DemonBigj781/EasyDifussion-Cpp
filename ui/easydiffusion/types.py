@@ -66,6 +66,8 @@ class FilterImageRequest(BaseModel):
 
 
 class VideoGenerationRequest(BaseModel):
+    audio_vae_model: Optional[str] = None
+    embeddings_connectors_model: Optional[str] = None
     backend_assignment: str = ""
     prompt: str = ""
     negative_prompt: str = ""

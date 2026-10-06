@@ -1,4 +1,7 @@
+import ast
+import os
 import pathlib
+import types
 import unittest
 
 
@@ -31,6 +34,54 @@ class NativeBackendSelectionTests(unittest.TestCase):
     def test_hybrid_backend_uses_the_nvidia_cuda_variant(self):
         launcher = (self.root / "ui/easydiffusion/backends/sdkit3.py").read_text(encoding="utf-8")
         self.assertIn('platform_name in ("cuda", "cuda-vulkan")', launcher)
+
+    def test_explicit_backend_variant_does_not_probe_hardware(self):
+        launcher = (self.root / "ui/easydiffusion/backends/sdkit3.py").read_text(encoding="utf-8")
+        self.assertNotIn('backend_config.get("variant", get_variant_name(platform_name))', launcher)
+        self.assertIn('variant_name = backend_config.get("variant")', launcher)
+        self.assertIn("if not variant_name:", launcher)
+
+    def test_cuda_variant_is_ignored_for_non_cuda_targets(self):
+        launcher_path = self.root / "ui/easydiffusion/backends/sdkit3.py"
+        source = launcher_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(launcher_path))
+        get_target_node = next(
+            node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "get_target"
+        )
+
+        config = {}
+        detected_platform = "rocm"
+
+        namespace = {
+            "OS_NAME": "Linux",
+            "getConfig": lambda: config,
+            "get_platform_name": lambda: detected_platform,
+            "get_variant_name": lambda platform_name: "sm90" if platform_name in ("cuda", "cuda-vulkan") else "any",
+            "os": os,
+            "platform": types.SimpleNamespace(machine=lambda: "x86_64"),
+        }
+        exec(compile(ast.Module(body=[get_target_node], type_ignores=[]), str(launcher_path), "exec"), namespace)
+        get_target = namespace["get_target"]
+
+        cases = (
+            ("sycl", "linux-x64-sycl-any"),
+            ("vulkan", "linux-x64-vulkan-any"),
+            ("rocm", "linux-x64-rocm-any"),
+            ("auto-vulkan", "linux-x64-vulkan-any"),
+            ("auto", "linux-x64-rocm-any"),
+            ("cuda", "linux-x64-cuda-sm86"),
+            ("cuda-vulkan", "linux-x64-cuda-vulkan-sm86"),
+            ("auto-cuda", "linux-x64-cuda-sm86"),
+        )
+        for configured_platform, expected_target in cases:
+            with self.subTest(platform=configured_platform):
+                config = {
+                    "backend_config": {
+                        "platform": configured_platform,
+                        "variant": "sm86",
+                    }
+                }
+                self.assertEqual(get_target(), expected_target)
 
     def test_native_server_exposes_runtime_backend_selection(self):
         main = (self.root / "source/sdkit3-port-source/src/main.cpp").read_text(encoding="utf-8")

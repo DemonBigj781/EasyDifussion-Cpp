@@ -111,7 +111,7 @@ class ModelDropdown {
         this.modelKey = modelKey
         this.sorted = sorted
 
-        if (modelsOptions !== undefined) {
+        if (modelsOptions !== undefined && this.modelKey !== null) {
             // reuse models from cache (only useful for plugins, which are loaded after models)
             this.inputModels = []
             let modelKeys = Array.isArray(this.modelKey) ? this.modelKey : [this.modelKey]
@@ -125,6 +125,9 @@ class ModelDropdown {
         document.addEventListener(
             "refreshModels",
             this.bind(function (e) {
+                // A null model key means the caller owns the option source
+                // (for example full checkpoint paths from the training API).
+                if (this.modelKey === null) return
                 // reload the models
                 this.inputModels = []
                 let modelKeys = Array.isArray(this.modelKey) ? this.modelKey : [this.modelKey]
@@ -729,6 +732,9 @@ function convertToLegacyModelOptions(models) {
         legacyModelOptions[modelType].push(model)
     }
 
+    // Video checkpoints use the same Model field as image checkpoints.
+    // Merge before building the tree so shared directories are not replaced.
+    legacyModelOptions["stable-diffusion"].push(...legacyModelOptions.video)
     for (const modelType in legacyModelOptions) {
         legacyModelOptions[modelType] = buildTree(legacyModelOptions[modelType])
     }
@@ -744,6 +750,7 @@ function buildModelsDB(models) {
         db[modelType] = db[modelType] || {}
         db[modelType][modelId] = model
     }
+    db["stable-diffusion"] = { ...db.video, ...db["stable-diffusion"] }
     return db
 }
 
@@ -774,7 +781,7 @@ async function getModels(scanForMalicious = true) {
 }
 
 // reload models button
-document.querySelector("#reload-models").addEventListener("click", (e) => {
+document.querySelector("#reload-models")?.addEventListener("click", (e) => {
     e.stopPropagation()
     getModels()
 })

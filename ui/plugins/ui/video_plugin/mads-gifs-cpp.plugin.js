@@ -80,33 +80,6 @@
         return canvas;
     }
 
-    function addFallbackMotionFrames(gif, outputCanvas, width, height) {
-        // Some backends cannot stream decoded denoising previews. A GIF with
-        // only the completed image is technically valid but visibly static,
-        // so create a small, seamless camera-motion loop from that image.
-        const sourceCanvas = createCanvas(width, height);
-        sourceCanvas.getContext("2d").drawImage(outputCanvas, 0, 0, width, height);
-        const outputCtx = outputCanvas.getContext("2d");
-        const motionFrameCount = 12;
-        for (let i = 0; i < motionFrameCount; i++) {
-            const phase = (Math.PI * 2 * i) / (motionFrameCount - 1);
-            const zoom = 1 + 0.04 * ((1 - Math.cos(phase)) / 2);
-            const drawWidth = width * zoom;
-            const drawHeight = height * zoom;
-            const panX = Math.sin(phase) * width * 0.006;
-            outputCtx.clearRect(0, 0, width, height);
-            outputCtx.drawImage(
-                sourceCanvas,
-                (width - drawWidth) / 2 + panX,
-                (height - drawHeight) / 2,
-                drawWidth,
-                drawHeight,
-            );
-            gif.addFrame(outputCtx, {copy: true, delay: 100});
-        }
-        return motionFrameCount;
-    }
-
     function blobToDataURL(blob) {
         return new Promise(function(resolve, reject) {
             const reader = new FileReader();
@@ -228,13 +201,13 @@
         const outputSettingsTable = document.querySelector("#output-settings-entries table");
         if (!outputField || !option || !outputSettingsTable) return;
 
-        option.textContent = "Animated GIF";
+        option.textContent = "Generation-progress GIF";
         let helpRow = document.getElementById(`${ID_PREFIX}-help-row`);
         if (!helpRow) {
             helpRow = document.createElement("tr");
             helpRow.id = `${ID_PREFIX}-help-row`;
             helpRow.className = "pl-5 displayNone";
-            helpRow.innerHTML = `<td></td><td><small>Click <b>Make Image</b> normally. Live generation previews become the animation. If previews are unavailable, the finished image gets a subtle motion loop. GIF inputs are processed frame by frame.</small></td>`;
+            helpRow.innerHTML = `<td></td><td><small>Records denoising previews, not generated scene motion. At least two preview frames are required; no artificial pan/zoom is added. Use Native Video with a video model for real animation. GIF inputs are processed frame by frame.</small></td>`;
             outputSettingsTable.appendChild(helpRow);
         }
 
@@ -293,9 +266,10 @@
                                 url: result.output[0].path,
                             });
                         }
-                        if (frameCount < 2 && (hasFinalImage || frameCount > 0)) {
-                            frameCount += addFallbackMotionFrames(gif, offscreenOutput, reqBody.width, reqBody.height);
-                        } else if (hasFinalImage) {
+                        if (frameCount < 2) {
+                            throw new Error("Not enough preview frames for a progress GIF. Use PNG for a still image, or use Native Video with a video model for real animation.");
+                        }
+                        if (hasFinalImage) {
                             gif.addFrame(outputCtx, {copy: true, delay: 500});
                             frameCount++;
                         } else if (frameCount > 0) {

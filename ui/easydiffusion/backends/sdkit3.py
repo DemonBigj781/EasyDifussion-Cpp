@@ -283,7 +283,9 @@ def get_target():
         platform_name = "vulkan"
     elif not platform_name or platform_name == "auto":
         platform_name = get_platform_name()
-    variant_name = backend_config.get("variant", get_variant_name(platform_name))
+    variant_name = backend_config.get("variant") if platform_name in ("cuda", "cuda-vulkan") else None
+    if not variant_name:
+        variant_name = get_variant_name(platform_name)
 
     target = f"{get_os()}-{get_arch()}-{platform_name}-{variant_name}"
 

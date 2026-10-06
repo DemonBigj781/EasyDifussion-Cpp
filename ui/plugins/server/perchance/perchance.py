@@ -22,6 +22,7 @@ import time
 from io import BytesIO
 
 from easydiffusion import app as easy_app
+from easydiffusion import kiosk
 from fastapi import HTTPException
 from PIL import Image, ImageOps
 
@@ -415,6 +416,8 @@ def _parse_image_results(stdout: str, output_directory: Path) -> list[dict]:
 
 def recent_images(limit=8) -> dict:
     """Return recent local Perchance outputs so the UI can recover a lost response."""
+    if kiosk.enabled():
+        return {"images": [], "generated_amount": 0, "kiosk_mode": True}
     limit = _integer(limit, "limit", 8)
     if limit < 1 or limit > MAX_IMAGE_AMOUNT:
         raise HTTPException(
@@ -510,6 +513,7 @@ def status() -> dict:
 
 
 async def generate_image(payload) -> dict:
+    kiosk.reject_unrated_perchance()
     payload = _require_payload(payload)
     prompt = _prompt_from(payload)
     shape = str(payload.get("shape", "square")).strip().lower()
@@ -546,6 +550,7 @@ async def generate_image(payload) -> dict:
         arguments.extend(["--negative-prompt", negative_prompt])
     arguments.append(prompt)
     result = await _run_locked(arguments, IMAGE_TIMEOUT_SECONDS)
+    kiosk.reject_unrated_perchance()
     images = _parse_image_results(result["stdout"], output_directory)
     if len(images) != amount:
         raise HTTPException(
@@ -564,6 +569,7 @@ async def generate_image(payload) -> dict:
 
 
 def resolve_generated_file(relative_path: str) -> Path:
+    kiosk.reject_unrated_perchance()
     generated_directory = _generated_image_directory()
     image_path = (generated_directory / relative_path).resolve()
     try:
@@ -580,6 +586,7 @@ def resolve_generated_file(relative_path: str) -> Path:
 
 def save_generated_image(payload) -> dict:
     """Move one explicitly selected staged result into the configured Gallery."""
+    kiosk.reject_unrated_perchance()
     payload = _require_payload(payload)
     relative_path = _bounded_string(
         payload.get("relative_path"),
@@ -847,7 +854,32 @@ def _gallery_common(payload: dict) -> tuple[str, str, bool, bool]:
     )
     download = _boolean(payload.get("download"), "download")
     visible = _boolean(payload.get("visible"), "visible")
+    if kiosk.enabled():
+        content_filter, download, visible = kiosk.PERCHANCE_FILTER, False, False
     return channel, content_filter, download, visible
+
+
+async def _filter_g_entries(entries, content_filter, channel):
+    if not kiosk.enabled():
+        return entries, False
+    if content_filter != kiosk.PERCHANCE_FILTER:
+        raise HTTPException(status_code=409, detail="Kiosk mode changed; reload the G-filtered gallery.")
+    # The native client verifies both the gallery frame URL and its filter
+    # selector before reading the G feed. Individual `get` calls additionally
+    # validate the provider's rating document inside that browser context.
+    # Do not bypass the provider's blocked raw-document HTTP endpoint.
+    accepted = []
+    for item in entries:
+        filename = _gallery_image_filename(str(item.get("imageUrl", "")))
+        if kiosk.perchance_g_entry_is_valid(item, filename, channel):
+            kiosk.approve_perchance(filename)
+            accepted.append(item)
+    return accepted, True
+
+
+def _check_gallery_policy_verified(verified):
+    if kiosk.enabled() and not verified:
+        raise HTTPException(status_code=409, detail="Kiosk mode changed; reload the G-filtered gallery.")
 
 
 async def gallery_list(payload) -> dict:
@@ -891,12 +923,17 @@ async def gallery_list(payload) -> dict:
     entries = parsed.get("entries")
     if not isinstance(entries, list) or not all(isinstance(item, dict) for item in entries):
         raise HTTPException(status_code=502, detail="Perchance returned an invalid gallery page.")
+    original_count = len(entries)
+    entries, verified = await _filter_g_entries(entries, content_filter, channel)
+    parsed["suppressed_count"] = original_count - len(entries)
     if download:
         entries = await _save_gallery_images(entries)
     else:
         entries = [_decorate_lazy_cache(item) for item in entries]
     parsed["entries"] = await _attach_gallery_previews(entries)
+    _check_gallery_policy_verified(verified)
     parsed["channel"] = channel
+    parsed["content_filter"] = content_filter
     return parsed
 
 
@@ -923,15 +960,22 @@ async def gallery_get(payload) -> dict:
 
     result = await _run_gallery_locked(arguments)
     parsed = _parse_json_object(result["stdout"], "gallery item")
+    accepted, verified = await _filter_g_entries([parsed], content_filter, channel)
+    if not accepted:
+        raise HTTPException(status_code=403, detail="The image is not verified as G-rated by Perchance.")
     parsed["channel"] = channel
     if download:
         entries = await _save_gallery_images([parsed])
     else:
         entries = [_decorate_lazy_cache(parsed)]
-    return (await _attach_gallery_previews(entries))[0]
+    result = (await _attach_gallery_previews(entries))[0]
+    _check_gallery_policy_verified(verified)
+    result["content_filter"] = content_filter
+    return result
 
 
 def resolve_output_file(relative_path: str) -> Path:
+    kiosk.reject_unrated_perchance()
     output_directory = _output_directory()
     image_path = (output_directory / relative_path).resolve()
     try:
@@ -947,6 +991,7 @@ def resolve_output_file(relative_path: str) -> Path:
 
 
 def resolve_gallery_cache_file(relative_path: str) -> Path:
+    kiosk.require_approved_perchance(relative_path)
     cache_directory = _gallery_cache_directory()
     image_path = (cache_directory / relative_path).resolve()
     try:

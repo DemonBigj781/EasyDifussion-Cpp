@@ -514,14 +514,9 @@ var IMAGE_EDITOR_SECTIONS = [
         name: "brush_size",
         title: "Brush Size",
         default: 48,
-        options: [6, 12, 16, 24, 30, 40, 48, 64],
-        initElement: (element, option) => {
-            element.parentElement.style.flex = option
-            element.style.width = option + "px"
-            element.style.height = option + "px"
-            element.style["margin-right"] = "2px"
-            element.style["border-radius"] = (option / 2).toFixed() + "px"
-        },
+        min: 6,
+        max: 64,
+        step: 1,
     },
     {
         name: "wand_threshold",
@@ -744,19 +739,42 @@ class ImageEditor {
             sectionElement.appendChild(title)
 
             var optionsContainer = document.createElement("div")
-            optionsContainer.classList.add("editor-options-container")
-
-            this.optionElements[section.name] = []
-            section.options.forEach((option, index) => {
-                var optionHolder = document.createElement("div")
-                var optionElement = document.createElement("div")
-                optionHolder.appendChild(optionElement)
-                section.initElement(optionElement, option)
-                optionHolder.addEventListener("click", () => this.selectOption(section.name, index))
-                optionsContainer.appendChild(optionHolder)
-                this.optionElements[section.name].push(optionElement)
-            })
-            this.selectOption(section.name, section.options.indexOf(section.default))
+            if (section.name === "brush_size") {
+                optionsContainer.className = "editor-brush-size-controls"
+                const slider = document.createElement("input")
+                slider.type = "range"
+                slider.id = `${this.popup.id}-brush-size`
+                slider.min = section.min
+                slider.max = section.max
+                slider.step = section.step
+                slider.value = section.default
+                slider.setAttribute("aria-label", section.title)
+                const value = document.createElement("output")
+                value.setAttribute("for", slider.id)
+                const update = () => {
+                    this.options.brush_size = Number(slider.value)
+                    value.value = `${slider.value} px`
+                    slider.setAttribute("aria-valuetext", `${slider.value} pixels`)
+                    this.setBrush()
+                }
+                slider.addEventListener("input", update)
+                slider.addEventListener("change", update)
+                optionsContainer.append(slider, value)
+                update()
+            } else {
+                optionsContainer.classList.add("editor-options-container")
+                this.optionElements[section.name] = []
+                section.options.forEach((option, index) => {
+                    var optionHolder = document.createElement("div")
+                    var optionElement = document.createElement("div")
+                    optionHolder.appendChild(optionElement)
+                    section.initElement(optionElement, option)
+                    optionHolder.addEventListener("click", () => this.selectOption(section.name, index))
+                    optionsContainer.appendChild(optionHolder)
+                    this.optionElements[section.name].push(optionElement)
+                })
+                this.selectOption(section.name, section.options.indexOf(section.default))
+            }
 
             sectionElement.appendChild(optionsContainer)
 

@@ -67,6 +67,9 @@ struct ggml_opt_context {
     ggml_opt_get_optimizer_params get_opt_pars    = nullptr;
     void *                        get_opt_pars_ud = nullptr;
     struct ggml_tensor *          opt_step_params = nullptr; // Stores output of get_opt_pars.
+    float (*get_param_lr_scale)(const ggml_tensor *, void *) = nullptr;
+    void * get_param_lr_scale_ud = nullptr;
+    std::map<float, ggml_tensor *> scaled_step_params;
 
     enum ggml_opt_optimizer_type optimizer = GGML_OPT_OPTIMIZER_TYPE_ADAMW;
 };
@@ -257,6 +260,8 @@ struct ggml_opt_params ggml_opt_default_params(
         /*get_opt_pars_ud =*/ nullptr,
         /*optimizer       =*/ GGML_OPT_OPTIMIZER_TYPE_ADAMW,
         /*graph_size      =*/ GGML_DEFAULT_GRAPH_SIZE,
+        /*get_param_lr_scale =*/ nullptr,
+        /*get_param_lr_scale_ud =*/ nullptr,
     };
 }
 
@@ -369,7 +374,7 @@ static void ggml_opt_build(ggml_opt_context_t opt_ctx) {
         // The cpu context is allocated statically if using static graphs, dynamically otherwise.
         // It is used for:
         //   - optimizer parameters (1 shared for all optimizer invocations)
-        const size_t size_meta = 1 * ggml_tensor_overhead();
+        const size_t size_meta = (1 + (opt_ctx->get_param_lr_scale ? n_param : 0)) * ggml_tensor_overhead();
         struct ggml_init_params params = {
             /*.mem_size   =*/ size_meta,
             /*.mem_buffer =*/ nullptr,
@@ -380,6 +385,7 @@ static void ggml_opt_build(ggml_opt_context_t opt_ctx) {
 
         ggml_backend_buffer_free(opt_ctx->buf_cpu);
         opt_ctx->buf_cpu = nullptr;
+        opt_ctx->scaled_step_params.clear();
     }
 
     struct ggml_context * ctx_results = opt_ctx->static_graphs ? opt_ctx->ctx_static : opt_ctx->ctx_compute;
@@ -514,6 +520,20 @@ static void ggml_opt_build(ggml_opt_context_t opt_ctx) {
         struct ggml_tensor * grad = ggml_graph_get_grad(opt_ctx->gb_opt, node);
 
         if (grad && (node->flags & GGML_TENSOR_FLAG_PARAM)) {
+            ggml_tensor * step_params = adamw_params;
+            if (opt_ctx->get_param_lr_scale) {
+                const float scale = opt_ctx->get_param_lr_scale(node, opt_ctx->get_param_lr_scale_ud);
+                GGML_ASSERT(std::isfinite(scale) && scale > 0.0f);
+                if (scale != 1.0f) {
+                    auto & scaled = opt_ctx->scaled_step_params[scale];
+                    if (!scaled) {
+                        scaled = ggml_new_tensor_1d(opt_ctx->ctx_cpu, GGML_TYPE_F32, need_momenta ? 7 : 2);
+                        ggml_set_input(scaled);
+                        ggml_format_name(scaled, "%s_params_lr_%g", optimizer_name, scale);
+                    }
+                    step_params = scaled;
+                }
+            }
             struct ggml_tensor * m = nullptr;
             struct ggml_tensor * v = nullptr;
             if (need_momenta) {
@@ -525,10 +545,10 @@ static void ggml_opt_build(ggml_opt_context_t opt_ctx) {
             struct ggml_tensor * opt_step;
             switch (optimizer) {
                 case GGML_OPT_OPTIMIZER_TYPE_ADAMW:
-                    opt_step = ggml_opt_step_adamw(opt_ctx->ctx_compute, node, grad, m, v, adamw_params);
+                    opt_step = ggml_opt_step_adamw(opt_ctx->ctx_compute, node, grad, m, v, step_params);
                     break;
                 case GGML_OPT_OPTIMIZER_TYPE_SGD:
-                    opt_step = ggml_opt_step_sgd(opt_ctx->ctx_compute, node, grad, adamw_params);
+                    opt_step = ggml_opt_step_sgd(opt_ctx->ctx_compute, node, grad, step_params);
                     break;
                 default:
                     GGML_ABORT("fatal error");
@@ -560,6 +580,8 @@ ggml_opt_context_t ggml_opt_init(struct ggml_opt_params params) {
     result->get_opt_pars     = params.get_opt_pars;
     result->get_opt_pars_ud  = params.get_opt_pars_ud;
     result->optimizer        = params.optimizer;
+    result->get_param_lr_scale = params.get_param_lr_scale;
+    result->get_param_lr_scale_ud = params.get_param_lr_scale_ud;
 
     GGML_ASSERT(result->opt_period >= 1);
 
@@ -613,6 +635,14 @@ struct ggml_tensor * ggml_opt_inputs(ggml_opt_context_t opt_ctx) {
 }
 
 struct ggml_tensor * ggml_opt_outputs(ggml_opt_context_t opt_ctx) {
+    // Static graphs execute an allocated duplicate, not the unallocated graph
+    // template. Expose its output just as the result getters expose live data.
+    if (opt_ctx->static_graphs && opt_ctx->allocated_graph && opt_ctx->allocated_graph_copy) {
+        for (int i = 0; i < opt_ctx->allocated_graph->n_nodes; ++i) {
+            if (opt_ctx->allocated_graph->nodes[i] == opt_ctx->outputs)
+                return opt_ctx->allocated_graph_copy->nodes[i];
+        }
+    }
     return opt_ctx->outputs;
 }
 
@@ -775,7 +805,9 @@ void ggml_opt_alloc(ggml_opt_context_t opt_ctx, bool backward) {
         opt_ctx->allocated_graph_copy = graph;
     }
 
-    ggml_backend_sched_alloc_graph(opt_ctx->backend_sched, opt_ctx->allocated_graph_copy);
+    if (!ggml_backend_sched_alloc_graph(opt_ctx->backend_sched, opt_ctx->allocated_graph_copy)) {
+        GGML_ABORT("ggml_opt: graph allocation failed");
+    }
     opt_ctx->allocated_graph = graph;
 
     opt_ctx->eval_ready = true;
@@ -788,7 +820,7 @@ void ggml_opt_eval(ggml_opt_context_t opt_ctx, ggml_opt_result_t result) {
 
         switch (opt_ctx->optimizer) {
             case GGML_OPT_OPTIMIZER_TYPE_ADAMW: {
-                GGML_ASSERT(opt_pars.adamw.alpha > 0.0f);
+                GGML_ASSERT(std::isfinite(opt_pars.adamw.alpha) && opt_pars.adamw.alpha >= 0.0f);
                 GGML_ASSERT(opt_pars.adamw.beta1 >= 0.0f);
                 GGML_ASSERT(opt_pars.adamw.beta1 <= 1.0f);
                 GGML_ASSERT(opt_pars.adamw.beta2 >= 0.0f);
@@ -823,7 +855,18 @@ void ggml_opt_eval(ggml_opt_context_t opt_ctx, ggml_opt_result_t result) {
         }
     }
 
-    ggml_backend_sched_graph_compute(opt_ctx->backend_sched, opt_ctx->allocated_graph_copy);
+    if (opt_ctx->allocated_graph == opt_ctx->gb_opt) {
+        for (const auto & entry : opt_ctx->scaled_step_params) {
+            const float * source = ggml_get_data_f32(opt_ctx->opt_step_params);
+            float * destination = ggml_get_data_f32(entry.second);
+            std::copy_n(source, ggml_nelements(opt_ctx->opt_step_params), destination);
+            destination[0] *= entry.first;
+        }
+    }
+    const enum ggml_status status = ggml_backend_sched_graph_compute(opt_ctx->backend_sched, opt_ctx->allocated_graph_copy);
+    if (status != GGML_STATUS_SUCCESS) {
+        GGML_ABORT("ggml_opt: graph computation failed (%d)", (int) status);
+    }
     opt_ctx->iter += opt_ctx->allocated_graph == opt_ctx->gb_opt;
     opt_ctx->opt_i = (opt_ctx->opt_i + 1) % opt_ctx->opt_period;
 

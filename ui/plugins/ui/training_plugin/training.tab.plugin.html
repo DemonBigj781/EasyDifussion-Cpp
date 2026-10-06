@@ -10,7 +10,7 @@
         <button id="training-spritegpt-open" type="button" class="tertiaryButton" disabled>Open SpriteGPT Studio</button>
         <button id="training-spritegpt-stop" type="button" class="tertiaryButton" disabled>Stop SpriteGPT runtime</button>
     </fieldset>
-    <p>SD1.5 LoRA uses the native C++ SYCL1 trainer (batch size 1). SD1.5 embeddings are unavailable on this route. SDXL and Anima use the configured Python runtime. Finish generation and release loaded inference models before starting.</p>
+    <p>Choose Native C++ or Legacy Python for SD1.5. Native LoRA uses SYCL1 and batch size 1; Python also supports embeddings. SDXL and Anima use Python. Both backends sample after each epoch. Finish generation and release loaded inference models before starting.</p>
     <form id="training-form">
         <fieldset>
             <legend>1. Load a prepared dataset</legend>
@@ -18,8 +18,8 @@
             <div class="training-grid">
                 <label for="training-dataset">Dataset</label>
                 <select id="training-dataset" required><option value="">Load a dataset</option></select>
-                <label for="training-trigger">Trigger word or phrase</label>
-                <input id="training-trigger" placeholder="mycharacter" maxlength="200">
+                <label for="training-trigger">Optional extra tag</label>
+                <input id="training-trigger" placeholder="Blank uses captions only" maxlength="200">
             </div>
             <p id="training-dataset-status" role="status">Choose a prepared dataset to use for training.</p>
         </fieldset>
@@ -30,8 +30,10 @@
                 <select id="training-kind"><option value="lora">LoRA</option><option value="embedding">Embedding (textual inversion)</option></select>
                 <label for="training-architecture">Base model family</label>
                 <select id="training-architecture"><option value="sd15">Stable Diffusion 1.5</option><option value="sdxl">SDXL</option><option value="anima">Anima</option></select>
+                <label for="training-backend">Training backend</label>
+                <select id="training-backend"><option value="native">Native C++ (SD1.5)</option><option value="python">Legacy Python (sd-scripts)</option></select>
                 <label for="training-model">Full checkpoint</label>
-                <select id="training-model" required><option value="">Refresh to load checkpoints</option></select>
+                <div class="model-input"><input id="training-model" class="model-filter" type="text" data-path="" autocomplete="off" placeholder="Search checkpoints…" required></div>
                 <label class="anima-training-option" for="training-qwen3">Anima Qwen3 text encoder path</label>
                 <select class="anima-training-option" id="training-qwen3" required><option value="">Loading configured text encoders…</option></select>
                 <label class="anima-training-option" for="training-vae">Anima Qwen-Image VAE path</label>
@@ -39,15 +41,29 @@
                 <label for="training-name">Output name</label>
                 <input id="training-name" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,79}" value="my_lora">
                 <label for="training-steps">Training steps</label>
-                <input id="training-steps" type="number" min="1" max="100000" step="1" value="1000" required>
+                <input id="training-steps" type="number" min="1" max="100000" step="1" value="1200" required>
+                <label class="native-training-option" for="training-epochs">Epochs (optional; overrides steps)</label>
+                <input class="native-training-option" id="training-epochs" type="number" min="1" max="100000" step="1">
+                <label class="native-training-option" for="training-repeats">Dataset repeats per epoch</label>
+                <input class="native-training-option" id="training-repeats" type="number" min="1" max="100000" step="1" value="1">
                 <label for="training-resolution">Resolution</label>
                 <input id="training-resolution" type="number" min="256" max="1536" step="64" value="512" required>
                 <label for="training-batch">Batch size</label>
                 <input id="training-batch" type="number" min="1" max="16" step="1" value="1" required>
                 <label for="training-rate">Learning rate</label>
-                <input id="training-rate" type="number" min="0.00000001" max="0.1" step="any" value="0.0001" required>
+                <input id="training-rate" type="number" min="0.00000001" max="0.1" step="any" value="0.00005" required>
+                <label for="training-text-encoder-rate">Text encoder learning rate (SD1.5 LoRA; 0 freezes CLIP)</label>
+                <input id="training-text-encoder-rate" type="number" min="0" max="0.1" step="any" value="0.000005" required>
                 <label for="training-rank">LoRA rank</label>
                 <input id="training-rank" type="number" min="1" max="128" step="1" value="16">
+                <label for="training-alpha">LoRA alpha (blank follows rank)</label>
+                <input id="training-alpha" type="number" min="0.00000001" max="128" step="any" placeholder="Same as rank">
+                <label for="training-scheduler">Learning rate schedule</label>
+                <select id="training-scheduler"><option value="constant">Constant</option><option value="cosine_with_restarts">Cosine with hard restarts</option></select>
+                <label for="training-warmup">Warmup steps</label>
+                <input id="training-warmup" type="number" min="0" step="1" value="0" required disabled>
+                <label for="training-cycles">Cosine cycles (1 = no intermediate restart)</label>
+                <input id="training-cycles" type="number" min="1" step="1" value="1" required disabled>
                 <label class="anima-training-option" for="training-checkpointing">Gradient checkpointing</label>
                 <select class="anima-training-option" id="training-checkpointing"><option value="standard">Standard</option><option value="cpu_offload">CPU offload</option><option value="unsloth">Unsloth asynchronous offload</option><option value="off">Disabled</option></select>
                 <label class="anima-training-option" for="training-blocks-swap">Anima blocks to swap (0–40)</label>

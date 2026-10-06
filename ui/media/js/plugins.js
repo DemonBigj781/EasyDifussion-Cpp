@@ -113,7 +113,6 @@ const REQUIRED_UI_PLUGINS = [
     "/plugins/core/localstorage_plugin/stig-localstorage.plugin.js",
     "/plugins/core/modifiers_plugin/stig-relocateModifiers.plugin.js",
     "/plugins/core/inpaint_plugin/inpainting.plugin.js",
-    "/plugins/core/prompt_plugin/prompt-assist.plugin.js",
     "/plugins/core/prompt_plugin/negative-history.plugin.js",
     "/plugins/core/files_plugin/online-model-browser.plugin.js",
     "/plugins/core/draw_plugin/editor-page.plugin.js",
@@ -170,78 +169,22 @@ const FIRST_LOAD_TAB_ORDER = [
 // Local legacy plugins are installed with the application but remain opt-in.
 // Most of them predate a plugin lifecycle API, so enabling is live while
 // disabling takes effect on the next page load.
-const OPTIONAL_UI_PLUGIN_STORAGE_KEY = "easy-diffusion-enabled-local-plugins-v1"
-const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY = "easy-diffusion-local-plugin-defaults-version"
-const OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION = 2
-const OPTIONAL_UI_PLUGINS = Object.freeze([
-    { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
-    { id: "perchance-text", name: "Perchance text", path: "/plugins/core/perchance_plugin/perchance-text.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
-    { id: "perchance-gallery", name: "Perchance gallery", path: "/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
-    { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/core/ui_plugin/accessibility-improvements.plugin.js" },
-    // The two imported Animate copies are consolidated into this one opt-in implementation.
-    { id: "animate", name: "Animate (legacy)", path: "/plugins/core/animate_plugin/animate.plugin.js", port: "compatibility" },
-    { id: "daily-folders", name: "Daily output folders", path: "/plugins/core/ui_plugin/daily-folders.plugin.js" },
-    { id: "disable-source-image-zoom", name: "Disable source-image zoom", path: "/plugins/core/ui_plugin/disable-source-image-zoom.plugin.js" },
-    { id: "gpu-mode-quick-toggle", name: "GPU mode quick toggle", path: "/plugins/core/ui_plugin/gpu-mode-quick-toggle.plugin.js" },
-    { id: "make-image-always-visible", name: "Always-visible Make Image button", path: "/plugins/core/ui_plugin/make-image-button-always-visible.plugin.js" },
-    { id: "processing-order-quick-toggle", name: "Processing-order quick toggle", path: "/plugins/core/ui_plugin/processing-order-quick-toggle.plugin.js" },
-    { id: "prompt-diff", name: "Prompt diff", path: "/plugins/core/prompt_plugin/prompt-diff.plugin.js" },
-    { id: "prompt-translator", name: "Prompt translator (uses Google Translate)", path: "/plugins/core/prompt_plugin/prompt-translator.plugin.js" },
-    { id: "queue-counter", name: "Queue counter", path: "/plugins/core/ui_plugin/queue-counter.plugin.js" },
-    { id: "rabbit-hole", name: "Rabbit Hole UI (3.5 / 4 / 4.5)", path: "/plugins/core/rabithole_plugin/rabbithole.plugin.js", port: "compatibility" },
-    { id: "random-seed-quick-toggle", name: "Random-seed quick toggle", path: "/plugins/core/ui_plugin/random-seed-quick-toggle.plugin.js" },
-    { id: "seed-randomizer", name: "Batch seed randomizer", path: "/plugins/core/ui_plugin/seed-randomizer.plugin.js" },
-    { id: "spell-tokenizer", name: "Spell tokenizer and merged tag search", path: "/plugins/core/prompt_plugin/spell-tokenizer.plugin.js" },
-    { id: "stig-image-to-img2img", name: "Stig image-to-img2img tools", path: "/plugins/core/image_plugin/stig-image-to-img2img.plugin.js" },
-    { id: "stig-image-utilities", name: "Stig image utilities", path: "/plugins/core/image_plugin/stigs-image_utilities.plugin.js" },
-    { id: "stig-lora-shuttle", name: "Stig LoRA shuttle controls", path: "/plugins/core/lora_plugin/stigs-lora-shuttle-controls.plugin.js" },
-    { id: "stig-text-to-prompt", name: "Stig text-to-prompt", path: "/plugins/core/prompt_plugin/stig-text2prompt.plugin.js" },
-    { id: "storyteller", name: "Storyteller tab", path: "/plugins/core/prompt_plugin/storyteller.plugin.js" },
-    { id: "template-manager", name: "Template manager", path: "/plugins/core/prompt_plugin/template-manager.plugin.js" },
-    { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/core/prompt_plugin/toggle-spellcheck.plugin.js" },
-])
+const OPTIONAL_UI_PLUGINS = window.LocalPluginPreferences.catalog
 
 function getEnabledOptionalUIPluginIds() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY))
-        if (Array.isArray(saved)) {
-            const enabled = new Set(saved.filter((id) => OPTIONAL_UI_PLUGINS.some((plugin) => plugin.id === id)))
-            const defaultsVersion = Number.parseInt(
-                localStorage.getItem(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY) || "0",
-                10
-            )
-            if (defaultsVersion < OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION) {
-                OPTIONAL_UI_PLUGINS.forEach((plugin) => {
-                    if (plugin.defaultEnabled && Number(plugin.addedInDefaultsVersion || 0) > defaultsVersion) {
-                        enabled.add(plugin.id)
-                    }
-                })
-                localStorage.setItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY, JSON.stringify(Array.from(enabled)))
-                localStorage.setItem(
-                    OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY,
-                    String(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION)
-                )
-            }
-            return enabled
-        }
-    } catch (error) {
-        console.warn("Ignoring invalid optional-plugin settings", error)
-    }
-    const defaults = new Set(OPTIONAL_UI_PLUGINS.filter((plugin) => plugin.defaultEnabled).map((plugin) => plugin.id))
-    localStorage.setItem(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION_KEY, String(OPTIONAL_UI_PLUGIN_DEFAULTS_VERSION))
-    return defaults
+    return window.LocalPluginPreferences.getEnabled()
 }
 
 let enabledOptionalUIPluginIds = getEnabledOptionalUIPluginIds()
 const loadedOptionalUIPluginIds = new Set()
 const optionalUIPluginLoadPromises = new Map()
-let optionalUIPluginControlInstance = 0
 
-function saveEnabledOptionalUIPlugins() {
-    localStorage.setItem(OPTIONAL_UI_PLUGIN_STORAGE_KEY, JSON.stringify(Array.from(enabledOptionalUIPluginIds)))
-}
+window.addEventListener("local-plugin-preferences-changed", () => {
+    enabledOptionalUIPluginIds = getEnabledOptionalUIPluginIds()
+})
 
 async function loadOptionalUIPlugin(plugin) {
+    if (plugin.id === "image-modifiers") return
     if (loadedOptionalUIPluginIds.has(plugin.id)) {
         updateOptionalUIPluginStatus(plugin.id, "loaded")
         return
@@ -290,17 +233,13 @@ function syncOptionalUIPluginControls(pluginId) {
 }
 
 async function setOptionalUIPluginEnabled(plugin, enabled) {
+    enabledOptionalUIPluginIds = window.LocalPluginPreferences.setEnabled(plugin.id, enabled)
+    syncOptionalUIPluginControls(plugin.id)
     if (enabled) {
-        enabledOptionalUIPluginIds.add(plugin.id)
-        saveEnabledOptionalUIPlugins()
-        syncOptionalUIPluginControls(plugin.id)
         await loadOptionalUIPlugin(plugin)
         return
     }
 
-    enabledOptionalUIPluginIds.delete(plugin.id)
-    saveEnabledOptionalUIPlugins()
-    syncOptionalUIPluginControls(plugin.id)
     const needsReload = loadedOptionalUIPluginIds.has(plugin.id)
     updateOptionalUIPluginStatus(plugin.id, needsReload ? "disabled after reload" : "disabled")
     if (needsReload && typeof showToast === "function") {
@@ -309,43 +248,14 @@ async function setOptionalUIPluginEnabled(plugin, enabled) {
 }
 
 function renderOptionalUIPluginSettings(options = {}) {
-    const container = document.createElement("div")
-    container.className = "optional-ui-plugin-settings"
-    container.style.cssText = options.forTab
-        ? "max-width:900px"
-        : "min-width:min(620px,70vw);max-height:45vh;overflow:auto"
-
-    const controlInstance = optionalUIPluginControlInstance++
-    for (const plugin of OPTIONAL_UI_PLUGINS) {
-        const row = document.createElement("div")
-        row.className = "optional-ui-plugin-row"
-        row.dataset.pluginSearch = `${plugin.name} ${plugin.id}`.toLowerCase()
-        row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:center;padding:.3rem 0"
-        const toggle = document.createElement("div")
-        toggle.className = "input-toggle"
-        const checkbox = document.createElement("input")
-        checkbox.id = `optional-plugin-${controlInstance}-${plugin.id}`
-        checkbox.type = "checkbox"
-        checkbox.checked = enabledOptionalUIPluginIds.has(plugin.id)
-        checkbox.dataset.optionalPluginId = plugin.id
-        const switchLabel = document.createElement("label")
-        switchLabel.htmlFor = checkbox.id
-        switchLabel.title = `Enable or disable ${plugin.name}`
-        toggle.append(checkbox, switchLabel)
-        const name = document.createElement("label")
-        name.htmlFor = checkbox.id
-        name.textContent = plugin.name
-        const status = document.createElement("small")
-        status.dataset.optionalPluginStatus = plugin.id
-        status.textContent = loadedOptionalUIPluginIds.has(plugin.id)
-            ? "loaded"
-            : checkbox.checked ? "enabled" : "disabled"
-        row.append(toggle, name, status)
-        container.appendChild(row)
-
-        checkbox.addEventListener("change", () => setOptionalUIPluginEnabled(plugin, checkbox.checked))
-    }
-    return container
+    return window.LocalPluginPreferences.renderControls({
+        ...options,
+        onChange: setOptionalUIPluginEnabled,
+        getStatus(plugin, enabled) {
+            if (loadedOptionalUIPluginIds.has(plugin.id)) return enabled ? "loaded" : "disabled after reload"
+            return enabled ? "enabled" : "disabled"
+        },
+    })
 }
 
 function createLocalPluginManagerTab() {

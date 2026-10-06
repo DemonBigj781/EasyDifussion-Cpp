@@ -131,6 +131,11 @@ extern "C" {
         // Capacity for the forward, backward, and optimizer graphs. A value
         // below one selects GGML_DEFAULT_GRAPH_SIZE.
         int32_t graph_size;
+
+        // Optional per-parameter learning-rate multiplier. Evaluated when the
+        // optimizer graph is built; nullptr preserves the shared rate.
+        float (*get_param_lr_scale)(const struct ggml_tensor * parameter, void * userdata);
+        void * get_param_lr_scale_ud;
     };
 
     // get parameters for an optimization context with defaults set where possible

@@ -55,6 +55,27 @@ class VideoTask(Task):
 
         checkpoint_path = self.models_data.model_paths.get("stable-diffusion")
         model_class = identify_model_type(checkpoint_path) if checkpoint_path else None
+        if model_class == "ltx2_3":
+            required = (
+                ("video VAE", self.models_data.model_paths.get("vae")),
+                ("Gemma 3 text encoder", self.models_data.model_paths.get("text-encoder")),
+                ("audio VAE", self.request.audio_vae_model),
+                ("embedding connectors", self.request.embeddings_connectors_model),
+            )
+            missing = [label for label, value in required if not value]
+            if missing:
+                raise RuntimeError(f"LTX-2.3 is missing {', '.join(missing)}; select its resources before generating")
+            self.request.audio_vae_model = model_manager.resolve_model_to_use(
+                self.request.audio_vae_model, model_type="vae"
+            )
+            self.request.embeddings_connectors_model = model_manager.resolve_model_to_use(
+                self.request.embeddings_connectors_model, model_type="text-encoder"
+            )
+            self.request.sampler_name = "euler"
+            self.request.scheduler_name = "ltx2"
+            if "distilled" in str(checkpoint_path).lower():
+                self.request.num_inference_steps = 8
+                self.request.guidance_scale = 1.0
         if model_class and model_class.startswith("ltx_video"):
             # Original LTX-Video uses the Euler linear/quadratic flow schedule.
             # Enforce it at the API boundary as well as in the browser UI.

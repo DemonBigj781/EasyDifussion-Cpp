@@ -25,21 +25,23 @@ ui:
 #
 backend_config:
   platform: cuda-vulkan
+  variant: sm86
   # Keep the locally patched sdkit v3.4.1 binary; automatic validation would
   # replace it with the upstream build that has the ModelManager symbol clash.
   auto_update: false
   COMMANDLINE_ARGS:
+    - --attention
+    - flash
     - --log-level
     - info
     - --keep-model-loaded
     - --vae-tiling
+    - --video-offload-to-cpu
     - --mmap
     - --vae-tiles
     - '32'
     - --vae-tiled-overlap
     - '16'
-    - --attention
-    - flash
 force_save_path: /mnt/1812FB8512FB6662/easy-diffusion-save-backup
 # $n is a collision-safe, five-digit counter reserved for every image in a batch.
 filename_format: $n_$p_$tsb64
@@ -72,7 +74,8 @@ directories:
     - lighttricks
   tipo: tipo
 model:
-  stable-diffusion: 1.5/sd-v1-5
+  stable-diffusion: Anima/oneObsessionAnima_v30
+  vae: Anima/qwen_image_vae
 vram_usage_level: balanced
 tipo:
   # The vendored CUDA llama.cpp server offloads all TIPO layers on this RTX 3060.
@@ -84,3 +87,4 @@ perchance:
   gallery_id: ''
   channel: furry-ai
   launcher: ''
+kiosk_mode: false

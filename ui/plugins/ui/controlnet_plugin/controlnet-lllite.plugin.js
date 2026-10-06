@@ -23,6 +23,15 @@
 
     const byId = (id) => document.getElementById(id)
     const model = new ModelDropdown(byId("lllite-model"), "controlnet-lllite", "None")
+    function compatible(path, metadata) {
+        const checkpoint = document.getElementById("stable_diffusion_model")?.dataset.path
+        const tags = typeof modelsDB === "object" ? modelsDB["stable-diffusion"]?.[checkpoint]?.tags || [] : []
+        const family = tags.includes("anima") ? "anima" : tags.some(tag => /^sd_(v1|v2|xl)/.test(tag)) ? "unet" : null
+        const info = metadata?.lllite_compatibility
+        return !path || Boolean(family && info?.architecture === family && info.input_channels === 3 && !info.aspp)
+    }
+    model.setModelPredicate(compatible)
+    document.getElementById("stable_diffusion_model")?.addEventListener("change", () => model.setModelPredicate(compatible))
 
     function readJSON(key) {
         try { return JSON.parse(localStorage.getItem(key) || "{}") }
@@ -59,6 +68,7 @@
     controller.register("lllite", section)
     controller.registerValidator("lllite", () => {
         if (!model.value) return "ControlNet-LLLite: choose a model."
+        if (!compatible(model.value, modelsDB["controlnet-lllite"]?.[model.value])) return "ControlNet-LLLite: choose compatible RGB weights; masked inpainting is not supported yet."
         if (!/^data:image\//.test(controller.sharedImage())) return "ControlNet-LLLite: load the shared ControlNet image."
         return ""
     })

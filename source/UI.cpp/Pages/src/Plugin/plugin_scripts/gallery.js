@@ -1,6 +1,8 @@
-(() => {
+(async () => {
     "use strict";
     if (window.CppImageGallery) return;
+    let policy;
+    try { policy = await window.CppKiosk.ready; } catch (_) { return; }
     window.CppImageGallery = true;
 
     const byId = id => document.getElementById(id);
@@ -30,11 +32,15 @@
     async function loadGallery() {
         const refresh = byId("gallery-refresh");
         if (refresh) refresh.disabled = true;
-        message("Loading configured gallery directory…");
+        container.replaceChildren();
+        byId("gallery-lightbox")?.close();
+        byId("gallery-lightbox-image")?.removeAttribute("src");
+        message(policy.enabled ? "Loading Destockd film frames…" : "Loading configured gallery directory…");
         try {
             const response = await fetch(`/gallery/images?page=${page}&page_size=${pageSize}`, {cache:"no-store"});
             const data = await response.json();
             if (!response.ok) throw new Error(data.detail || `Gallery request failed (${response.status})`);
+            if (policy.enabled && data.source !== "destockd") throw new Error("Kiosk gallery source mismatch; local images were blocked.");
             page = Number(data.page || 1); totalPages = Number(data.total_pages || 1);
             currentRecords = Array.isArray(data.images) ? data.images : [];
             for (const item of currentRecords) records.set(item.id, item);
@@ -44,7 +50,8 @@
             byId("gallery-next-page").disabled = !data.has_next;
             byId("gallery-empty").hidden = currentRecords.length !== 0;
             const range = data.total ? `images ${data.start_index}–${data.end_index} of ${data.total}` : "0 images";
-            message(`${data.directory || "Gallery directory"} — ${range}${data.exists ? "" : " (directory unavailable)"}`, !data.exists);
+            message(data.source === "destockd" ? `Destockd — ${range}. Refresh for another selection. Source filtering is not a PG certification.`
+                : `${data.directory || "Gallery directory"} — ${range}${data.exists ? "" : " (directory unavailable)"}`, !data.exists);
             const directory = byId("gallery-directory-input");
             if (directory && document.activeElement !== directory) directory.value = data.directory || "";
             container.replaceChildren();
@@ -61,16 +68,22 @@
                     selectionChanged();
                 });
                 const name = document.createElement("span"); name.textContent = item.filename;
-                top.append(checkbox, name);
+                if (!policy.enabled) top.append(checkbox);
+                top.append(name);
                 const image = document.createElement("img"); image.src = item.thumbnail_url || item.url;
                 image.alt = item.filename; image.loading = "lazy"; image.title = "Open full-size preview";
                 image.addEventListener("click", () => openLightbox(currentRecords.indexOf(item)));
-                const download = document.createElement("a"); download.href = item.url; download.download = item.filename; download.textContent = "Download";
+                const download = document.createElement("a");
+                download.href = policy.enabled ? item.source_url : item.url;
+                if (policy.enabled) { download.target = "_blank"; download.rel = "noopener noreferrer"; download.textContent = "Source: Destockd"; }
+                else { download.download = item.filename; download.textContent = "Download"; }
                 card.append(top, image, download); container.append(card);
             }
             selectionChanged();
             applyZoom();
         } catch (error) {
+            container.replaceChildren();
+            currentRecords = []; selected.clear(); records.clear(); selectionChanged();
             message(error.message || "Could not load gallery.", true);
             byId("gallery-empty").hidden = false;
         } finally { if (refresh) refresh.disabled = false; }
@@ -89,6 +102,7 @@
         } catch (error) { byId("gallery-directory-status").textContent = error.message; }
     }
     async function saveSettings() {
+        if (policy.enabled) return;
         const input = byId("gallery-directory-input"), button = byId("gallery-directory-save"), status = byId("gallery-directory-status");
         button.disabled = true; status.textContent = "Saving directory…";
         try {
@@ -101,6 +115,7 @@
         finally { button.disabled = false; }
     }
     async function deleteSelected() {
+        if (policy.enabled) return;
         if (!selected.size || !window.confirm(`Permanently delete ${selected.size} selected image${selected.size === 1 ? "" : "s"}? This cannot be undone.`)) return;
         const button = byId("gallery-delete-selected"); button.disabled = true;
         try {
@@ -134,6 +149,7 @@
         }, "image/png");
     }
     async function createCollage(mode) {
+        if (policy.enabled) return;
         const items = Array.from(selected, id => records.get(id)).filter(Boolean);
         if (!items.length) return;
         if (items.length > 50) { message("Select 50 or fewer images for a collage.", true); return; }
@@ -195,5 +211,6 @@
         if (event.key === "ArrowLeft") byId("gallery-lightbox-prev").click();
         if (event.key === "ArrowRight") byId("gallery-lightbox-next").click();
     });
-    loadSettings().finally(loadGallery);
+    if (policy.enabled) loadGallery();
+    else loadSettings().finally(loadGallery);
 })();

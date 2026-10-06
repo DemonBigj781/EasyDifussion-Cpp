@@ -1,27 +1,18 @@
-        <h4 class="collapsible">Video Options <small>Mochi / Wan / LTX-Video / LTX 2; SVD experimental</small></h4>
+        <h4 class="collapsible">Video Options <small>Mochi / Wan / LTX-Video / LTX-2.3; SVD experimental</small></h4>
         <div class="collapsible-content settings-panel-entries">
+            <div id="native-video-ltx23-resources" class="native-video-grid displayNone">
+                <label for="native-video-audio-vae">LTX-2.3 Audio VAE</label>
+                <div class="model-input">
+                    <input id="native-video-audio-vae" type="text" spellcheck="false" autocomplete="off"
+                           class="model-filter" data-path="">
+                </div>
+                <label for="native-video-connectors">Embedding Connectors</label>
+                <div class="model-input">
+                    <input id="native-video-connectors" type="text" spellcheck="false" autocomplete="off"
+                           class="model-filter" data-path="">
+                </div>
+            </div>
             <div class="native-video-grid">
-                <label for="native-video-enabled">Enable</label>
-                <input id="native-video-enabled" type="checkbox">
-
-                <label for="native-video-model">Video Model</label>
-                <div class="model-input">
-                    <input id="native-video-model" type="text" spellcheck="false" autocomplete="off"
-                           class="model-filter" data-path="">
-                </div>
-
-                <label for="native-video-vae">Video VAE</label>
-                <div class="model-input">
-                    <input id="native-video-vae" type="text" spellcheck="false" autocomplete="off"
-                           class="model-filter" data-path="">
-                </div>
-
-                <label for="native-video-text-encoder">Video Text Encoder</label>
-                <div class="model-input">
-                    <input id="native-video-text-encoder" type="text" spellcheck="false" autocomplete="off"
-                           class="model-filter" data-path="">
-                </div>
-
                 <label for="native-video-frames">Frames</label>
                 <input id="native-video-frames" type="number" value="25" min="1" max="513" step="1">
 
@@ -55,6 +46,6 @@
             <img id="native-video-end-preview" class="native-video-end-preview displayNone"
                  alt="Native video end-frame preview">
             <small id="native-video-status">
-                Select a checkpoint here for video generation. It overrides the image model under Options. Blank companion fields auto-detect weights beside the checkpoint; explicit choices are saved separately per model. Mochi currently supports text-to-video.
+                Select a video checkpoint in Options → Model. Its installed companion resources are selected automatically in Options; you can override them there. Mochi currently supports text-to-video.
             </small>
         </div>

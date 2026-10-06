@@ -1053,6 +1053,11 @@ protected:
     uint32_t trainable_lora_seed = 0x51D15u;
 
     bool is_trainable_attention_projection(const std::string& prefix) const {
+        if (starts_with(prefix, "cond_stage_model.transformer.text_model.encoder.layers.") &&
+            prefix.find(".self_attn.") != std::string::npos) {
+            return ends_with(prefix, ".q_proj.") || ends_with(prefix, ".k_proj.") ||
+                   ends_with(prefix, ".v_proj.") || ends_with(prefix, ".out_proj.");
+        }
         if (prefix.find("attn") == std::string::npos) {
             return false;
         }

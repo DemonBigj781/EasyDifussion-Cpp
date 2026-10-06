@@ -11,9 +11,10 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.repo_root = pathlib.Path(__file__).resolve().parent.parent
         self.plugin_root = self.repo_root / "ui" / "plugins" / "ui"
         self.loader = (self.repo_root / "ui" / "media" / "js" / "plugins.js").read_text(encoding="utf-8")
+        self.preferences = (self.repo_root / "ui" / "media" / "js" / "local-plugin-preferences.js").read_text(encoding="utf-8")
 
     def test_optional_catalog_only_uses_bundled_core_routes(self):
-        catalog_source = self.loader.split("const OPTIONAL_UI_PLUGINS", 1)[1].split("])", 1)[0]
+        catalog_source = self.preferences.split("const catalog", 1)[1].split("])", 1)[0]
         paths = re.findall(r'path:\s*"([^"]+)"', catalog_source)
         self.assertTrue(paths)
         self.assertNotIn("/plugins/user/", catalog_source)
@@ -23,14 +24,33 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
                 filename = unquote(url.removeprefix("/plugins/core/"))
                 self.assertTrue((self.plugin_root / filename).is_file(), filename)
 
+    def test_cpp_lora_request_reads_the_stored_select_control(self):
+        plugin = (
+            self.repo_root
+            / "source"
+            / "UI.cpp"
+            / "Pages"
+            / "src"
+            / "Plugin"
+            / "plugin_scripts"
+            / "generate_plugins.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "loraEntries.filter(({row, select}) => row.isConnected && select.field.value)",
+            plugin,
+        )
+        self.assertNotIn("row.select.value", plugin)
+
     def test_plugin_manager_deduplicates_loads_and_syncs_controls(self):
         self.assertIn("const loadedScriptPromises = new Map()", self.loader)
         self.assertIn("const loadedOptionalUIPluginIds = new Set()", self.loader)
         self.assertIn("const optionalUIPluginLoadPromises = new Map()", self.loader)
         self.assertIn("data-optional-plugin-id", self.loader)
-        self.assertIn('toggle.className = "input-toggle"', self.loader)
-        self.assertIn("switchLabel.htmlFor = checkbox.id", self.loader)
-        self.assertIn("setOptionalUIPluginEnabled(plugin, checkbox.checked)", self.loader)
+        self.assertIn('toggle.className = "input-toggle"', self.preferences)
+        self.assertIn("switchLabel.htmlFor = checkbox.id", self.preferences)
+        self.assertIn("onChange: setOptionalUIPluginEnabled", self.loader)
+        self.assertIn("window.LocalPluginPreferences.catalog", self.loader)
+        self.assertIn("window.LocalPluginPreferences.renderControls", self.loader)
         self.assertIn("disabled after reload", self.loader)
         self.assertNotIn('id: "optional_ui_plugins"', self.loader)
         plugin_tab = (self.plugin_root / "loader_plugin" / "plugins.tab.plugin.js").read_text(encoding="utf-8")
@@ -43,17 +63,18 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn(gif_library, self.loader)
         self.assertIn(gif_plugin, self.loader)
         self.assertLess(self.loader.index(gif_library), self.loader.index(gif_plugin))
-        optional_source = self.loader.split("const OPTIONAL_UI_PLUGINS", 1)[1].split("])", 1)[0]
+        optional_source = self.preferences.split("const catalog", 1)[1].split("])", 1)[0]
         self.assertNotIn('id: "cpp-gifs"', optional_source)
         plugin = (self.plugin_root / "video_plugin" / "mads-gifs-cpp.plugin.js").read_text(encoding="utf-8")
         library = (self.plugin_root / "video_plugin" / "gif.js").read_text(encoding="utf-8")
         self.assertIn('workerScript: GIF_WORKER_SCRIPT', plugin)
-        self.assertIn('option.textContent = "Animated GIF"', plugin)
+        self.assertIn('option.textContent = "Generation-progress GIF"', plugin)
         self.assertNotIn("function stepAnim", plugin)
         self.assertNotIn("function morph", plugin)
         self.assertIn('gif.on("error", (error) => {', plugin)
         self.assertIn("stopWorkers();", plugin)
-        self.assertIn("function addFallbackMotionFrames", plugin)
+        self.assertNotIn("addFallbackMotionFrames", plugin)
+        self.assertIn("Use Native Video with a video model", plugin)
         self.assertIn("frameCount < 2", plugin)
         self.assertIn('worker.onerror = function(event)', library)
 
@@ -169,9 +190,9 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertNotIn("const thresholdSquared = threshold * threshold\n    const background", editor)
 
     def test_perchance_features_are_independently_toggleable(self):
-        self.assertIn('id: "perchance-image"', self.loader)
-        self.assertIn('id: "perchance-text"', self.loader)
-        self.assertIn('id: "perchance-gallery"', self.loader)
+        self.assertIn('id: "perchance-image"', self.preferences)
+        self.assertIn('id: "perchance-text"', self.preferences)
+        self.assertIn('id: "perchance-gallery"', self.preferences)
         self.assertIn("perchance_plugin/perchance.plugin.js", self.loader)
         for filename in (
             "perchance-image.plugin",

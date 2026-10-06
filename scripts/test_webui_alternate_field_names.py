@@ -59,27 +59,28 @@ class TestTerminologyConsistency(unittest.TestCase):
             ),
         )
 
-    def test_video_options_owns_checkpoint_and_independent_companions(self):
+    def test_video_options_uses_the_shared_model_and_companion_fields(self):
         video_html = (self.repo_root / "ui" / "plugins" / "ui" / "video_plugin" / "native-video.plugin.html").read_text(encoding="utf-8")
         video_js = (self.repo_root / "ui" / "plugins" / "ui" / "video_plugin" / "native-video.plugin.js").read_text(encoding="utf-8")
         image_html = (self.repo_root / "ui" / "plugins" / "ui" / "image_plugin" / "image-settings.plugin.html").read_text(encoding="utf-8")
         self.assertIn('class="collapsible">Video Options', video_html)
-        self.assertIn('id="native-video-model"', video_html)
+        self.assertNotIn('id="native-video-model"', video_html)
+        self.assertNotIn('id="native-video-enabled"', video_html)
         self.assertIn("Options", image_html)
         self.assertIn('<label for="stable_diffusion_model">Model:</label>', image_html)
-        self.assertIn('id="native-video-vae"', video_html)
-        self.assertIn('id="native-video-text-encoder"', video_html)
-        self.assertNotIn('const modelInput = byId("stable_diffusion_model")', video_js)
-        self.assertIn('new ModelDropdown(videoModelInput, "video", "Select a video model")', video_js)
-        self.assertIn('new ModelDropdown(vaeInput, "vae", "Auto-detect / embedded")', video_js)
-        self.assertIn('new ModelDropdown(textEncoderInput, "text-encoder", "Auto-detect / embedded")', video_js)
+        self.assertNotIn('id="native-video-vae"', video_html)
+        self.assertNotIn('id="native-video-text-encoder"', video_html)
+        self.assertIn('const modelInput = byId("stable_diffusion_model")', video_js)
+        self.assertIn('modelInput.addEventListener("change", updateModel)', video_js)
+        self.assertIn('automaticCompanions', video_js)
+        self.assertIn('model.installed !== false', video_js)
         self.assertIn('PLUGINS.TASK_BUILD.push', video_js)
-        self.assertGreaterEqual(video_js.count('event.reqBody.use_stable_diffusion_model = selectedModel()'), 2)
-        self.assertIn('event.reqBody.use_vae_model = videoVae.value || null', video_js)
-        self.assertIn('event.reqBody.use_text_encoder_model = videoTextEncoder.value || null', video_js)
+        self.assertNotIn('event.reqBody.use_stable_diffusion_model =', video_js)
+        self.assertNotIn('event.reqBody.use_vae_model =', video_js)
+        self.assertNotIn('event.reqBody.use_text_encoder_model =', video_js)
         self.assertIn('event.reqBody.sampler_name = "euler"', video_js)
         self.assertIn('event.reqBody.scheduler_name = "linear_quadratic"', video_js)
-        self.assertIn('companions[model]', video_js)
+        self.assertIn('companions[activeModel]', video_js)
 
     def test_sdkit3_receives_absolute_video_checkpoint_paths(self):
         webui_common_py = (

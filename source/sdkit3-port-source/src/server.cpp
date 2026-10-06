@@ -424,6 +424,18 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
 
     try {
         VideoGenerationParams params;
+        if (json_body.has("audio_vae_path")) {
+            if (json_body["audio_vae_path"].t() != crow::json::type::String) {
+                throw std::invalid_argument("audio_vae_path must be a model path string");
+            }
+            params.audio_vae_path = std::string(json_body["audio_vae_path"].s());
+        }
+        if (json_body.has("embeddings_connectors_path")) {
+            if (json_body["embeddings_connectors_path"].t() != crow::json::type::String) {
+                throw std::invalid_argument("embeddings_connectors_path must be a model path string");
+            }
+            params.embeddings_connectors_path = std::string(json_body["embeddings_connectors_path"].s());
+        }
         if (json_body.has("backend")) {
             if (json_body["backend"].t() != crow::json::type::String) {
                 throw std::invalid_argument("backend must be a device-assignment string");

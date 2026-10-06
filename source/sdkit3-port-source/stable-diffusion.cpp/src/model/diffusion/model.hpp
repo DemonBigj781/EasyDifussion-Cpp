@@ -70,6 +70,11 @@ struct FluxDiffusionExtra {
 struct AnimaDiffusionExtra {
     const sd::Tensor<int32_t>* t5_ids   = nullptr;
     const sd::Tensor<float>* t5_weights = nullptr;
+    const sd::Tensor<float>* ip_context = nullptr;
+    float ip_strength = 0.f;
+    bool ip_lora = false;
+    const sd::Tensor<float>* lllite_condition = nullptr;
+    float lllite_strength = 0.f;
 };
 
 struct WanDiffusionExtra {

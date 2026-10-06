@@ -19,6 +19,10 @@ FIXME - These are wrong:
 """
 
 CHECKPOINT_KEY_NAMES = {
+    "svd": [
+        "model.diffusion_model.input_blocks.1.1.time_stack.0.attn1.to_q.weight",
+        "model.diffusion_model.input_blocks.1.1.time_mixer.mix_factor",
+    ],
     "v1": "model.diffusion_model.output_blocks.11.0.skip_connection.weight",
     "v2": "model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_k.weight",
     "xl_base": "conditioner.embedders.1.model.transformer.resblocks.9.mlp.c_proj.bias",
@@ -89,6 +93,7 @@ CHECKPOINT_KEY_NAMES = {
     "wan_vace": "vace_blocks.0.after_proj.bias",
     "hidream": "double_stream_blocks.0.block.adaLN_modulation.1.bias",
     "anima": [
+        "net.llm_adapter.blocks.0.cross_attn.q_proj.weight",
         "llm_adapter.blocks.0.cross_attn.q_proj.weight",
         "model.diffusion_model.llm_adapter.blocks.0.cross_attn.q_proj.weight",
     ],
@@ -215,6 +220,17 @@ def has_all_keys(header, keys):
 
 def infer_diffusers_model_type(header):
     s = shape_of
+
+    for prefix in ("", "model.diffusion_model."):
+        if prefix + "audio_patchify_proj.weight" in header and prefix + "patchify_proj.weight" in header:
+            if prefix + "keyframes_abs_pos_embedding" in header:
+                return "ltx2_5"
+            if prefix + "transformer_blocks.0.attn1.to_gate_logits.weight" in header:
+                return "ltx2_3"
+            return "ltx2"
+
+    if has_all_keys(header, CHECKPOINT_KEY_NAMES["svd"]):
+        return "svd"
 
     if has_any_key(header, CHECKPOINT_KEY_NAMES["anima"]):
         return "anima"
@@ -431,6 +447,22 @@ def model_type_to_latent_family(model_type):
     return None
 
 
+def identify_controlnet_lllite_compatibility(path):
+    if not str(path).lower().endswith((".safetensors", ".sft")):
+        return None
+    header = read_safetensors_header(path)
+    shape = shape_of(header, "lllite_conditioning1.conv1.weight")
+    if shape and len(shape) == 4 and shape[2:] == (4, 4):
+        modules = [value.get("shape", ()) for key, value in header.items()
+                   if key.startswith("lllite_dit_blocks_") and key.endswith(".down.weight")]
+        if modules and all(len(value) == 2 and value[1] == 2048 for value in modules):
+            return {"architecture": "anima", "input_channels": shape[1],
+                    "aspp": any(key.startswith("lllite_conditioning1.aspp.") for key in header)}
+    if any(key.startswith("lllite_unet_") and key.endswith(".down.0.weight") for key in header):
+        return {"architecture": "unet", "input_channels": 3, "aspp": False}
+    return None
+
+
 def identify_vae_latent_family(path):
     """Identify the latent standard produced by an external image VAE.
 
@@ -483,6 +515,14 @@ def identify_ip_adapter_compatibility(path):
                 return tuple(value["shape"])
         return None
 
+    if all(
+        find_shape(f"blocks.{block}.{projection}.weight") == shape
+        for block in range(28)
+        for projection, shape in (("ip_k_proj", (2048, 768)), ("ip_v_proj", (2048, 768)),
+                                  ("adaln_ip.1", (2048, 2048)))
+    ):
+        return {"kind": "anima", "embedding_dim": 768}
+
     latents = find_shape("image_proj.latents")
     if latents is not None:
         proj_in = find_shape("image_proj.proj_in.weight")
@@ -511,6 +551,13 @@ def identify_clip_vision_compatibility(path):
         return None
 
     class_embedding = find_shape("vision_model.embeddings.class_embedding")
+    if (class_embedding is None
+        and find_shape("vision_model.embeddings.patch_embedding.weight") == (768, 3, 16, 16)
+        and find_shape("vision_model.embeddings.patch_embedding.bias") == (768,)
+        and find_shape("vision_model.embeddings.position_embedding.weight") == (1024, 768)
+        and find_shape("vision_model.encoder.layers.11.layer_norm2.weight") == (768,)
+        and find_shape("vision_model.post_layernorm.weight") == (768,)):
+        return {"hidden_dim": 768, "projection_dim": 0, "kind": "siglip2_base_patch16_512"}
     projection = find_shape("visual_projection.weight")
     if not class_embedding:
         patch = find_shape("vision_model.embeddings.patch_embedding.weight")

@@ -8,7 +8,7 @@
                 <input id="ip-adapter-model" type="text" spellcheck="false"
                        autocomplete="off" class="model-filter" data-path="">
 
-                <label for="ip-adapter-clip">CLIP Vision</label>
+                <label for="ip-adapter-clip">Vision encoder</label>
                 <input id="ip-adapter-clip" type="text" spellcheck="false"
                        autocomplete="off" class="model-filter" data-path="">
 
@@ -17,9 +17,9 @@
 
                 <label>Step range (%)</label>
                 <div>
-                    <input id="ip-adapter-start" type="number" value="0" min="0" max="100" step="1">
+                    <input id="ip-adapter-start" type="number" value="0" min="0" max="100" step="1" aria-label="Start step percentage">
                     –
-                    <input id="ip-adapter-end" type="number" value="100" min="0" max="100" step="1">
+                    <input id="ip-adapter-end" type="number" value="100" min="0" max="100" step="1" aria-label="End step percentage">
                 </div>
 
                 <label for="ip-adapter-image-input">Reference image</label>
@@ -35,7 +35,7 @@
                         aria-label="Clear IP-Adapter reference"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <small id="ip-adapter-status">
-                Native base IP-Adapter checkpoints are supported for SD 1.x and SDXL.
+            <small id="ip-adapter-status" role="status">
+                Native Anima (SigLIP2), SD 1.x and SDXL IP-Adapters are supported.
             </small>
         </div>

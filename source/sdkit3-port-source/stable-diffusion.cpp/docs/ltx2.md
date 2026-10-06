@@ -8,6 +8,26 @@ you pass.
 
 # LTX-2.3
 
+## Easy Diffusion legacy UI
+
+Select the LTX-2.3 checkpoint under **Options → Model**. The legacy UI selects
+matching installed video VAE and Gemma 3 12B IT weights under Options, and the
+audio VAE and embedding connectors under Video Options. These extra controls
+appear only for LTX-2.3. All four companion resources are required for split
+checkpoints; missing resources are reported before model loading. Automatic
+selection never downloads weights or substitutes LTX-2.0/2.5 resources.
+
+Place the transformer in a configured checkpoint/video directory, both VAEs in
+the configured VAE directory, and Gemma plus the connectors in the configured
+text-encoder directory. Keep the upstream resource names (including `ltx-2.3`,
+`video_vae`, `audio_vae`, and `embeddings_connectors`) for automatic selection;
+renamed resources can be selected manually. Overrides are saved per checkpoint.
+The sampler is Euler with the `ltx2` scheduler. Distilled checkpoints use eight
+steps and guidance 1; other checkpoints retain the configured steps/guidance.
+
+The current Easy Diffusion output remains a numbered frame strip. The audio VAE
+is passed to the engine, but generated audio is not exported by this UI.
+
 ## Download weights
 
 ### LTX-2.3

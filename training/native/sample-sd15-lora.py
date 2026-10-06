@@ -45,7 +45,7 @@ def main():
     parser.add_argument("--base-model", required=True)
     parser.add_argument("--lora", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--prompt", default="trigger, cat")
+    parser.add_argument("--prompt", required=True, help="Use the dataset caption; no placeholder is added")
     parser.add_argument("--url", default="http://127.0.0.1:10000")
     parser.add_argument("--weight", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=42)

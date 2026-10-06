@@ -121,6 +121,7 @@ class ScrapeImageTagRequest(ScrapeAttemptRequest):
 class TrainRequest(DatasetRequest):
     kind: Literal["lora", "embedding"] = "lora"
     architecture: Literal["sd15", "sdxl", "anima"] = "sd15"
+    backend: Literal["native", "python"] | None = None
     model: str
     qwen3: str = ""
     vae: str = ""
@@ -128,13 +129,20 @@ class TrainRequest(DatasetRequest):
     trigger: str = ""
     init_word: str = "object"
     steps: int = 1000
+    epochs: int | None = Field(None, ge=1, le=100000, strict=True)
+    dataset_repeats: int = Field(1, ge=1, le=100000, strict=True)
     batch_size: int = 1
     resolution: int = 512
     rank: int = 16
+    network_alpha: float | None = Field(None, gt=0, le=128, allow_inf_nan=False, strict=True)
+    lr_scheduler: Literal["constant", "cosine_with_restarts"] = "constant"
+    lr_warmup_steps: int = Field(0, ge=0, strict=True)
+    lr_scheduler_num_cycles: int = Field(1, ge=1, strict=True)
     vectors: int = 4
     save_every: int = 100
     seed: int = 42
     learning_rate: float = .0001
+    text_encoder_learning_rate: float = Field(0.0, ge=0, le=0.1, allow_inf_nan=False)
     precision: Literal["fp16", "bf16", "no"] = "fp16"
     checkpointing: Literal["off", "standard", "cpu_offload", "unsloth"] = "standard"
     blocks_to_swap: int = Field(0, ge=0, le=40)

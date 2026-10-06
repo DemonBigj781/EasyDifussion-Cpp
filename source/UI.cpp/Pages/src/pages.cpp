@@ -158,6 +158,7 @@ Node page_content(const Definition& page) {
     }
     if (page.id == "perchance-gallery") {
         return panel("Perchance Gallery", {
+            Node::element("p", {{"data-perchance-gallery-status", ""}, {"role", "status"}}, {Node::text("Checking content policy…")}),
             input("perchance-generator-gallery-id", "Gallery image ID or URL"),
             input("perchance-generator-gallery-channel", "Generator channel", "text", "ai-text-to-image-generator"),
             input("perchance-generator-gallery-limit", "Limit", "number", "20"),
@@ -235,31 +236,50 @@ Node page_content(const Definition& page) {
     }
     if (page.id == "image-gallery") return gallery::image_gallery();
     if (page.id == "training") {
-        return panel("Train a LoRA or embedding", {
+        auto group = [](const char* title, std::vector<Node> fields) {
+            return Node::element("fieldset", {{"class", "training-group"}}, {
+                Node::element("legend", {}, {Node::text(title)}),
+                Node::element("div", {{"class", "training-fields"}}, std::move(fields)),
+            });
+        };
+        return Node::element("div", {{"class", "training-layout"}}, {
+        Node::element("div", {{"class", "training-setup"}}, {
+        panel("Training setup", {
             Node::element("p", {{"id", "training-readiness"}, {"role", "status"}}, {Node::text("Checking training runtime…")}),
             button("training-refresh", "Refresh runtime and models"),
-            Node::element("fieldset", {}, {
-                Node::element("legend", {}, {Node::text("SpriteGPT · 64×64 pixel-space")}),
-                Node::element("p", {}, {Node::text("Separate trainer for RGB sprites. No VAE is used.")}),
-                Node::element("p", {{"id", "training-spritegpt-status"}, {"role", "status"}}, {Node::text("Checking SpriteGPT runtime…")}),
-                button("training-spritegpt-start", "Start SpriteGPT runtime"),
-                button("training-spritegpt-open", "Open SpriteGPT Studio"),
-                button("training-spritegpt-stop", "Stop SpriteGPT runtime"),
-            }),
-            Node::element("p", {}, {Node::text("Finish generation and release loaded inference models before starting training.")}),
+            group("1 · Dataset and model", {
             select_input("training-dataset", "Dataset", {{"", "Load a dataset"}}),
-            input("training-trigger", "Trigger word or phrase"),
+            input("training-trigger", "Optional extra tag (blank uses captions only)"),
             select_input("training-kind", "Train", {{"lora", "LoRA"}, {"embedding", "Embedding"}}),
             select_input("training-architecture", "Base model family", {{"sd15", "Stable Diffusion 1.5"}, {"sdxl", "SDXL"}, {"anima", "Anima"}}),
-            select_input("training-model", "Full checkpoint", {{"", "Select a checkpoint"}}),
-            select_input("training-qwen3", "Anima Qwen3 text encoder", {{"", "Select configured text encoder"}}),
-            select_input("training-vae", "Anima Qwen-Image VAE", {{"", "Select configured VAE"}}),
+            select_input("training-backend", "Training backend", {{"native", "Native C++ (SD1.5)"}, {"python", "Legacy Python (sd-scripts)"}}),
+            input("training-model", "Full checkpoint (search models)"),
             input("training-name", "Output name", "text", "my_lora"),
-            input("training-steps", "Training steps", "number", "1000"),
+            }),
+            group("2 · Training and learning rates", {
+            input("training-steps", "Training steps", "number", "1200"),
+            input("training-epochs", "Epochs (optional; overrides steps)", "number"),
+            input("training-repeats", "Dataset repeats per epoch", "number", "1"),
             input("training-resolution", "Resolution", "number", "512"),
             input("training-batch", "Batch size", "number", "1"),
-            input("training-rate", "Learning rate", "number", "0.0001"),
+            input("training-rate", "Learning rate", "number", "0.00005"),
+            input("training-text-encoder-rate", "Text encoder learning rate (SD1.5 LoRA; 0 freezes CLIP)", "number", "0.000005"),
             input("training-rank", "LoRA rank", "number", "16"),
+            input("training-alpha", "LoRA alpha (blank follows rank)", "number", ""),
+            select_input("training-scheduler", "Learning rate schedule", {{"constant", "Constant"}, {"cosine_with_restarts", "Cosine with hard restarts"}}),
+            input("training-warmup", "Warmup steps", "number", "0"),
+            input("training-cycles", "Cosine cycles (1 = no intermediate restart)", "number", "1"),
+            select_input("training-precision", "Precision", {{"fp16", "FP16"}, {"bf16", "BF16"}, {"no", "FP32"}}),
+            input("training-save-every", "Save every N steps", "number", "100"),
+            input("training-seed", "Seed", "number", "42"),
+            }),
+            Node::element("p", {{"id", "training-native-note"}, {"class", "training-note"}}, {
+                Node::text("Native SD1.5 uses AdamW, batch size 1 and fixed precision. Each full epoch is images × repeats steps; its checkpoint and fixed-seed caption sample finish before the next epoch starts."),
+            }),
+            Node::element("div", {{"id", "training-anima-settings"}, {"hidden", "hidden"}}, {
+            group("Anima settings", {
+            select_input("training-qwen3", "Qwen3 text encoder", {{"", "Select configured text encoder"}}),
+            select_input("training-vae", "Qwen-Image VAE", {{"", "Select configured VAE"}}),
             select_input("training-checkpointing", "Gradient checkpointing", {{"standard", "Standard"}, {"cpu_offload", "CPU offload"}, {"unsloth", "Unsloth asynchronous offload"}, {"off", "Disabled"}}),
             input("training-blocks-swap", "Anima blocks to swap", "number", "0"),
             select_input("training-optimizer", "Optimizer", {{"AdamW", "AdamW"}, {"AdamW8bit", "AdamW8bit"}}),
@@ -267,15 +287,35 @@ Node page_content(const Definition& page) {
                 Node::element("input", {{"id", "training-cache-text"}, {"type", "checkbox"}, {"checked", "checked"}}),
                 Node::text(" Cache Anima text encoder outputs"),
             }),
-            select_input("training-precision", "Precision", {{"fp16", "FP16"}, {"bf16", "BF16"}, {"no", "FP32"}}),
-            input("training-save-every", "Save every N steps", "number", "100"),
-            input("training-seed", "Seed", "number", "42"),
+            }),
+            }),
+            Node::element("p", {{"class", "training-note"}}, {Node::text("Finish generation and release loaded inference models before starting training.")}),
             button("training-start", "Start training", "primaryButton"),
-            select_input("training-job", "Job history", {{"", "Select a job"}}),
-            button("training-cancel", "Cancel job"), button("training-resume", "Resume LoRA"),
-            Node::element("progress", {{"id", "training-progress"}, {"max", "1"}, {"value", "0"}}, {}),
-            Node::element("pre", {{"id", "training-log"}, {"aria-label", "Training log"}}, {}),
             Node::element("p", {{"id", "training-error"}, {"role", "alert"}}, {}),
+        }),
+        }),
+        Node::element("aside", {{"class", "training-results"}, {"aria-label", "Training jobs and runtimes"}}, {
+        panel("Jobs and results", {
+            select_input("training-job", "Job history", {{"", "Select a job"}}),
+            Node::element("p", {{"id", "training-job-status"}, {"role", "status"}}, {Node::text("No job selected.")}),
+            Node::element("progress", {{"id", "training-progress"}, {"aria-label", "Training progress"}, {"max", "1"}, {"value", "0"}}, {}),
+            Node::element("div", {{"class", "training-actions"}}, {
+                button("training-cancel", "Cancel job"), button("training-resume", "Resume LoRA"),
+            }),
+            Node::element("h4", {}, {Node::text("Job log")}),
+            Node::element("pre", {{"id", "training-log"}, {"tabindex", "0"}, {"aria-label", "Training log"}}, {Node::text("Select a job to view its log.")}),
+        }),
+        Node::element("details", {{"class", "panel-box training-sprite"}}, {
+            Node::element("summary", {}, {Node::text("SpriteGPT · separate runtime")}),
+            Node::element("p", {}, {Node::text("64×64 RGB sprite training, separate from LoRA training. No VAE is used.")}),
+            Node::element("p", {{"id", "training-spritegpt-status"}, {"role", "status"}}, {Node::text("Checking SpriteGPT runtime…")}),
+            Node::element("div", {{"class", "training-actions"}}, {
+                button("training-spritegpt-start", "Start SpriteGPT runtime"),
+                button("training-spritegpt-open", "Open SpriteGPT Studio"),
+                button("training-spritegpt-stop", "Stop SpriteGPT runtime"),
+            }),
+        }),
+        }),
         });
     }
     if (page.id == "model-downloading") {
@@ -289,7 +329,15 @@ Node page_content(const Definition& page) {
             Node::element("div", {{"id", "civitai-downloader-results"}}, {}),
         });
     }
-    if (page.id == "settings" || page.id == "gpu-config" || page.id == "plugin-config") {
+    if (page.id == "plugin-config") {
+        return panel("Local Plugin Manager", {
+            Node::element("p", {}, {Node::text("The same optional plugins and saved choices as the legacy UI. Changes are saved automatically in this browser. Reload existing legacy pages to apply changes made here.")}),
+            Node::element("p", {}, {Node::text("All listed plugins have modern UI support. Enable a plugin here, then open Main for its controls and image actions. Perchance plugins use their dedicated pages.")}),
+            input("cpp-plugin-filter", "Search plugins", "search"),
+            Node::element("div", {{"id", "cpp-plugin-manager-controls"}}, {}),
+        });
+    }
+    if (page.id == "settings" || page.id == "gpu-config") {
         std::vector<Node> settings = {
             Node::element("div", {{"id", "system-settings-table"}, {"class", "parameters-table"}}, {
                 Node::element("div", {{"data-setting-id", "backend_platform"}, {"data-save-in-app-config", "true"}}, {
@@ -310,6 +358,20 @@ Node page_content(const Definition& page) {
         if (page.id == "gpu-config") {
             settings.push_back(settings::native_device_routing());
         }
+        if (page.id == "settings") {
+            settings.push_back(Node::element("fieldset", {{"id", "cpp-input-saving"}}, {}));
+            settings.push_back(Node::element("fieldset", {{"id", "kiosk-settings"}}, {
+                Node::element("legend", {}, {Node::text("Kiosk mode")}),
+                Node::element("label", {{"for", "kiosk-mode-enabled"}}, {
+                    Node::element("input", {{"id", "kiosk-mode-enabled"}, {"type", "checkbox"}}),
+                    Node::text(" Enable kiosk mode"),
+                }),
+                Node::element("p", {}, {Node::text("Only SD1.5, SDXL and Anima base checkpoints; no LoRAs. Perchance uses its stricter G filter; unrated generation is unavailable. The main gallery uses Destockd, never local images.")}),
+                Node::element("p", {}, {Node::text("This is a display policy, not a password-protected lock. Destockd's source filtering is not a PG certification.")}),
+                button("kiosk-mode-save", "Save kiosk mode", "primaryButton"),
+                Node::element("p", {{"id", "kiosk-mode-save-status"}, {"role", "status"}}, {}),
+            }));
+        }
         settings.push_back(button("save-system-settings-btn", "Save", "primaryButton"));
         settings.push_back(Node::element("div", {{"id", "system-info"}}, {
             Node::text("System information will appear here.")
@@ -326,15 +388,21 @@ Node page_content(const Definition& page) {
         });
     }
     if (page.id == "logs") {
-        return panel("C++ UI Serving Log", {
-            Node::element("p", {{"id", "log-viewer-status"}, {"role", "status"}}, {Node::text("Waiting for serving events…")}),
-            button("log-viewer-refresh", "Refresh events", "primaryButton"),
+        return panel("Application and Backend Log", {
+            Node::element("p", {{"id", "log-viewer-status"}, {"role", "status"}}, {Node::text("Loading recent application logs…")}),
+            button("log-viewer-refresh", "Refresh logs", "primaryButton"),
             Node::element("pre", {{"id", "log-viewer-output"}, {"aria-live", "polite"}}, {}),
         });
     }
     if (page.id == "console") {
-        return panel("Browser Console", {
-            Node::element("p", {{"id", "ui-console-status"}, {"role", "status"}}, {Node::text("Capturing browser errors and UI diagnostics.")}),
+        return panel("Diagnostics Console", {
+            Node::element("p", {{"id", "ui-console-status"}, {"role", "status"}}, {Node::text("Read-only app diagnostics and file navigation. Type help for commands. Symlinks are allowed; no shell or editor.")}),
+            Node::element("form", {{"id", "ui-console-form"}}, {
+                Node::element("label", {{"for", "ui-console-command"}}, {Node::text("Command"),
+                    Node::element("input", {{"id", "ui-console-command"}, {"type", "text"}, {"autocomplete", "off"},
+                        {"spellcheck", "false"}, {"placeholder", "help · status · logs · ls · cd models · stat config.yaml"}})}),
+                Node::element("button", {{"id", "ui-console-run"}, {"type", "submit"}, {"class", "primaryButton"}}, {Node::text("Run")}),
+            }),
             button("ui-console-clear", "Clear console"),
             Node::element("pre", {{"id", "ui-console-output"}, {"aria-live", "polite"}}, {}),
         });
@@ -358,6 +426,7 @@ Page render(const std::string& path) {
     std::vector<Node> shell = {
         Node::element("header", {}, {
             Node::element("h1", {}, {Node::text("Easy Diffusion C++")}),
+            Node::element("p", {{"id", "kiosk-status-banner"}, {"role", "status"}, {"hidden", "hidden"}}, {}),
             nav("Primary navigation", "primary", active),
             nav("System navigation", "system", active),
         }),
@@ -373,16 +442,42 @@ Page render(const std::string& path) {
         .add_stylesheet("/media/css/themes.css")
         .add_stylesheet("/media/css/fonts.css")
         .set_body(Node::element("div", {{"class", "app-shell"}}, std::move(shell)));
+    page.add_script("/media/js/local-plugin-preferences.js");
+    if (active->id == "main" || active->id == "settings")
+        page.add_script("/cpp-ui/scripts/input_preferences.js");
+    page.add_script("/cpp-ui/scripts/kiosk.js");
+    page.add_script("/cpp-ui/scripts/plugin_preferences.js");
     if (active->id == "logs") page.add_script("/cpp-ui/assets/log-viewer.js");
     if (active->id == "console") page.add_script("/cpp-ui/assets/console.js");
     if (active->id == "gpu-config") page.add_script("/cpp-ui/scripts/native-device-routing.js");
-    if (active->id == "settings" || active->id == "gpu-config" || active->id == "plugin-config")
+    if (active->id == "settings" || active->id == "gpu-config")
         page.add_script("/cpp-ui/scripts/backend-platform.js");
+    if (active->id == "plugin-config") page.add_script("/cpp-ui/scripts/plugin_manager.js");
+    if (active->id == "main" || active->id == "training") {
+        page.add_stylesheet("/media/css/searchable-models.css");
+        page.add_stylesheet("/media/css/fontawesome-all.min.css");
+        page.add_script("/media/js/utils.js");
+        page.add_script("/media/js/searchable-models.js");
+    }
     if (active->id == "main") {
+        page.add_script("/media/js/ip-adapter-compatibility.js");
+        page.add_script("/cpp-ui/scripts/ip_adapter.js");
         page.add_script("/cpp-ui/scripts/generate_plugins.js");
+        page.add_script("/cpp-ui/scripts/image_modifiers.js");
+        page.add_script("/cpp-ui/scripts/generation_queue.js");
+        page.add_script("/cpp-ui/scripts/optional_plugins.js");
         page.add_script("/cpp-ui/scripts/generate.js");
+        page.add_script("/cpp-ui/scripts/creative_plugins.js");
+        page.add_script("/cpp-ui/scripts/workbench_core.js");
+        page.add_script("/cpp-ui/scripts/prompt_workbench.js");
+        page.add_script("/cpp-ui/scripts/image_workbench.js");
+        page.add_script("/cpp-ui/scripts/template_manager.js");
+        page.add_script("/cpp-ui/scripts/spell_workbench.js");
+        page.add_script("/plugins/core/prompt_plugin/prompt-assist.plugin.js");
     }
     if (active->id == "image-gallery") page.add_script("/cpp-ui/scripts/gallery.js");
+    if (active->id == "perchance-gallery") page.add_script("/cpp-ui/scripts/perchance_gallery.js");
+    if (active->id == "training") page.add_script("/cpp-ui/scripts/training.js");
     return page;
 }
 

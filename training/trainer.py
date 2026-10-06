@@ -168,12 +168,37 @@ def probe(root: Path):
     return result
 
 
+def native_epoch_options(payload, image_count):
+    spec = dict(payload)
+    repeats = spec.get("dataset_repeats", 1)
+    epochs = spec.get("epochs")
+    if isinstance(repeats, bool) or not isinstance(repeats, int) or not 1 <= repeats <= 100000:
+        raise ValueError("Dataset repeats must be an integer from 1 to 100000")
+    if epochs is not None and (isinstance(epochs, bool) or not isinstance(epochs, int) or not 1 <= epochs <= 100000):
+        raise ValueError("Epochs must be an integer from 1 to 100000")
+    if not 1 <= image_count * repeats <= 100000:
+        raise ValueError("Steps per epoch must be from 1 to 100000")
+    spec["dataset_repeats"] = repeats
+    spec["steps_per_epoch"] = image_count * repeats
+    if epochs is not None:
+        spec["steps"] = spec["steps_per_epoch"] * epochs
+        if spec["steps"] > 100000:
+            raise ValueError("Total training steps must not exceed 100000")
+    return spec
+
+
 def validate_training(payload):
     spec = dict(payload)
     if (spec.get("kind"), spec.get("architecture")) not in SCRIPTS:
         raise ValueError("Choose LoRA or embedding with SD1.5/SDXL, or LoRA with Anima")
     if spec["architecture"] == "anima" and spec["kind"] != "lora":
         raise ValueError("Anima currently supports LoRA training only")
+    backend = spec.get("backend") or ("native" if spec["architecture"] == "sd15" else "python")
+    if backend not in {"native", "python"}:
+        raise ValueError("Choose the native C++ or legacy Python training backend")
+    if backend == "native" and spec["architecture"] != "sd15":
+        raise ValueError("Native C++ training supports SD1.5 only")
+    spec["backend"] = backend
     name = spec.get("output_name", "")
     if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", name):
         raise ValueError("Output name must use 1–80 letters, digits, underscores or hyphens")
@@ -189,6 +214,28 @@ def validate_training(payload):
         spec[key] = value
     if spec["resolution"] % 64:
         raise ValueError("Resolution must be a multiple of 64")
+    alpha = spec.get("network_alpha")
+    if alpha is None:
+        alpha = spec["rank"]
+    if (isinstance(alpha, bool) or not isinstance(alpha, (int, float))
+            or not math.isfinite(alpha) or not 0 < alpha <= 128):
+        raise ValueError("LoRA alpha must be finite, positive and at most 128")
+    spec["network_alpha"] = alpha
+    spec.setdefault("lr_scheduler", "constant")
+    if spec["lr_scheduler"] not in {"constant", "cosine_with_restarts"}:
+        raise ValueError("Unsupported learning rate scheduler")
+    for key, default, low, high in (
+        ("lr_warmup_steps", 0, 0, spec["steps"] - 1),
+        ("lr_scheduler_num_cycles", 1, 1, spec["steps"]),
+    ):
+        value = spec.get(key, default)
+        if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+            raise ValueError(f"{key} must be an integer from {low} to {high}")
+        spec[key] = value
+    if spec["lr_scheduler_num_cycles"] > spec["steps"] - spec["lr_warmup_steps"]:
+        raise ValueError("Scheduler cycles must not exceed post-warmup steps")
+    if spec["lr_scheduler"] == "constant" and (spec["lr_warmup_steps"] or spec["lr_scheduler_num_cycles"] != 1):
+        raise ValueError("Constant scheduling requires zero warmup and one cycle")
     if spec["architecture"] == "anima":
         if spec.get("checkpointing", "standard") not in {"off", "standard", "cpu_offload", "unsloth"}:
             raise ValueError("Unsupported Anima gradient checkpointing strategy")
@@ -203,6 +250,13 @@ def validate_training(payload):
     if isinstance(rate, bool) or not isinstance(rate, (int, float)) or not math.isfinite(rate) or not 0 < rate <= 0.1:
         raise ValueError("Learning rate must be positive and at most 0.1")
     spec["learning_rate"] = rate
+    text_rate = spec.get("text_encoder_learning_rate", 0.0)
+    if (isinstance(text_rate, bool) or not isinstance(text_rate, (int, float))
+            or not math.isfinite(text_rate) or not 0 <= text_rate <= 0.1):
+        raise ValueError("Text encoder learning rate must be finite, non-negative and at most 0.1")
+    if text_rate and (spec["kind"], spec["architecture"]) != ("lora", "sd15"):
+        raise ValueError("Text encoder training is currently supported only for SD1.5 LoRA")
+    spec["text_encoder_learning_rate"] = text_rate
     spec.setdefault("precision", "fp16")
     if spec["precision"] not in {"fp16", "bf16", "no"}:
         raise ValueError("Unsupported precision")
@@ -234,14 +288,23 @@ def build_command(spec, backend: Path, python: Path, job_dir: Path):
         "max_train_steps": spec["steps"], "save_every_n_steps": spec["save_every"],
         "learning_rate": spec["learning_rate"],
         "optimizer_type": spec.get("optimizer_type", "AdamW") if spec["architecture"] == "anima" else "AdamW",
-        "lr_scheduler": "constant", "mixed_precision": spec["precision"],
+        "lr_scheduler": spec["lr_scheduler"], "mixed_precision": spec["precision"],
         "seed": spec["seed"], "max_data_loader_n_workers": 0,
+        "sample_every_n_epochs": 1, "sample_prompts": job_dir / "sample-prompts.json",
+        "sample_sampler": "ddim",
     }
+    if spec["lr_scheduler"] == "cosine_with_restarts":
+        args.update(lr_warmup_steps=spec["lr_warmup_steps"],
+                    lr_scheduler_num_cycles=spec["lr_scheduler_num_cycles"])
     if spec["kind"] == "lora":
         network_module = "networks.lora_anima" if spec["architecture"] == "anima" else "networks.lora"
         args.update(network_module=network_module, network_dim=spec["rank"],
-                    network_alpha=spec["rank"], training_comment=f"Easy Diffusion; trigger: {spec['trigger']}")
-        command += ["--network_train_unet_only", "--save_state", "--save_state_on_train_end"]
+                    network_alpha=spec["network_alpha"], training_comment=f"Easy Diffusion; trigger: {spec['trigger']}")
+        if spec["text_encoder_learning_rate"]:
+            args.update(unet_lr=spec["learning_rate"], text_encoder_lr=spec["text_encoder_learning_rate"])
+        else:
+            command.append("--network_train_unet_only")
+        command += ["--save_state", "--save_state_on_train_end"]
     else:
         args.update(token_string=spec["trigger"], init_word=spec["init_word"], num_vectors_per_token=spec["vectors"])
     if spec.get("resume_state"):
@@ -310,6 +373,12 @@ def stage_dataset(spec, job_dir: Path, cancel: threading.Event):
         f'[[datasets.subsets]]\nimage_dir = {json.dumps(str(target), ensure_ascii=False)}\nnum_repeats = 1\n'
     )
     (job_dir / "dataset.toml").write_text(config, encoding="utf-8")
+    first_caption = next(target.glob("*.txt")).read_text(encoding="utf-8").strip()
+    (job_dir / "sample-prompts.json").write_text(json.dumps([{
+        "prompt": first_caption, "negative_prompt": "", "seed": spec["seed"],
+        "width": spec["resolution"], "height": spec["resolution"],
+        "sample_steps": 25, "scale": 7.5,
+    }], ensure_ascii=False), encoding="utf-8")
     emit("dataset", images=len(images))
 
 

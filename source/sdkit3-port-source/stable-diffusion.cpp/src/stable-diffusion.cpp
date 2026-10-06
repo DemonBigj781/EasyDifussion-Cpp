@@ -24,6 +24,7 @@
 #include "extensions/generation_extension.h"
 #include "model/adapter/latent_interposer.hpp"
 #include "model/adapter/ip_adapter.hpp"
+#include "model/te/siglip2.hpp"
 #include "model/adapter/lora.hpp"
 #include "model/diffusion/anima.hpp"
 #include "model/diffusion/animatediff.hpp"
@@ -249,6 +250,7 @@ public:
     std::shared_ptr<LatentInterposerRunner> latent_interposer_decode;
     std::shared_ptr<AutoEncoderKL> furception_vae;
     std::shared_ptr<IPAdapter::IPAdapterRunner> ip_adapter;
+    std::shared_ptr<SigLIP2::Runner> siglip2;
     sd::Tensor<float> ip_adapter_tokens;
     sd::Tensor<float> ip_adapter_uncond_tokens;
     float ip_adapter_strength = 1.0f;
@@ -781,18 +783,33 @@ public:
             }
         }
 
+        const bool anima_ip = strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0 &&
+                              sd_version_is_anima(model_loader.get_sd_version());
+        if (anima_ip && strlen(SAFE_STR(sd_ctx_params->clip_vision_path)) == 0) {
+            LOG_ERROR("Anima IP-Adapter requires google/siglip2-base-patch16-512 via clip_vision_path");
+            return false;
+        }
         if (strlen(SAFE_STR(sd_ctx_params->clip_vision_path)) > 0) {
             LOG_INFO("loading clip_vision from '%s'", sd_ctx_params->clip_vision_path);
-            if (!model_loader.init_from_file(sd_ctx_params->clip_vision_path, "clip_vision.")) {
+            if (!model_loader.init_from_file(sd_ctx_params->clip_vision_path, anima_ip ? "siglip2." : "clip_vision.")) {
                 LOG_WARN("loading clip_vision from '%s' failed", sd_ctx_params->clip_vision_path);
+                if (anima_ip) return false;
             }
         }
 
         if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0) {
             LOG_INFO("loading IP-Adapter from '%s'", sd_ctx_params->ip_adapter_path);
-            if (!model_loader.init_from_file(sd_ctx_params->ip_adapter_path)) {
+            if (!model_loader.init_from_file(sd_ctx_params->ip_adapter_path, anima_ip ? "anima_ip." : "")) {
                 LOG_ERROR("loading IP-Adapter from '%s' failed", sd_ctx_params->ip_adapter_path);
                 return false;
+            }
+            if (anima_ip) {
+                try {
+                    AnimaIP::validate_checkpoint(model_loader.get_tensor_storage_map(), model_loader.get_metadata());
+                } catch (const std::exception& error) {
+                    LOG_ERROR("%s", error.what());
+                    return false;
+                }
             }
         }
 
@@ -1033,8 +1050,8 @@ public:
         if (use_control_net) {
             model_loader.convert_controlnet_tensors_name(version);
         }
-        if (use_control_net_lllite && !sd_version_is_unet(version)) {
-            LOG_ERROR("ControlNet-LLLite is supported only by SD1.x, SD2.x, and SDXL UNet models");
+        if (use_control_net_lllite && !sd_version_is_unet(version) && !sd_version_is_anima(version)) {
+            LOG_ERROR("ControlNet-LLLite requires a supported UNet or Anima model");
             return false;
         }
 
@@ -1444,6 +1461,17 @@ public:
                                                                            "model.diffusion_model.model.net",
                                                                            model_manager);
             } else if (sd_version_is_anima(version)) {
+                if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0) {
+                    for (const auto module : {SDBackendModule::DIFFUSION, SDBackendModule::CLIP_VISION}) {
+                        if (!ensure_backend_pair(module)) return false;
+                        for (auto backend : backend_manager.runtime_backends(module)) {
+                            if (!sd_backend_is_cpu(backend) && !sd_backend_is(backend, "CUDA")) {
+                                LOG_ERROR("Anima IP-Adapter requires CPU/CUDA for %s; Vulkan does not meet the adapter's F32 precision requirements", sd_backend_module_name(module));
+                                return false;
+                            }
+                        }
+                    }
+                }
                 cond_stage_model = std::make_shared<AnimaConditioner>(backend_for(SDBackendModule::TE),
                                                                       tensor_storage_map,
                                                                       model_manager);
@@ -1659,7 +1687,17 @@ public:
                 }
             }
 
-            if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0 && clip_vision == nullptr) {
+            if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0 && sd_version_is_anima(version)) {
+                if (!ensure_backend_pair(SDBackendModule::CLIP_VISION)) return false;
+                siglip2 = std::make_shared<SigLIP2::Runner>(backend_for(SDBackendModule::CLIP_VISION),
+                                                           tensor_storage_map, model_manager, "siglip2.vision_model");
+                siglip2->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::CLIP_VISION));
+                siglip2->set_execution_cancel_callback([this]() { return get_cancel_flag() == SD_CANCEL_ALL; });
+                if (!register_runner_params("SigLIP2 vision", siglip2, SDBackendModule::CLIP_VISION,
+                                             &clip_vision_params_mem_size)) return false;
+            }
+
+            if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0 && !sd_version_is_anima(version) && clip_vision == nullptr) {
                 if (!ensure_backend_pair(SDBackendModule::CLIP_VISION)) {
                     return false;
                 }
@@ -1675,7 +1713,7 @@ public:
                 }
             }
 
-            if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0) {
+            if (strlen(SAFE_STR(sd_ctx_params->ip_adapter_path)) > 0 && !sd_version_is_anima(version)) {
                 if (!ensure_backend_pair(SDBackendModule::IP_ADAPTER)) {
                     return false;
                 }
@@ -2617,6 +2655,26 @@ public:
         ip_adapter_tokens        = {};
         ip_adapter_uncond_tokens = {};
         ip_adapter_strength      = strength;
+        if (siglip2 != nullptr) {
+            if (!std::isfinite(strength) || strength < 0.f) {
+                LOG_ERROR("Anima IP-Adapter strength must be finite and nonnegative");
+                return false;
+            }
+            if (image.data == nullptr || strength == 0.f) return true;
+            if (image.channel != 3 || image.width == 0 || image.height == 0) {
+                LOG_ERROR("Anima IP-Adapter requires an RGB reference image");
+                return false;
+            }
+            auto pixels = SigLIP2::preprocess(image.data, image.width, image.height);
+            ip_adapter_tokens = siglip2->compute(n_threads, pixels);
+            if (ip_adapter_tokens.empty()) {
+                LOG_ERROR("SigLIP2 image encoding failed");
+                return false;
+            }
+            ip_adapter_tokens.reshape_({768, 1024});
+            LOG_INFO("Anima IP-Adapter: 1024 SigLIP2 tokens, strength %.2f; cross-attention LoRA only", strength);
+            return true;
+        }
         if (ip_adapter == nullptr || clip_vision == nullptr || image.data == nullptr) {
             return true;
         }
@@ -3234,8 +3292,22 @@ public:
                     diffusion_params.extra = FluxDiffusionExtra{&guidance_tensor,
                                                                 local_skip_layers};
                 } else if (sd_version_is_anima(version)) {
-                    diffusion_params.extra = AnimaDiffusionExtra{condition.c_t5_ids.empty() ? nullptr : &condition.c_t5_ids,
-                                                                 condition.c_t5_weights.empty() ? nullptr : &condition.c_t5_weights};
+                    AnimaDiffusionExtra extra{condition.c_t5_ids.empty() ? nullptr : &condition.c_t5_ids,
+                                               condition.c_t5_weights.empty() ? nullptr : &condition.c_t5_weights};
+                    const int index = std::max(0, step - 1);
+                    const int start = static_cast<int>(std::floor(steps * std::max(0.f, control_net_lllite_start_percent) * .01f));
+                    const int end = control_net_lllite_end_percent > 0.f
+                        ? static_cast<int>(std::floor(steps * control_net_lllite_end_percent * .01f)) : static_cast<int>(steps);
+                    if (!control_net_lllite_image.empty() && index >= start && index < end) {
+                        extra.lllite_condition = &control_net_lllite_image;
+                        extra.lllite_strength = control_net_lllite_strength;
+                    }
+                    if (!ip_adapter_tokens.empty() && active_ip_adapter_strength != 0.f) {
+                        extra.ip_context = use_uncond_ip ? nullptr : &ip_adapter_tokens;
+                        extra.ip_strength = active_ip_adapter_strength;
+                        extra.ip_lora = true;
+                    }
+                    diffusion_params.extra = extra;
                 } else if (sd_version_is_wan(version)) {
                     diffusion_params.extra = WanDiffusionExtra{vace_context.empty() ? nullptr : &vace_context,
                                                                vace_strength};
@@ -6232,7 +6304,8 @@ static std::optional<ImageGenerationEmbeds> prepare_image_generation_embeds(sd_c
                                              ? sd_img_gen_params->ip_adapter.image
                                              : sd_img_gen_params->ip_adapter_image;
     if (ip_adapter_image.data != nullptr && request->ip_adapter_strength != 0.f) {
-        if (sd_ctx->sd->ip_adapter == nullptr || sd_ctx->sd->clip_vision == nullptr) {
+        if (sd_ctx->sd->siglip2 == nullptr &&
+            (sd_ctx->sd->ip_adapter == nullptr || sd_ctx->sd->clip_vision == nullptr)) {
             LOG_ERROR("an IP-Adapter image was supplied, but ip_adapter_path and clip_vision_path were not loaded");
             return std::nullopt;
         }

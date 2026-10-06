@@ -1412,6 +1412,9 @@ static std::string convert_ip_adapter_name(std::string name, SDVersion version) 
 }
 
 std::string convert_tensor_name(std::string name, SDVersion version) {
+    if (starts_with(name, "anima_ip.") || starts_with(name, "siglip2.")) {
+        return name;
+    }
     if (version == VERSION_ESRGAN) {
         return convert_esrgan_tensor_name(std::move(name));
     }

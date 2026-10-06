@@ -12,8 +12,8 @@ Node two_columns(Node left, Node right) {
 }
 Node main_page() {
     Node controls = Node::element("div", {{"class", "generation-controls"}}, {
-        prompts(), display(), plugin_tab_inject(), image_options(), options(),
-        render_options(), output_options(), queue(),
+        prompts(), queue(), options(), display(), plugin_tab_inject(), image_options(),
+        render_options(), output_options(),
     });
     return two_columns(std::move(controls), image_view());
 }

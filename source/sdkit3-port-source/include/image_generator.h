@@ -84,6 +84,8 @@ struct ImageGenerationParams {
 };
 
 struct VideoGenerationParams {
+    std::string audio_vae_path;
+    std::string embeddings_connectors_path;
     std::string backend;
     std::string prompt;
     std::string negative_prompt;
@@ -177,7 +179,9 @@ class ImageGenerator {
                            const std::string& latent_interposer_decode_model_path = "",
                            sd_vae_format_t latent_interposer_vae_format = SD_VAE_FORMAT_AUTO,
                            bool native_video_request = false,
-                           const std::string& request_compute_backend = "");
+                           const std::string& request_compute_backend = "",
+                           const std::string& audio_vae_path = "",
+                           const std::string& embeddings_connectors_path = "");
 
     sd_ctx_t* sd_ctx_;
     std::shared_ptr<TaskStateManager> task_state_manager_;

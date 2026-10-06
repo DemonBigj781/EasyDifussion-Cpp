@@ -598,6 +598,8 @@ def generate_video(
     cache_threshold=None,
     cache_start_percent: float = 15.0,
     cache_end_percent: float = 95.0,
+    audio_vae_model: str = None,
+    embeddings_connectors_model: str = None,
     callback=None,
 ):
     if not USE_SDKIT3_API:
@@ -635,6 +637,11 @@ def generate_video(
         cmd["init_images"] = [init_image]
     if end_image:
         cmd["end_image"] = end_image
+
+    if audio_vae_model:
+        cmd["audio_vae_path"] = audio_vae_model
+    if embeddings_connectors_model:
+        cmd["embeddings_connectors_path"] = embeddings_connectors_model
 
     operation = "img2video" if init_image else "txt2video"
     progress_thread = None

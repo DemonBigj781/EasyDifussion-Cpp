@@ -164,7 +164,10 @@ function saveSettings() {
             ignore: setting.ignore,
         }
     })
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved_settings))
+    const previous = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "[]")
+    const knownKeys = new Set(saved_settings.map(setting => setting.key))
+    const otherSettings = Array.isArray(previous) ? previous.filter(setting => !knownKeys.has(setting.key)) : []
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify([...otherSettings, ...saved_settings]))
 }
 
 var CURRENTLY_LOADING_SETTINGS = false
@@ -184,7 +187,7 @@ function loadSettings() {
                 return null
             }
             setting.ignore = saved_setting.ignore
-            if (!setting.ignore) {
+            if (!setting.ignore && "value" in saved_setting) {
                 setting.value = saved_setting.value
                 setSetting(setting.element, setting.value)
             }

@@ -2,6 +2,7 @@
 
 #include "image_utils.h"
 #include "logging.h"
+#include <limits>
 
 ImageFilters::ImageFilters(std::shared_ptr<ModelManager> model_manager)
     : model_manager_(model_manager), upscaler_ctx_(nullptr) {
@@ -62,8 +63,17 @@ std::vector<std::string> ImageFilters::upscaleBatch(const std::vector<std::strin
 sd_image_t ImageFilters::upscaleImage(const sd_image_t& input_image, int upscale_factor) {
     sd_image_t upscaled_image = {0, 0, 0, nullptr};
 
-    if (!input_image.data) {
+    if (!input_image.data || !input_image.width || !input_image.height || !input_image.channel || upscale_factor < 1) {
         LOG_ERROR("Cannot upscale invalid image");
+        return upscaled_image;
+    }
+
+    const uint64_t target_width = uint64_t(input_image.width) * uint64_t(upscale_factor);
+    const uint64_t target_height = uint64_t(input_image.height) * uint64_t(upscale_factor);
+    const uint64_t max_size = std::numeric_limits<int>::max();
+    if (target_width > max_size || target_height > max_size ||
+        target_width > max_size / target_height / input_image.channel) {
+        LOG_ERROR("Requested upscale dimensions exceed supported image size");
         return upscaled_image;
     }
 
@@ -83,6 +93,12 @@ sd_image_t ImageFilters::upscaleImage(const sd_image_t& input_image, int upscale
         result_images[0] = {0, 0, 0, nullptr};
     }
     free_sd_images(result_images, result_count);
+
+    // ESRGAN returns its model's native scale; the API request specifies the
+    // final scale relative to the input, not an additional model multiplier.
+    if (upscaled_image.data && !resizeImage(upscaled_image, int(target_width), int(target_height))) {
+        freeImage(upscaled_image);
+    }
 
     if (upscaled_image.data) {
         LOG_DEBUG("Upscaled to %dx%d", upscaled_image.width, upscaled_image.height);
