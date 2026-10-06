@@ -1,5 +1,27 @@
 # Easy Diffusion Custom
 
+## Cosmopolitan integration
+
+The `cosmopolitan-test` branch includes an experimental x86-64 executable with
+one shared GGML, llama.cpp, the custom diffusion engine, the partial native
+SD 1.5 trainer, an HTTP server and embedded C++ UI resources. The same compiled
+file has passed native Windows and Linux integration checks.
+
+- [Build and run the Cosmopolitan application](cosmopolitan/README.md).
+- [Exact tested artifact, results and limitations](COSMOPOLITAN_VALIDATION.md).
+- [Whole-application scope and remaining work](cosmopolitan/PORTING.md).
+- [Audit of the earlier llama, diffusion and GGML updates](cosmopolitan/docs/source-audit.md).
+
+The validated portable build currently uses the CPU backend. Full application
+API behavior, end-to-end image generation and training, remaining Python
+replacements, LibTorch/ONNX and accelerator integration have separate gates.
+
+## Existing Easy Diffusion application
+
+The following sections describe the existing standard application and its
+installation paths. The portable branch's supported commands and validation
+coverage are documented in the links above.
+
 This local Easy Diffusion customization project adds native sdkit3 image-generation features
 and local model tooling:
 

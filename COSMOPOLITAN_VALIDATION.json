@@ -1,0 +1,440 @@
+{
+  "schema": 1,
+  "recorded_date": "2026-10-06",
+  "scope": "Verified native CPU integration; whole-application feature parity remains incomplete",
+  "repository": "DemonBigj781/EasyDifussion-Cpp",
+  "branch": "cosmopolitan-test",
+  "application_source_commit": "00e3cb3094db2ac548933268109d9b909e018171",
+  "verifier_commit": "10405079ea540116feb8079dccaed0c1fc2166fd",
+  "build": {
+    "run_id": 37511033658,
+    "job_id": 112431939190,
+    "build_job_conclusion": "success",
+    "sdk": "Cosmocc 4.0.2",
+    "target": "x86_64 Cosmopolitan APE",
+    "cpu_baseline": "No AVX requirement"
+  },
+  "application": {
+    "filename": "easy-diffusion.exe",
+    "bytes": 109465883,
+    "sha256": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734",
+    "artifact_id": 11435639650,
+    "artifact_name": "easy-diffusion-cosmopolitan-x86_64",
+    "artifact_archive_bytes": 64352016,
+    "artifact_archive_sha256": "8d9a61462832ae9c4ad775c02a7695d0c86dde1c2eb33812fe4db62b8e9e043b",
+    "rebuilt_for_verification": false
+  },
+  "verification": {
+    "run_id": 37514525238,
+    "conclusion": "success",
+    "completed_at": "2026-10-06T18:52:12Z",
+    "windows_job_id": 112443909853,
+    "linux_job_id": 112443910162
+  },
+  "result_artifacts": [
+    {
+      "platform": "windows",
+      "artifact_id": 11437281077,
+      "name": "cosmopolitan-recheck-Windows-results",
+      "archive_sha256": "9847c49e5d113146bf918042915d68e7bae47b079fb3bb72c87b029d87bf1a38",
+      "archive_bytes": 15614
+    },
+    {
+      "platform": "linux",
+      "artifact_id": 11436811877,
+      "name": "cosmopolitan-recheck-Linux-results",
+      "archive_sha256": "d430c80ba245faed58e83ea3d924681f1f697acc80c4b1f776a26aa300c029dc",
+      "archive_bytes": 20283
+    }
+  ],
+  "runtime_results": [
+    {
+      "label": "windows",
+      "results_artifact_id": 11437281077,
+      "report_archive_path": "results-windows/report.json",
+      "report_file_sha256": "8324fa6d9cb40c547fedd78c5788453e0ebf932f5fc79a74ac33e597741c2494",
+      "report": {
+        "status": "passed",
+        "platform": "Windows-2022Server-10.0.20348-SP0",
+        "isolated": false,
+        "tests": [
+          {
+            "name": "self-test",
+            "arguments": [
+              "--self-test"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.735,
+            "log": "self-test.log",
+            "stdout_log": "self-test.stdout.log",
+            "stderr_log": "self-test.stderr.log",
+            "greedy_token_ids": [
+              432,
+              383,
+              286,
+              261,
+              376,
+              298,
+              315,
+              421,
+              395,
+              317,
+              426,
+              338,
+              401,
+              396,
+              267,
+              337
+            ],
+            "independent_reference_match": true
+          },
+          {
+            "name": "devices",
+            "arguments": [
+              "sdkit",
+              "--list-devices"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.062,
+            "log": "devices.log",
+            "stdout_log": "devices.stdout.log",
+            "stderr_log": "devices.stderr.log"
+          },
+          {
+            "name": "diffusion-command",
+            "arguments": [
+              "sdkit",
+              "--help"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.063,
+            "log": "diffusion-command.log",
+            "stdout_log": "diffusion-command.stdout.log",
+            "stderr_log": "diffusion-command.stderr.log"
+          },
+          {
+            "name": "training-command",
+            "arguments": [
+              "train",
+              "--help"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.062,
+            "log": "training-command.log",
+            "stdout_log": "training-command.stdout.log",
+            "stderr_log": "training-command.stderr.log"
+          },
+          {
+            "name": "training-unmatched-option",
+            "arguments": [
+              "train",
+              "--model",
+              "unused",
+              "--dataset",
+              "unused",
+              "--output",
+              "unused",
+              "--device",
+              "CPU",
+              "--threads"
+            ],
+            "exit_code": 512,
+            "expected_application_exit_code": 2,
+            "expected_host_exit_status": 512,
+            "elapsed_seconds": 0.078,
+            "log": "training-unmatched-option.log",
+            "stdout_log": "training-unmatched-option.stdout.log",
+            "stderr_log": "training-unmatched-option.stderr.log"
+          },
+          {
+            "name": "native-server-and-embedded-ui",
+            "ping_status": 200,
+            "checks": [
+              {
+                "path": "/",
+                "status": 200,
+                "bytes": 9814
+              },
+              {
+                "path": "/cpp-ui/training",
+                "status": 200,
+                "bytes": 9212
+              },
+              {
+                "path": "/cpp-ui/assets/ui.css",
+                "status": 200,
+                "bytes": 13357
+              },
+              {
+                "path": "/v1/sdapi/v1/backend-devices",
+                "status": 200,
+                "bytes": 146
+              }
+            ],
+            "parent_traversal_status": 404,
+            "log": "server.log",
+            "stdout_log": "server.stdout.log",
+            "stderr_log": "server.stderr.log"
+          }
+        ],
+        "scope": "Native integration checks; not full application, image or training parity",
+        "sha256_before": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734",
+        "initial_root_entries": [
+          "easy-diffusion.exe",
+          "tmp"
+        ],
+        "sha256_after": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734"
+      },
+      "self_test_output": {
+        "archive_path": "results-windows/self-test.stdout.log",
+        "sha256": "03f274736df94bb34db8380538dae72c61337ff3663241cb135c696f14d26d56",
+        "text": "GGML_CASE backend=CPU threads=1 type=F32\nGGML_CHECK matmul values=143 max_error=0 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS\nGGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS\nGGML_CASE backend=CPU threads=4 type=F32\nGGML_CHECK matmul values=143 max_error=0 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS\nGGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS\nGGML_CASE backend=CPU threads=1 type=Q4_0\nGGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS\nGGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS\nGGML_CASE backend=CPU threads=4 type=Q4_0\nGGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS\nGGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS\nGGML_SELFTEST PASS\nSHARED_GGML_CASE threads=1\nSHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS\nSHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS\nSHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS\nSHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS\nSHARED_GGML_CASE threads=4\nSHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS\nSHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS\nSHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS\nSHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS\nSHARED_GGML_SELFTEST PASS\nLLAMA_GREEDY_IDS 432,383,286,261,376,298,315,421,395,317,426,338,401,396,267,337\nLLAMA_SELFTEST prompt_tokens=5 decode_steps=16 vocab=512 finite_logits=1 threads=1\nLLAMA_SELFTEST PASS\nDIFFUSION_API version=snapshot backend=CPU tensor_name_size=160 PASS\nACTIVATION backend=CPU kind=gelu max_gradient=0.000229097 max_error=1.10051e-10 nonfinite=0 result=PASS\nACTIVATION backend=CPU kind=gelu_quick max_gradient=0.000223182 max_error=1.45519e-10 nonfinite=0 result=PASS\nACTIVATION backend=CPU kind=silu max_gradient=0.000223182 max_error=7.27596e-11 nonfinite=0 result=PASS\nPASS: separate AdamW rates; sampling leaves weights and subsequent updates unchanged\nTRAINING_MATH_SELFTEST PASS\nDIFFUSION_SELFTEST PASS\nUI_SELFTEST pages=16 embedded_assets=yes PASS\nCOSMOPOLITAN_SELFTEST PASS\n"
+      }
+    },
+    {
+      "label": "linux-isolated",
+      "results_artifact_id": 11436811877,
+      "report_archive_path": "results-linux-isolated/report.json",
+      "report_file_sha256": "e721b3bb54c8e68673a0b838f4e45584f682de9538e2940139816d8c7d2403b9",
+      "report": {
+        "status": "passed",
+        "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+        "isolated": true,
+        "tests": [
+          {
+            "name": "self-test",
+            "arguments": [
+              "--self-test"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.114,
+            "log": "self-test.log",
+            "stdout_log": "self-test.stdout.log",
+            "stderr_log": "self-test.stderr.log",
+            "greedy_token_ids": [
+              432,
+              383,
+              286,
+              261,
+              376,
+              298,
+              315,
+              421,
+              395,
+              317,
+              426,
+              338,
+              401,
+              396,
+              267,
+              337
+            ],
+            "independent_reference_match": true
+          },
+          {
+            "name": "devices",
+            "arguments": [
+              "sdkit",
+              "--list-devices"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.064,
+            "log": "devices.log",
+            "stdout_log": "devices.stdout.log",
+            "stderr_log": "devices.stderr.log"
+          },
+          {
+            "name": "diffusion-command",
+            "arguments": [
+              "sdkit",
+              "--help"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.064,
+            "log": "diffusion-command.log",
+            "stdout_log": "diffusion-command.stdout.log",
+            "stderr_log": "diffusion-command.stderr.log"
+          },
+          {
+            "name": "training-command",
+            "arguments": [
+              "train",
+              "--help"
+            ],
+            "exit_code": 0,
+            "expected_application_exit_code": 0,
+            "expected_host_exit_status": 0,
+            "elapsed_seconds": 0.064,
+            "log": "training-command.log",
+            "stdout_log": "training-command.stdout.log",
+            "stderr_log": "training-command.stderr.log"
+          },
+          {
+            "name": "training-unmatched-option",
+            "arguments": [
+              "train",
+              "--model",
+              "unused",
+              "--dataset",
+              "unused",
+              "--output",
+              "unused",
+              "--device",
+              "CPU",
+              "--threads"
+            ],
+            "exit_code": 2,
+            "expected_application_exit_code": 2,
+            "expected_host_exit_status": 2,
+            "elapsed_seconds": 0.064,
+            "log": "training-unmatched-option.log",
+            "stdout_log": "training-unmatched-option.stdout.log",
+            "stderr_log": "training-unmatched-option.stderr.log"
+          },
+          {
+            "name": "native-server-and-embedded-ui",
+            "ping_status": 200,
+            "checks": [
+              {
+                "path": "/",
+                "status": 200,
+                "bytes": 9814
+              },
+              {
+                "path": "/cpp-ui/training",
+                "status": 200,
+                "bytes": 9212
+              },
+              {
+                "path": "/cpp-ui/assets/ui.css",
+                "status": 200,
+                "bytes": 13357
+              },
+              {
+                "path": "/v1/sdapi/v1/backend-devices",
+                "status": 200,
+                "bytes": 146
+              }
+            ],
+            "parent_traversal_status": 404,
+            "log": "server.log",
+            "stdout_log": "server.stdout.log",
+            "stderr_log": "server.stderr.log"
+          }
+        ],
+        "scope": "Native integration checks; not full application, image or training parity",
+        "sha256_before": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734",
+        "initial_root_entries": [
+          "ape-x86_64.elf",
+          "easy-diffusion.exe",
+          "tmp"
+        ],
+        "sha256_after": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734"
+      },
+      "self_test_output": {
+        "archive_path": "results-linux-isolated/self-test.stdout.log",
+        "sha256": "03f274736df94bb34db8380538dae72c61337ff3663241cb135c696f14d26d56",
+        "text": "GGML_CASE backend=CPU threads=1 type=F32\nGGML_CHECK matmul values=143 max_error=0 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS\nGGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS\nGGML_CASE backend=CPU threads=4 type=F32\nGGML_CHECK matmul values=143 max_error=0 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS\nGGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS\nGGML_CASE backend=CPU threads=1 type=Q4_0\nGGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS\nGGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS\nGGML_CASE backend=CPU threads=4 type=Q4_0\nGGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS\nGGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS\nGGML_SELFTEST PASS\nSHARED_GGML_CASE threads=1\nSHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS\nSHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS\nSHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS\nSHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS\nSHARED_GGML_CASE threads=4\nSHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS\nSHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS\nSHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS\nSHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS\nSHARED_GGML_SELFTEST PASS\nLLAMA_GREEDY_IDS 432,383,286,261,376,298,315,421,395,317,426,338,401,396,267,337\nLLAMA_SELFTEST prompt_tokens=5 decode_steps=16 vocab=512 finite_logits=1 threads=1\nLLAMA_SELFTEST PASS\nDIFFUSION_API version=snapshot backend=CPU tensor_name_size=160 PASS\nACTIVATION backend=CPU kind=gelu max_gradient=0.000229097 max_error=1.10051e-10 nonfinite=0 result=PASS\nACTIVATION backend=CPU kind=gelu_quick max_gradient=0.000223182 max_error=1.45519e-10 nonfinite=0 result=PASS\nACTIVATION backend=CPU kind=silu max_gradient=0.000223182 max_error=7.27596e-11 nonfinite=0 result=PASS\nPASS: separate AdamW rates; sampling leaves weights and subsequent updates unchanged\nTRAINING_MATH_SELFTEST PASS\nDIFFUSION_SELFTEST PASS\nUI_SELFTEST pages=16 embedded_assets=yes PASS\nCOSMOPOLITAN_SELFTEST PASS\n"
+      }
+    },
+    {
+      "label": "linux-bootstrap",
+      "results_artifact_id": 11436811877,
+      "report_archive_path": "results-linux-bootstrap/report.json",
+      "report_file_sha256": "bd928ccd6f4186b9e84841021fe80bd8ca19aa3d02bb77b19167e9969af45c6f",
+      "report": {
+        "status": "passed",
+        "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+        "scope": "Linux /bin/sh bootstrap with host utilities and transient embedded-loader extraction",
+        "filesystem_isolated": false,
+        "explicit_external_loader_supplied": false,
+        "path_utilities": [
+          "uname",
+          "mkdir",
+          "dd",
+          "gzip",
+          "chmod",
+          "mv"
+        ],
+        "log": "self-test.log",
+        "sha256_before": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734",
+        "preinstalled_ape_on_path": false,
+        "initial_runtime_directory_empty": true,
+        "initial_root_entries": [
+          "easy-diffusion.exe",
+          "runtime",
+          "tools"
+        ],
+        "elapsed_seconds": 0.064,
+        "sha256_copy_after": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734",
+        "sha256_after": "f3d13f19691631d033ac45d442b197534f902a12017cecc0a1f2e1520dca9734",
+        "hash_unchanged": true,
+        "exit_code": 0,
+        "command": [
+          "/bin/sh",
+          "easy-diffusion.exe",
+          "--self-test"
+        ],
+        "greedy_token_ids": [
+          432,
+          383,
+          286,
+          261,
+          376,
+          298,
+          315,
+          421,
+          395,
+          317,
+          426,
+          338,
+          401,
+          396,
+          267,
+          337
+        ],
+        "independent_reference_match": true,
+        "bundled_loader": {
+          "filename": ".ape-1.10",
+          "bytes": 9249,
+          "sha256": "cc31af13515fcf091768bfbf12da899286b35ff1bf1302f304936db4b03d512e",
+          "format": "x86-64 ELF",
+          "transient_extraction": true
+        },
+        "runtime_entries_after": [
+          ".ape-1.10"
+        ],
+        "temporary_directory_removed": true
+      },
+      "self_test_output": {
+        "archive_path": "results-linux-bootstrap/self-test.log",
+        "sha256": "9b42ed8a14a987f6dcfc530bec95c33cc3975edb9caf805b29fb337c0d7c131a",
+        "text": "GGML_CASE backend=CPU threads=1 type=F32\nGGML_CHECK matmul values=143 max_error=0 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS\nGGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS\nGGML_CASE backend=CPU threads=4 type=F32\nGGML_CHECK matmul values=143 max_error=0 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS\nGGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS\nGGML_CASE backend=CPU threads=1 type=Q4_0\nGGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS\nGGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS\nGGML_CASE backend=CPU threads=4 type=Q4_0\nGGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS\nGGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS\nGGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS\nGGML_SELFTEST PASS\nSHARED_GGML_CASE threads=1\nSHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS\nSHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS\nSHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS\nSHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS\nSHARED_GGML_CASE threads=4\nSHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS\nSHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS\nSHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS\nSHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS\nSHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS\nSHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS\nSHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS\nSHARED_GGML_SELFTEST PASS\nllama_model_loader: loaded meta data with 19 key-value pairs and 48 tensors from /zip/models/stories260K.gguf (version GGUF V3 (latest))\nllama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.\nllama_model_loader: - kv   0:                      tokenizer.ggml.tokens arr[str,512]     = [\"<unk>\", \"<s>\", \"</s>\", \"<0x00>\", \"<...\nllama_model_loader: - kv   1:                      tokenizer.ggml.scores arr[f32,512]     = [0.000000, 0.000000, 0.000000, 0.0000...\nllama_model_loader: - kv   2:                  tokenizer.ggml.token_type arr[i32,512]     = [2, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 6, ...\nllama_model_loader: - kv   3:                       tokenizer.ggml.model str              = llama\nllama_model_loader: - kv   4:                       general.architecture str              = llama\nllama_model_loader: - kv   5:                               general.name str              = llama\nllama_model_loader: - kv   6:            tokenizer.ggml.unknown_token_id u32              = 0\nllama_model_loader: - kv   7:                tokenizer.ggml.bos_token_id u32              = 1\nllama_model_loader: - kv   8:                tokenizer.ggml.eos_token_id u32              = 2\nllama_model_loader: - kv   9:          tokenizer.ggml.seperator_token_id u32              = 4294967295\nllama_model_loader: - kv  10:            tokenizer.ggml.padding_token_id u32              = 4294967295\nllama_model_loader: - kv  11:                       llama.context_length u32              = 128\nllama_model_loader: - kv  12:                     llama.embedding_length u32              = 64\nllama_model_loader: - kv  13:                  llama.feed_forward_length u32              = 172\nllama_model_loader: - kv  14:                 llama.attention.head_count u32              = 8\nllama_model_loader: - kv  15:              llama.attention.head_count_kv u32              = 4\nllama_model_loader: - kv  16:                          llama.block_count u32              = 5\nllama_model_loader: - kv  17:                 llama.rope.dimension_count u32              = 8\nllama_model_loader: - kv  18:     llama.attention.layer_norm_rms_epsilon f32              = 0.000010\nllama_model_loader: - type  f32:   48 tensors\nprint_info: file format = GGUF V3 (latest)\nprint_info: file type   = (guessed) all F32\nprint_info: file size   = 1.12 MiB (32.00 BPW) \ninit_tokenizer: initializing tokenizer for type 1\nload: bad special token: 'tokenizer.ggml.seperator_token_id' = 4294967295, using default id -1\nload: bad special token: 'tokenizer.ggml.padding_token_id' = 4294967295, using default id -1\nload: 0 unused tokens\nload: control token:      1 '<s>' is not marked as EOG\nload: printing all EOG tokens:\nload:   - 2 ('</s>')\nload: special tokens cache size = 3\nload: token to piece cache size = 0.0008 MB\nprint_info: arch                  = llama\nprint_info: vocab_only            = 0\nprint_info: no_alloc              = 0\nprint_info: n_ctx_train           = 128\nprint_info: n_embd_inp            = 64\nprint_info: n_embd                = 64\nprint_info: n_embd_out            = 64\nprint_info: n_layer               = 5\nprint_info: n_layer_all           = 5\nprint_info: n_head                = 8\nprint_info: n_head_kv             = 4\nprint_info: n_rot                 = 8\nprint_info: n_swa                 = 0\nprint_info: is_swa_any            = 0\nprint_info: n_embd_head_k         = 8\nprint_info: n_embd_head_v         = 8\nprint_info: n_gqa                 = 2\nprint_info: n_embd_k_gqa          = 32\nprint_info: n_embd_v_gqa          = 32\nprint_info: f_norm_eps            = 0.0e+00\nprint_info: f_norm_rms_eps        = 1.0e-05\nprint_info: f_clamp_kqv           = 0.0e+00\nprint_info: f_max_alibi_bias      = 0.0e+00\nprint_info: f_logit_scale         = 0.0e+00\nprint_info: f_attn_scale          = 0.0e+00\nprint_info: f_attn_value_scale    = 0.0000\nprint_info: n_ff                  = 172\nprint_info: n_expert              = 0\nprint_info: n_expert_used         = 0\nprint_info: n_expert_groups       = 0\nprint_info: n_group_used          = 0\nprint_info: causal attn           = 1\nprint_info: pooling type          = -1\nprint_info: rope type             = 0\nprint_info: rope scaling          = linear\nprint_info: freq_base_train       = 10000.0\nprint_info: freq_scale_train      = 1\nprint_info: n_ctx_orig_yarn       = 128\nprint_info: rope_yarn_log_mul     = 0.0000\nprint_info: rope_finetuned        = unknown\nprint_info: model type            = ?B\nprint_info: model params          = 292.80 K\nprint_info: general.name          = llama\nprint_info: vocab type            = SPM\nprint_info: n_vocab               = 512\nprint_info: n_merges              = 0\nprint_info: BOS token             = 1 '<s>'\nprint_info: EOS token             = 2 '</s>'\nprint_info: UNK token             = 0 '<unk>'\nprint_info: LF token              = 13 '<0x0A>'\nprint_info: EOG token             = 2 '</s>'\nprint_info: max token length      = 9\nload_tensors: loading model tensors, this can take a while... (load_mode = none)\nload_tensors: layer   0 assigned to device CPU, is_swa = 0\nload_tensors: layer   1 assigned to device CPU, is_swa = 0\nload_tensors: layer   2 assigned to device CPU, is_swa = 0\nload_tensors: layer   3 assigned to device CPU, is_swa = 0\nload_tensors: layer   4 assigned to device CPU, is_swa = 0\nload_tensors: layer   5 assigned to device CPU, is_swa = 0\ncreate_tensor: loading tensor token_embd.weight\ncreate_tensor: loading tensor output_norm.weight\ncreate_tensor: loading tensor output.weight\ncreate_tensor: loading tensor blk.0.attn_norm.weight\ncreate_tensor: loading tensor blk.0.attn_qkv.weight\ncreate_tensor: loading tensor blk.0.attn_q.weight\ncreate_tensor: loading tensor blk.0.attn_k.weight\ncreate_tensor: loading tensor blk.0.attn_v.weight\ncreate_tensor: loading tensor blk.0.attn_q.bias\ncreate_tensor: loading tensor blk.0.attn_k.bias\ncreate_tensor: loading tensor blk.0.attn_v.bias\ncreate_tensor: loading tensor blk.0.attn_output.weight\ncreate_tensor: loading tensor blk.0.attn_output.bias\ncreate_tensor: loading tensor blk.0.ffn_norm.weight\ncreate_tensor: loading tensor rope_freqs.weight\ncreate_tensor: loading tensor blk.0.ffn_gate.weight\ncreate_tensor: loading tensor blk.0.ffn_down.weight\ncreate_tensor: loading tensor blk.0.ffn_up.weight\ncreate_tensor: loading tensor blk.0.ffn_gate.bias\ncreate_tensor: loading tensor blk.0.ffn_down.bias\ncreate_tensor: loading tensor blk.0.ffn_up.bias\ncreate_tensor: loading tensor blk.1.attn_norm.weight\ncreate_tensor: loading tensor blk.1.attn_qkv.weight\ncreate_tensor: loading tensor blk.1.attn_q.weight\ncreate_tensor: loading tensor blk.1.attn_k.weight\ncreate_tensor: loading tensor blk.1.attn_v.weight\ncreate_tensor: loading tensor blk.1.attn_q.bias\ncreate_tensor: loading tensor blk.1.attn_k.bias\ncreate_tensor: loading tensor blk.1.attn_v.bias\ncreate_tensor: loading tensor blk.1.attn_output.weight\ncreate_tensor: loading tensor blk.1.attn_output.bias\ncreate_tensor: loading tensor blk.1.ffn_norm.weight\ncreate_tensor: loading tensor rope_freqs.weight\ncreate_tensor: loading tensor blk.1.ffn_gate.weight\ncreate_tensor: loading tensor blk.1.ffn_down.weight\ncreate_tensor: loading tensor blk.1.ffn_up.weight\ncreate_tensor: loading tensor blk.1.ffn_gate.bias\ncreate_tensor: loading tensor blk.1.ffn_down.bias\ncreate_tensor: loading tensor blk.1.ffn_up.bias\ncreate_tensor: loading tensor blk.2.attn_norm.weight\ncreate_tensor: loading tensor blk.2.attn_qkv.weight\ncreate_tensor: loading tensor blk.2.attn_q.weight\ncreate_tensor: loading tensor blk.2.attn_k.weight\ncreate_tensor: loading tensor blk.2.attn_v.weight\ncreate_tensor: loading tensor blk.2.attn_q.bias\ncreate_tensor: loading tensor blk.2.attn_k.bias\ncreate_tensor: loading tensor blk.2.attn_v.bias\ncreate_tensor: loading tensor blk.2.attn_output.weight\ncreate_tensor: loading tensor blk.2.attn_output.bias\ncreate_tensor: loading tensor blk.2.ffn_norm.weight\ncreate_tensor: loading tensor rope_freqs.weight\ncreate_tensor: loading tensor blk.2.ffn_gate.weight\ncreate_tensor: loading tensor blk.2.ffn_down.weight\ncreate_tensor: loading tensor blk.2.ffn_up.weight\ncreate_tensor: loading tensor blk.2.ffn_gate.bias\ncreate_tensor: loading tensor blk.2.ffn_down.bias\ncreate_tensor: loading tensor blk.2.ffn_up.bias\ncreate_tensor: loading tensor blk.3.attn_norm.weight\ncreate_tensor: loading tensor blk.3.attn_qkv.weight\ncreate_tensor: loading tensor blk.3.attn_q.weight\ncreate_tensor: loading tensor blk.3.attn_k.weight\ncreate_tensor: loading tensor blk.3.attn_v.weight\ncreate_tensor: loading tensor blk.3.attn_q.bias\ncreate_tensor: loading tensor blk.3.attn_k.bias\ncreate_tensor: loading tensor blk.3.attn_v.bias\ncreate_tensor: loading tensor blk.3.attn_output.weight\ncreate_tensor: loading tensor blk.3.attn_output.bias\ncreate_tensor: loading tensor blk.3.ffn_norm.weight\ncreate_tensor: loading tensor rope_freqs.weight\ncreate_tensor: loading tensor blk.3.ffn_gate.weight\ncreate_tensor: loading tensor blk.3.ffn_down.weight\ncreate_tensor: loading tensor blk.3.ffn_up.weight\ncreate_tensor: loading tensor blk.3.ffn_gate.bias\ncreate_tensor: loading tensor blk.3.ffn_down.bias\ncreate_tensor: loading tensor blk.3.ffn_up.bias\ncreate_tensor: loading tensor blk.4.attn_norm.weight\ncreate_tensor: loading tensor blk.4.attn_qkv.weight\ncreate_tensor: loading tensor blk.4.attn_q.weight\ncreate_tensor: loading tensor blk.4.attn_k.weight\ncreate_tensor: loading tensor blk.4.attn_v.weight\ncreate_tensor: loading tensor blk.4.attn_q.bias\ncreate_tensor: loading tensor blk.4.attn_k.bias\ncreate_tensor: loading tensor blk.4.attn_v.bias\ncreate_tensor: loading tensor blk.4.attn_output.weight\ncreate_tensor: loading tensor blk.4.attn_output.bias\ncreate_tensor: loading tensor blk.4.ffn_norm.weight\ncreate_tensor: loading tensor rope_freqs.weight\ncreate_tensor: loading tensor blk.4.ffn_gate.weight\ncreate_tensor: loading tensor blk.4.ffn_down.weight\ncreate_tensor: loading tensor blk.4.ffn_up.weight\ncreate_tensor: loading tensor blk.4.ffn_gate.bias\ncreate_tensor: loading tensor blk.4.ffn_down.bias\ncreate_tensor: loading tensor blk.4.ffn_up.bias\ncreate_tensor: loading tensor blk.0.attn_q.scale\ncreate_tensor: loading tensor blk.0.attn_k.scale\ncreate_tensor: loading tensor blk.0.attn_v.scale\ncreate_tensor: loading tensor blk.0.attn_output.scale\ncreate_tensor: loading tensor blk.0.ffn_gate.scale\ncreate_tensor: loading tensor blk.0.ffn_down.scale\ncreate_tensor: loading tensor blk.0.ffn_up.scale\ncreate_tensor: loading tensor blk.0.attn_q.input_scale\ncreate_tensor: loading tensor blk.0.attn_k.input_scale\ncreate_tensor: loading tensor blk.0.attn_v.input_scale\ncreate_tensor: loading tensor blk.0.attn_output.input_scale\ncreate_tensor: loading tensor blk.0.ffn_gate.input_scale\ncreate_tensor: loading tensor blk.0.ffn_down.input_scale\ncreate_tensor: loading tensor blk.0.ffn_up.input_scale\ncreate_tensor: loading tensor blk.1.attn_q.scale\ncreate_tensor: loading tensor blk.1.attn_k.scale\ncreate_tensor: loading tensor blk.1.attn_v.scale\ncreate_tensor: loading tensor blk.1.attn_output.scale\ncreate_tensor: loading tensor blk.1.ffn_gate.scale\ncreate_tensor: loading tensor blk.1.ffn_down.scale\ncreate_tensor: loading tensor blk.1.ffn_up.scale\ncreate_tensor: loading tensor blk.1.attn_q.input_scale\ncreate_tensor: loading tensor blk.1.attn_k.input_scale\ncreate_tensor: loading tensor blk.1.attn_v.input_scale\ncreate_tensor: loading tensor blk.1.attn_output.input_scale\ncreate_tensor: loading tensor blk.1.ffn_gate.input_scale\ncreate_tensor: loading tensor blk.1.ffn_down.input_scale\ncreate_tensor: loading tensor blk.1.ffn_up.input_scale\ncreate_tensor: loading tensor blk.2.attn_q.scale\ncreate_tensor: loading tensor blk.2.attn_k.scale\ncreate_tensor: loading tensor blk.2.attn_v.scale\ncreate_tensor: loading tensor blk.2.attn_output.scale\ncreate_tensor: loading tensor blk.2.ffn_gate.scale\ncreate_tensor: loading tensor blk.2.ffn_down.scale\ncreate_tensor: loading tensor blk.2.ffn_up.scale\ncreate_tensor: loading tensor blk.2.attn_q.input_scale\ncreate_tensor: loading tensor blk.2.attn_k.input_scale\ncreate_tensor: loading tensor blk.2.attn_v.input_scale\ncreate_tensor: loading tensor blk.2.attn_output.input_scale\ncreate_tensor: loading tensor blk.2.ffn_gate.input_scale\ncreate_tensor: loading tensor blk.2.ffn_down.input_scale\ncreate_tensor: loading tensor blk.2.ffn_up.input_scale\ncreate_tensor: loading tensor blk.3.attn_q.scale\ncreate_tensor: loading tensor blk.3.attn_k.scale\ncreate_tensor: loading tensor blk.3.attn_v.scale\ncreate_tensor: loading tensor blk.3.attn_output.scale\ncreate_tensor: loading tensor blk.3.ffn_gate.scale\ncreate_tensor: loading tensor blk.3.ffn_down.scale\ncreate_tensor: loading tensor blk.3.ffn_up.scale\ncreate_tensor: loading tensor blk.3.attn_q.input_scale\ncreate_tensor: loading tensor blk.3.attn_k.input_scale\ncreate_tensor: loading tensor blk.3.attn_v.input_scale\ncreate_tensor: loading tensor blk.3.attn_output.input_scale\ncreate_tensor: loading tensor blk.3.ffn_gate.input_scale\ncreate_tensor: loading tensor blk.3.ffn_down.input_scale\ncreate_tensor: loading tensor blk.3.ffn_up.input_scale\ncreate_tensor: loading tensor blk.4.attn_q.scale\ncreate_tensor: loading tensor blk.4.attn_k.scale\ncreate_tensor: loading tensor blk.4.attn_v.scale\ncreate_tensor: loading tensor blk.4.attn_output.scale\ncreate_tensor: loading tensor blk.4.ffn_gate.scale\ncreate_tensor: loading tensor blk.4.ffn_down.scale\ncreate_tensor: loading tensor blk.4.ffn_up.scale\ncreate_tensor: loading tensor blk.4.attn_q.input_scale\ncreate_tensor: loading tensor blk.4.attn_k.input_scale\ncreate_tensor: loading tensor blk.4.attn_v.input_scale\ncreate_tensor: loading tensor blk.4.attn_output.input_scale\ncreate_tensor: loading tensor blk.4.ffn_gate.input_scale\ncreate_tensor: loading tensor blk.4.ffn_down.input_scale\ncreate_tensor: loading tensor blk.4.ffn_up.input_scale\nload_tensors:          CPU model buffer size =     1.12 MiB\n...................................\nllama_context: constructing llama_context\nllama_context: n_seq_max             = 1\nllama_context: n_ctx                 = 256\nllama_context: n_ctx_seq             = 256\nllama_context: n_batch               = 5\nllama_context: n_ubatch              = 5\nllama_context: causal_attn           = 1\nllama_context: flash_attn            = disabled\nllama_context: kv_unified            = false\nllama_context: freq_base             = 10000.0\nllama_context: freq_scale            = 1\nllama_context: n_rs_seq              = 0\nllama_context: n_outputs_max         = 5\nllama_context: n_outputs_max_per_seq = 1\nllama_context: n_ctx_seq (256) > n_ctx_train (128) -- possible training context overflow\nset_abort_callback: call\nllama_context:        CPU  output buffer size =     0.00 MiB\nllama_kv_cache: layer   0: dev = CPU\nllama_kv_cache: layer   1: dev = CPU\nllama_kv_cache: layer   2: dev = CPU\nllama_kv_cache: layer   3: dev = CPU\nllama_kv_cache: layer   4: dev = CPU\nllama_kv_cache:        CPU KV buffer size =     0.16 MiB\nllama_kv_cache: size =    0.16 MiB (   256 cells,   5 layers,  1/1 seqs), K (f16):    0.08 MiB, V (f16):    0.08 MiB\nllama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 8\nllama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 8\nllama_context: enumerating backends\nllama_context: backend_ptrs.size() = 1\nsched_reserve: reserving ...\nsched_reserve: max_nodes = 1024\nsched_reserve: reserving full memory module\nsched_reserve: worst-case: n_tokens = 5, n_seqs = 1, n_outputs = 1\nresolve_fused_ops: resolving fused DeepSeek V4 HC support:\ngraph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1\nresolve_fused_ops: fused DeepSeek V4 HC pre enabled\ngraph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1\nresolve_fused_ops: fused DeepSeek V4 HC comb enabled\ngraph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1\nresolve_fused_ops: fused DeepSeek V4 HC post enabled\ngraph_reserve: reserving a graph for ubatch with n_tokens =    5, n_seqs =  1, n_outputs =    5\ngraph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1\ngraph_reserve: reserving a graph for ubatch with n_tokens =    5, n_seqs =  1, n_outputs =    5\nsched_reserve:        CPU compute buffer size =     0.05 MiB\nsched_reserve: graph nodes  = 186\nsched_reserve: graph splits = 1\nsched_reserve: reserve took 1.42 ms, sched copies = 1\nLLAMA_GREEDY_IDS 432,383,286,261,376,298,315,421,395,317,426,338,401,396,267,337\nLLAMA_SELFTEST prompt_tokens=5 decode_steps=16 vocab=512 finite_logits=1 threads=1\n~llama_context:        CPU compute buffer size is   0.0514 MiB, matches expectation of   0.0514 MiB\nLLAMA_SELFTEST PASS\nDIFFUSION_API version=snapshot backend=CPU tensor_name_size=160 PASS\nACTIVATION backend=CPU kind=gelu max_gradient=0.000229097 max_error=1.10051e-10 nonfinite=0 result=PASS\nACTIVATION backend=CPU kind=gelu_quick max_gradient=0.000223182 max_error=1.45519e-10 nonfinite=0 result=PASS\nACTIVATION backend=CPU kind=silu max_gradient=0.000223182 max_error=7.27596e-11 nonfinite=0 result=PASS\nPASS: separate AdamW rates; sampling leaves weights and subsequent updates unchanged\nTRAINING_MATH_SELFTEST PASS\nDIFFUSION_SELFTEST PASS\nUI_SELFTEST pages=16 embedded_assets=yes PASS\nCOSMOPOLITAN_SELFTEST PASS\n"
+      }
+    }
+  ],
+  "remaining_gates": [
+    "Full diffusion-checkpoint image generation",
+    "End-to-end native training and additional training families",
+    "Application API, job lifecycle, cancellation and shared memory-budget integration",
+    "Remaining Python, Transformers and model-conversion replacements",
+    "LibTorch/ONNX component integration or validated replacements",
+    "Software Vulkan/WebGPU integration into this application",
+    "Hardware accelerators and multi-GPU execution",
+    "Additional operating systems and CPU architectures"
+  ]
+}
