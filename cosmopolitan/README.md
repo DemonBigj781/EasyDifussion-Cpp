@@ -20,10 +20,13 @@ The full scope is in [PORTING.md](PORTING.md).
 ## Build
 
 The supported build host for this recipe is x86-64 Linux. The GitHub workflow
-uses Ubuntu 24.04. Its host prerequisites are a C/C++ toolchain, Git, Python 3
-with venv support, curl, CA certificates, unzip, patch, binutils, file,
-bison, flex, pkg-config, CMake, Ninja and Clang/libclang. The workflow records
-the corresponding Ubuntu packages. Run from the repository root:
+uses Ubuntu 24.04. Its host prerequisites are a C/C++ toolchain with C++20
+development headers, Make, Git, Python with pip/venv support, curl, CA
+certificates, tar/xz/gzip, unzip, patch, binutils, file and core utilities.
+The workflow checks the runner's existing tools, Python 3.12 or later, and
+actual venv/compiler functionality before building. The recipe supplies
+its pinned CMake, Ninja and libclang tools; a blanket host package update
+is unnecessary. Run from the repository root:
 
 ```sh
 python3 cosmopolitan/build.py --jobs 2
