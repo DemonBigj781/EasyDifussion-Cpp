@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "authoritative_source": "source/sdkit3-port-source/stable-diffusion.cpp/ggml",
+  "authoritative_ggml_base_revision": "e20c3a14aa70ee84ca58499814206dd08d8026bc",
+  "authoritative_tree_sha256": "697ec352f8a5c8bff7bd2ea962f442a868fc89b864611260b582ed68336577d1",
+  "authoritative_file_count": 2209,
+  "llama_source": "source/llama.cpp/ggml",
+  "llama_revision": "c589f0ed10c643678c4707dd160c21ac7633ebc0",
+  "ggml_max_name": 160,
+  "llama_donor_files": {
+    "include/ggml.h": "c6e7e86d00ee042e384aa3c738f4d4a80aa29eef26430da178a8d0abfece6d42",
+    "include/ggml-backend.h": "46d84cb998105f871240864fd0f55446939a2fe86c5c281afa63a010fb1f65a2",
+    "src/ggml.c": "ecc4c52d8347f0d9ea2aab4c54bafafb3ead573c8badec6042fd65dffb19d20d",
+    "src/ggml-cpu/ops.cpp": "8b95096cbfc26e222c4cf232a52e16861336055dfe51fd3159f5933d7c7d59be",
+    "src/ggml-cpu/ggml-cpu.cpp": "b620923a8966395ba9c5f2ee4acb35b8d42ea77a58943d7eb733a917c4c1cafb"
+  },
+  "patches": {
+    "0001-shared-llama-api-and-cpu-kernels.patch": "65aaf969d92b5f945283e6497cfeea80a04efc70b03bb30401a7da5ae87a8791",
+    "0002-built-in-backend-registry.patch": "a5e7169c1eeb02ca7e149db025913f8000bb6ee360dfe77b8fb7fd9803cb28ea",
+    "0003-preserve-rope-offset-in-gradient-graph.patch": "ef03ba4290888aa19b6c86e73e34f381668b6d664b59803d0d060873a9a29859"
+  }
+}

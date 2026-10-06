@@ -1,0 +1,3009 @@
+{
+  "audit_date": "2026-10-06",
+  "repository": "DemonBigj781/EasyDifussion-Cpp",
+  "revision": "b42704a624652a53099fbc994e9a6b7648cd3b0c",
+  "method": "Compare complete Git tree blob SHA-1 object IDs and modes from upstream pinned revisions with the corresponding committed source subtrees. Content equality is exact; executable-mode-only changes are reported separately. This is provenance evidence, not a runtime or feature-parity test.",
+  "trees": [
+    {
+      "name": "llama.cpp",
+      "upstream_repository": "ggml-org/llama.cpp",
+      "local_prefix": "source/llama.cpp/",
+      "upstream_revision": "c589f0ed10c643678c4707dd160c21ac7633ebc0",
+      "local_tree": "a5c1a27ca8a7213a610fc83f452bc614dd07359a",
+      "upstream_files": 3505,
+      "local_files": 3502,
+      "identical": 3377,
+      "changed": [
+        {
+          "path": ".devops/tools.sh",
+          "upstream": "cc5ee17dfdb3d5ec79adde7a471cffe5e4d86349",
+          "local": "cc5ee17dfdb3d5ec79adde7a471cffe5e4d86349",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ci/run.sh",
+          "upstream": "1701bc7ed058fe7ce8f14d713e8dacac139c91e2",
+          "local": "1701bc7ed058fe7ce8f14d713e8dacac139c91e2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "cmake/build-info.cmake",
+          "upstream": "c7005950c5612d1d93ca728386b10806b0043106",
+          "local": "189e179a7ae110dffe09991083457d3d2f8dc7fc",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "cmake/git-vars.cmake",
+          "upstream": "1a4c24ebf6adeb1126e626f56de601621179353d",
+          "local": "f184ad640b7e993a1ae30cc49c6d5b058be2153a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_hf_to_gguf.py",
+          "upstream": "78ad26c6563062e2a801c9f76f77a7ce196dd195",
+          "local": "78ad26c6563062e2a801c9f76f77a7ce196dd195",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_hf_to_gguf_update.py",
+          "upstream": "e5d3196efe415c0a15c09cc84e4f15197506efb2",
+          "local": "e5d3196efe415c0a15c09cc84e4f15197506efb2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_llama_ggml_to_gguf.py",
+          "upstream": "52827e6690a3b706476292c580244afe37f8f894",
+          "local": "52827e6690a3b706476292c580244afe37f8f894",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_lora_to_gguf.py",
+          "upstream": "47c09af53fb5075efd63485cc1fd389226aaa42c",
+          "local": "47c09af53fb5075efd63485cc1fd389226aaa42c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "docs/backend/CANN.md",
+          "upstream": "b0dbc9262226d4ad1a4a99e6958d4458154ed444",
+          "local": "b0dbc9262226d4ad1a4a99e6958d4458154ed444",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "docs/development/llama-star/idea-arch.key",
+          "upstream": "3e068e7075c2ebb53a270b57c51e9281618d8f29",
+          "local": "3e068e7075c2ebb53a270b57c51e9281618d8f29",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/batched.swift/Makefile",
+          "upstream": "1f9156e583fdda26611fcc9c53dfe57517a50da8",
+          "local": "1f9156e583fdda26611fcc9c53dfe57517a50da8",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/convert_legacy_llama.py",
+          "upstream": "5c9305b1237d3bb3310eff0dcec6be1b108bc748",
+          "local": "5c9305b1237d3bb3310eff0dcec6be1b108bc748",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/json_schema_to_grammar.py",
+          "upstream": "83abd259da57fb6384b4e4281f18875a05cc3d73",
+          "local": "83abd259da57fb6384b4e4281f18875a05cc3d73",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama-eval/llama-eval.py",
+          "upstream": "61bdbddd8b13beda9e620e13d15220552372afd5",
+          "local": "61bdbddd8b13beda9e620e13d15220552372afd5",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama-eval/llama-server-simulator.py",
+          "upstream": "e64ba89335d986a4a789a6820577e9ddae191d2c",
+          "local": "e64ba89335d986a4a789a6820577e9ddae191d2c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama-eval/test-simulator.sh",
+          "upstream": "f3ddf3e95d692d9a723fca1020e91149b8682c3d",
+          "local": "f3ddf3e95d692d9a723fca1020e91149b8682c3d",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama.android/gradlew",
+          "upstream": "4f906e0c811fc9e230eb44819f509cd0627f2600",
+          "local": "4f906e0c811fc9e230eb44819f509cd0627f2600",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/compare-embeddings-logits.sh",
+          "upstream": "2ae4dc706100de1d153fbddec28b38640fcf8e6b",
+          "local": "2ae4dc706100de1d153fbddec28b38640fcf8e6b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/compare-logits.py",
+          "upstream": "181c0486301288baffcfda179b80a140903eed17",
+          "local": "181c0486301288baffcfda179b80a140903eed17",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/convert-model.sh",
+          "upstream": "270e17e6f62b2cbc4582523c529b2675fdabbaba",
+          "local": "270e17e6f62b2cbc4582523c529b2675fdabbaba",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-casual-gen-embeddings-org.py",
+          "upstream": "cb840dd5504b247faf5d042c177734a8807b34c3",
+          "local": "cb840dd5504b247faf5d042c177734a8807b34c3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-converted-model-embeddings-logits.sh",
+          "upstream": "1b5ff8611bd4ac8c10d03b0040a484b117307bac",
+          "local": "1b5ff8611bd4ac8c10d03b0040a484b117307bac",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-converted-model.sh",
+          "upstream": "b684804e02ef0a4468f242bf80da251378bdb736",
+          "local": "b684804e02ef0a4468f242bf80da251378bdb736",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-org-model.py",
+          "upstream": "6f85ee4485bc3707e593a48f8210a9f97b885e45",
+          "local": "6f85ee4485bc3707e593a48f8210a9f97b885e45",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/compare-embeddings-logits.sh",
+          "upstream": "984d03e95d5edf38430049578c2bef4da13fcb8c",
+          "local": "984d03e95d5edf38430049578c2bef4da13fcb8c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/convert-model.sh",
+          "upstream": "8b706e164765405199883b09a0c30314cffecb4d",
+          "local": "8b706e164765405199883b09a0c30314cffecb4d",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/run-converted-model.sh",
+          "upstream": "ba8a3afae6a1bcbed1ee2bb95f50d8dd1337fe31",
+          "local": "ba8a3afae6a1bcbed1ee2bb95f50d8dd1337fe31",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/run-original-model.py",
+          "upstream": "001d58896553392b196127f5a87e45cc20c0f169",
+          "local": "001d58896553392b196127f5a87e45cc20c0f169",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/check-nmse.py",
+          "upstream": "324e3858e368245e39d2a2e5d5d9ebba6719ac57",
+          "local": "324e3858e368245e39d2a2e5d5d9ebba6719ac57",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/compare_tokens.py",
+          "upstream": "55e3f26ab4d14639b1264755b7a671bb02ea4713",
+          "local": "55e3f26ab4d14639b1264755b7a671bb02ea4713",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/curl-embedding-server.sh",
+          "upstream": "7ed69e1ea50f553954fd23e5b89491f5ffa7a068",
+          "local": "7ed69e1ea50f553954fd23e5b89491f5ffa7a068",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-add-model-to-collection.py",
+          "upstream": "7e38af3c136c6e8bfa97ea1acba8174ab23107ec",
+          "local": "7e38af3c136c6e8bfa97ea1acba8174ab23107ec",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-create-collection.py",
+          "upstream": "e0fa60af1ae7bab09ccfb6f2e6319d6bd36799c5",
+          "local": "e0fa60af1ae7bab09ccfb6f2e6319d6bd36799c5",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-create-model.py",
+          "upstream": "ea99bd886f4d1d0316c570119847412390e31222",
+          "local": "ea99bd886f4d1d0316c570119847412390e31222",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-upload-gguf-model.py",
+          "upstream": "15ccb1150e30bc2bb90e135df18913c60c8d0405",
+          "local": "15ccb1150e30bc2bb90e135df18913c60c8d0405",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/inspect-converted-model.sh",
+          "upstream": "32d84826fa089fb2c2ca436d5a72b46b6d713f15",
+          "local": "32d84826fa089fb2c2ca436d5a72b46b6d713f15",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/inspect-org-model.py",
+          "upstream": "5c3674af71546c97fe2641245ef093b128349e01",
+          "local": "5c3674af71546c97fe2641245ef093b128349e01",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/perplexity-gen.sh",
+          "upstream": "ef4b650fdab9bdfd42bb7f2a81af035c859f5988",
+          "local": "ef4b650fdab9bdfd42bb7f2a81af035c859f5988",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/perplexity-run-simple.sh",
+          "upstream": "20ee9653a9e6274fad53b9ce8f3897cc64f4e0a3",
+          "local": "20ee9653a9e6274fad53b9ce8f3897cc64f4e0a3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/perplexity-run.sh",
+          "upstream": "c11f32c65f9a0e6d0be830a4feff7b35ac85519b",
+          "local": "c11f32c65f9a0e6d0be830a4feff7b35ac85519b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/quantize.sh",
+          "upstream": "4c21a1345a6c9c95e01387f926122619fdd387aa",
+          "local": "4c21a1345a6c9c95e01387f926122619fdd387aa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/run-embedding-server.sh",
+          "upstream": "9f5fc2cf70fdd5d69fc971ef6528deda36ae1b63",
+          "local": "9f5fc2cf70fdd5d69fc971ef6528deda36ae1b63",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/pydantic_models_to_grammar_examples.py",
+          "upstream": "6dadb7f3fa48d63d6dede64621bcfce65e68af88",
+          "local": "6dadb7f3fa48d63d6dede64621bcfce65e68af88",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/reason-act.sh",
+          "upstream": "3c801920d01958f959d8e55a6d9f1485622ebb21",
+          "local": "3c801920d01958f959d8e55a6d9f1485622ebb21",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/server-llama2-13B.sh",
+          "upstream": "fd5a575886f0569b8f9fb416f1f04bab0856ad15",
+          "local": "fd5a575886f0569b8f9fb416f1f04bab0856ad15",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/build.sh",
+          "upstream": "9dd66cb67655ec0551e957220076ab39ef46c048",
+          "local": "9dd66cb67655ec0551e957220076ab39ef46c048",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/run-llama2.sh",
+          "upstream": "c5490a51505d554e69df62b89115707f024ac7a7",
+          "local": "c5490a51505d554e69df62b89115707f024ac7a7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/start-svr.sh",
+          "upstream": "c3e1b6b998f36536347ae7d707fdb96a99572741",
+          "local": "c3e1b6b998f36536347ae7d707fdb96a99572741",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/test.sh",
+          "upstream": "28c2dcb20a6e90e20bc03901d1d2b380bf88ac8d",
+          "local": "28c2dcb20a6e90e20bc03901d1d2b380bf88ac8d",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/update-ops-doc.sh",
+          "upstream": "fe93c9d64dbfaa4f0e4900e2cc4102e41759c735",
+          "local": "fe93c9d64dbfaa4f0e4900e2cc4102e41759c735",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/test-cmake/build-install.sh",
+          "upstream": "77a6713d67c4e72c2c2e3fc4387c9fc9b897cfd3",
+          "local": "77a6713d67c4e72c2c2e3fc4387c9fc9b897cfd3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/test-cmake/build.sh",
+          "upstream": "a212732b89d91ee17a670b6ccae4f3703bb7021e",
+          "local": "a212732b89d91ee17a670b6ccae4f3703bb7021e",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/ts-type-to-grammar.sh",
+          "upstream": "966050407888ef2943573280ed93ebb1f84c0e1a",
+          "local": "966050407888ef2943573280ed93ebb1f84c0e1a",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/CMakeLists.txt",
+          "upstream": "c4a8450d1cab1d35cce9726f155f9a64d8e21246",
+          "local": "86c4194f2c6d6e6137a4908e615e7a180797dfdb",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-cann/CMakeLists.txt",
+          "upstream": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "local": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/template-instances/generate_cu_files.py",
+          "upstream": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "local": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-et/et-kernels/scripts/check_unimplemented_instructions.sh",
+          "upstream": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "local": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-virtgpu/regenerate_remoting.py",
+          "upstream": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "local": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-webgpu/wgsl-shaders/embed_wgsl.py",
+          "upstream": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "local": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/examples/writer.py",
+          "upstream": "731873a7d666ca5a58dfb95a42bb809fe92fe747",
+          "local": "731873a7d666ca5a58dfb95a42bb809fe92fe747",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_convert_endian.py",
+          "upstream": "31618acfc79eac3d8cd3c8111550f6cf8f21147b",
+          "local": "31618acfc79eac3d8cd3c8111550f6cf8f21147b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_dump.py",
+          "upstream": "8177dff386c7ee1e130ed0a013c2d297ee866439",
+          "local": "8177dff386c7ee1e130ed0a013c2d297ee866439",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_editor_gui.py",
+          "upstream": "293316afed4e497ce3e426243d9fbd30193f5c30",
+          "local": "293316afed4e497ce3e426243d9fbd30193f5c30",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_hash.py",
+          "upstream": "3ef98992197e987d8aefc8fb5f5bf9c787e9d06a",
+          "local": "3ef98992197e987d8aefc8fb5f5bf9c787e9d06a",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_new_metadata.py",
+          "upstream": "c67436bad4af6dfcf662b23aff3d3a5bb1d26257",
+          "local": "c67436bad4af6dfcf662b23aff3d3a5bb1d26257",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_set_metadata.py",
+          "upstream": "f5809c35c887086f8055e828719041f8ae3ea749",
+          "local": "f5809c35c887086f8055e828719041f8ae3ea749",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/tests/test_metadata.py",
+          "upstream": "b77c563ff25efddbd958744cf7fbc743a495a083",
+          "local": "b77c563ff25efddbd958744cf7fbc743a495a083",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/tests/test_quants.py",
+          "upstream": "9aa7c4ae2a5e1e84096e2617f9b29baed5eec539",
+          "local": "9aa7c4ae2a5e1e84096e2617f9b29baed5eec539",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "models/templates/Apriel-1.6-15b-Thinker-fixed.jinja",
+          "upstream": "8a282b8231bdd14589d208df3ea881b1311f0aa1",
+          "local": "8a282b8231bdd14589d208df3ea881b1311f0aa1",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-apps.sh",
+          "upstream": "f0475758c37ab29baac49ed2771334b183d722e0",
+          "local": "f0475758c37ab29baac49ed2771334b183d722e0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-ios.sh",
+          "upstream": "50800d84a0c1deb2cf008d78b5b1ac8e689bea30",
+          "local": "50800d84a0c1deb2cf008d78b5b1ac8e689bea30",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-macos.sh",
+          "upstream": "fa800ee682027605f3cf21b216bbc0e4aea7290e",
+          "local": "fa800ee682027605f3cf21b216bbc0e4aea7290e",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-tvos.sh",
+          "upstream": "b4da698749c5867193a39e32fecba75468271baa",
+          "local": "b4da698749c5867193a39e32fecba75468271baa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-visionos.sh",
+          "upstream": "bbdec6602679cbaf419fcc29472cd69fe0f09ae7",
+          "local": "bbdec6602679cbaf419fcc29472cd69fe0f09ae7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/bench-models.sh",
+          "upstream": "205f2d6b42d7fdd1fd78164df696a110822b3d1c",
+          "local": "205f2d6b42d7fdd1fd78164df696a110822b3d1c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/build-info.sh",
+          "upstream": "fa9e7bacdb8cfb805ae4ad91f12791eb834e54c6",
+          "local": "fa9e7bacdb8cfb805ae4ad91f12791eb834e54c6",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/ccache-clear.sh",
+          "upstream": "27fda33156d735c0c7bc77c8bc9d3019ba23466c",
+          "local": "27fda33156d735c0c7bc77c8bc9d3019ba23466c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/check-requirements.sh",
+          "upstream": "da2357d76c7a660febb79f1024f14074825f7b7b",
+          "local": "da2357d76c7a660febb79f1024f14074825f7b7b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/compare-commits.sh",
+          "upstream": "1802d6e5ef9f0d72ca8ac51b32217c34379f8b4f",
+          "local": "1802d6e5ef9f0d72ca8ac51b32217c34379f8b4f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/compare-llama-bench.py",
+          "upstream": "e5f26b5a41ffba7e72888cf561f2cda20dbc5aed",
+          "local": "e5f26b5a41ffba7e72888cf561f2cda20dbc5aed",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/create_ops_docs.py",
+          "upstream": "e3a476a1a13ffbad21527ef0587ec197f078d67a",
+          "local": "e3a476a1a13ffbad21527ef0587ec197f078d67a",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/debug-test.sh",
+          "upstream": "ead7ea15d14b45bfd1520c894732d4fb791e119f",
+          "local": "ead7ea15d14b45bfd1520c894732d4fb791e119f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/gen-authors.sh",
+          "upstream": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "local": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-hellaswag.sh",
+          "upstream": "0b161141f46555fca7b0edd49bfb8272e847288f",
+          "local": "0b161141f46555fca7b0edd49bfb8272e847288f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-pg.sh",
+          "upstream": "f180bf8340241294bf310671338a6c1816b4bf7b",
+          "local": "f180bf8340241294bf310671338a6c1816b4bf7b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-wikitext-2.sh",
+          "upstream": "bd03ad35263e033bb96c8cd31314ccc422ebddb7",
+          "local": "bd03ad35263e033bb96c8cd31314ccc422ebddb7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-winogrande.sh",
+          "upstream": "bfa0d2ef0b237651ac47f4e3ce6aab0fc614b7a2",
+          "local": "bfa0d2ef0b237651ac47f4e3ce6aab0fc614b7a2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get_chat_template.py",
+          "upstream": "b4827b317e1c934b359388a578b534f114bdc282",
+          "local": "b4827b317e1c934b359388a578b534f114bdc282",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/git-bisect-run.sh",
+          "upstream": "cd1b8c104c4c461dd5c64ca26f34779bb7e29963",
+          "local": "cd1b8c104c4c461dd5c64ca26f34779bb7e29963",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/git-bisect.sh",
+          "upstream": "3279d502e1142e418538d6118189db8c77634802",
+          "local": "3279d502e1142e418538d6118189db8c77634802",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/hf.sh",
+          "upstream": "e41b9053afdf244004acb23f0b1024e8397b6a44",
+          "local": "e41b9053afdf244004acb23f0b1024e8397b6a44",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/jinja/jinja-tester.py",
+          "upstream": "a83f025411ae74f1902497e418792bca0b9deaf6",
+          "local": "a83f025411ae74f1902497e418792bca0b9deaf6",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/make-release-checks.sh",
+          "upstream": "bc575e5a46f4819926b65d6de28e798b721dc4a9",
+          "local": "bc575e5a46f4819926b65d6de28e798b721dc4a9",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/make-release-desc.sh",
+          "upstream": "59aa67cba7e9bef85216fc3dd7947a8818852de2",
+          "local": "59aa67cba7e9bef85216fc3dd7947a8818852de2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/pr2wt.sh",
+          "upstream": "ce0327eadb53c8353326e250902f8cc0e2a59b79",
+          "local": "ce0327eadb53c8353326e250902f8cc0e2a59b79",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/release.sh",
+          "upstream": "bea77f1dd4138380252511bc932604d2320bc9ce",
+          "local": "bea77f1dd4138380252511bc932604d2320bc9ce",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-bench.py",
+          "upstream": "2eabb3bce85c395f41ecce3fdd66e5c24e4f61aa",
+          "local": "2eabb3bce85c395f41ecce3fdd66e5c24e4f61aa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-test-function-call.py",
+          "upstream": "c32f17b5e3bf00316d1e81d168817f5848e05623",
+          "local": "c32f17b5e3bf00316d1e81d168817f5848e05623",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-test-parallel-tc.py",
+          "upstream": "a166c6d720814bb42fc83882b29aa0b08e821e52",
+          "local": "a166c6d720814bb42fc83882b29aa0b08e821e52",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-test-structured.py",
+          "upstream": "da217fc46c86e82e62430fdd3a4ff6e2d1a0e1fa",
+          "local": "da217fc46c86e82e62430fdd3a4ff6e2d1a0e1fa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/build.py",
+          "upstream": "5e9fab3d08b6754b312b6953e347ef6959880b85",
+          "local": "5e9fab3d08b6754b312b6953e347ef6959880b85",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/ggml-hexagon-profile.py",
+          "upstream": "038d92fb5c4756c3c459f5d5228009a0670c90dc",
+          "local": "038d92fb5c4756c3c459f5d5228009a0670c90dc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/ggml-hexagon-trace.py",
+          "upstream": "99bf771b85d8f3a32acd42a742dbe49a401c8cc7",
+          "local": "99bf771b85d8f3a32acd42a742dbe49a401c8cc7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/run.py",
+          "upstream": "d639b16b82504a374ec1aeaa2e1d6595dbce00d2",
+          "local": "d639b16b82504a374ec1aeaa2e1d6595dbce00d2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-ggml-am.sh",
+          "upstream": "826c560cd883a8f20c9a33a52ce51e09e8dcadfa",
+          "local": "826c560cd883a8f20c9a33a52ce51e09e8dcadfa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-ggml.sh",
+          "upstream": "2da9b578915826fff94387cf884da008681969fb",
+          "local": "2da9b578915826fff94387cf884da008681969fb",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync_vendor.py",
+          "upstream": "98b9ddc8ef6b8e822135826d5b7ba5ee90f78e79",
+          "local": "98b9ddc8ef6b8e822135826d5b7ba5ee90f78e79",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/tool_bench.py",
+          "upstream": "d9f5583d4a561ff773c1cd6638d338c1be8890ef",
+          "local": "d9f5583d4a561ff773c1cd6638d338c1be8890ef",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/tool_bench.sh",
+          "upstream": "05b41d2f1fafb97eb53a096df894a476f743eaef",
+          "local": "05b41d2f1fafb97eb53a096df894a476f743eaef",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/verify-checksum-models.py",
+          "upstream": "0b5b9aafaade3d25547cb633bd39c2eaf29f5199",
+          "local": "0b5b9aafaade3d25547cb633bd39c2eaf29f5199",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/wc2wt.sh",
+          "upstream": "b6e92f86934180ccc251cd13b248113a96d3fe54",
+          "local": "b6e92f86934180ccc251cd13b248113a96d3fe54",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-json-schema-to-grammar.cpp",
+          "upstream": "214dbe1993b80d8c67e7621b61619638e2985663",
+          "local": "214dbe1993b80d8c67e7621b61619638e2985663",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-lora-conversion-inference.sh",
+          "upstream": "e7d677693319f38e34e7f445fc0e308ddd28bb33",
+          "local": "e7d677693319f38e34e7f445fc0e308ddd28bb33",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-tokenizer-0.sh",
+          "upstream": "7024b00afe341eb8d8411085c8a7db963e25a15c",
+          "local": "7024b00afe341eb8d8411085c8a7db963e25a15c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-tokenizers-repo.sh",
+          "upstream": "94a3d05ba5a8d7e0d2c65f3322f82eaebf77f398",
+          "local": "94a3d05ba5a8d7e0d2c65f3322f82eaebf77f398",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/gguf-split/tests.sh",
+          "upstream": "dcd66681bb83d9871ed825836b3885477afc1305",
+          "local": "dcd66681bb83d9871ed825836b3885477afc1305",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/mtmd/tests.sh",
+          "upstream": "6fe26478ab60838694251904ed7fb5d0a1eec90f",
+          "local": "6fe26478ab60838694251904ed7fb5d0a1eec90f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/fixtures/mcp_echo_server.py",
+          "upstream": "7acfb358881af4d752eac304de7056ddc01f4243",
+          "local": "7acfb358881af4d752eac304de7056ddc01f4243",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/tests.sh",
+          "upstream": "433dc99828e468710d120f1bd6300b5612b9e883",
+          "local": "433dc99828e468710d120f1bd6300b5612b9e883",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/unit/test_tool_call.py",
+          "upstream": "9fa84d165efcbae3380d0ad0fe0f18f71e4e6fa3",
+          "local": "9fa84d165efcbae3380d0ad0fe0f18f71e4e6fa3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/unit/test_tools_builtin.py",
+          "upstream": "a69052c6d72dbcb070cb91b9a40e783f7e044b19",
+          "local": "a69052c6d72dbcb070cb91b9a40e783f7e044b19",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/ui/scripts/git-hooks/install.sh",
+          "upstream": "1a17dcad6d3deff4921190121c9e3b297807f9e0",
+          "local": "1a17dcad6d3deff4921190121c9e3b297807f9e0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/ui/scripts/git-hooks/pre-commit.sh",
+          "upstream": "31c23ed518785e22d9bbb70766d95263fb347725",
+          "local": "31c23ed518785e22d9bbb70766d95263fb347725",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/ui/scripts/git-hooks/pre-push.sh",
+          "upstream": "d5598fb17a9aa9c60ff25d0f791d1fde12e7b06b",
+          "local": "d5598fb17a9aa9c60ff25d0f791d1fde12e7b06b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        }
+      ],
+      "missing": [
+        ".pre-commit-config.yaml",
+        "benches/dgx-spark/run-aime-120b-t8-x8-high.log",
+        "build-xcframework.sh",
+        "examples/llama.swiftui/llama.swiftui.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist"
+      ],
+      "added": [
+        "SOURCE_SNAPSHOT.md"
+      ],
+      "content_changed": [
+        {
+          "path": "cmake/build-info.cmake",
+          "upstream": "c7005950c5612d1d93ca728386b10806b0043106",
+          "local": "189e179a7ae110dffe09991083457d3d2f8dc7fc",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "cmake/git-vars.cmake",
+          "upstream": "1a4c24ebf6adeb1126e626f56de601621179353d",
+          "local": "f184ad640b7e993a1ae30cc49c6d5b058be2153a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/CMakeLists.txt",
+          "upstream": "c4a8450d1cab1d35cce9726f155f9a64d8e21246",
+          "local": "86c4194f2c6d6e6137a4908e615e7a180797dfdb",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        }
+      ],
+      "mode_only_changed": [
+        {
+          "path": ".devops/tools.sh",
+          "upstream": "cc5ee17dfdb3d5ec79adde7a471cffe5e4d86349",
+          "local": "cc5ee17dfdb3d5ec79adde7a471cffe5e4d86349",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ci/run.sh",
+          "upstream": "1701bc7ed058fe7ce8f14d713e8dacac139c91e2",
+          "local": "1701bc7ed058fe7ce8f14d713e8dacac139c91e2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_hf_to_gguf.py",
+          "upstream": "78ad26c6563062e2a801c9f76f77a7ce196dd195",
+          "local": "78ad26c6563062e2a801c9f76f77a7ce196dd195",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_hf_to_gguf_update.py",
+          "upstream": "e5d3196efe415c0a15c09cc84e4f15197506efb2",
+          "local": "e5d3196efe415c0a15c09cc84e4f15197506efb2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_llama_ggml_to_gguf.py",
+          "upstream": "52827e6690a3b706476292c580244afe37f8f894",
+          "local": "52827e6690a3b706476292c580244afe37f8f894",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "convert_lora_to_gguf.py",
+          "upstream": "47c09af53fb5075efd63485cc1fd389226aaa42c",
+          "local": "47c09af53fb5075efd63485cc1fd389226aaa42c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "docs/backend/CANN.md",
+          "upstream": "b0dbc9262226d4ad1a4a99e6958d4458154ed444",
+          "local": "b0dbc9262226d4ad1a4a99e6958d4458154ed444",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "docs/development/llama-star/idea-arch.key",
+          "upstream": "3e068e7075c2ebb53a270b57c51e9281618d8f29",
+          "local": "3e068e7075c2ebb53a270b57c51e9281618d8f29",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/batched.swift/Makefile",
+          "upstream": "1f9156e583fdda26611fcc9c53dfe57517a50da8",
+          "local": "1f9156e583fdda26611fcc9c53dfe57517a50da8",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/convert_legacy_llama.py",
+          "upstream": "5c9305b1237d3bb3310eff0dcec6be1b108bc748",
+          "local": "5c9305b1237d3bb3310eff0dcec6be1b108bc748",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/json_schema_to_grammar.py",
+          "upstream": "83abd259da57fb6384b4e4281f18875a05cc3d73",
+          "local": "83abd259da57fb6384b4e4281f18875a05cc3d73",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama-eval/llama-eval.py",
+          "upstream": "61bdbddd8b13beda9e620e13d15220552372afd5",
+          "local": "61bdbddd8b13beda9e620e13d15220552372afd5",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama-eval/llama-server-simulator.py",
+          "upstream": "e64ba89335d986a4a789a6820577e9ddae191d2c",
+          "local": "e64ba89335d986a4a789a6820577e9ddae191d2c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama-eval/test-simulator.sh",
+          "upstream": "f3ddf3e95d692d9a723fca1020e91149b8682c3d",
+          "local": "f3ddf3e95d692d9a723fca1020e91149b8682c3d",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/llama.android/gradlew",
+          "upstream": "4f906e0c811fc9e230eb44819f509cd0627f2600",
+          "local": "4f906e0c811fc9e230eb44819f509cd0627f2600",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/compare-embeddings-logits.sh",
+          "upstream": "2ae4dc706100de1d153fbddec28b38640fcf8e6b",
+          "local": "2ae4dc706100de1d153fbddec28b38640fcf8e6b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/compare-logits.py",
+          "upstream": "181c0486301288baffcfda179b80a140903eed17",
+          "local": "181c0486301288baffcfda179b80a140903eed17",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/convert-model.sh",
+          "upstream": "270e17e6f62b2cbc4582523c529b2675fdabbaba",
+          "local": "270e17e6f62b2cbc4582523c529b2675fdabbaba",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-casual-gen-embeddings-org.py",
+          "upstream": "cb840dd5504b247faf5d042c177734a8807b34c3",
+          "local": "cb840dd5504b247faf5d042c177734a8807b34c3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-converted-model-embeddings-logits.sh",
+          "upstream": "1b5ff8611bd4ac8c10d03b0040a484b117307bac",
+          "local": "1b5ff8611bd4ac8c10d03b0040a484b117307bac",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-converted-model.sh",
+          "upstream": "b684804e02ef0a4468f242bf80da251378bdb736",
+          "local": "b684804e02ef0a4468f242bf80da251378bdb736",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/causal/run-org-model.py",
+          "upstream": "6f85ee4485bc3707e593a48f8210a9f97b885e45",
+          "local": "6f85ee4485bc3707e593a48f8210a9f97b885e45",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/compare-embeddings-logits.sh",
+          "upstream": "984d03e95d5edf38430049578c2bef4da13fcb8c",
+          "local": "984d03e95d5edf38430049578c2bef4da13fcb8c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/convert-model.sh",
+          "upstream": "8b706e164765405199883b09a0c30314cffecb4d",
+          "local": "8b706e164765405199883b09a0c30314cffecb4d",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/run-converted-model.sh",
+          "upstream": "ba8a3afae6a1bcbed1ee2bb95f50d8dd1337fe31",
+          "local": "ba8a3afae6a1bcbed1ee2bb95f50d8dd1337fe31",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/embedding/run-original-model.py",
+          "upstream": "001d58896553392b196127f5a87e45cc20c0f169",
+          "local": "001d58896553392b196127f5a87e45cc20c0f169",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/check-nmse.py",
+          "upstream": "324e3858e368245e39d2a2e5d5d9ebba6719ac57",
+          "local": "324e3858e368245e39d2a2e5d5d9ebba6719ac57",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/compare_tokens.py",
+          "upstream": "55e3f26ab4d14639b1264755b7a671bb02ea4713",
+          "local": "55e3f26ab4d14639b1264755b7a671bb02ea4713",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/curl-embedding-server.sh",
+          "upstream": "7ed69e1ea50f553954fd23e5b89491f5ffa7a068",
+          "local": "7ed69e1ea50f553954fd23e5b89491f5ffa7a068",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-add-model-to-collection.py",
+          "upstream": "7e38af3c136c6e8bfa97ea1acba8174ab23107ec",
+          "local": "7e38af3c136c6e8bfa97ea1acba8174ab23107ec",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-create-collection.py",
+          "upstream": "e0fa60af1ae7bab09ccfb6f2e6319d6bd36799c5",
+          "local": "e0fa60af1ae7bab09ccfb6f2e6319d6bd36799c5",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-create-model.py",
+          "upstream": "ea99bd886f4d1d0316c570119847412390e31222",
+          "local": "ea99bd886f4d1d0316c570119847412390e31222",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/hf-upload-gguf-model.py",
+          "upstream": "15ccb1150e30bc2bb90e135df18913c60c8d0405",
+          "local": "15ccb1150e30bc2bb90e135df18913c60c8d0405",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/inspect-converted-model.sh",
+          "upstream": "32d84826fa089fb2c2ca436d5a72b46b6d713f15",
+          "local": "32d84826fa089fb2c2ca436d5a72b46b6d713f15",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/inspect-org-model.py",
+          "upstream": "5c3674af71546c97fe2641245ef093b128349e01",
+          "local": "5c3674af71546c97fe2641245ef093b128349e01",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/perplexity-gen.sh",
+          "upstream": "ef4b650fdab9bdfd42bb7f2a81af035c859f5988",
+          "local": "ef4b650fdab9bdfd42bb7f2a81af035c859f5988",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/perplexity-run-simple.sh",
+          "upstream": "20ee9653a9e6274fad53b9ce8f3897cc64f4e0a3",
+          "local": "20ee9653a9e6274fad53b9ce8f3897cc64f4e0a3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/perplexity-run.sh",
+          "upstream": "c11f32c65f9a0e6d0be830a4feff7b35ac85519b",
+          "local": "c11f32c65f9a0e6d0be830a4feff7b35ac85519b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/quantize.sh",
+          "upstream": "4c21a1345a6c9c95e01387f926122619fdd387aa",
+          "local": "4c21a1345a6c9c95e01387f926122619fdd387aa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/model-conversion/scripts/utils/run-embedding-server.sh",
+          "upstream": "9f5fc2cf70fdd5d69fc971ef6528deda36ae1b63",
+          "local": "9f5fc2cf70fdd5d69fc971ef6528deda36ae1b63",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/pydantic_models_to_grammar_examples.py",
+          "upstream": "6dadb7f3fa48d63d6dede64621bcfce65e68af88",
+          "local": "6dadb7f3fa48d63d6dede64621bcfce65e68af88",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/reason-act.sh",
+          "upstream": "3c801920d01958f959d8e55a6d9f1485622ebb21",
+          "local": "3c801920d01958f959d8e55a6d9f1485622ebb21",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/server-llama2-13B.sh",
+          "upstream": "fd5a575886f0569b8f9fb416f1f04bab0856ad15",
+          "local": "fd5a575886f0569b8f9fb416f1f04bab0856ad15",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/build.sh",
+          "upstream": "9dd66cb67655ec0551e957220076ab39ef46c048",
+          "local": "9dd66cb67655ec0551e957220076ab39ef46c048",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/run-llama2.sh",
+          "upstream": "c5490a51505d554e69df62b89115707f024ac7a7",
+          "local": "c5490a51505d554e69df62b89115707f024ac7a7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/start-svr.sh",
+          "upstream": "c3e1b6b998f36536347ae7d707fdb96a99572741",
+          "local": "c3e1b6b998f36536347ae7d707fdb96a99572741",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/test.sh",
+          "upstream": "28c2dcb20a6e90e20bc03901d1d2b380bf88ac8d",
+          "local": "28c2dcb20a6e90e20bc03901d1d2b380bf88ac8d",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/sycl/update-ops-doc.sh",
+          "upstream": "fe93c9d64dbfaa4f0e4900e2cc4102e41759c735",
+          "local": "fe93c9d64dbfaa4f0e4900e2cc4102e41759c735",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/test-cmake/build-install.sh",
+          "upstream": "77a6713d67c4e72c2c2e3fc4387c9fc9b897cfd3",
+          "local": "77a6713d67c4e72c2c2e3fc4387c9fc9b897cfd3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/test-cmake/build.sh",
+          "upstream": "a212732b89d91ee17a670b6ccae4f3703bb7021e",
+          "local": "a212732b89d91ee17a670b6ccae4f3703bb7021e",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/ts-type-to-grammar.sh",
+          "upstream": "966050407888ef2943573280ed93ebb1f84c0e1a",
+          "local": "966050407888ef2943573280ed93ebb1f84c0e1a",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-cann/CMakeLists.txt",
+          "upstream": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "local": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/template-instances/generate_cu_files.py",
+          "upstream": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "local": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-et/et-kernels/scripts/check_unimplemented_instructions.sh",
+          "upstream": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "local": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-virtgpu/regenerate_remoting.py",
+          "upstream": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "local": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "ggml/src/ggml-webgpu/wgsl-shaders/embed_wgsl.py",
+          "upstream": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "local": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/examples/writer.py",
+          "upstream": "731873a7d666ca5a58dfb95a42bb809fe92fe747",
+          "local": "731873a7d666ca5a58dfb95a42bb809fe92fe747",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_convert_endian.py",
+          "upstream": "31618acfc79eac3d8cd3c8111550f6cf8f21147b",
+          "local": "31618acfc79eac3d8cd3c8111550f6cf8f21147b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_dump.py",
+          "upstream": "8177dff386c7ee1e130ed0a013c2d297ee866439",
+          "local": "8177dff386c7ee1e130ed0a013c2d297ee866439",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_editor_gui.py",
+          "upstream": "293316afed4e497ce3e426243d9fbd30193f5c30",
+          "local": "293316afed4e497ce3e426243d9fbd30193f5c30",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_hash.py",
+          "upstream": "3ef98992197e987d8aefc8fb5f5bf9c787e9d06a",
+          "local": "3ef98992197e987d8aefc8fb5f5bf9c787e9d06a",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_new_metadata.py",
+          "upstream": "c67436bad4af6dfcf662b23aff3d3a5bb1d26257",
+          "local": "c67436bad4af6dfcf662b23aff3d3a5bb1d26257",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/gguf/scripts/gguf_set_metadata.py",
+          "upstream": "f5809c35c887086f8055e828719041f8ae3ea749",
+          "local": "f5809c35c887086f8055e828719041f8ae3ea749",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/tests/test_metadata.py",
+          "upstream": "b77c563ff25efddbd958744cf7fbc743a495a083",
+          "local": "b77c563ff25efddbd958744cf7fbc743a495a083",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "gguf-py/tests/test_quants.py",
+          "upstream": "9aa7c4ae2a5e1e84096e2617f9b29baed5eec539",
+          "local": "9aa7c4ae2a5e1e84096e2617f9b29baed5eec539",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "models/templates/Apriel-1.6-15b-Thinker-fixed.jinja",
+          "upstream": "8a282b8231bdd14589d208df3ea881b1311f0aa1",
+          "local": "8a282b8231bdd14589d208df3ea881b1311f0aa1",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-apps.sh",
+          "upstream": "f0475758c37ab29baac49ed2771334b183d722e0",
+          "local": "f0475758c37ab29baac49ed2771334b183d722e0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-ios.sh",
+          "upstream": "50800d84a0c1deb2cf008d78b5b1ac8e689bea30",
+          "local": "50800d84a0c1deb2cf008d78b5b1ac8e689bea30",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-macos.sh",
+          "upstream": "fa800ee682027605f3cf21b216bbc0e4aea7290e",
+          "local": "fa800ee682027605f3cf21b216bbc0e4aea7290e",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-tvos.sh",
+          "upstream": "b4da698749c5867193a39e32fecba75468271baa",
+          "local": "b4da698749c5867193a39e32fecba75468271baa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/apple/validate-visionos.sh",
+          "upstream": "bbdec6602679cbaf419fcc29472cd69fe0f09ae7",
+          "local": "bbdec6602679cbaf419fcc29472cd69fe0f09ae7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/bench-models.sh",
+          "upstream": "205f2d6b42d7fdd1fd78164df696a110822b3d1c",
+          "local": "205f2d6b42d7fdd1fd78164df696a110822b3d1c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/build-info.sh",
+          "upstream": "fa9e7bacdb8cfb805ae4ad91f12791eb834e54c6",
+          "local": "fa9e7bacdb8cfb805ae4ad91f12791eb834e54c6",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/ccache-clear.sh",
+          "upstream": "27fda33156d735c0c7bc77c8bc9d3019ba23466c",
+          "local": "27fda33156d735c0c7bc77c8bc9d3019ba23466c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/check-requirements.sh",
+          "upstream": "da2357d76c7a660febb79f1024f14074825f7b7b",
+          "local": "da2357d76c7a660febb79f1024f14074825f7b7b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/compare-commits.sh",
+          "upstream": "1802d6e5ef9f0d72ca8ac51b32217c34379f8b4f",
+          "local": "1802d6e5ef9f0d72ca8ac51b32217c34379f8b4f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/compare-llama-bench.py",
+          "upstream": "e5f26b5a41ffba7e72888cf561f2cda20dbc5aed",
+          "local": "e5f26b5a41ffba7e72888cf561f2cda20dbc5aed",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/create_ops_docs.py",
+          "upstream": "e3a476a1a13ffbad21527ef0587ec197f078d67a",
+          "local": "e3a476a1a13ffbad21527ef0587ec197f078d67a",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/debug-test.sh",
+          "upstream": "ead7ea15d14b45bfd1520c894732d4fb791e119f",
+          "local": "ead7ea15d14b45bfd1520c894732d4fb791e119f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/gen-authors.sh",
+          "upstream": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "local": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-hellaswag.sh",
+          "upstream": "0b161141f46555fca7b0edd49bfb8272e847288f",
+          "local": "0b161141f46555fca7b0edd49bfb8272e847288f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-pg.sh",
+          "upstream": "f180bf8340241294bf310671338a6c1816b4bf7b",
+          "local": "f180bf8340241294bf310671338a6c1816b4bf7b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-wikitext-2.sh",
+          "upstream": "bd03ad35263e033bb96c8cd31314ccc422ebddb7",
+          "local": "bd03ad35263e033bb96c8cd31314ccc422ebddb7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get-winogrande.sh",
+          "upstream": "bfa0d2ef0b237651ac47f4e3ce6aab0fc614b7a2",
+          "local": "bfa0d2ef0b237651ac47f4e3ce6aab0fc614b7a2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/get_chat_template.py",
+          "upstream": "b4827b317e1c934b359388a578b534f114bdc282",
+          "local": "b4827b317e1c934b359388a578b534f114bdc282",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/git-bisect-run.sh",
+          "upstream": "cd1b8c104c4c461dd5c64ca26f34779bb7e29963",
+          "local": "cd1b8c104c4c461dd5c64ca26f34779bb7e29963",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/git-bisect.sh",
+          "upstream": "3279d502e1142e418538d6118189db8c77634802",
+          "local": "3279d502e1142e418538d6118189db8c77634802",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/hf.sh",
+          "upstream": "e41b9053afdf244004acb23f0b1024e8397b6a44",
+          "local": "e41b9053afdf244004acb23f0b1024e8397b6a44",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/jinja/jinja-tester.py",
+          "upstream": "a83f025411ae74f1902497e418792bca0b9deaf6",
+          "local": "a83f025411ae74f1902497e418792bca0b9deaf6",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/make-release-checks.sh",
+          "upstream": "bc575e5a46f4819926b65d6de28e798b721dc4a9",
+          "local": "bc575e5a46f4819926b65d6de28e798b721dc4a9",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/make-release-desc.sh",
+          "upstream": "59aa67cba7e9bef85216fc3dd7947a8818852de2",
+          "local": "59aa67cba7e9bef85216fc3dd7947a8818852de2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/pr2wt.sh",
+          "upstream": "ce0327eadb53c8353326e250902f8cc0e2a59b79",
+          "local": "ce0327eadb53c8353326e250902f8cc0e2a59b79",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/release.sh",
+          "upstream": "bea77f1dd4138380252511bc932604d2320bc9ce",
+          "local": "bea77f1dd4138380252511bc932604d2320bc9ce",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-bench.py",
+          "upstream": "2eabb3bce85c395f41ecce3fdd66e5c24e4f61aa",
+          "local": "2eabb3bce85c395f41ecce3fdd66e5c24e4f61aa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-test-function-call.py",
+          "upstream": "c32f17b5e3bf00316d1e81d168817f5848e05623",
+          "local": "c32f17b5e3bf00316d1e81d168817f5848e05623",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-test-parallel-tc.py",
+          "upstream": "a166c6d720814bb42fc83882b29aa0b08e821e52",
+          "local": "a166c6d720814bb42fc83882b29aa0b08e821e52",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/server-test-structured.py",
+          "upstream": "da217fc46c86e82e62430fdd3a4ff6e2d1a0e1fa",
+          "local": "da217fc46c86e82e62430fdd3a4ff6e2d1a0e1fa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/build.py",
+          "upstream": "5e9fab3d08b6754b312b6953e347ef6959880b85",
+          "local": "5e9fab3d08b6754b312b6953e347ef6959880b85",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/ggml-hexagon-profile.py",
+          "upstream": "038d92fb5c4756c3c459f5d5228009a0670c90dc",
+          "local": "038d92fb5c4756c3c459f5d5228009a0670c90dc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/ggml-hexagon-trace.py",
+          "upstream": "99bf771b85d8f3a32acd42a742dbe49a401c8cc7",
+          "local": "99bf771b85d8f3a32acd42a742dbe49a401c8cc7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/snapdragon/run.py",
+          "upstream": "d639b16b82504a374ec1aeaa2e1d6595dbce00d2",
+          "local": "d639b16b82504a374ec1aeaa2e1d6595dbce00d2",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-ggml-am.sh",
+          "upstream": "826c560cd883a8f20c9a33a52ce51e09e8dcadfa",
+          "local": "826c560cd883a8f20c9a33a52ce51e09e8dcadfa",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-ggml.sh",
+          "upstream": "2da9b578915826fff94387cf884da008681969fb",
+          "local": "2da9b578915826fff94387cf884da008681969fb",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync_vendor.py",
+          "upstream": "98b9ddc8ef6b8e822135826d5b7ba5ee90f78e79",
+          "local": "98b9ddc8ef6b8e822135826d5b7ba5ee90f78e79",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/tool_bench.py",
+          "upstream": "d9f5583d4a561ff773c1cd6638d338c1be8890ef",
+          "local": "d9f5583d4a561ff773c1cd6638d338c1be8890ef",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/tool_bench.sh",
+          "upstream": "05b41d2f1fafb97eb53a096df894a476f743eaef",
+          "local": "05b41d2f1fafb97eb53a096df894a476f743eaef",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/verify-checksum-models.py",
+          "upstream": "0b5b9aafaade3d25547cb633bd39c2eaf29f5199",
+          "local": "0b5b9aafaade3d25547cb633bd39c2eaf29f5199",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/wc2wt.sh",
+          "upstream": "b6e92f86934180ccc251cd13b248113a96d3fe54",
+          "local": "b6e92f86934180ccc251cd13b248113a96d3fe54",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-json-schema-to-grammar.cpp",
+          "upstream": "214dbe1993b80d8c67e7621b61619638e2985663",
+          "local": "214dbe1993b80d8c67e7621b61619638e2985663",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-lora-conversion-inference.sh",
+          "upstream": "e7d677693319f38e34e7f445fc0e308ddd28bb33",
+          "local": "e7d677693319f38e34e7f445fc0e308ddd28bb33",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-tokenizer-0.sh",
+          "upstream": "7024b00afe341eb8d8411085c8a7db963e25a15c",
+          "local": "7024b00afe341eb8d8411085c8a7db963e25a15c",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-tokenizers-repo.sh",
+          "upstream": "94a3d05ba5a8d7e0d2c65f3322f82eaebf77f398",
+          "local": "94a3d05ba5a8d7e0d2c65f3322f82eaebf77f398",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/gguf-split/tests.sh",
+          "upstream": "dcd66681bb83d9871ed825836b3885477afc1305",
+          "local": "dcd66681bb83d9871ed825836b3885477afc1305",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/mtmd/tests.sh",
+          "upstream": "6fe26478ab60838694251904ed7fb5d0a1eec90f",
+          "local": "6fe26478ab60838694251904ed7fb5d0a1eec90f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/fixtures/mcp_echo_server.py",
+          "upstream": "7acfb358881af4d752eac304de7056ddc01f4243",
+          "local": "7acfb358881af4d752eac304de7056ddc01f4243",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/tests.sh",
+          "upstream": "433dc99828e468710d120f1bd6300b5612b9e883",
+          "local": "433dc99828e468710d120f1bd6300b5612b9e883",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/unit/test_tool_call.py",
+          "upstream": "9fa84d165efcbae3380d0ad0fe0f18f71e4e6fa3",
+          "local": "9fa84d165efcbae3380d0ad0fe0f18f71e4e6fa3",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/server/tests/unit/test_tools_builtin.py",
+          "upstream": "a69052c6d72dbcb070cb91b9a40e783f7e044b19",
+          "local": "a69052c6d72dbcb070cb91b9a40e783f7e044b19",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/ui/scripts/git-hooks/install.sh",
+          "upstream": "1a17dcad6d3deff4921190121c9e3b297807f9e0",
+          "local": "1a17dcad6d3deff4921190121c9e3b297807f9e0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/ui/scripts/git-hooks/pre-commit.sh",
+          "upstream": "31c23ed518785e22d9bbb70766d95263fb347725",
+          "local": "31c23ed518785e22d9bbb70766d95263fb347725",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tools/ui/scripts/git-hooks/pre-push.sh",
+          "upstream": "d5598fb17a9aa9c60ff25d0f791d1fde12e7b06b",
+          "local": "d5598fb17a9aa9c60ff25d0f791d1fde12e7b06b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        }
+      ]
+    },
+    {
+      "name": "stable-diffusion.cpp",
+      "upstream_repository": "leejet/stable-diffusion.cpp",
+      "local_prefix": "source/sdkit3-port-source/stable-diffusion.cpp/",
+      "upstream_revision": "6b3edaaf32cc19e5bb2d819c788bd557eddc8eba",
+      "local_tree": "4bb7f2bc985dbfd058ea1eef5b4d42f1a90152df",
+      "upstream_files": 390,
+      "local_files": 423,
+      "identical": 351,
+      "changed": [
+        {
+          "path": "CMakeLists.txt",
+          "upstream": "3c2b7b4a8714f1e7d22bd0ea58ee23cb9f03e853",
+          "local": "5e006b5786009b5a515fb3db5f68458caadad574",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "README.md",
+          "upstream": "6ba81d89a186f38a3e7fa3857dc80771d3ba3d36",
+          "local": "87bae1f27a3d441fec0a4af737d0467014f96d7b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "docs/ltx2.md",
+          "upstream": "9caa9741136f58c754020e3d0d4bee8336b3ee90",
+          "local": "4a697562da11a506b7ad1b239ba3b4138f2534fc",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/stable-diffusion.h",
+          "upstream": "d5cda6d9a8866b976df332a876f4e8d5cce4f1b4",
+          "local": "94c10d0d9197169c28091185f855ccfeb2417c8a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/conditioning/conditioner.hpp",
+          "upstream": "8968676b3dea495ce01014aed8d81618270ba1e6",
+          "local": "22ba739f4afe6f4f795497df65e34e39303a76ca",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/backend_fit.cpp",
+          "upstream": "0ba2df14ff9a8b6510d2864e05c6ff5ec88e44c6",
+          "local": "949d77009542ac0da7fbc73b471c4e5ad81987fd",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/ggml_extend.hpp",
+          "upstream": "c262969d3a4801183acb93ab1f3aa480eacbb692",
+          "local": "be1652da49414d39625f2e95a959100736b9d20e",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/ggml_extend_backend.cpp",
+          "upstream": "a8316643872b69e57ba457d80d8ef869740b5cea",
+          "local": "3b4cd3db889520c86195ad5a78ac541b9091f569",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/ggml_extend_backend.h",
+          "upstream": "d5498e8f46e2c3776ea8e22397fc862b3729f621",
+          "local": "4bc75e18f1c30bb21b23b1c15e7476a1650e18de",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/util.cpp",
+          "upstream": "ff53c65fc4ce89fd64b2ce475db879ab6b99c4dc",
+          "local": "8643d6d3e089f41261e0cdf85c17def093a8137b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/util.h",
+          "upstream": "35b52061be9c7179301d65c2c46bc01f37f245a8",
+          "local": "9e5472443305da401602676c03fc277efecdeca2",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model.h",
+          "upstream": "f59f1de7d6a626e99413d4a4e33f3eb46ba7ca6a",
+          "local": "61df351b07d1a35bdac8ec42ca01ff4516c34aab",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/adapter/ip_adapter.hpp",
+          "upstream": "cc4933e755b251c0f709ebeac8ab1f45d6023ce7",
+          "local": "7ce70b1b58b9db74e3dd367e5de29b6c073389ea",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/adapter/lora.hpp",
+          "upstream": "8eb88d543d45fb6227648f4763dc042571971640",
+          "local": "e4788a55ccf2b14e6e4b0511e9e5fa6c189df3b0",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/common/block.hpp",
+          "upstream": "6eb387d9f26af00a40c0f4c6bd47f9bff158d4b5",
+          "local": "09f28036ac06a0c68e0622f8971fd04e1b85bb82",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/anima.hpp",
+          "upstream": "4fe7e4650e1e3e75714dc4ece2d86d1428cc6818",
+          "local": "3d8ea548da7314c844c714db1832b4abef639345",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/control.hpp",
+          "upstream": "bf3c7e435d674126c0f165b61ade382982134be0",
+          "local": "78571d0346668e5e071fdb54650b655b2e5d6602",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/ltxv.hpp",
+          "upstream": "b75c9f7fa15757205bd1c99f6fa0f38b99c6c2b3",
+          "local": "38b59b219a7995e2ebba43a23a68df9b508a13ca",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/model.hpp",
+          "upstream": "070ca53d4eff2424ac7d6deaad2db17dd0015dad",
+          "local": "aca0676f8b2c1f09b38a062250602149c3fb3515",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/unet.hpp",
+          "upstream": "567573049a04af2b8ba7c42bc920d123661f36f8",
+          "local": "50f45730cba912a595e3c02aaec6b0af52a04905",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/te/clip.hpp",
+          "upstream": "2fde3de79b82e4f408f7166a8fae9edbb683108a",
+          "local": "4886fef1552f40722bbc42083d9e9237f8426f26",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/vae/auto_encoder_kl.hpp",
+          "upstream": "604347d77bf6036a2efcb490aa3fcfabbfc4c353",
+          "local": "ca384e6ee6f873dfceea48b1bee7ae2bd8a94be7",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/vae/tae.hpp",
+          "upstream": "d291bb785118889e7ceac5c2a6ff0802a1921e65",
+          "local": "706723afb58305e7060880a0d4a53429da5c8e3a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/vae/vae.hpp",
+          "upstream": "f3adb0ccc9d1b8e59906e7cad7a44c69e9136fdb",
+          "local": "17097f8cc6e56af3bfcb04a0f4b7a1b5aeed4d17",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_io/gguf_io.cpp",
+          "upstream": "cd22312d5f80a99d083ce3568f67525481805797",
+          "local": "1d2e8c20ea4a1421d5a8118ea127deab9f208189",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_io/tensor_storage.h",
+          "upstream": "11f53e06371346eda49d8fd5df98dc81985034f4",
+          "local": "02823abeb757f47e97a9e51d71c5ad5a8995ce02",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_loader.cpp",
+          "upstream": "dc2bb4bf03afdf94748434e1edd135da7e23e28e",
+          "local": "0c91c36d154575576ff42839c82e3b46073d0f38",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_loader.h",
+          "upstream": "f7ebcf3ef16e7ce93fbfdc12f0c89dc637f6dfc6",
+          "local": "e4820b0d130031143549db7f1c0302f46f6a7a0a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_manager.cpp",
+          "upstream": "8db303dda956b393a593f10f551b20e9dcf928c6",
+          "local": "83ed101bb57894a86476f0193cc3ee4a26579ed0",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_manager.h",
+          "upstream": "3dc6338645a294f768102738cd8d2e5e7d403020",
+          "local": "014cb1d8e70d7bf325939ec40c57f1191d89352d",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/name_conversion.cpp",
+          "upstream": "7e528c77c09daa3b3615fe153fd7b70c6ba9a858",
+          "local": "e1b4015df4d0b5720acce6c23d7572b06194d406",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/name_conversion.h",
+          "upstream": "3fefcf78088b26a13eb34c6e63635fccc52ee40b",
+          "local": "b66204fb09d72157b63248d795a34b403882266c",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/runtime/denoiser.hpp",
+          "upstream": "b6f1843ec72f2b8e9d08bf4e2d0a12606902effd",
+          "local": "d20a80e050181bff10221296f289bc3031312779",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/runtime/sample-cache.cpp",
+          "upstream": "bfa3d4487fead83ac49f508a2c49162896db7bc7",
+          "local": "73f59ae16af6e06a7d34962dc1b97c8e754f78dd",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/runtime/sample-cache.h",
+          "upstream": "cb0fe7bc58447276f349a652e668d8085cbaff80",
+          "local": "427b5ffacfc5db9bbc5adf50c6cc87b502a02034",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/stable-diffusion.cpp",
+          "upstream": "d2193e14c5979b94f4a9bb7bb0e87db737e96416",
+          "local": "30992f91df54c797d1947d5cfb837ca5aa6a10eb",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        }
+      ],
+      "missing": [
+        "examples/server/frontend",
+        "thirdparty/libwebm",
+        "thirdparty/libwebp"
+      ],
+      "added": [
+        "Dockerfile",
+        "Dockerfile.cuda",
+        "Dockerfile.musa",
+        "Dockerfile.sycl",
+        "Dockerfile.vulkan",
+        "docs/ltx_video.md",
+        "format-code.ps1",
+        "format-code.sh",
+        "script/convert_fp8_scale_to_bf16.py",
+        "script/face_detect.py",
+        "script/pulid_extract_id.py",
+        "src/model/adapter/anima_ip_adapter.hpp",
+        "src/model/adapter/anima_lllite.hpp",
+        "src/model/adapter/latent_interposer.hpp",
+        "src/model/adapter/lllite.hpp",
+        "src/model/diffusion/mochi.hpp",
+        "src/model/diffusion/sd15_lora_trainer.hpp",
+        "src/model/te/siglip2.hpp",
+        "src/model/vae/mochi_vae.hpp",
+        "src/runtime/flex_attention.cpp",
+        "src/runtime/flex_attention.hpp",
+        "src/runtime/teacache.hpp",
+        "tests/CMakeLists.txt",
+        "tests/anima_ip_generation.cpp",
+        "tests/anima_ip_integration.cpp",
+        "tests/anima_ip_parity.cpp",
+        "tests/anima_lllite_parity.cpp",
+        "tests/backend_assignment_test.cpp",
+        "tests/backend_device_info_test.cpp",
+        "tests/clip_token_count.cpp",
+        "tests/clip_vision_architecture_test.cpp",
+        "tests/gguf_original_shape_test.cpp",
+        "tests/model_loader_version_test.cpp",
+        "tests/model_manager_lora_cache_test.cpp",
+        "tests/sampler_scheduler_test.cpp",
+        "tests/siglip2_parity.cpp"
+      ],
+      "content_changed": [
+        {
+          "path": "CMakeLists.txt",
+          "upstream": "3c2b7b4a8714f1e7d22bd0ea58ee23cb9f03e853",
+          "local": "5e006b5786009b5a515fb3db5f68458caadad574",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "README.md",
+          "upstream": "6ba81d89a186f38a3e7fa3857dc80771d3ba3d36",
+          "local": "87bae1f27a3d441fec0a4af737d0467014f96d7b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "docs/ltx2.md",
+          "upstream": "9caa9741136f58c754020e3d0d4bee8336b3ee90",
+          "local": "4a697562da11a506b7ad1b239ba3b4138f2534fc",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/stable-diffusion.h",
+          "upstream": "d5cda6d9a8866b976df332a876f4e8d5cce4f1b4",
+          "local": "94c10d0d9197169c28091185f855ccfeb2417c8a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/conditioning/conditioner.hpp",
+          "upstream": "8968676b3dea495ce01014aed8d81618270ba1e6",
+          "local": "22ba739f4afe6f4f795497df65e34e39303a76ca",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/backend_fit.cpp",
+          "upstream": "0ba2df14ff9a8b6510d2864e05c6ff5ec88e44c6",
+          "local": "949d77009542ac0da7fbc73b471c4e5ad81987fd",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/ggml_extend.hpp",
+          "upstream": "c262969d3a4801183acb93ab1f3aa480eacbb692",
+          "local": "be1652da49414d39625f2e95a959100736b9d20e",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/ggml_extend_backend.cpp",
+          "upstream": "a8316643872b69e57ba457d80d8ef869740b5cea",
+          "local": "3b4cd3db889520c86195ad5a78ac541b9091f569",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/ggml_extend_backend.h",
+          "upstream": "d5498e8f46e2c3776ea8e22397fc862b3729f621",
+          "local": "4bc75e18f1c30bb21b23b1c15e7476a1650e18de",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/util.cpp",
+          "upstream": "ff53c65fc4ce89fd64b2ce475db879ab6b99c4dc",
+          "local": "8643d6d3e089f41261e0cdf85c17def093a8137b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/core/util.h",
+          "upstream": "35b52061be9c7179301d65c2c46bc01f37f245a8",
+          "local": "9e5472443305da401602676c03fc277efecdeca2",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model.h",
+          "upstream": "f59f1de7d6a626e99413d4a4e33f3eb46ba7ca6a",
+          "local": "61df351b07d1a35bdac8ec42ca01ff4516c34aab",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/adapter/ip_adapter.hpp",
+          "upstream": "cc4933e755b251c0f709ebeac8ab1f45d6023ce7",
+          "local": "7ce70b1b58b9db74e3dd367e5de29b6c073389ea",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/adapter/lora.hpp",
+          "upstream": "8eb88d543d45fb6227648f4763dc042571971640",
+          "local": "e4788a55ccf2b14e6e4b0511e9e5fa6c189df3b0",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/common/block.hpp",
+          "upstream": "6eb387d9f26af00a40c0f4c6bd47f9bff158d4b5",
+          "local": "09f28036ac06a0c68e0622f8971fd04e1b85bb82",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/anima.hpp",
+          "upstream": "4fe7e4650e1e3e75714dc4ece2d86d1428cc6818",
+          "local": "3d8ea548da7314c844c714db1832b4abef639345",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/control.hpp",
+          "upstream": "bf3c7e435d674126c0f165b61ade382982134be0",
+          "local": "78571d0346668e5e071fdb54650b655b2e5d6602",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/ltxv.hpp",
+          "upstream": "b75c9f7fa15757205bd1c99f6fa0f38b99c6c2b3",
+          "local": "38b59b219a7995e2ebba43a23a68df9b508a13ca",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/model.hpp",
+          "upstream": "070ca53d4eff2424ac7d6deaad2db17dd0015dad",
+          "local": "aca0676f8b2c1f09b38a062250602149c3fb3515",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/diffusion/unet.hpp",
+          "upstream": "567573049a04af2b8ba7c42bc920d123661f36f8",
+          "local": "50f45730cba912a595e3c02aaec6b0af52a04905",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/te/clip.hpp",
+          "upstream": "2fde3de79b82e4f408f7166a8fae9edbb683108a",
+          "local": "4886fef1552f40722bbc42083d9e9237f8426f26",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/vae/auto_encoder_kl.hpp",
+          "upstream": "604347d77bf6036a2efcb490aa3fcfabbfc4c353",
+          "local": "ca384e6ee6f873dfceea48b1bee7ae2bd8a94be7",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/vae/tae.hpp",
+          "upstream": "d291bb785118889e7ceac5c2a6ff0802a1921e65",
+          "local": "706723afb58305e7060880a0d4a53429da5c8e3a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model/vae/vae.hpp",
+          "upstream": "f3adb0ccc9d1b8e59906e7cad7a44c69e9136fdb",
+          "local": "17097f8cc6e56af3bfcb04a0f4b7a1b5aeed4d17",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_io/gguf_io.cpp",
+          "upstream": "cd22312d5f80a99d083ce3568f67525481805797",
+          "local": "1d2e8c20ea4a1421d5a8118ea127deab9f208189",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_io/tensor_storage.h",
+          "upstream": "11f53e06371346eda49d8fd5df98dc81985034f4",
+          "local": "02823abeb757f47e97a9e51d71c5ad5a8995ce02",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_loader.cpp",
+          "upstream": "dc2bb4bf03afdf94748434e1edd135da7e23e28e",
+          "local": "0c91c36d154575576ff42839c82e3b46073d0f38",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_loader.h",
+          "upstream": "f7ebcf3ef16e7ce93fbfdc12f0c89dc637f6dfc6",
+          "local": "e4820b0d130031143549db7f1c0302f46f6a7a0a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_manager.cpp",
+          "upstream": "8db303dda956b393a593f10f551b20e9dcf928c6",
+          "local": "83ed101bb57894a86476f0193cc3ee4a26579ed0",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/model_manager.h",
+          "upstream": "3dc6338645a294f768102738cd8d2e5e7d403020",
+          "local": "014cb1d8e70d7bf325939ec40c57f1191d89352d",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/name_conversion.cpp",
+          "upstream": "7e528c77c09daa3b3615fe153fd7b70c6ba9a858",
+          "local": "e1b4015df4d0b5720acce6c23d7572b06194d406",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/name_conversion.h",
+          "upstream": "3fefcf78088b26a13eb34c6e63635fccc52ee40b",
+          "local": "b66204fb09d72157b63248d795a34b403882266c",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/runtime/denoiser.hpp",
+          "upstream": "b6f1843ec72f2b8e9d08bf4e2d0a12606902effd",
+          "local": "d20a80e050181bff10221296f289bc3031312779",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/runtime/sample-cache.cpp",
+          "upstream": "bfa3d4487fead83ac49f508a2c49162896db7bc7",
+          "local": "73f59ae16af6e06a7d34962dc1b97c8e754f78dd",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/runtime/sample-cache.h",
+          "upstream": "cb0fe7bc58447276f349a652e668d8085cbaff80",
+          "local": "427b5ffacfc5db9bbc5adf50c6cc87b502a02034",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/stable-diffusion.cpp",
+          "upstream": "d2193e14c5979b94f4a9bb7bb0e87db737e96416",
+          "local": "30992f91df54c797d1947d5cfb837ca5aa6a10eb",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        }
+      ],
+      "mode_only_changed": []
+    },
+    {
+      "name": "diffusion GGML",
+      "upstream_repository": "ggml-org/ggml",
+      "local_prefix": "source/sdkit3-port-source/stable-diffusion.cpp/ggml/",
+      "upstream_revision": "e20c3a14aa70ee84ca58499814206dd08d8026bc",
+      "local_tree": "c57300438dad0f43d53d3085d39a994ad9ead9f7",
+      "upstream_files": 2157,
+      "local_files": 2209,
+      "identical": 2112,
+      "changed": [
+        {
+          "path": "CMakeLists.txt",
+          "upstream": "b6843578b7040db13ce1d288b8633dc83201eb5e",
+          "local": "9664f252df9502b321c323f876bf3c4024acc273",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/gpt-2/download-ggml-model.sh",
+          "upstream": "3aae015b71afb6f0c99a9161c1a4fdd71ab0d469",
+          "local": "3aae015b71afb6f0c99a9161c1a4fdd71ab0d469",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/gpt-2/download-model.sh",
+          "upstream": "f0c62f4f74db8fdb71dd45209d3a48bc159898b0",
+          "local": "f0c62f4f74db8fdb71dd45209d3a48bc159898b0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/gpt-j/download-ggml-model.sh",
+          "upstream": "a9e2aa517d837c306da5079e7a63ff8e46e71678",
+          "local": "a9e2aa517d837c306da5079e7a63ff8e46e71678",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/gpt-j/download-model.sh",
+          "upstream": "c773baf40859f63fb86f7add90df2df914c2acb1",
+          "local": "c773baf40859f63fb86f7add90df2df914c2acb1",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/mnist/mnist-train-cnn.py",
+          "upstream": "b91fe815f91d781a57493359070f343c6d33b701",
+          "local": "b91fe815f91d781a57493359070f343c6d33b701",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/test-cmake/build-install.sh",
+          "upstream": "fbb800e95e72e4070ee4925945663e3ededc111b",
+          "local": "fbb800e95e72e4070ee4925945663e3ededc111b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/yolo/convert-yolov3-tiny.py",
+          "upstream": "4c479919b4b22974d94cd4d751aba7692568aacc",
+          "local": "4c479919b4b22974d94cd4d751aba7692568aacc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/ggml-backend.h",
+          "upstream": "2924fdbe9884df40abf505fd89d277f5281a835b",
+          "local": "560abcd0d0a527a11e6fb319ea541e6d830ecd6a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/ggml-opt.h",
+          "upstream": "1c2ed79b77420e74fd3b81b83367109164380853",
+          "local": "cf2587d1bade1609d776b428fb93f59db74c1d5d",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/ggml.h",
+          "upstream": "26da6e6b0d33b393b7346e95eda4230c2614b6ca",
+          "local": "5c1ff5f029490f9b1cae34899b878d9a9ddb8fb6",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/gen-authors.sh",
+          "upstream": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "local": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/release.sh",
+          "upstream": "e8fcea2cb084db35b46d98e992baa03d59482a14",
+          "local": "e8fcea2cb084db35b46d98e992baa03d59482a14",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-llama-am.sh",
+          "upstream": "22f3198ffec846be443c5f5220f09c67ad1bf7ac",
+          "local": "22f3198ffec846be443c5f5220f09c67ad1bf7ac",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-llama.sh",
+          "upstream": "33e737358c450a7490056ee63bd89d4064c88671",
+          "local": "33e737358c450a7490056ee63bd89d4064c88671",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-whisper-am.sh",
+          "upstream": "f1d487bd56044a767044870105700b3c4a349faf",
+          "local": "f1d487bd56044a767044870105700b3c4a349faf",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-whisper.sh",
+          "upstream": "0221fa37ea363a8e1b6dbe64d56911f358bdfe5b",
+          "local": "0221fa37ea363a8e1b6dbe64d56911f358bdfe5b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-backend-meta.cpp",
+          "upstream": "67e6a2672c500e06cb9d33f8e2b1ab6ffca37e4b",
+          "local": "8ab2109b1bdcc5fe410f311481beca4535738ebf",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-backend.cpp",
+          "upstream": "f6fb91798ca484fd1298d7012be3ae8d73cb0ea4",
+          "local": "0c0a587f9f58fdd1a87321116d049fbbed6a28ce",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cann/CMakeLists.txt",
+          "upstream": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "local": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cpu/ggml-cpu.c",
+          "upstream": "350777c1f4ebc8e4e50d8d87c16b60c315183ebc",
+          "local": "1a0bf2b6c16d337e5ac30c96d0e9c98fd6a9ca38",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cpu/ops.cpp",
+          "upstream": "727a40588d2b437c1d74df5e66e4542820f598bc",
+          "local": "d42940a1669b63b2adcc5463bdf9f3c69e54d1ee",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cpu/ops.h",
+          "upstream": "3b57916798fb7f9dcc629d1d19c345a2e6bc9788",
+          "local": "39c357ef50357970bd1a483137269b55077cfcf1",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/CMakeLists.txt",
+          "upstream": "05b814872bab932230b0708bb957c53316fa4333",
+          "local": "31521d9f6e66988eff789ce014033f8a82ab26f4",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/fattn.cu",
+          "upstream": "ab7a3b297c07c43dc2902de425b292167e1f8d11",
+          "local": "26e42e28da7262b4fa29f1a451cff5c65dcdd53b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/ggml-cuda.cu",
+          "upstream": "dd4a6b4e8c719261b8848559772ba9cfd2effad0",
+          "local": "217c7390217d4c8a432cb0f295912b08ef7eb4c9",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/template-instances/generate_cu_files.py",
+          "upstream": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "local": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-et/et-kernels/scripts/check_unimplemented_instructions.sh",
+          "upstream": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "local": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-opt.cpp",
+          "upstream": "53903defa8f419069f3046b960f2f057e06e6263",
+          "local": "ae1a4826920bf5e8f1fc5559055552bcbb235f5a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/element_wise.cpp",
+          "upstream": "0e707d531be5100fa9d18e9b15ff0d2d3b5a2967",
+          "local": "e8c002729db79ba7f834a4119b136c19dd5f83b8",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/element_wise.hpp",
+          "upstream": "beea052cf0eb67bbb10acf736559e8bc7b89e337",
+          "local": "e5028d0364b32ee71929357ef5eb75cb6e7b5aaf",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/ggml-sycl.cpp",
+          "upstream": "18d58782ebff5c14ba3d8412d002927b06706bc4",
+          "local": "a115a3fc9b50a3cb90df6f7afb30595daf79403c",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/im2col.cpp",
+          "upstream": "7bf3584fb97e2b728cb2aa0a5b60e4c726082edd",
+          "local": "f4087b12f4e4a25fd80498aa4038ca45901630ce",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/im2col.hpp",
+          "upstream": "976d10946366808f7474223e60c70543c000199c",
+          "local": "788297d231da4d4d810906cac3efeaaa49039627",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/norm.cpp",
+          "upstream": "682a9f51ee7447222a5c89a19f166b5834d980d3",
+          "local": "3422fc53fda106dfb4523701c79dc7817638335c",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/norm.hpp",
+          "upstream": "51217c4219567abe25b74e50772b6bbb476b44bd",
+          "local": "aa3438555c3d55deed93dfe73652455933a5d17b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/outprod.cpp",
+          "upstream": "8d10dad8c975cc667bb7e96b30a8a52796b6b647",
+          "local": "5a8bede3c53b87a76c9279d942293660bbf720cb",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-virtgpu/regenerate_remoting.py",
+          "upstream": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "local": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp",
+          "upstream": "9d917f53dc2fdafc6feb9faff1e32ae327de05c4",
+          "local": "a25276646def43345e6f698f3d2d2c0d08312012",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-webgpu/wgsl-shaders/embed_wgsl.py",
+          "upstream": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "local": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml.c",
+          "upstream": "76d839ec1e2cc086c12b9dc52143bbdc39fca458",
+          "local": "3a2e6d1494ca43a307d63376edd0d80eba4534e6",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/CMakeLists.txt",
+          "upstream": "e81b58503411cb40910628a9f8bfdbe8f6633786",
+          "local": "a1be4dbb97664941b8a682694e3232bc459335b1",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-backend-ops.cpp",
+          "upstream": "fbbfee63024f1c27083a83118d02aa72d9c237fd",
+          "local": "d63a12c95bc51813365d3f7fa69179c73ba77a54",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        }
+      ],
+      "missing": [
+        "examples/mnist/web/.gitignore",
+        "examples/mnist/web/index.html"
+      ],
+      "added": [
+        "src/ggml-cuda/fattn-wmma-f16.cu",
+        "src/ggml-cuda/fattn-wmma-f16.cuh",
+        "src/ggml-cuda/sage/attn_utils.cuh",
+        "src/ggml-cuda/sage/cp_async.cuh",
+        "src/ggml-cuda/sage/math.cuh",
+        "src/ggml-cuda/sage/mma.cuh",
+        "src/ggml-cuda/sage/numeric_conversion.cuh",
+        "src/ggml-cuda/sage/permuted_smem.cuh",
+        "src/ggml-cuda/sage/sage-attention-sm80.cu",
+        "src/ggml-cuda/sage/sage-attention-sm80.cuh",
+        "src/ggml-cuda/sage/sage-attention-stub.cu",
+        "src/ggml-cuda/xformers/README.md",
+        "src/ggml-cuda/xformers/xformers-attention.cu",
+        "src/ggml-cuda/xformers/xformers-attention.cuh",
+        "src/ggml-hexagon/htp/hex-dma.c",
+        "src/ggml-hexagon/htp/hmx-flash-attn-ops.c",
+        "src/ggml-hexagon/htp/hmx-matmul-ops.c",
+        "src/ggml-hexagon/htp/hmx-ops.c",
+        "src/ggml-hexagon/htp/hmx-ops.h",
+        "src/ggml-hexagon/htp/hmx-profile.h",
+        "src/ggml-hexagon/htp/vtcm-utils.h",
+        "src/ggml-hexagon/htp/worker-pool.c",
+        "src/ggml-hexagon/htp/worker-pool.h",
+        "src/ggml-openvino/openvino/op/unary_gelu.cpp",
+        "src/ggml-sycl/optimizer.cpp",
+        "src/ggml-sycl/optimizer.hpp",
+        "src/ggml-vulkan/vulkan-shaders/abs.comp",
+        "src/ggml-vulkan/vulkan-shaders/ceil.comp",
+        "src/ggml-vulkan/vulkan-shaders/clamp.comp",
+        "src/ggml-vulkan/vulkan-shaders/cos.comp",
+        "src/ggml-vulkan/vulkan-shaders/elu.comp",
+        "src/ggml-vulkan/vulkan-shaders/exp.comp",
+        "src/ggml-vulkan/vulkan-shaders/floor.comp",
+        "src/ggml-vulkan/vulkan-shaders/gelu.comp",
+        "src/ggml-vulkan/vulkan-shaders/gelu_erf.comp",
+        "src/ggml-vulkan/vulkan-shaders/gelu_quick.comp",
+        "src/ggml-vulkan/vulkan-shaders/hardsigmoid.comp",
+        "src/ggml-vulkan/vulkan-shaders/hardswish.comp",
+        "src/ggml-vulkan/vulkan-shaders/leaky_relu.comp",
+        "src/ggml-vulkan/vulkan-shaders/neg.comp",
+        "src/ggml-vulkan/vulkan-shaders/relu.comp",
+        "src/ggml-vulkan/vulkan-shaders/round.comp",
+        "src/ggml-vulkan/vulkan-shaders/sgn.comp",
+        "src/ggml-vulkan/vulkan-shaders/sigmoid.comp",
+        "src/ggml-vulkan/vulkan-shaders/silu.comp",
+        "src/ggml-vulkan/vulkan-shaders/sin.comp",
+        "src/ggml-vulkan/vulkan-shaders/softplus.comp",
+        "src/ggml-vulkan/vulkan-shaders/sqrt.comp",
+        "src/ggml-vulkan/vulkan-shaders/square.comp",
+        "src/ggml-vulkan/vulkan-shaders/step.comp",
+        "src/ggml-vulkan/vulkan-shaders/tanh.comp",
+        "src/ggml-vulkan/vulkan-shaders/trunc.comp",
+        "src/ggml-vulkan/vulkan-shaders/xielu.comp",
+        "tests/test-lora-training.cpp"
+      ],
+      "content_changed": [
+        {
+          "path": "CMakeLists.txt",
+          "upstream": "b6843578b7040db13ce1d288b8633dc83201eb5e",
+          "local": "9664f252df9502b321c323f876bf3c4024acc273",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/ggml-backend.h",
+          "upstream": "2924fdbe9884df40abf505fd89d277f5281a835b",
+          "local": "560abcd0d0a527a11e6fb319ea541e6d830ecd6a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/ggml-opt.h",
+          "upstream": "1c2ed79b77420e74fd3b81b83367109164380853",
+          "local": "cf2587d1bade1609d776b428fb93f59db74c1d5d",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "include/ggml.h",
+          "upstream": "26da6e6b0d33b393b7346e95eda4230c2614b6ca",
+          "local": "5c1ff5f029490f9b1cae34899b878d9a9ddb8fb6",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-backend-meta.cpp",
+          "upstream": "67e6a2672c500e06cb9d33f8e2b1ab6ffca37e4b",
+          "local": "8ab2109b1bdcc5fe410f311481beca4535738ebf",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-backend.cpp",
+          "upstream": "f6fb91798ca484fd1298d7012be3ae8d73cb0ea4",
+          "local": "0c0a587f9f58fdd1a87321116d049fbbed6a28ce",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cpu/ggml-cpu.c",
+          "upstream": "350777c1f4ebc8e4e50d8d87c16b60c315183ebc",
+          "local": "1a0bf2b6c16d337e5ac30c96d0e9c98fd6a9ca38",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cpu/ops.cpp",
+          "upstream": "727a40588d2b437c1d74df5e66e4542820f598bc",
+          "local": "d42940a1669b63b2adcc5463bdf9f3c69e54d1ee",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cpu/ops.h",
+          "upstream": "3b57916798fb7f9dcc629d1d19c345a2e6bc9788",
+          "local": "39c357ef50357970bd1a483137269b55077cfcf1",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/CMakeLists.txt",
+          "upstream": "05b814872bab932230b0708bb957c53316fa4333",
+          "local": "31521d9f6e66988eff789ce014033f8a82ab26f4",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/fattn.cu",
+          "upstream": "ab7a3b297c07c43dc2902de425b292167e1f8d11",
+          "local": "26e42e28da7262b4fa29f1a451cff5c65dcdd53b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/ggml-cuda.cu",
+          "upstream": "dd4a6b4e8c719261b8848559772ba9cfd2effad0",
+          "local": "217c7390217d4c8a432cb0f295912b08ef7eb4c9",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-opt.cpp",
+          "upstream": "53903defa8f419069f3046b960f2f057e06e6263",
+          "local": "ae1a4826920bf5e8f1fc5559055552bcbb235f5a",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/element_wise.cpp",
+          "upstream": "0e707d531be5100fa9d18e9b15ff0d2d3b5a2967",
+          "local": "e8c002729db79ba7f834a4119b136c19dd5f83b8",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/element_wise.hpp",
+          "upstream": "beea052cf0eb67bbb10acf736559e8bc7b89e337",
+          "local": "e5028d0364b32ee71929357ef5eb75cb6e7b5aaf",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/ggml-sycl.cpp",
+          "upstream": "18d58782ebff5c14ba3d8412d002927b06706bc4",
+          "local": "a115a3fc9b50a3cb90df6f7afb30595daf79403c",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/im2col.cpp",
+          "upstream": "7bf3584fb97e2b728cb2aa0a5b60e4c726082edd",
+          "local": "f4087b12f4e4a25fd80498aa4038ca45901630ce",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/im2col.hpp",
+          "upstream": "976d10946366808f7474223e60c70543c000199c",
+          "local": "788297d231da4d4d810906cac3efeaaa49039627",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/norm.cpp",
+          "upstream": "682a9f51ee7447222a5c89a19f166b5834d980d3",
+          "local": "3422fc53fda106dfb4523701c79dc7817638335c",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/norm.hpp",
+          "upstream": "51217c4219567abe25b74e50772b6bbb476b44bd",
+          "local": "aa3438555c3d55deed93dfe73652455933a5d17b",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-sycl/outprod.cpp",
+          "upstream": "8d10dad8c975cc667bb7e96b30a8a52796b6b647",
+          "local": "5a8bede3c53b87a76c9279d942293660bbf720cb",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp",
+          "upstream": "9d917f53dc2fdafc6feb9faff1e32ae327de05c4",
+          "local": "a25276646def43345e6f698f3d2d2c0d08312012",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml.c",
+          "upstream": "76d839ec1e2cc086c12b9dc52143bbdc39fca458",
+          "local": "3a2e6d1494ca43a307d63376edd0d80eba4534e6",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/CMakeLists.txt",
+          "upstream": "e81b58503411cb40910628a9f8bfdbe8f6633786",
+          "local": "a1be4dbb97664941b8a682694e3232bc459335b1",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        },
+        {
+          "path": "tests/test-backend-ops.cpp",
+          "upstream": "fbbfee63024f1c27083a83118d02aa72d9c237fd",
+          "local": "d63a12c95bc51813365d3f7fa69179c73ba77a54",
+          "upstream_mode": "100644",
+          "local_mode": "100644"
+        }
+      ],
+      "mode_only_changed": [
+        {
+          "path": "examples/gpt-2/download-ggml-model.sh",
+          "upstream": "3aae015b71afb6f0c99a9161c1a4fdd71ab0d469",
+          "local": "3aae015b71afb6f0c99a9161c1a4fdd71ab0d469",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/gpt-2/download-model.sh",
+          "upstream": "f0c62f4f74db8fdb71dd45209d3a48bc159898b0",
+          "local": "f0c62f4f74db8fdb71dd45209d3a48bc159898b0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/gpt-j/download-ggml-model.sh",
+          "upstream": "a9e2aa517d837c306da5079e7a63ff8e46e71678",
+          "local": "a9e2aa517d837c306da5079e7a63ff8e46e71678",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/gpt-j/download-model.sh",
+          "upstream": "c773baf40859f63fb86f7add90df2df914c2acb1",
+          "local": "c773baf40859f63fb86f7add90df2df914c2acb1",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/mnist/mnist-train-cnn.py",
+          "upstream": "b91fe815f91d781a57493359070f343c6d33b701",
+          "local": "b91fe815f91d781a57493359070f343c6d33b701",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/test-cmake/build-install.sh",
+          "upstream": "fbb800e95e72e4070ee4925945663e3ededc111b",
+          "local": "fbb800e95e72e4070ee4925945663e3ededc111b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "examples/yolo/convert-yolov3-tiny.py",
+          "upstream": "4c479919b4b22974d94cd4d751aba7692568aacc",
+          "local": "4c479919b4b22974d94cd4d751aba7692568aacc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/gen-authors.sh",
+          "upstream": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "local": "73e7b386f97f2a77f500146e4b9f47d01836ff00",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/release.sh",
+          "upstream": "e8fcea2cb084db35b46d98e992baa03d59482a14",
+          "local": "e8fcea2cb084db35b46d98e992baa03d59482a14",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-llama-am.sh",
+          "upstream": "22f3198ffec846be443c5f5220f09c67ad1bf7ac",
+          "local": "22f3198ffec846be443c5f5220f09c67ad1bf7ac",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-llama.sh",
+          "upstream": "33e737358c450a7490056ee63bd89d4064c88671",
+          "local": "33e737358c450a7490056ee63bd89d4064c88671",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-whisper-am.sh",
+          "upstream": "f1d487bd56044a767044870105700b3c4a349faf",
+          "local": "f1d487bd56044a767044870105700b3c4a349faf",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "scripts/sync-whisper.sh",
+          "upstream": "0221fa37ea363a8e1b6dbe64d56911f358bdfe5b",
+          "local": "0221fa37ea363a8e1b6dbe64d56911f358bdfe5b",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cann/CMakeLists.txt",
+          "upstream": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "local": "aee5e7b06e51f5f9e36e31389798099d498d7f41",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-cuda/template-instances/generate_cu_files.py",
+          "upstream": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "local": "d7cd271675e07d23ae5acd278e8c57f781bf23e7",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-et/et-kernels/scripts/check_unimplemented_instructions.sh",
+          "upstream": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "local": "83f79929230db21d5c957612a53493b1b85b31cc",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-virtgpu/regenerate_remoting.py",
+          "upstream": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "local": "dae75fd1c80f2d5fb291793ea91dd208eeff127f",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        },
+        {
+          "path": "src/ggml-webgpu/wgsl-shaders/embed_wgsl.py",
+          "upstream": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "local": "79a3a9597abe1f424304c1f15c00edef63fe2af0",
+          "upstream_mode": "100755",
+          "local_mode": "100644"
+        }
+      ]
+    }
+  ]
+}

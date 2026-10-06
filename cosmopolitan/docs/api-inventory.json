@@ -1,0 +1,1881 @@
+{
+  "source_revision": "b42704a624652a53099fbc994e9a6b7648cd3b0c",
+  "scope": "Literal route declarations, not a generated OpenAPI schema, active-route count or proof of parity. Parallel legacy/plugin modules may repeat declarations. Router mount prefixes are listed separately; dynamic routes and application middleware require manual review.",
+  "python_files_scanned": 128,
+  "parse_errors": [],
+  "python_route_declarations": [
+    {
+      "file": "ui/easydiffusion/bucket_manager.py",
+      "line": 44,
+      "receiver": "server_api",
+      "declared_path": "/bucket/{obj_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "bucket_get_object"
+    },
+    {
+      "file": "ui/easydiffusion/bucket_manager.py",
+      "line": 70,
+      "receiver": "server_api",
+      "declared_path": "/bucket/{obj_path:path}",
+      "methods": [
+        "POST"
+      ],
+      "handler": "bucket_post_object"
+    },
+    {
+      "file": "ui/easydiffusion/bucket_manager.py",
+      "line": 86,
+      "receiver": "server_api",
+      "declared_path": "/buckets/{bucket_id}/items/",
+      "methods": [
+        "POST"
+      ],
+      "handler": "create_bucketfile_in_bucket"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 617,
+      "receiver": "router",
+      "declared_path": "/gguf/readiness",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gguf_readiness"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 622,
+      "receiver": "router",
+      "declared_path": "/gguf/sources",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gguf_sources"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 628,
+      "receiver": "router",
+      "declared_path": "/gguf/convert",
+      "methods": [
+        "POST"
+      ],
+      "handler": "gguf_convert"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 684,
+      "receiver": "router",
+      "declared_path": "/gguf/jobs/{job_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gguf_job"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 693,
+      "receiver": "router",
+      "declared_path": "/safetensors/readiness",
+      "methods": [
+        "GET"
+      ],
+      "handler": "safetensors_readiness"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 698,
+      "receiver": "router",
+      "declared_path": "/safetensors/sources",
+      "methods": [
+        "GET"
+      ],
+      "handler": "safetensors_sources"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 704,
+      "receiver": "router",
+      "declared_path": "/safetensors/convert",
+      "methods": [
+        "POST"
+      ],
+      "handler": "safetensors_convert"
+    },
+    {
+      "file": "ui/easydiffusion/model_tools.py",
+      "line": 738,
+      "receiver": "router",
+      "declared_path": "/safetensors/jobs/{job_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "safetensors_job"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 326,
+      "receiver": "APP",
+      "declared_path": "/health",
+      "methods": [
+        "GET"
+      ],
+      "handler": "health"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 347,
+      "receiver": "APP",
+      "declared_path": "/civitai/imported/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_imported_image"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 353,
+      "receiver": "APP",
+      "declared_path": "/civitai/import-image",
+      "methods": [
+        "POST"
+      ],
+      "handler": "civitai_import_image"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 439,
+      "receiver": "APP",
+      "declared_path": "/civitai/me",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_me"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 476,
+      "receiver": "APP",
+      "declared_path": "/civitai/tags",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_tags"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 496,
+      "receiver": "APP",
+      "declared_path": "/civitai/creators",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_creators"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 520,
+      "receiver": "APP",
+      "declared_path": "/civitai/enums",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_enums"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 536,
+      "receiver": "APP",
+      "declared_path": "/civitai/search",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_search"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 598,
+      "receiver": "APP",
+      "declared_path": "/civitai/lookup/hash/{model_hash}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_lookup_hash"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 612,
+      "receiver": "APP",
+      "declared_path": "/civitai/lookup/mini/{model_version_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_lookup_mini"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 624,
+      "receiver": "APP",
+      "declared_path": "/civitai/lookup/hashes",
+      "methods": [
+        "POST"
+      ],
+      "handler": "civitai_lookup_hashes"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 645,
+      "receiver": "APP",
+      "declared_path": "/civitai/collections",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_collections"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 661,
+      "receiver": "APP",
+      "declared_path": "/civitai/collections/{collection_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_collection"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 673,
+      "receiver": "APP",
+      "declared_path": "/civitai/permissions",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_permissions"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 691,
+      "receiver": "APP",
+      "declared_path": "/civitai/images",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_images"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 750,
+      "receiver": "APP",
+      "declared_path": "/civitai/global-images",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_global_images"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 849,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/search",
+      "methods": [
+        "GET"
+      ],
+      "handler": "huggingface_search"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 869,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/download",
+      "methods": [
+        "POST"
+      ],
+      "handler": "huggingface_download"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 913,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/download",
+      "methods": [
+        "GET"
+      ],
+      "handler": "huggingface_download_queue"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 918,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/download/{download_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "huggingface_download_status"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 926,
+      "receiver": "APP",
+      "declared_path": "/civitai/download",
+      "methods": [
+        "POST"
+      ],
+      "handler": "civitai_download"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 977,
+      "receiver": "APP",
+      "declared_path": "/civitai/download",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_download_queue"
+    },
+    {
+      "file": "ui/easydiffusion/online_model_browser/api.py",
+      "line": 982,
+      "receiver": "APP",
+      "declared_path": "/civitai/download/{download_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_download_status"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 123,
+      "receiver": "server_api",
+      "declared_path": "/kiosk",
+      "methods": [
+        "GET"
+      ],
+      "handler": "kiosk_status"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 127,
+      "receiver": "server_api",
+      "declared_path": "/kiosk",
+      "methods": [
+        "POST"
+      ],
+      "handler": "kiosk_setting"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 176,
+      "receiver": "server_api",
+      "declared_path": "/app_config",
+      "methods": [
+        "POST"
+      ],
+      "handler": "set_app_config"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 180,
+      "receiver": "server_api",
+      "declared_path": "/clear-vram",
+      "methods": [
+        "POST"
+      ],
+      "handler": "clear_vram"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 184,
+      "receiver": "server_api",
+      "declared_path": "/get/{key:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "read_web_data"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 188,
+      "receiver": "server_api",
+      "declared_path": "/ping",
+      "methods": [
+        "GET"
+      ],
+      "handler": "ping"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 192,
+      "receiver": "server_api",
+      "declared_path": "/render",
+      "methods": [
+        "POST"
+      ],
+      "handler": "render"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 196,
+      "receiver": "server_api",
+      "declared_path": "/video",
+      "methods": [
+        "POST"
+      ],
+      "handler": "video"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 200,
+      "receiver": "server_api",
+      "declared_path": "/filter",
+      "methods": [
+        "POST"
+      ],
+      "handler": "render"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 204,
+      "receiver": "server_api",
+      "declared_path": "/tag",
+      "methods": [
+        "POST"
+      ],
+      "handler": "wd14_tag"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 215,
+      "receiver": "server_api",
+      "declared_path": "/ai-critic/models",
+      "methods": [
+        "GET"
+      ],
+      "handler": "ai_critic_models"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 219,
+      "receiver": "server_api",
+      "declared_path": "/ai-critic/analyze",
+      "methods": [
+        "POST"
+      ],
+      "handler": "ai_critic_analyze"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 223,
+      "receiver": "server_api",
+      "declared_path": "/native-vision/detect",
+      "methods": [
+        "POST"
+      ],
+      "handler": "detect_with_native_vision"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 234,
+      "receiver": "server_api",
+      "declared_path": "/image-tools/text-mask",
+      "methods": [
+        "POST"
+      ],
+      "handler": "create_native_text_mask"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 245,
+      "receiver": "server_api",
+      "declared_path": "/image-tools/remove-background",
+      "methods": [
+        "POST"
+      ],
+      "handler": "remove_image_background"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 254,
+      "receiver": "server_api",
+      "declared_path": "/image-tools/remove-object",
+      "methods": [
+        "POST"
+      ],
+      "handler": "remove_masked_object"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 265,
+      "receiver": "server_api",
+      "declared_path": "/tipo/health",
+      "methods": [
+        "GET"
+      ],
+      "handler": "tipo_health"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 266,
+      "receiver": "server_api",
+      "declared_path": "/tipo-api/health",
+      "methods": [
+        "GET"
+      ],
+      "handler": "tipo_health"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 272,
+      "receiver": "server_api",
+      "declared_path": "/tipo/models",
+      "methods": [
+        "GET"
+      ],
+      "handler": "tipo_models"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 273,
+      "receiver": "server_api",
+      "declared_path": "/tipo-api/models",
+      "methods": [
+        "GET"
+      ],
+      "handler": "tipo_models"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 279,
+      "receiver": "server_api",
+      "declared_path": "/tipo/generate",
+      "methods": [
+        "POST"
+      ],
+      "handler": "tipo_generate"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 280,
+      "receiver": "server_api",
+      "declared_path": "/tipo-api/generate",
+      "methods": [
+        "POST"
+      ],
+      "handler": "tipo_generate"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 286,
+      "receiver": "server_api",
+      "declared_path": "/gallery/settings",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_settings_get"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 287,
+      "receiver": "server_api",
+      "declared_path": "/gallery-plugin/settings",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_settings_get"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 291,
+      "receiver": "server_api",
+      "declared_path": "/gallery/settings",
+      "methods": [
+        "POST"
+      ],
+      "handler": "gallery_settings_save"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 292,
+      "receiver": "server_api",
+      "declared_path": "/gallery-plugin/settings",
+      "methods": [
+        "POST"
+      ],
+      "handler": "gallery_settings_save"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 296,
+      "receiver": "server_api",
+      "declared_path": "/gallery/images",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_images"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 297,
+      "receiver": "server_api",
+      "declared_path": "/gallery-plugin/images",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_images"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 301,
+      "receiver": "server_api",
+      "declared_path": "/gallery/file/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 302,
+      "receiver": "server_api",
+      "declared_path": "/gallery-plugin/file/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 311,
+      "receiver": "server_api",
+      "declared_path": "/gallery/file/{relative_path:path}",
+      "methods": [
+        "DELETE"
+      ],
+      "handler": "gallery_delete_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 312,
+      "receiver": "server_api",
+      "declared_path": "/gallery-plugin/file/{relative_path:path}",
+      "methods": [
+        "DELETE"
+      ],
+      "handler": "gallery_delete_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 316,
+      "receiver": "server_api",
+      "declared_path": "/gallery/thumb/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_thumbnail"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 317,
+      "receiver": "server_api",
+      "declared_path": "/gallery-plugin/thumb/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gallery_thumbnail"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 328,
+      "receiver": "server_api",
+      "declared_path": "/perchance/status",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_status"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 329,
+      "receiver": "server_api",
+      "declared_path": "/perchance-plugin/status",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_status"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 333,
+      "receiver": "server_api",
+      "declared_path": "/perchance/settings",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_settings_get"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 337,
+      "receiver": "server_api",
+      "declared_path": "/perchance/settings",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_settings_save"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 341,
+      "receiver": "server_api",
+      "declared_path": "/perchance/image",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_image"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 342,
+      "receiver": "server_api",
+      "declared_path": "/perchance-plugin/image",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_image"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 346,
+      "receiver": "server_api",
+      "declared_path": "/perchance/images/recent",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_recent_images"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 350,
+      "receiver": "server_api",
+      "declared_path": "/perchance/images/save",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_save_generated_image"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 354,
+      "receiver": "server_api",
+      "declared_path": "/perchance/text",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_text"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 355,
+      "receiver": "server_api",
+      "declared_path": "/perchance-plugin/text",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_text"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 359,
+      "receiver": "server_api",
+      "declared_path": "/perchance/gallery/list",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_gallery_list"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 363,
+      "receiver": "server_api",
+      "declared_path": "/perchance/gallery/get",
+      "methods": [
+        "POST"
+      ],
+      "handler": "perchance_gallery_get"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 367,
+      "receiver": "server_api",
+      "declared_path": "/perchance/file/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 368,
+      "receiver": "server_api",
+      "declared_path": "/perchance-plugin/file/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 378,
+      "receiver": "server_api",
+      "declared_path": "/perchance/generated/file/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_generated_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 385,
+      "receiver": "server_api",
+      "declared_path": "/perchance/gallery/cache/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "perchance_gallery_cache_file"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 392,
+      "receiver": "server_api",
+      "declared_path": "/files/health",
+      "methods": [
+        "GET"
+      ],
+      "handler": "fileparser_health"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 398,
+      "receiver": "server_api",
+      "declared_path": "/files/list_lora",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_list_lora"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 406,
+      "receiver": "server_api",
+      "declared_path": "/files/list_model",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_list_model"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 414,
+      "receiver": "server_api",
+      "declared_path": "/files/list_vae",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_list_vae"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 422,
+      "receiver": "server_api",
+      "declared_path": "/files/list_tipo",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_list_tipo"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 429,
+      "receiver": "server_api",
+      "declared_path": "/files/list_checkpoints",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_list_checkpoints"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 437,
+      "receiver": "server_api",
+      "declared_path": "/meta/get_triggers",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_get_triggers"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 446,
+      "receiver": "server_api",
+      "declared_path": "/meta/scan_loras",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_scan_loras"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 453,
+      "receiver": "server_api",
+      "declared_path": "/meta/scan_checkpoints",
+      "methods": [
+        "POST"
+      ],
+      "handler": "fileparser_scan_checkpoints"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 460,
+      "receiver": "server_api",
+      "declared_path": "/model/merge",
+      "methods": [
+        "POST"
+      ],
+      "handler": "model_merge"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 465,
+      "receiver": "server_api",
+      "declared_path": "/image/stream/{task_id:int}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "stream"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 469,
+      "receiver": "server_api",
+      "declared_path": "/image/stop",
+      "methods": [
+        "GET"
+      ],
+      "handler": "stop"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 473,
+      "receiver": "server_api",
+      "declared_path": "/image/tmp/{task_id:int}/{img_id:int}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "get_image"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 477,
+      "receiver": "server_api",
+      "declared_path": "/tunnel/cloudflare/start",
+      "methods": [
+        "POST"
+      ],
+      "handler": "start_cloudflare_tunnel"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 481,
+      "receiver": "server_api",
+      "declared_path": "/tunnel/cloudflare/stop",
+      "methods": [
+        "POST"
+      ],
+      "handler": "stop_cloudflare_tunnel"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 485,
+      "receiver": "server_api",
+      "declared_path": "/package/{package_name:str}",
+      "methods": [
+        "POST"
+      ],
+      "handler": "modify_package"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 489,
+      "receiver": "server_api",
+      "declared_path": "/sha256/{obj_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "get_sha256"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 585,
+      "receiver": "server_api",
+      "declared_path": "/cpp-ui/api/events",
+      "methods": [
+        "GET"
+      ],
+      "handler": "read_cpp_ui_events"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 591,
+      "receiver": "server_api",
+      "declared_path": "/cpp-ui/api/logs",
+      "methods": [
+        "GET"
+      ],
+      "handler": "read_cpp_ui_logs"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 601,
+      "receiver": "server_api",
+      "declared_path": "/cpp-ui/api/files",
+      "methods": [
+        "GET"
+      ],
+      "handler": "read_cpp_ui_files"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 643,
+      "receiver": "server_api",
+      "declared_path": "/",
+      "methods": [
+        "GET"
+      ],
+      "handler": "read_root"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 650,
+      "receiver": "server_api",
+      "declared_path": "/legacy",
+      "methods": [
+        "GET"
+      ],
+      "handler": "read_legacy_ui"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 617,
+      "receiver": "router",
+      "declared_path": "/gguf/readiness",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gguf_readiness"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 622,
+      "receiver": "router",
+      "declared_path": "/gguf/sources",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gguf_sources"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 628,
+      "receiver": "router",
+      "declared_path": "/gguf/convert",
+      "methods": [
+        "POST"
+      ],
+      "handler": "gguf_convert"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 684,
+      "receiver": "router",
+      "declared_path": "/gguf/jobs/{job_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "gguf_job"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 693,
+      "receiver": "router",
+      "declared_path": "/safetensors/readiness",
+      "methods": [
+        "GET"
+      ],
+      "handler": "safetensors_readiness"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 698,
+      "receiver": "router",
+      "declared_path": "/safetensors/sources",
+      "methods": [
+        "GET"
+      ],
+      "handler": "safetensors_sources"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 704,
+      "receiver": "router",
+      "declared_path": "/safetensors/convert",
+      "methods": [
+        "POST"
+      ],
+      "handler": "safetensors_convert"
+    },
+    {
+      "file": "ui/plugins/server/model_tools/model_tools.py",
+      "line": 738,
+      "receiver": "router",
+      "declared_path": "/safetensors/jobs/{job_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "safetensors_job"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 326,
+      "receiver": "APP",
+      "declared_path": "/health",
+      "methods": [
+        "GET"
+      ],
+      "handler": "health"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 347,
+      "receiver": "APP",
+      "declared_path": "/civitai/imported/{relative_path:path}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_imported_image"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 353,
+      "receiver": "APP",
+      "declared_path": "/civitai/import-image",
+      "methods": [
+        "POST"
+      ],
+      "handler": "civitai_import_image"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 439,
+      "receiver": "APP",
+      "declared_path": "/civitai/me",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_me"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 476,
+      "receiver": "APP",
+      "declared_path": "/civitai/tags",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_tags"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 496,
+      "receiver": "APP",
+      "declared_path": "/civitai/creators",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_creators"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 520,
+      "receiver": "APP",
+      "declared_path": "/civitai/enums",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_enums"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 536,
+      "receiver": "APP",
+      "declared_path": "/civitai/search",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_search"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 598,
+      "receiver": "APP",
+      "declared_path": "/civitai/lookup/hash/{model_hash}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_lookup_hash"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 612,
+      "receiver": "APP",
+      "declared_path": "/civitai/lookup/mini/{model_version_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_lookup_mini"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 624,
+      "receiver": "APP",
+      "declared_path": "/civitai/lookup/hashes",
+      "methods": [
+        "POST"
+      ],
+      "handler": "civitai_lookup_hashes"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 645,
+      "receiver": "APP",
+      "declared_path": "/civitai/collections",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_collections"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 661,
+      "receiver": "APP",
+      "declared_path": "/civitai/collections/{collection_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_collection"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 673,
+      "receiver": "APP",
+      "declared_path": "/civitai/permissions",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_permissions"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 691,
+      "receiver": "APP",
+      "declared_path": "/civitai/images",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_images"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 750,
+      "receiver": "APP",
+      "declared_path": "/civitai/global-images",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_global_images"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 852,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/search",
+      "methods": [
+        "GET"
+      ],
+      "handler": "huggingface_search"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 872,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/download",
+      "methods": [
+        "POST"
+      ],
+      "handler": "huggingface_download"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 916,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/download",
+      "methods": [
+        "GET"
+      ],
+      "handler": "huggingface_download_queue"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 921,
+      "receiver": "HUGGINGFACE_APP",
+      "declared_path": "/download/{download_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "huggingface_download_status"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 929,
+      "receiver": "APP",
+      "declared_path": "/civitai/download",
+      "methods": [
+        "POST"
+      ],
+      "handler": "civitai_download"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 980,
+      "receiver": "APP",
+      "declared_path": "/civitai/download",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_download_queue"
+    },
+    {
+      "file": "ui/plugins/server/online_model_browser/api.py",
+      "line": 985,
+      "receiver": "APP",
+      "declared_path": "/civitai/download/{download_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "civitai_download_status"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 153,
+      "receiver": "router",
+      "declared_path": "/spritegpt",
+      "methods": [
+        "GET"
+      ],
+      "handler": "spritegpt_status"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 158,
+      "receiver": "router",
+      "declared_path": "/spritegpt/start",
+      "methods": [
+        "POST"
+      ],
+      "handler": "spritegpt_start"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 172,
+      "receiver": "router",
+      "declared_path": "/spritegpt/stop",
+      "methods": [
+        "POST"
+      ],
+      "handler": "spritegpt_stop"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 177,
+      "receiver": "router",
+      "declared_path": "/scrape/sources",
+      "methods": [
+        "GET"
+      ],
+      "handler": "scrape_sources"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 182,
+      "receiver": "router",
+      "declared_path": "/datasets",
+      "methods": [
+        "GET"
+      ],
+      "handler": "datasets"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 200,
+      "receiver": "router",
+      "declared_path": "/scrape/tag-suggestions",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_tag_suggestions"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 205,
+      "receiver": "router",
+      "declared_path": "/scrape/attempts",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_attempts"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 212,
+      "receiver": "router",
+      "declared_path": "/scrape/archived-datasets",
+      "methods": [
+        "GET"
+      ],
+      "handler": "scrape_archived_datasets"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 219,
+      "receiver": "router",
+      "declared_path": "/dataset/gallery",
+      "methods": [
+        "POST"
+      ],
+      "handler": "archived_dataset_gallery"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 226,
+      "receiver": "router",
+      "declared_path": "/dataset/file/{dataset}/{filename}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "archived_dataset_file"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 238,
+      "receiver": "router",
+      "declared_path": "/scrape/search",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_search"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 247,
+      "receiver": "router",
+      "declared_path": "/scrape/download",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_download"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 254,
+      "receiver": "router",
+      "declared_path": "/scrape/gallery",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_gallery"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 260,
+      "receiver": "router",
+      "declared_path": "/scrape/file/{dataset}/{attempt}/{kind}/{filename}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "scrape_file"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 272,
+      "receiver": "router",
+      "declared_path": "/scrape/delete",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_delete"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 283,
+      "receiver": "router",
+      "declared_path": "/scrape/caption",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_caption"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 294,
+      "receiver": "router",
+      "declared_path": "/scrape/tag",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_tag"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 308,
+      "receiver": "router",
+      "declared_path": "/scrape/tag-image",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_tag_image"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 325,
+      "receiver": "router",
+      "declared_path": "/scrape/archive",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scrape_archive"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 338,
+      "receiver": "router",
+      "declared_path": "/readiness",
+      "methods": [
+        "GET"
+      ],
+      "handler": "readiness"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 344,
+      "receiver": "router",
+      "declared_path": "/models",
+      "methods": [
+        "GET"
+      ],
+      "handler": "models"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 349,
+      "receiver": "router",
+      "declared_path": "/assets",
+      "methods": [
+        "GET"
+      ],
+      "handler": "training_assets"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 354,
+      "receiver": "router",
+      "declared_path": "/dataset/scan",
+      "methods": [
+        "POST"
+      ],
+      "handler": "scan"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 359,
+      "receiver": "router",
+      "declared_path": "/dataset/create",
+      "methods": [
+        "POST"
+      ],
+      "handler": "create_dataset"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 364,
+      "receiver": "router",
+      "declared_path": "/dataset/caption",
+      "methods": [
+        "POST"
+      ],
+      "handler": "caption"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 369,
+      "receiver": "router",
+      "declared_path": "/autotag",
+      "methods": [
+        "POST"
+      ],
+      "handler": "autotag"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 376,
+      "receiver": "router",
+      "declared_path": "/jobs",
+      "methods": [
+        "POST"
+      ],
+      "handler": "start"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 381,
+      "receiver": "router",
+      "declared_path": "/jobs",
+      "methods": [
+        "GET"
+      ],
+      "handler": "history"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 386,
+      "receiver": "router",
+      "declared_path": "/jobs/{job_id}",
+      "methods": [
+        "GET"
+      ],
+      "handler": "job"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 391,
+      "receiver": "router",
+      "declared_path": "/jobs/{job_id}/cancel",
+      "methods": [
+        "POST"
+      ],
+      "handler": "cancel"
+    },
+    {
+      "file": "ui/plugins/server/training/__init__.py",
+      "line": 396,
+      "receiver": "router",
+      "declared_path": "/jobs/{job_id}/resume",
+      "methods": [
+        "POST"
+      ],
+      "handler": "resume"
+    }
+  ],
+  "python_router_mounts": [
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 148,
+      "receiver": "server_api",
+      "router": "online_model_browser_router",
+      "prefix": "/civitai-api"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 149,
+      "receiver": "server_api",
+      "router": "huggingface_router",
+      "prefix": "/huggingface-api"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 153,
+      "receiver": "server_api",
+      "router": "model_tools_router",
+      "prefix": "/model-tools"
+    },
+    {
+      "file": "ui/easydiffusion/server.py",
+      "line": 154,
+      "receiver": "server_api",
+      "router": "training.router",
+      "prefix": "/training"
+    }
+  ],
+  "native_literal_route_declarations": [
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 211,
+      "declared_path": "/v1/internal/ping",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 213,
+      "declared_path": "/v1/sdapi/v1/backend-devices",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 218,
+      "declared_path": "/v1/sdapi/v1/options",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 220,
+      "declared_path": "/v1/sdapi/v1/options",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 225,
+      "declared_path": "/v1/sdapi/v1/txt2img",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 229,
+      "declared_path": "/v1/sdapi/v1/img2img",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 233,
+      "declared_path": "/v1/sdapi/v1/txt2video",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 237,
+      "declared_path": "/v1/sdapi/v1/img2video",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 242,
+      "declared_path": "/v1/internal/progress",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 247,
+      "declared_path": "/v1/sdapi/v1/interrupt",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 252,
+      "declared_path": "/v1/sdapi/v1/extra-batch-images",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 257,
+      "declared_path": "/v1/controlnet/detect",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 262,
+      "declared_path": "/v1/sdapi/v1/refresh-checkpoints",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "source/sdkit3-port-source/src/server.cpp",
+      "line": 266,
+      "declared_path": "/v1/sdapi/v1/refresh-vae-and-text-encoders",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "file": "cosmopolitan/src/ui_routes.cpp",
+      "line": 55,
+      "declared_path": "/",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "cosmopolitan/src/ui_routes.cpp",
+      "line": 57,
+      "declared_path": "/cpp-ui/",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "cosmopolitan/src/ui_routes.cpp",
+      "line": 63,
+      "declared_path": "/cpp-ui/assets/<path>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "cosmopolitan/src/ui_routes.cpp",
+      "line": 64,
+      "declared_path": "/cpp-ui/scripts/<path>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "cosmopolitan/src/ui_routes.cpp",
+      "line": 65,
+      "declared_path": "/media/<path>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "file": "cosmopolitan/src/ui_routes.cpp",
+      "line": 66,
+      "declared_path": "/plugins/<path>",
+      "methods": [
+        "GET"
+      ]
+    }
+  ],
+  "native_dynamic_routes": "C++ UI page definitions are registered dynamically under /cpp-ui."
+}

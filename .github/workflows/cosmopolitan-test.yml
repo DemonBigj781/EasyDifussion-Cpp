@@ -1,0 +1,158 @@
+name: Cosmopolitan all-in-one integration
+run-name: One Easy Diffusion APE - ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [cosmopolitan-test]
+    paths:
+      - cosmopolitan/**
+      - .github/workflows/cosmopolitan-test.yml
+      - .gitignore
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build one static shared-GGML application
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      executable_sha256: ${{ steps.package.outputs.executable_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install host build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3 python3-venv unzip patch binutils
+      - name: Restore the pinned SDK and host tools
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            cosmopolitan/out/downloads
+            cosmopolitan/out/sdk
+            cosmopolitan/out/tools
+          key: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
+      - name: Compile and embed application resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cosmopolitan/out
+          python3 cosmopolitan/build.py --jobs 2 2>&1 | tee cosmopolitan/out/build.log
+      - name: Verify shared symbols and package identity
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cosmopolitan/tests/audit_symbols.py --out cosmopolitan/out
+          cp cosmopolitan/tests/verify_runtime.py cosmopolitan/out/verify_runtime.py
+          cp cosmopolitan/tests/verify_bootstrap.py cosmopolitan/out/verify_bootstrap.py
+          python3 - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'cosmopolitan/tests')
+          from verify_runtime import verify_package
+          directory = Path('cosmopolitan/out')
+          digest = verify_package(directory, None)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'executable_sha256={digest}\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('### One application artifact\n\n')
+              summary.write(f'SHA-256: `{digest}`\n\n')
+              summary.write('Windows and Linux execute this file without rebuilding it. ')
+              summary.write('This validates the native integration milestone; full application, image generation and end-to-end training parity remain separately tracked.\n')
+          PY
+      - name: Upload the application for both operating systems
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: easy-diffusion-cosmopolitan-x86_64
+          path: |
+            cosmopolitan/out/easy-diffusion.exe
+            cosmopolitan/out/ape-x86_64.elf
+            cosmopolitan/out/BUILD.json
+            cosmopolitan/out/SYMBOLS.json
+            cosmopolitan/out/verify_runtime.py
+            cosmopolitan/out/verify_bootstrap.py
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve build diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-build-diagnostics
+          path: |
+            cosmopolitan/out/build.log
+            cosmopolitan/out/easy-diffusion.com.dbg
+            cosmopolitan/out/build/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  linux:
+    name: Linux application in an empty filesystem
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_SHA256: ${{ needs.build.outputs.executable_sha256 }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: easy-diffusion-cosmopolitan-x86_64
+          path: artifact
+      - name: Run inference, training math, server and UI without host libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x artifact/ape-x86_64.elf artifact/easy-diffusion.exe
+          sudo python3 artifact/verify_runtime.py --artifact-dir "$PWD/artifact" \
+            --expected-sha256 "$EXPECTED_SHA256" --isolate
+      - name: Launch the single application file through its bundled Linux bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 artifact/verify_bootstrap.py --artifact-dir "$PWD/artifact" \
+            --expected-sha256 "$EXPECTED_SHA256"
+      - name: Preserve Linux results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-linux-results
+          path: |
+            artifact/results-linux-isolated
+            artifact/results-linux-bootstrap
+          if-no-files-found: ignore
+          retention-days: 30
+
+  windows:
+    name: Windows native PE with the identical application
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      EXPECTED_SHA256: ${{ needs.build.outputs.executable_sha256 }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: easy-diffusion-cosmopolitan-x86_64
+          path: artifact
+      - name: Run the PE directly from a clean application directory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python artifact/verify_runtime.py --artifact-dir artifact
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows runtime verification failed' }
+      - name: Preserve Windows results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-windows-results
+          path: artifact/results-windows
+          if-no-files-found: ignore
+          retention-days: 30

@@ -29,6 +29,7 @@
 *.pre-*
 /options.json
 /source/artifacts
+/cosmopolitan/out/
 
 # sdkit is vendored as a de-gitted source snapshot. Keep local native builds
 # and private/runtime configuration out of the main repository.

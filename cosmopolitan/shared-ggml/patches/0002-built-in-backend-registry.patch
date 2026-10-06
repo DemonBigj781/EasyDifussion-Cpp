@@ -1,0 +1,49 @@
+--- a/src/ggml-backend-reg.cpp
++++ b/src/ggml-backend-reg.cpp
+@@ -391,13 +391,21 @@
+ 
+ // Dynamic loading
+ ggml_backend_reg_t ggml_backend_load(const char * path) {
++#ifdef GGML_COSMO_STATIC_ONLY
++    (void) get_reg();
++    GGML_UNUSED(path);
++    GGML_LOG_ERROR("%s: dynamic GGML backends are disabled in this static application\n", __func__);
++    return nullptr;
++#else
+     return get_reg().load_backend(path, false);
++#endif
+ }
+ 
+ void ggml_backend_unload(ggml_backend_reg_t reg) {
+     get_reg().unload_backend(reg, true);
+ }
+ 
++#ifndef GGML_COSMO_STATIC_ONLY
+ static fs::path get_executable_path() {
+ #if defined(__APPLE__)
+     // get executable path
+@@ -559,11 +567,17 @@
+     return get_reg().load_backend(best_path, silent);
+ }
+ 
++#endif // GGML_COSMO_STATIC_ONLY
++
+ void ggml_backend_load_all() {
+     ggml_backend_load_all_from_path(nullptr);
+ }
+ 
+ void ggml_backend_load_all_from_path(const char * dir_path) {
++#ifdef GGML_COSMO_STATIC_ONLY
++    GGML_UNUSED(dir_path);
++    (void) get_reg();
++#else
+ #ifdef NDEBUG
+     bool silent = true;
+ #else
+@@ -590,4 +604,5 @@
+     if (backend_path) {
+         ggml_backend_load(backend_path);
+     }
+-}
++#endif // GGML_COSMO_STATIC_ONLY
++}

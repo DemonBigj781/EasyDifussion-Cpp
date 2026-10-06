@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Check that the application build used one GGML implementation."""
+
+import argparse
+from collections import Counter
+import json
+from pathlib import Path
+import subprocess
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    out = args.out.resolve()
+    commands = json.loads((out / "build/compile_commands.json").read_text())
+    shared = (out / "source/shared-ggml/src").resolve()
+    ggml_sources = []
+    for command in commands:
+        path = Path(command["file"]).resolve()
+        tensor_user = (path.is_relative_to(shared) or "/llama.cpp/src/" in path.as_posix()
+                       or "/stable-diffusion.cpp/src/" in path.as_posix()
+                       or "/cosmopolitan/src/" in path.as_posix()
+                       or "/cosmopolitan/shared-ggml/" in path.as_posix())
+        if tensor_user and "GGML_MAX_NAME=160" not in command["command"]:
+            raise RuntimeError(f"Tensor layout is not consistent in a GGML consumer: {path}")
+        if "ggml" not in str(path):
+            continue
+        if "/ggml/src/" in path.as_posix():
+            raise RuntimeError(f"A second vendored GGML implementation is being compiled: {path}")
+        if path.is_relative_to(shared):
+            if "GGML_MAX_NAME=160" not in command["command"]:
+                raise RuntimeError(f"Shared GGML tensor layout is not explicit: {path}")
+            ggml_sources.append(path.relative_to(shared).as_posix())
+    if not ggml_sources:
+        raise RuntimeError("No authoritative shared GGML sources were compiled")
+    symbols = subprocess.check_output(["nm", "--defined-only", "--format=posix",
+                                       str(out / "easy-diffusion.com.dbg")], text=True)
+    names = Counter(line.split()[0] for line in symbols.splitlines() if line.strip())
+    required = ("ggml_init", "ggml_new_tensor", "ggml_backend_cpu_init", "ggml_backend_dev_count",
+                "llama_model_load_from_file", "new_sd_ctx", "cosmo_train_main", "cosmo_sdkit_main")
+    for name in required:
+        if names[name] != 1:
+            raise RuntimeError(f"Expected exactly one definition of {name}, found {names[name]}")
+    legacy = [name for name in names if name.startswith(("ggml_v2_", "ggml_v3_"))]
+    if legacy:
+        raise RuntimeError("Unexpected alternate GGML implementation symbols")
+    report = {"status": "passed", "shared_ggml_sources": sorted(set(ggml_sources)),
+              "required_symbol_counts": {name: names[name] for name in required},
+              "legacy_versioned_ggml_symbols": 0,
+              "scope": "Source and symbol identity; numerical correctness is tested separately"}
+    (out / "SYMBOLS.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,773 @@
+--- /dev/null
++++ b/sdkit3-port-source/third_party/asio/detail/cosmo_socket_constants.hpp
+@@ -0,0 +1,53 @@
++// Runtime socket constants for Cosmopolitan's POSIX socket interface.
++// Distributed under the Boost Software License, Version 1.0, like Asio.
++#ifndef ASIO_DETAIL_COSMO_SOCKET_CONSTANTS_HPP
++#define ASIO_DETAIL_COSMO_SOCKET_CONSTANTS_HPP
++#include "asio/detail/socket_types.hpp"
++#if defined(__COSMOPOLITAN__)
++namespace asio { namespace detail {
++inline int cosmo_socket_IPPROTO_IP() { return IPPROTO_IP; }
++inline int cosmo_socket_IPPROTO_IPV6() { return IPPROTO_IPV6; }
++inline int cosmo_socket_IPPROTO_TCP() { return IPPROTO_TCP; }
++inline int cosmo_socket_IPV6_JOIN_GROUP() { return IPV6_JOIN_GROUP; }
++inline int cosmo_socket_IPV6_LEAVE_GROUP() { return IPV6_LEAVE_GROUP; }
++inline int cosmo_socket_IPV6_MULTICAST_HOPS() { return IPV6_MULTICAST_HOPS; }
++inline int cosmo_socket_IPV6_MULTICAST_IF() { return IPV6_MULTICAST_IF; }
++inline int cosmo_socket_IPV6_MULTICAST_LOOP() { return IPV6_MULTICAST_LOOP; }
++inline int cosmo_socket_IPV6_UNICAST_HOPS() { return IPV6_UNICAST_HOPS; }
++inline int cosmo_socket_IPV6_V6ONLY() { return IPV6_V6ONLY; }
++inline int cosmo_socket_IP_ADD_MEMBERSHIP() { return IP_ADD_MEMBERSHIP; }
++inline int cosmo_socket_IP_DROP_MEMBERSHIP() { return IP_DROP_MEMBERSHIP; }
++inline int cosmo_socket_IP_MULTICAST_IF() { return IP_MULTICAST_IF; }
++inline int cosmo_socket_IP_MULTICAST_LOOP() { return IP_MULTICAST_LOOP; }
++inline int cosmo_socket_IP_MULTICAST_TTL() { return IP_MULTICAST_TTL; }
++inline int cosmo_socket_IP_TTL() { return IP_TTL; }
++inline int cosmo_socket_SOL_SOCKET() { return SOL_SOCKET; }
++inline int cosmo_socket_SO_BROADCAST() { return SO_BROADCAST; }
++inline int cosmo_socket_SO_DEBUG() { return SO_DEBUG; }
++inline int cosmo_socket_SO_DONTROUTE() { return SO_DONTROUTE; }
++inline int cosmo_socket_SO_KEEPALIVE() { return SO_KEEPALIVE; }
++inline int cosmo_socket_SO_LINGER() { return SO_LINGER; }
++inline int cosmo_socket_SO_OOBINLINE() { return SO_OOBINLINE; }
++inline int cosmo_socket_SO_RCVBUF() { return SO_RCVBUF; }
++inline int cosmo_socket_SO_RCVLOWAT() { return SO_RCVLOWAT; }
++inline int cosmo_socket_SO_REUSEADDR() { return SO_REUSEADDR; }
++inline int cosmo_socket_SO_SNDBUF() { return SO_SNDBUF; }
++inline int cosmo_socket_SO_SNDLOWAT() { return SO_SNDLOWAT; }
++inline int cosmo_socket_TCP_NODELAY() { return TCP_NODELAY; }
++inline int cosmo_socket_always_fail_option() { return always_fail_option; }
++inline int cosmo_socket_custom_socket_option_level() { return custom_socket_option_level; }
++inline int cosmo_socket_enable_connection_aborted_option() { return enable_connection_aborted_option; }
++} }
++#define ASIO_SOCKET_OPTION_PARAM(name) int (*name)()
++#define ASIO_SOCKET_OPTION_ARG(name) ::asio::detail::cosmo_socket_##name
++#define ASIO_SOCKET_OPTION_VALUE(name) name()
++#else
++#define ASIO_SOCKET_OPTION_PARAM(name) int name
++#define ASIO_OS_DEF_custom_socket_option_level ::asio::detail::custom_socket_option_level
++#define ASIO_OS_DEF_enable_connection_aborted_option ::asio::detail::enable_connection_aborted_option
++#define ASIO_OS_DEF_always_fail_option ::asio::detail::always_fail_option
++#define ASIO_OS_DEF_IPV6_V6ONLY IPV6_V6ONLY
++#define ASIO_SOCKET_OPTION_ARG(name) ASIO_OS_DEF(name)
++#define ASIO_SOCKET_OPTION_VALUE(name) name
++#endif
++#endif
+--- a/sdkit3-port-source/third_party/asio/detail/impl/signal_set_service.ipp
++++ b/sdkit3-port-source/third_party/asio/detail/impl/signal_set_service.ipp
+@@ -357,7 +357,13 @@
+       sa.sa_handler = asio_signal_handler;
+       sigfillset(&sa.sa_mask);
+       if (f != signal_set_base::flags::dont_care)
++#if defined(__COSMOPOLITAN__)
++        sa.sa_flags = ((f & signal_set_base::flags::restart) != signal_set_base::flags::none ? SA_RESTART : 0)
++            | ((f & signal_set_base::flags::no_child_stop) != signal_set_base::flags::none ? SA_NOCLDSTOP : 0)
++            | ((f & signal_set_base::flags::no_child_wait) != signal_set_base::flags::none ? SA_NOCLDWAIT : 0);
++#else
+         sa.sa_flags = static_cast<int>(f);
++#endif
+       if (::sigaction(signal_number, &sa, 0) == -1)
+ # else // defined(ASIO_HAS_SIGACTION)
+       if (::signal(signal_number, asio_signal_handler) == SIG_ERR)
+@@ -393,7 +399,13 @@
+         memset(&sa, 0, sizeof(sa));
+         sa.sa_handler = asio_signal_handler;
+         sigfillset(&sa.sa_mask);
++#if defined(__COSMOPOLITAN__)
++        sa.sa_flags = ((f & signal_set_base::flags::restart) != signal_set_base::flags::none ? SA_RESTART : 0)
++            | ((f & signal_set_base::flags::no_child_stop) != signal_set_base::flags::none ? SA_NOCLDSTOP : 0)
++            | ((f & signal_set_base::flags::no_child_wait) != signal_set_base::flags::none ? SA_NOCLDWAIT : 0);
++#else
+         sa.sa_flags = static_cast<int>(f);
++#endif
+         if (::sigaction(signal_number, &sa, 0) == -1)
+         {
+           ec = asio::error_code(errno,
+--- a/sdkit3-port-source/third_party/asio/detail/impl/socket_ops.ipp
++++ b/sdkit3-port-source/third_party/asio/detail/impl/socket_ops.ipp
+@@ -2575,8 +2575,13 @@
+         && ((ipv6_address->s6_addr[1] & 0xc0) == 0x80));
+     bool is_multicast_link_local = ((ipv6_address->s6_addr[0] == 0xff)
+         && ((ipv6_address->s6_addr[1] & 0x0f) == 0x02));
++#if defined(__COSMOPOLITAN__)
++    (void)is_link_local;
++    (void)is_multicast_link_local;
++#else
+     if ((!is_link_local && !is_multicast_link_local)
+         || if_indextoname(static_cast<unsigned>(scope_id), if_name + 1) == 0)
++#endif
+ #if defined(ASIO_HAS_SNPRINTF)
+       snprintf(if_name + 1, sizeof(if_name) - 1, "%lu", scope_id);
+ #else // defined(ASIO_HAS_SNPRINTF)
+@@ -2834,10 +2839,22 @@
+           && ((ipv6_address->s6_addr[1] & 0xc0) == 0x80));
+       bool is_multicast_link_local = ((ipv6_address->s6_addr[0] == 0xff)
+           && ((ipv6_address->s6_addr[1] & 0x0f) == 0x02));
++#if defined(__COSMOPOLITAN__)
++      (void)is_link_local;
++      (void)is_multicast_link_local;
++      char* end = 0;
++      *scope_id = strtoul(if_name + 1, &end, 10);
++      if (end == if_name + 1 || *end != 0 || *scope_id > 0xffffffffUL)
++      {
++        ec = asio::error::invalid_argument;
++        return 0;
++      }
++#else
+       if (is_link_local || is_multicast_link_local)
+         *scope_id = if_nametoindex(if_name + 1);
+       if (*scope_id == 0)
+         *scope_id = atoi(if_name + 1);
++#endif
+     }
+   }
+   return result;
+--- a/sdkit3-port-source/third_party/asio/detail/socket_option.hpp
++++ b/sdkit3-port-source/third_party/asio/detail/socket_option.hpp
+@@ -19,6 +19,7 @@
+ #include <cstddef>
+ #include <stdexcept>
+ #include "asio/detail/socket_types.hpp"
++#include "asio/detail/cosmo_socket_constants.hpp"
+ #include "asio/detail/throw_exception.hpp"
+ 
+ #include "asio/detail/push_options.hpp"
+@@ -28,7 +29,7 @@
+ namespace socket_option {
+ 
+ // Helper template for implementing boolean-based options.
+-template <int Level, int Name>
++template <ASIO_SOCKET_OPTION_PARAM(Level), ASIO_SOCKET_OPTION_PARAM(Name)>
+ class boolean
+ {
+ public:
+@@ -73,14 +74,14 @@
+   template <typename Protocol>
+   int level(const Protocol&) const
+   {
+-    return Level;
++    return ASIO_SOCKET_OPTION_VALUE(Level);
+   }
+ 
+   // Get the name of the socket option.
+   template <typename Protocol>
+   int name(const Protocol&) const
+   {
+-    return Name;
++    return ASIO_SOCKET_OPTION_VALUE(Name);
+   }
+ 
+   // Get the address of the boolean data.
+@@ -131,7 +132,7 @@
+ };
+ 
+ // Helper template for implementing integer options.
+-template <int Level, int Name>
++template <ASIO_SOCKET_OPTION_PARAM(Level), ASIO_SOCKET_OPTION_PARAM(Name)>
+ class integer
+ {
+ public:
+@@ -164,14 +165,14 @@
+   template <typename Protocol>
+   int level(const Protocol&) const
+   {
+-    return Level;
++    return ASIO_SOCKET_OPTION_VALUE(Level);
+   }
+ 
+   // Get the name of the socket option.
+   template <typename Protocol>
+   int name(const Protocol&) const
+   {
+-    return Name;
++    return ASIO_SOCKET_OPTION_VALUE(Name);
+   }
+ 
+   // Get the address of the int data.
+@@ -211,7 +212,7 @@
+ };
+ 
+ // Helper template for implementing linger options.
+-template <int Level, int Name>
++template <ASIO_SOCKET_OPTION_PARAM(Level), ASIO_SOCKET_OPTION_PARAM(Name)>
+ class linger
+ {
+ public:
+@@ -261,14 +262,14 @@
+   template <typename Protocol>
+   int level(const Protocol&) const
+   {
+-    return Level;
++    return ASIO_SOCKET_OPTION_VALUE(Level);
+   }
+ 
+   // Get the name of the socket option.
+   template <typename Protocol>
+   int name(const Protocol&) const
+   {
+-    return Name;
++    return ASIO_SOCKET_OPTION_VALUE(Name);
+   }
+ 
+   // Get the address of the linger data.
+--- a/sdkit3-port-source/third_party/asio/detail/socket_types.hpp
++++ b/sdkit3-port-source/third_party/asio/detail/socket_types.hpp
+@@ -405,7 +405,10 @@
+ # else
+ #  define ASIO_OS_DEF_AI_ADDRCONFIG 0
+ # endif
+-# if defined(IOV_MAX)
++# if defined(__COSMOPOLITAN__)
++// POSIX guarantees at least 16 vectors; IOV_MAX is runtime-selected.
++const int max_iov_len = 16;
++# elif defined(IOV_MAX)
+ const int max_iov_len = IOV_MAX;
+ # else
+ // POSIX platforms are not required to define IOV_MAX.
+--- a/sdkit3-port-source/third_party/asio/error.hpp
++++ b/sdkit3-port-source/third_party/asio/error.hpp
+@@ -63,6 +63,61 @@
+ namespace asio {
+ namespace error {
+ 
++#if defined(__COSMOPOLITAN__)
++// Cosmopolitan chooses errno values at startup. Keep typed errors while
++// reading the native value when converting, after libc has selected the OS.
++struct basic_errors
++{
++  int (*native_value)();
++  operator int() const { return native_value(); }
++};
++inline constexpr basic_errors access_denied{[]() { return ASIO_SOCKET_ERROR(EACCES); }};
++inline constexpr basic_errors address_family_not_supported{[]() { return ASIO_SOCKET_ERROR(EAFNOSUPPORT); }};
++inline constexpr basic_errors address_in_use{[]() { return ASIO_SOCKET_ERROR(EADDRINUSE); }};
++inline constexpr basic_errors already_connected{[]() { return ASIO_SOCKET_ERROR(EISCONN); }};
++inline constexpr basic_errors already_started{[]() { return ASIO_SOCKET_ERROR(EALREADY); }};
++inline constexpr basic_errors broken_pipe{[]() { return ASIO_WIN_OR_POSIX(
++      ASIO_NATIVE_ERROR(ERROR_BROKEN_PIPE),
++      ASIO_NATIVE_ERROR(EPIPE)); }};
++inline constexpr basic_errors connection_aborted{[]() { return ASIO_SOCKET_ERROR(ECONNABORTED); }};
++inline constexpr basic_errors connection_refused{[]() { return ASIO_SOCKET_ERROR(ECONNREFUSED); }};
++inline constexpr basic_errors connection_reset{[]() { return ASIO_SOCKET_ERROR(ECONNRESET); }};
++inline constexpr basic_errors bad_descriptor{[]() { return ASIO_SOCKET_ERROR(EBADF); }};
++inline constexpr basic_errors fault{[]() { return ASIO_SOCKET_ERROR(EFAULT); }};
++inline constexpr basic_errors host_unreachable{[]() { return ASIO_SOCKET_ERROR(EHOSTUNREACH); }};
++inline constexpr basic_errors in_progress{[]() { return ASIO_SOCKET_ERROR(EINPROGRESS); }};
++inline constexpr basic_errors interrupted{[]() { return ASIO_SOCKET_ERROR(EINTR); }};
++inline constexpr basic_errors invalid_argument{[]() { return ASIO_SOCKET_ERROR(EINVAL); }};
++inline constexpr basic_errors message_size{[]() { return ASIO_SOCKET_ERROR(EMSGSIZE); }};
++inline constexpr basic_errors name_too_long{[]() { return ASIO_SOCKET_ERROR(ENAMETOOLONG); }};
++inline constexpr basic_errors network_down{[]() { return ASIO_SOCKET_ERROR(ENETDOWN); }};
++inline constexpr basic_errors network_reset{[]() { return ASIO_SOCKET_ERROR(ENETRESET); }};
++inline constexpr basic_errors network_unreachable{[]() { return ASIO_SOCKET_ERROR(ENETUNREACH); }};
++inline constexpr basic_errors no_descriptors{[]() { return ASIO_SOCKET_ERROR(EMFILE); }};
++inline constexpr basic_errors no_buffer_space{[]() { return ASIO_SOCKET_ERROR(ENOBUFS); }};
++inline constexpr basic_errors no_memory{[]() { return ASIO_WIN_OR_POSIX(
++      ASIO_NATIVE_ERROR(ERROR_OUTOFMEMORY),
++      ASIO_NATIVE_ERROR(ENOMEM)); }};
++inline constexpr basic_errors no_permission{[]() { return ASIO_WIN_OR_POSIX(
++      ASIO_NATIVE_ERROR(ERROR_ACCESS_DENIED),
++      ASIO_NATIVE_ERROR(EPERM)); }};
++inline constexpr basic_errors no_protocol_option{[]() { return ASIO_SOCKET_ERROR(ENOPROTOOPT); }};
++inline constexpr basic_errors no_such_device{[]() { return ASIO_WIN_OR_POSIX(
++      ASIO_NATIVE_ERROR(ERROR_BAD_UNIT),
++      ASIO_NATIVE_ERROR(ENODEV)); }};
++inline constexpr basic_errors not_connected{[]() { return ASIO_SOCKET_ERROR(ENOTCONN); }};
++inline constexpr basic_errors not_socket{[]() { return ASIO_SOCKET_ERROR(ENOTSOCK); }};
++inline constexpr basic_errors operation_aborted{[]() { return ASIO_WIN_OR_POSIX(
++      ASIO_NATIVE_ERROR(ERROR_OPERATION_ABORTED),
++      ASIO_NATIVE_ERROR(ECANCELED)); }};
++inline constexpr basic_errors operation_not_supported{[]() { return ASIO_SOCKET_ERROR(EOPNOTSUPP); }};
++inline constexpr basic_errors shut_down{[]() { return ASIO_SOCKET_ERROR(ESHUTDOWN); }};
++inline constexpr basic_errors timed_out{[]() { return ASIO_SOCKET_ERROR(ETIMEDOUT); }};
++inline constexpr basic_errors try_again{[]() { return ASIO_WIN_OR_POSIX(
++      ASIO_NATIVE_ERROR(ERROR_RETRY),
++      ASIO_NATIVE_ERROR(EAGAIN)); }};
++inline constexpr basic_errors would_block{[]() { return ASIO_SOCKET_ERROR(EWOULDBLOCK); }};
++#else
+ enum basic_errors
+ {
+   /// Permission denied.
+@@ -179,6 +234,7 @@
+   /// The socket is marked non-blocking and the requested operation would block.
+   would_block = ASIO_SOCKET_ERROR(EWOULDBLOCK)
+ };
++#endif
+ 
+ enum netdb_errors
+ {
+--- a/sdkit3-port-source/third_party/asio/ip/detail/socket_option.hpp
++++ b/sdkit3-port-source/third_party/asio/ip/detail/socket_option.hpp
+@@ -21,6 +21,7 @@
+ #include <stdexcept>
+ #include "asio/detail/socket_ops.hpp"
+ #include "asio/detail/socket_types.hpp"
++#include "asio/detail/cosmo_socket_constants.hpp"
+ #include "asio/detail/throw_exception.hpp"
+ #include "asio/ip/address.hpp"
+ 
+@@ -32,7 +33,7 @@
+ namespace socket_option {
+ 
+ // Helper template for implementing multicast enable loopback options.
+-template <int IPv4_Level, int IPv4_Name, int IPv6_Level, int IPv6_Name>
++template <ASIO_SOCKET_OPTION_PARAM(IPv4_Level), ASIO_SOCKET_OPTION_PARAM(IPv4_Name), ASIO_SOCKET_OPTION_PARAM(IPv6_Level), ASIO_SOCKET_OPTION_PARAM(IPv6_Name)>
+ class multicast_enable_loopback
+ {
+ public:
+@@ -92,8 +93,8 @@
+   int level(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Level;
+-    return IPv4_Level;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Level);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Level);
+   }
+ 
+   // Get the name of the socket option.
+@@ -101,8 +102,8 @@
+   int name(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Name;
+-    return IPv4_Name;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Name);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Name);
+   }
+ 
+   // Get the address of the boolean data.
+@@ -162,7 +163,7 @@
+ };
+ 
+ // Helper template for implementing unicast hops options.
+-template <int IPv4_Level, int IPv4_Name, int IPv6_Level, int IPv6_Name>
++template <ASIO_SOCKET_OPTION_PARAM(IPv4_Level), ASIO_SOCKET_OPTION_PARAM(IPv4_Name), ASIO_SOCKET_OPTION_PARAM(IPv6_Level), ASIO_SOCKET_OPTION_PARAM(IPv6_Name)>
+ class unicast_hops
+ {
+ public:
+@@ -196,8 +197,8 @@
+   int level(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Level;
+-    return IPv4_Level;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Level);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Level);
+   }
+ 
+   // Get the name of the socket option.
+@@ -205,8 +206,8 @@
+   int name(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Name;
+-    return IPv4_Name;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Name);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Name);
+   }
+ 
+   // Get the address of the data.
+@@ -250,7 +251,7 @@
+ };
+ 
+ // Helper template for implementing multicast hops options.
+-template <int IPv4_Level, int IPv4_Name, int IPv6_Level, int IPv6_Name>
++template <ASIO_SOCKET_OPTION_PARAM(IPv4_Level), ASIO_SOCKET_OPTION_PARAM(IPv4_Name), ASIO_SOCKET_OPTION_PARAM(IPv6_Level), ASIO_SOCKET_OPTION_PARAM(IPv6_Name)>
+ class multicast_hops
+ {
+ public:
+@@ -304,8 +305,8 @@
+   int level(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Level;
+-    return IPv4_Level;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Level);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Level);
+   }
+ 
+   // Get the name of the socket option.
+@@ -313,8 +314,8 @@
+   int name(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Name;
+-    return IPv4_Name;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Name);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Name);
+   }
+ 
+   // Get the address of the data.
+@@ -379,7 +380,7 @@
+ };
+ 
+ // Helper template for implementing ip_mreq-based options.
+-template <int IPv4_Level, int IPv4_Name, int IPv6_Level, int IPv6_Name>
++template <ASIO_SOCKET_OPTION_PARAM(IPv4_Level), ASIO_SOCKET_OPTION_PARAM(IPv4_Name), ASIO_SOCKET_OPTION_PARAM(IPv6_Level), ASIO_SOCKET_OPTION_PARAM(IPv6_Name)>
+ class multicast_request
+ {
+ public:
+@@ -447,8 +448,8 @@
+   int level(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Level;
+-    return IPv4_Level;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Level);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Level);
+   }
+ 
+   // Get the name of the socket option.
+@@ -456,8 +457,8 @@
+   int name(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Name;
+-    return IPv4_Name;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Name);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Name);
+   }
+ 
+   // Get the address of the option data.
+@@ -484,7 +485,7 @@
+ };
+ 
+ // Helper template for implementing options that specify a network interface.
+-template <int IPv4_Level, int IPv4_Name, int IPv6_Level, int IPv6_Name>
++template <ASIO_SOCKET_OPTION_PARAM(IPv4_Level), ASIO_SOCKET_OPTION_PARAM(IPv4_Name), ASIO_SOCKET_OPTION_PARAM(IPv6_Level), ASIO_SOCKET_OPTION_PARAM(IPv6_Name)>
+ class network_interface
+ {
+ public:
+@@ -520,8 +521,8 @@
+   int level(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Level;
+-    return IPv4_Level;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Level);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Level);
+   }
+ 
+   // Get the name of the socket option.
+@@ -529,8 +530,8 @@
+   int name(const Protocol& protocol) const
+   {
+     if (protocol.family() == PF_INET6)
+-      return IPv6_Name;
+-    return IPv4_Name;
++      return ASIO_SOCKET_OPTION_VALUE(IPv6_Name);
++    return ASIO_SOCKET_OPTION_VALUE(IPv4_Name);
+   }
+ 
+   // Get the address of the option data.
+--- a/sdkit3-port-source/third_party/asio/ip/multicast.hpp
++++ b/sdkit3-port-source/third_party/asio/ip/multicast.hpp
+@@ -47,10 +47,10 @@
+ typedef implementation_defined join_group;
+ #else
+ typedef asio::ip::detail::socket_option::multicast_request<
+-  ASIO_OS_DEF(IPPROTO_IP),
+-  ASIO_OS_DEF(IP_ADD_MEMBERSHIP),
+-  ASIO_OS_DEF(IPPROTO_IPV6),
+-  ASIO_OS_DEF(IPV6_JOIN_GROUP)> join_group;
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IP),
++  ASIO_SOCKET_OPTION_ARG(IP_ADD_MEMBERSHIP),
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IPV6),
++  ASIO_SOCKET_OPTION_ARG(IPV6_JOIN_GROUP)> join_group;
+ #endif
+ 
+ /// Socket option to leave a multicast group on a specified interface.
+@@ -75,10 +75,10 @@
+ typedef implementation_defined leave_group;
+ #else
+ typedef asio::ip::detail::socket_option::multicast_request<
+-  ASIO_OS_DEF(IPPROTO_IP),
+-  ASIO_OS_DEF(IP_DROP_MEMBERSHIP),
+-  ASIO_OS_DEF(IPPROTO_IPV6),
+-  ASIO_OS_DEF(IPV6_LEAVE_GROUP)> leave_group;
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IP),
++  ASIO_SOCKET_OPTION_ARG(IP_DROP_MEMBERSHIP),
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IPV6),
++  ASIO_SOCKET_OPTION_ARG(IPV6_LEAVE_GROUP)> leave_group;
+ #endif
+ 
+ /// Socket option for local interface to use for outgoing multicast packets.
+@@ -103,10 +103,10 @@
+ typedef implementation_defined outbound_interface;
+ #else
+ typedef asio::ip::detail::socket_option::network_interface<
+-  ASIO_OS_DEF(IPPROTO_IP),
+-  ASIO_OS_DEF(IP_MULTICAST_IF),
+-  ASIO_OS_DEF(IPPROTO_IPV6),
+-  ASIO_OS_DEF(IPV6_MULTICAST_IF)> outbound_interface;
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IP),
++  ASIO_SOCKET_OPTION_ARG(IP_MULTICAST_IF),
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IPV6),
++  ASIO_SOCKET_OPTION_ARG(IPV6_MULTICAST_IF)> outbound_interface;
+ #endif
+ 
+ /// Socket option for time-to-live associated with outgoing multicast packets.
+@@ -139,10 +139,10 @@
+ typedef implementation_defined hops;
+ #else
+ typedef asio::ip::detail::socket_option::multicast_hops<
+-  ASIO_OS_DEF(IPPROTO_IP),
+-  ASIO_OS_DEF(IP_MULTICAST_TTL),
+-  ASIO_OS_DEF(IPPROTO_IPV6),
+-  ASIO_OS_DEF(IPV6_MULTICAST_HOPS)> hops;
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IP),
++  ASIO_SOCKET_OPTION_ARG(IP_MULTICAST_TTL),
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IPV6),
++  ASIO_SOCKET_OPTION_ARG(IPV6_MULTICAST_HOPS)> hops;
+ #endif
+ 
+ /// Socket option determining whether outgoing multicast packets will be
+@@ -176,10 +176,10 @@
+ typedef implementation_defined enable_loopback;
+ #else
+ typedef asio::ip::detail::socket_option::multicast_enable_loopback<
+-  ASIO_OS_DEF(IPPROTO_IP),
+-  ASIO_OS_DEF(IP_MULTICAST_LOOP),
+-  ASIO_OS_DEF(IPPROTO_IPV6),
+-  ASIO_OS_DEF(IPV6_MULTICAST_LOOP)> enable_loopback;
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IP),
++  ASIO_SOCKET_OPTION_ARG(IP_MULTICAST_LOOP),
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IPV6),
++  ASIO_SOCKET_OPTION_ARG(IPV6_MULTICAST_LOOP)> enable_loopback;
+ #endif
+ 
+ } // namespace multicast
+--- a/sdkit3-port-source/third_party/asio/ip/tcp.hpp
++++ b/sdkit3-port-source/third_party/asio/ip/tcp.hpp
+@@ -122,7 +122,7 @@
+   typedef implementation_defined no_delay;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    ASIO_OS_DEF(IPPROTO_TCP), ASIO_OS_DEF(TCP_NODELAY)> no_delay;
++    ASIO_SOCKET_OPTION_ARG(IPPROTO_TCP), ASIO_SOCKET_OPTION_ARG(TCP_NODELAY)> no_delay;
+ #endif
+ 
+   /// Compare two protocols for equality.
+--- a/sdkit3-port-source/third_party/asio/ip/unicast.hpp
++++ b/sdkit3-port-source/third_party/asio/ip/unicast.hpp
+@@ -55,10 +55,10 @@
+ typedef implementation_defined hops;
+ #else
+ typedef asio::ip::detail::socket_option::unicast_hops<
+-  ASIO_OS_DEF(IPPROTO_IP),
+-  ASIO_OS_DEF(IP_TTL),
+-  ASIO_OS_DEF(IPPROTO_IPV6),
+-  ASIO_OS_DEF(IPV6_UNICAST_HOPS)> hops;
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IP),
++  ASIO_SOCKET_OPTION_ARG(IP_TTL),
++  ASIO_SOCKET_OPTION_ARG(IPPROTO_IPV6),
++  ASIO_SOCKET_OPTION_ARG(IPV6_UNICAST_HOPS)> hops;
+ #endif
+ 
+ } // namespace unicast
+--- a/sdkit3-port-source/third_party/asio/ip/v6_only.hpp
++++ b/sdkit3-port-source/third_party/asio/ip/v6_only.hpp
+@@ -54,11 +54,11 @@
+ typedef implementation_defined v6_only;
+ #elif defined(IPV6_V6ONLY)
+ typedef asio::detail::socket_option::boolean<
+-    IPPROTO_IPV6, IPV6_V6ONLY> v6_only;
++    ASIO_SOCKET_OPTION_ARG(IPPROTO_IPV6), ASIO_SOCKET_OPTION_ARG(IPV6_V6ONLY)> v6_only;
+ #else
+ typedef asio::detail::socket_option::boolean<
+-    asio::detail::custom_socket_option_level,
+-    asio::detail::always_fail_option> v6_only;
++    ASIO_SOCKET_OPTION_ARG(custom_socket_option_level),
++    ASIO_SOCKET_OPTION_ARG(always_fail_option)> v6_only;
+ #endif
+ 
+ } // namespace ip
+--- a/sdkit3-port-source/third_party/asio/signal_set_base.hpp
++++ b/sdkit3-port-source/third_party/asio/signal_set_base.hpp
+@@ -62,9 +62,15 @@
+   enum class flags : int
+   {
+     none = 0,
++#if defined(__COSMOPOLITAN__)
++    restart = 1,
++    no_child_stop = 2,
++    no_child_wait = 4,
++#else
+     restart = ASIO_OS_DEF(SA_RESTART),
+     no_child_stop = ASIO_OS_DEF(SA_NOCLDSTOP),
+     no_child_wait = ASIO_OS_DEF(SA_NOCLDWAIT),
++#endif
+     dont_care = -1
+   };
+ 
+--- a/sdkit3-port-source/third_party/asio/socket_base.hpp
++++ b/sdkit3-port-source/third_party/asio/socket_base.hpp
+@@ -65,14 +65,28 @@
+   /// Specifies that the data marks the end of a record.
+   static const int message_end_of_record = implementation_defined;
+ #else
++#if defined(__COSMOPOLITAN__)
++  inline static const int message_peek = ASIO_OS_DEF(MSG_PEEK);
++#else
+   ASIO_STATIC_CONSTANT(int,
+       message_peek = ASIO_OS_DEF(MSG_PEEK));
++#endif
++#if defined(__COSMOPOLITAN__)
++  inline static const int message_out_of_band = ASIO_OS_DEF(MSG_OOB);
++#else
+   ASIO_STATIC_CONSTANT(int,
+       message_out_of_band = ASIO_OS_DEF(MSG_OOB));
++#endif
++#if defined(__COSMOPOLITAN__)
++  inline static const int message_do_not_route = ASIO_OS_DEF(MSG_DONTROUTE);
++#else
+   ASIO_STATIC_CONSTANT(int,
+       message_do_not_route = ASIO_OS_DEF(MSG_DONTROUTE));
++#endif
++#if !defined(__COSMOPOLITAN__)
+   ASIO_STATIC_CONSTANT(int,
+       message_end_of_record = ASIO_OS_DEF(MSG_EOR));
++#endif
+ #endif
+ 
+   /// Wait types.
+@@ -121,7 +135,7 @@
+   typedef implementation_defined broadcast;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_BROADCAST)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_BROADCAST)>
+       broadcast;
+ #endif
+ 
+@@ -155,7 +169,7 @@
+   typedef implementation_defined debug;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_DEBUG)> debug;
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_DEBUG)> debug;
+ #endif
+ 
+   /// Socket option to prevent routing, use local interfaces only.
+@@ -188,7 +202,7 @@
+   typedef implementation_defined do_not_route;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_DONTROUTE)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_DONTROUTE)>
+       do_not_route;
+ #endif
+ 
+@@ -222,7 +236,7 @@
+   typedef implementation_defined keep_alive;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_KEEPALIVE)> keep_alive;
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_KEEPALIVE)> keep_alive;
+ #endif
+ 
+   /// Socket option for the send buffer size of a socket.
+@@ -255,7 +269,7 @@
+   typedef implementation_defined send_buffer_size;
+ #else
+   typedef asio::detail::socket_option::integer<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_SNDBUF)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_SNDBUF)>
+       send_buffer_size;
+ #endif
+ 
+@@ -289,7 +303,7 @@
+   typedef implementation_defined send_low_watermark;
+ #else
+   typedef asio::detail::socket_option::integer<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_SNDLOWAT)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_SNDLOWAT)>
+       send_low_watermark;
+ #endif
+ 
+@@ -323,7 +337,7 @@
+   typedef implementation_defined receive_buffer_size;
+ #else
+   typedef asio::detail::socket_option::integer<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_RCVBUF)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_RCVBUF)>
+       receive_buffer_size;
+ #endif
+ 
+@@ -357,7 +371,7 @@
+   typedef implementation_defined receive_low_watermark;
+ #else
+   typedef asio::detail::socket_option::integer<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_RCVLOWAT)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_RCVLOWAT)>
+       receive_low_watermark;
+ #endif
+ 
+@@ -392,7 +406,7 @@
+   typedef implementation_defined reuse_address;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_REUSEADDR)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_REUSEADDR)>
+       reuse_address;
+ #endif
+ 
+@@ -428,7 +442,7 @@
+   typedef implementation_defined linger;
+ #else
+   typedef asio::detail::socket_option::linger<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_LINGER)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_LINGER)>
+       linger;
+ #endif
+ 
+@@ -462,7 +476,7 @@
+   typedef implementation_defined out_of_band_inline;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    ASIO_OS_DEF(SOL_SOCKET), ASIO_OS_DEF(SO_OOBINLINE)>
++    ASIO_SOCKET_OPTION_ARG(SOL_SOCKET), ASIO_SOCKET_OPTION_ARG(SO_OOBINLINE)>
+       out_of_band_inline;
+ #endif
+ 
+@@ -498,8 +512,8 @@
+   typedef implementation_defined enable_connection_aborted;
+ #else
+   typedef asio::detail::socket_option::boolean<
+-    asio::detail::custom_socket_option_level,
+-    asio::detail::enable_connection_aborted_option>
++    ASIO_SOCKET_OPTION_ARG(custom_socket_option_level),
++    ASIO_SOCKET_OPTION_ARG(enable_connection_aborted_option)>
+     enable_connection_aborted;
+ #endif
+ 
+@@ -530,8 +544,13 @@
+ #if defined(GENERATING_DOCUMENTATION)
+   static const int max_listen_connections = implementation_defined;
+ #else
++#if defined(__COSMOPOLITAN__)
++  inline static const int max_listen_connections
++      = ASIO_OS_DEF(SOMAXCONN);
++#else
+   ASIO_STATIC_CONSTANT(int, max_listen_connections
+       = ASIO_OS_DEF(SOMAXCONN));
++#endif
+ #endif
+ 
+ #if !defined(ASIO_NO_DEPRECATED)
+@@ -540,8 +559,13 @@
+ #if defined(GENERATING_DOCUMENTATION)
+   static const int max_connections = implementation_defined;
+ #else
++#if defined(__COSMOPOLITAN__)
++  inline static const int max_connections
++      = ASIO_OS_DEF(SOMAXCONN);
++#else
+   ASIO_STATIC_CONSTANT(int, max_connections
+       = ASIO_OS_DEF(SOMAXCONN));
++#endif
+ #endif
+ #endif // !defined(ASIO_NO_DEPRECATED)
+ 

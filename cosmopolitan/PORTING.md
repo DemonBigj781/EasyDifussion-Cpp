@@ -1,0 +1,146 @@
+# All-in-one Easy Diffusion: scope and integration contract
+
+The goal of `cosmopolitan-test` is one application executable containing Easy
+Diffusion's native functionality, server and UI resources, with the same
+application bytes runnable on supported Windows and Linux x86-64 machines.
+Use C for application interfaces and new glue where practical; retain necessary
+C++ or Rust implementations when rewriting them would delay or damage working
+functionality.
+
+This is a whole-application port. A tensor probe, language-model executable,
+or bundled collection of subprocesses does not by itself complete it.
+
+## Source baseline
+
+- EasyDifussion-Cpp main: `b42704a624652a53099fbc994e9a6b7648cd3b0c`, including
+  the native tools, plugin, diagnostic and training changes pushed on
+  2026-10-06.
+- llama.cpp: existing source snapshot
+  `c589f0ed10c643678c4707dd160c21ac7633ebc0`.
+- stable-diffusion.cpp: existing patched snapshot based on
+  `6b3edaaf32cc19e5bb2d819c788bd557eddc8eba`.
+- Its GGML base: `e20c3a14aa70ee84ca58499814206dd08d8026bc`, plus the
+  repository's custom operations, optimization and training work.
+- Theory documentation reference:
+  `aa54da093aeeb9fa9ce34163f73d5797c31c316d`.
+- Previously verified Cosmopolitan software-Vulkan foundation:
+  [cosmopolitan-lua/webgpu-cpu](https://github.com/DemonBigj781/cosmopolitan-lua/tree/c2a7b3f8c871e44ae1e3fc8db36759c7b1829326).
+
+The two existing GGML snapshots are inputs to reconciliation. The final
+application must compile one authoritative GGML implementation and give both
+model engines and the trainer the same headers, tensor layout, operation
+definitions, backend registry and allocator contract.
+
+The [source update audit](docs/source-audit.md) compares those snapshots with
+their actual upstream Git objects and distinguishes copied source from working
+application integration. The [Colibri and KoboldCpp review](docs/resource-management.md)
+records resource-sharing and application design references without importing a
+second model runtime.
+
+The [application services and API audit](docs/application-api.md) records the
+existing route declarations, UI dependencies and remaining native service
+work, including LibTorch/ONNX ownership and removal of deployed Python.
+
+## Full application inventory
+
+| Component | Existing location | Port responsibility |
+| --- | --- | --- |
+| Shared tensor engine | Both vendored `ggml` directories | Reconcile APIs and custom operations; one implementation and symbol set |
+| Language inference and tokenization | `source/llama.cpp` | Static model engine, C API, safe model loading, no external llama-server requirement |
+| Diffusion/video inference | `source/sdkit3-port-source/stable-diffusion.cpp` | Preserve local model, conditioning, attention, caching and conversion changes |
+| Native server/model routing | `source/sdkit3-port-source/src` | In-process server, model lifecycle, generation, interruption and device routing |
+| C++ UI and static resources | `source/UI.cpp`, `ui/media`, UI plugins | Link renderer, embed assets, serve pages, preserve settings and plugin behavior |
+| Application HTTP API | `ui/easydiffusion/server.py` and route modules | Replace Python handlers while preserving request/response and error behavior; document OpenAPI contracts |
+| Queue and job lifecycle | `ui/easydiffusion/task_manager.py`, `tasks`, training service | Scheduling, progress, cancellation, cleanup, persistent history and resource contention |
+| Partial native SD 1.5 LoRA training | `tools/sd15_lora_train.cpp` and custom GGML/model code | Same process and GGML; retain custom backward math, AdamW rates, export and sampling behavior |
+| Python training | `training/trainer.py`, `training/service.py`, sd-scripts integration | Native replacements for remaining training families and options before removing the Python path |
+| Native Sprite-GPT | `tools/sprite_gpt.cpp` | LibTorch model/autograd/optimizer dependencies and device/runtime portability |
+| Native vision | `tools/native_vision.cpp` | LibTorch/TorchScript loading, preprocessing, decoding and NMS |
+| WD14 tagging | `tools/wd14_tagger.cpp` and tagging routes | ONNX Runtime dependency or an explicitly validated replacement; retain captions/labels |
+| Model conversion and Transformers | llama conversion modules, `model_tools.py`, TIPO | Replace required model/tokenizer/configuration/conversion behavior, not merely Python syntax |
+| Gallery/files/configuration/plugins | Python modules and UI plugins | File discovery, saving, metadata, preferences and existing integration contracts |
+| Online services | model browser, Perchance, other service modules | Preserve network/API behavior through native HTTP/JSON clients |
+| Accelerator runtimes | GGML backends, Vulkan foundation, CUDA/other native APIs | Per-device capability detection and validated execution; keep CPU fallback |
+| Specialized attention | Theory notes and current native attention code | Preserve semantics and training requirements; see [attention.md](docs/attention.md) |
+
+## Partial SD 1.5 training is deliberately still partial
+
+The repository's [training documentation](../training/README.md) is the
+behavioral baseline. The native path includes custom UNet/CLIP LoRA handling,
+per-parameter AdamW rates, forward sampling that must not update weights,
+learning-rate schedules and safetensors export. It does not establish full
+training parity with the Python implementation.
+
+In particular, preserve the documented restrictions around native checkpoint
+resume, AdamW8bit, selectable precision, additional optimizer settings and
+training families. Do not substitute unsupported optimizer settings silently.
+SDXL/Anima Python training, embeddings and the LibTorch Sprite-GPT path require
+their own native work and validation.
+
+Small backward/optimizer regression tests protect the shared GGML merge.
+They do not prove a full training run, checkpoint quality, GPU sampling,
+or compatibility with every prepared training recipe.
+
+## LibTorch, Transformers and OpenAPI
+
+LibTorch is already used by native C++ components. It can remove a Python
+frontend dependency for some workloads, but still carries ATen, tensor,
+autograd, serialization, threading, dispatcher and optional device-library
+requirements. The ordinary OS-specific LibTorch distributions are not proven
+Cosmopolitan libraries. A direct port must account for that dependency closure;
+a replacement must prove equivalent behavior for the selected models.
+
+A Transformers replacement is a model- and feature-specific effort. Native
+llama.cpp covers its supported architectures and tokenizers. It does not
+automatically replace arbitrary Transformers pipelines, processors, conversion
+scripts, multimodal models or training code.
+
+OpenAPI is tracked as the application's HTTP schema and compatibility contract.
+If another API was intended by that name, add it separately rather than conflating
+it with OpenAI-compatible endpoints, OpenCL or OpenVINO.
+
+## Runtime ownership
+
+One process owns the shared backend registry. Each task has explicit model,
+tensor-buffer and graph lifetimes. User-visible operations must not reset global
+backends while another operation still holds buffers or contexts.
+
+The queue must arbitrate inference, training, tagging and conversion memory use.
+Sharing a library does not imply that two unrelated model checkpoints use the
+same weight allocation. Memory sharing is valid only when representation,
+lifetime and mutability agree. Training must not overwrite inference weights
+or caches accidentally.
+
+C interfaces should carry explicit error results, cancellation/progress
+callbacks and documented memory ownership. Exceptions remain internal to C++
+adapters and must not cross a C call boundary.
+
+## Packaging and completion criteria
+
+The executable may contain resources such as HTML, JavaScript, CSS, fonts,
+licenses and a small validation model. Large user models, datasets, outputs and
+configuration remain data. A host browser may display the local UI.
+
+Build-time Python/CMake tooling is distinct from a deployed Python runtime.
+The final application must not require Python, PyTorch Python wheels, shell
+launchers, externally compiled backend executables or the source checkout to
+perform its supported native features. System GPU drivers remain a separate
+hardware dependency.
+
+Completion requires all of the following:
+
+- One application artifact is built and used unchanged by Windows and Linux
+  validation jobs.
+- Inference, supported training and the UI/API operate through that application.
+- Shared GGML symbols and header/layout consistency are verified.
+- Application API parity is tracked route by route, including error and
+  cancellation behavior.
+- Python/Transformers-dependent features are replaced and validated before their
+  original implementation is removed.
+- Native training limitations and every remaining LibTorch/ONNX/GPU dependency
+  remain visible until resolved.
+- Unsupported accelerators or attention forms report an explicit reason and
+  use a correct supported fallback where one exists.
+
+The initial build/port tests are intermediate evidence toward these criteria.
+They must not be presented as whole-application completion.

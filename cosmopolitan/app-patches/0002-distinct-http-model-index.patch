@@ -1,0 +1,357 @@
+--- a/include/image_filters.h
++++ b/include/image_filters.h
+@@ -11,7 +11,7 @@
+ // Image filter manager class that handles various image processing operations
+ class ImageFilters {
+    public:
+-    ImageFilters(std::shared_ptr<ModelManager> model_manager);
++    ImageFilters(std::shared_ptr<SdkitModelIndex> model_manager);
+     ~ImageFilters();
+ 
+     // Upscaling
+@@ -29,7 +29,7 @@
+     // sd_image_t restoreFaces(const sd_image_t& input_image);
+ 
+    private:
+-    std::shared_ptr<ModelManager> model_manager_;
++    std::shared_ptr<SdkitModelIndex> model_manager_;
+     // Ensure upscaler is loaded
+     bool ensureUpscalerLoaded(const std::string& upscaler_name = "");
+ 
+--- a/include/image_generator.h
++++ b/include/image_generator.h
+@@ -117,7 +117,7 @@
+ class ImageGenerator {
+    public:
+     ImageGenerator(std::shared_ptr<TaskStateManager> task_state_manager,
+-                   std::shared_ptr<OptionsManager> options_manager, std::shared_ptr<ModelManager> model_manager,
++                   std::shared_ptr<OptionsManager> options_manager, std::shared_ptr<SdkitModelIndex> model_manager,
+                    std::shared_ptr<ImageFilters> image_filters, const ServerParams& server_params);
+     ~ImageGenerator();
+ 
+@@ -186,7 +186,7 @@
+     sd_ctx_t* sd_ctx_;
+     std::shared_ptr<TaskStateManager> task_state_manager_;
+     std::shared_ptr<OptionsManager> options_manager_;
+-    std::shared_ptr<ModelManager> model_manager_;
++    std::shared_ptr<SdkitModelIndex> model_manager_;
+     std::shared_ptr<ImageFilters> image_filters_;
+     std::mutex mutex_;
+     // Kept separate from mutex_: generation holds mutex_ for the complete
+--- a/include/model_manager.h
++++ b/include/model_manager.h
+@@ -1,5 +1,5 @@
+-#ifndef __MODEL_MANAGER_H__
+-#define __MODEL_MANAGER_H__
++#ifndef SDKIT_MODEL_INDEX_H_
++#define SDKIT_MODEL_INDEX_H_
+ 
+ #include <map>
+ #include <mutex>
+@@ -31,17 +31,17 @@
+         : filename(fname), full_path(path), type(t), file_size(size) {}
+ };
+ 
+-// Keep sdkit's HTTP-side model index out of the executable's dynamic symbol
+-// table. stable-diffusion.cpp also has an unrelated global ModelManager class;
+-// exporting both lets ELF symbol interposition bind calls to the wrong class.
++// The HTTP-side file index is distinct from stable-diffusion.cpp's
++// weight/residency ModelManager. Give it a unique C++ type so both
++// implementations can be linked into one executable.
+ #if defined(__GNUC__) || defined(__clang__)
+-class __attribute__((visibility("hidden"))) ModelManager {
++class __attribute__((visibility("hidden"))) SdkitModelIndex {
+ #else
+-class ModelManager {
++class SdkitModelIndex {
+ #endif
+    public:
+-    ModelManager();
+-    ~ModelManager();
++    SdkitModelIndex();
++    ~SdkitModelIndex();
+ 
+     // Set model directories
+     void setCheckpointDir(const std::string& dir);
+@@ -97,4 +97,4 @@
+     std::string getModelTypeString(ModelType type) const;
+ };
+ 
+-#endif  // __MODEL_MANAGER_H__
++#endif  // SDKIT_MODEL_INDEX_H_
+--- a/include/server.h
++++ b/include/server.h
+@@ -13,7 +13,7 @@
+ 
+ struct ServerParams {
+     int port = 8188;
+-    std::shared_ptr<ModelManager> model_manager;
++    std::shared_ptr<SdkitModelIndex> model_manager;
+     std::string compute_backend;
+     bool image_vae_on_cpu = false;
+     bool no_half = false;
+@@ -81,7 +81,7 @@
+     crow::SimpleApp app_;
+     std::shared_ptr<OptionsManager> options_manager_;
+     std::shared_ptr<TaskStateManager> task_state_manager_;
+-    std::shared_ptr<ModelManager> model_manager_;
++    std::shared_ptr<SdkitModelIndex> model_manager_;
+     std::unique_ptr<ImageGenerator> image_generator_;
+     std::shared_ptr<ImageFilters> image_filters_;
+     bool should_stop_;
+--- a/src/image_filters.cpp
++++ b/src/image_filters.cpp
+@@ -4,7 +4,7 @@
+ #include "logging.h"
+ #include <limits>
+ 
+-ImageFilters::ImageFilters(std::shared_ptr<ModelManager> model_manager)
++ImageFilters::ImageFilters(std::shared_ptr<SdkitModelIndex> model_manager)
+     : model_manager_(model_manager), upscaler_ctx_(nullptr) {
+     LOG_DEBUG("ImageFilters created");
+ }
+--- a/src/image_generator.cpp
++++ b/src/image_generator.cpp
+@@ -95,7 +95,7 @@
+ 
+ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_manager,
+                                std::shared_ptr<OptionsManager> options_manager,
+-                               std::shared_ptr<ModelManager> model_manager, std::shared_ptr<ImageFilters> image_filters,
++                               std::shared_ptr<SdkitModelIndex> model_manager, std::shared_ptr<ImageFilters> image_filters,
+                                const ServerParams& server_params)
+     : sd_ctx_(nullptr),
+       task_state_manager_(task_state_manager),
+@@ -1390,7 +1390,7 @@
+     // checkpoint in host memory. A read-only mapping gives ggml the same
+     // params-backend storage while letting the kernel reclaim clean model
+     // pages under memory pressure. Converted tensors still fall back to an
+-    // allocated buffer, as handled by ModelManager.
++    // allocated buffer, as handled by SdkitModelIndex.
+     params.enable_mmap = use_mmap_weights;
+     params.keep_compute_params = keep_model_loaded_;
+     // Keep one params-backend copy of every registered component. This turns
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -676,7 +676,7 @@
+     }
+ 
+     // Create and configure model manager
+-    auto model_manager = std::make_shared<ModelManager>();
++    auto model_manager = std::make_shared<SdkitModelIndex>();
+ 
+     if (!args.ckpt_dir.empty()) {
+         model_manager->setCheckpointDir(args.ckpt_dir);
+--- a/src/model_manager.cpp
++++ b/src/model_manager.cpp
+@@ -9,92 +9,92 @@
+ namespace fs = std::filesystem;
+ 
+ // Define valid model file extensions
+-const std::vector<std::string> ModelManager::valid_extensions_ = {".sft", ".safetensors", ".pth",
++const std::vector<std::string> SdkitModelIndex::valid_extensions_ = {".sft", ".safetensors", ".pth",
+                                                                   ".pt",  ".ckpt",        ".gguf"};
+ 
+-ModelManager::ModelManager() { LOG_INFO("ModelManager initialized"); }
+-
+-ModelManager::~ModelManager() {}
+-
+-void ModelManager::setCheckpointDir(const std::string& dir) {
++SdkitModelIndex::SdkitModelIndex() { LOG_INFO("SdkitModelIndex initialized"); }
++
++SdkitModelIndex::~SdkitModelIndex() {}
++
++void SdkitModelIndex::setCheckpointDir(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::CHECKPOINT] = dir;
+     LOG_INFO("Checkpoint directory set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setVaeDir(const std::string& dir) {
++void SdkitModelIndex::setVaeDir(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::VAE] = dir;
+     LOG_INFO("VAE directory set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setHypernetworkDir(const std::string& dir) {
++void SdkitModelIndex::setHypernetworkDir(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::HYPERNETWORK] = dir;
+     LOG_INFO("Hypernetwork directory set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setGfpganModelsPath(const std::string& dir) {
++void SdkitModelIndex::setGfpganModelsPath(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::GFPGAN] = dir;
+     LOG_INFO("GFPGAN models path set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setRealesrganModelsPath(const std::string& dir) {
++void SdkitModelIndex::setRealesrganModelsPath(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::REALESRGAN] = dir;
+     LOG_INFO("RealESRGAN models path set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setLoraDir(const std::string& dir) {
++void SdkitModelIndex::setLoraDir(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::LORA] = dir;
+     LOG_INFO("LoRA directory set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setCodeformerModelsPath(const std::string& dir) {
++void SdkitModelIndex::setCodeformerModelsPath(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::CODEFORMER] = dir;
+     LOG_INFO("Codeformer models path set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setEmbeddingsDir(const std::string& dir) {
++void SdkitModelIndex::setEmbeddingsDir(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::EMBEDDINGS] = dir;
+     LOG_INFO("Embeddings directory set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setControlnetDir(const std::string& dir) {
++void SdkitModelIndex::setControlnetDir(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::CONTROLNET] = dir;
+     LOG_INFO("ControlNet directory set to: %s", dir.c_str());
+ }
+ 
+-void ModelManager::setTextEncoderDir(const std::string& dir) {
++void SdkitModelIndex::setTextEncoderDir(const std::string& dir) {
+     std::lock_guard<std::mutex> lock(mutex_);
+     model_directories_[ModelType::TEXT_ENCODER] = dir;
+     LOG_INFO("Text Encoder directory set to: %s", dir.c_str());
+ }
+ 
+-std::string ModelManager::getRealesrganModelsPath() const {
++std::string SdkitModelIndex::getRealesrganModelsPath() const {
+     std::lock_guard<std::mutex> lock(mutex_);
+     auto it = model_directories_.find(ModelType::REALESRGAN);
+     return it != model_directories_.end() ? it->second : "";
+ }
+ 
+-std::string ModelManager::getLoraDir() const {
++std::string SdkitModelIndex::getLoraDir() const {
+     std::lock_guard<std::mutex> lock(mutex_);
+     auto it = model_directories_.find(ModelType::LORA);
+     return it != model_directories_.end() ? it->second : "";
+ }
+ 
+-std::string ModelManager::getEmbeddingsDir() const {
++std::string SdkitModelIndex::getEmbeddingsDir() const {
+     std::lock_guard<std::mutex> lock(mutex_);
+     auto it = model_directories_.find(ModelType::EMBEDDINGS);
+     return it != model_directories_.end() ? it->second : "";
+ }
+ 
+-bool ModelManager::isValidModelFile(const std::string& filename) const {
++bool SdkitModelIndex::isValidModelFile(const std::string& filename) const {
+     std::string lower_filename = filename;
+     std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
+ 
+@@ -107,7 +107,7 @@
+     return false;
+ }
+ 
+-void ModelManager::scanDirectoryInternal(const std::string& directory, ModelType type) {
++void SdkitModelIndex::scanDirectoryInternal(const std::string& directory, ModelType type) {
+     if (directory.empty()) {
+         return;
+     }
+@@ -236,7 +236,7 @@
+     LOG_INFO("Scanned %s directory: found %zu models", getModelTypeString(type).c_str(), found_models.size());
+ }
+ 
+-void ModelManager::scanDirectory(ModelType type) {
++void SdkitModelIndex::scanDirectory(ModelType type) {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     auto it = model_directories_.find(type);
+@@ -248,7 +248,7 @@
+     scanDirectoryInternal(it->second, type);
+ }
+ 
+-void ModelManager::scanAllDirectories() {
++void SdkitModelIndex::scanAllDirectories() {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     LOG_INFO("Scanning all model directories...");
+@@ -262,23 +262,23 @@
+     LOG_INFO("Finished scanning all model directories");
+ }
+ 
+-void ModelManager::refresh() {
++void SdkitModelIndex::refresh() {
+     LOG_INFO("Refreshing all models...");
+     scanAllDirectories();
+ }
+ 
+-void ModelManager::refreshCheckpoints() {
++void SdkitModelIndex::refreshCheckpoints() {
+     LOG_INFO("Refreshing checkpoints...");
+     scanDirectory(ModelType::CHECKPOINT);
+ }
+ 
+-void ModelManager::refreshVaeAndTextEncoders() {
++void SdkitModelIndex::refreshVaeAndTextEncoders() {
+     LOG_INFO("Refreshing VAEs and text encoders...");
+     scanDirectory(ModelType::VAE);
+     scanDirectory(ModelType::TEXT_ENCODER);
+ }
+ 
+-std::vector<ModelInfo> ModelManager::getModelsByType(ModelType type) const {
++std::vector<ModelInfo> SdkitModelIndex::getModelsByType(ModelType type) const {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     auto it = models_.find(type);
+@@ -288,7 +288,7 @@
+     return std::vector<ModelInfo>();
+ }
+ 
+-std::vector<std::string> ModelManager::getModelNamesByType(ModelType type) const {
++std::vector<std::string> SdkitModelIndex::getModelNamesByType(ModelType type) const {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     std::vector<std::string> names;
+@@ -301,7 +301,7 @@
+     return names;
+ }
+ 
+-ModelInfo ModelManager::getModelByName(const std::string& name, ModelType type) const {
++ModelInfo SdkitModelIndex::getModelByName(const std::string& name, ModelType type) const {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     auto it = models_.find(type);
+@@ -347,7 +347,7 @@
+     return ModelInfo();
+ }
+ 
+-bool ModelManager::hasModel(const std::string& name, ModelType type) const {
++bool SdkitModelIndex::hasModel(const std::string& name, ModelType type) const {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     auto it = models_.find(type);
+@@ -361,7 +361,7 @@
+     return false;
+ }
+ 
+-std::map<std::string, std::vector<std::string>> ModelManager::getAllModelsGrouped() const {
++std::map<std::string, std::vector<std::string>> SdkitModelIndex::getAllModelsGrouped() const {
+     std::lock_guard<std::mutex> lock(mutex_);
+ 
+     std::map<std::string, std::vector<std::string>> grouped;
+@@ -378,7 +378,7 @@
+     return grouped;
+ }
+ 
+-std::string ModelManager::getModelTypeString(ModelType type) const {
++std::string SdkitModelIndex::getModelTypeString(ModelType type) const {
+     switch (type) {
+         case ModelType::CHECKPOINT:
+             return "checkpoint";

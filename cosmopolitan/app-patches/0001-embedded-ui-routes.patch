@@ -1,0 +1,16 @@
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -1,4 +1,5 @@
+ #include "server.h"
++#include "ui_routes.hpp"
+ 
+ #include <algorithm>
+ #include <cctype>
+@@ -207,6 +208,7 @@
+ Server::~Server() { stop(); }
+ 
+ void Server::setupRoutes() {
++    cosmo_register_ui_routes(app_);
+     // Ping endpoint
+     CROW_ROUTE(app_, "/v1/internal/ping").methods("GET"_method)([this]() { return handlePing(); });
+ 

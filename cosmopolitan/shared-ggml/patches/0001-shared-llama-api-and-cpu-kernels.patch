@@ -1,0 +1,298 @@
+--- a/include/ggml-backend.h
++++ b/include/ggml-backend.h
+@@ -154,6 +154,8 @@
+         bool buffer_from_host_ptr;
+         // event synchronization
+         bool events;
++        // the device supports memory-mapped model weights
++        bool mmap_support;
+     };
+ 
+     // all the device properties
+--- a/include/ggml.h
++++ b/include/ggml.h
+@@ -2020,6 +2020,20 @@
+             float                 min,
+             float                 max);
+ 
++    // in-place, returns view(a)
++    GGML_API struct ggml_tensor * ggml_clamp_inplace(
++            struct ggml_context * ctx,
++            struct ggml_tensor  * a,
++            float                 min,
++            float                 max);
++
++    // set the offset dims for RoPE
++    // a must be GGML_OP_ROPE or GGML_OP_ROPE_BACK
++    // vision RoPE is not supported
++    GGML_API struct ggml_tensor * ggml_rope_set_offset(
++            struct ggml_tensor  * a,
++            int                   n_offs);
++
+     // im2col
+     // converts data into a format that effectively results in a convolution when combined with matrix multiplication
+     GGML_API struct ggml_tensor * ggml_im2col(
+@@ -2498,7 +2512,8 @@
+             struct ggml_tensor  * A,
+             struct ggml_tensor  * B,
+             struct ggml_tensor  * C,
+-            struct ggml_tensor  * ids);
++            struct ggml_tensor  * ids,
++            int64_t               K);
+ 
+     // partition into non-overlapping windows with padding if needed
+     // example:
+--- a/src/ggml-backend.cpp
++++ b/src/ggml-backend.cpp
+@@ -622,6 +622,14 @@
+ 
+ bool ggml_backend_dev_supports_op(ggml_backend_dev_t device, const struct ggml_tensor * op) {
+     GGML_ASSERT(device);
++    // These extensions were backported together with their CPU kernels. Other
++    // bundled backends still implement only zero-offset RoPE and K=1 SSM scan.
++    const bool needs_new_cpu_kernel =
++        ((op->op == GGML_OP_ROPE || op->op == GGML_OP_ROPE_BACK) && ggml_get_op_params_i32(op, 15) != 0) ||
++        (op->op == GGML_OP_SSM_SCAN && ggml_get_op_params_i32(op, 0) > 1);
++    if (needs_new_cpu_kernel && strcmp(ggml_backend_reg_name(device->reg), "CPU") != 0) {
++        return false;
++    }
+     return device->iface.supports_op(device, op);
+ }
+ 
+--- a/src/ggml-cpu/ggml-cpu.cpp
++++ b/src/ggml-cpu/ggml-cpu.cpp
+@@ -397,6 +397,7 @@
+         /* .host_buffer           = */ false,
+         /* .buffer_from_host_ptr  = */ true,
+         /* .events                = */ false,
++        /* .mmap_support          = */ true,
+     };
+ }
+ 
+--- a/src/ggml-cpu/ops.cpp
++++ b/src/ggml-cpu/ops.cpp
+@@ -6097,6 +6097,8 @@
+     memcpy(&beta_slow,   (int32_t *) dst->op_params + 10, sizeof(float));
+     memcpy(&sections,    (int32_t *) dst->op_params + 11, sizeof(int)*4);
+ 
++    const int n_offs = ((int32_t *) dst->op_params)[15];
++
+     GGML_TENSOR_UNARY_OP_LOCALS
+ 
+     //printf("ne0: %d, ne1: %d, ne2: %d, ne3: %d\n", ne0, ne1, ne2, ne3);
+@@ -6112,6 +6114,10 @@
+ 
+     GGML_ASSERT(n_dims <= ne0);
+     GGML_ASSERT(n_dims % 2 == 0);
++
++    GGML_ASSERT(n_offs >= 0);
++    GGML_ASSERT(n_offs % 2 == 0);
++    GGML_ASSERT(n_offs + n_dims <= ne0);
+ 
+     // rows per thread
+     const int dr = (nr + nth - 1)/nth;
+@@ -6138,6 +6144,7 @@
+ 
+     if (is_vision) {
+         GGML_ASSERT(n_dims == ne0/2);
++        GGML_ASSERT(n_offs == 0);
+     }
+ 
+     const float * freq_factors = NULL;
+@@ -6186,12 +6193,12 @@
+ 
+                 switch (mode) {
+                     case GGML_ROPE_TYPE_NORMAL:
+-                        rotate_pairs<T>(n_dims, 1, cache, src, dst_data, 1);
++                        rotate_pairs<T>(n_dims, 1, cache, src + n_offs, dst_data + n_offs, 1);
+                         break;
+                     case GGML_ROPE_TYPE_NEOX:
+                     case GGML_ROPE_TYPE_MROPE:
+                     case GGML_ROPE_TYPE_IMROPE:
+-                        rotate_pairs<T>(n_dims, n_dims/2, cache, src, dst_data);
++                        rotate_pairs<T>(n_dims, n_dims/2, cache, src + n_offs, dst_data + n_offs);
+                         break;
+                     case GGML_ROPE_TYPE_VISION:
+                         rotate_pairs<T>(ne0, n_dims, cache, src, dst_data);
+@@ -6202,7 +6209,11 @@
+ 
+                 if (!is_vision) {
+                     // fill the remain channels with data from src tensor
+-                    for (int64_t i0 = n_dims; i0 < ne0; i0 += 2) {
++                    for (int64_t i0 = 0; i0 < ne0; i0 += 2) {
++                        if (i0 == n_offs) {
++                            i0 += n_dims - 2; // skip the rotated channels
++                            continue;
++                        }
+                         const T * const src = (T *)((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + i0*nb00);
+                         T * dst_data  = (T *)((char *)  dst->data + i3*nb3  + i2*nb2  + i1*nb1  + i0*nb0);
+ 
+@@ -9762,11 +9773,13 @@
+     const int64_t ng = src4->ne[1];
+     const int64_t nt = src1->ne[2]; // number of tokens per sequence
+     const int64_t ns = src1->ne[3]; // number of sequences in the batch
++    const int64_t K  = ggml_get_op_params_i32(dst, 0);
+ 
+     // can't use ggml_nbytes because src1 is not necessarily contiguous
+     const int64_t s_off = ggml_nelements(src1) * ggml_element_size(src1);
+ 
+-    GGML_ASSERT(ggml_nelements(src1) + nc*nr*nh*ns == ggml_nelements(dst));
++    GGML_ASSERT(K >= 1);
++    GGML_ASSERT(ggml_nelements(src1) + K*nc*nr*nh*ns == ggml_nelements(dst));
+     GGML_ASSERT(src0->nb[0] == sizeof(float));
+     GGML_ASSERT(src1->nb[0] == sizeof(float));
+     GGML_ASSERT(src2->nb[0] == sizeof(float));
+@@ -9775,6 +9788,7 @@
+     GGML_ASSERT(src5->nb[0] == sizeof(float));
+     GGML_ASSERT(src6->nb[0] == sizeof(int32_t));
+     GGML_ASSERT(nh % ng == 0);
++    GGML_ASSERT(src3->ne[0] == 1 || K == 1);
+ 
+     // heads per thread
+     const int dh = (nh + nth - 1)/nth;
+@@ -9947,6 +9961,13 @@
+                         y[ii] = sumf;
+ #endif
+                     }
++                }
++            }
++            const int64_t slot = nt - 1 - i2;
++            if (K > 1 && slot > 0 && slot < K) {
++                float * s_snapshot = (float *) ((char *) dst->data + s_off + (slot*ns + i3)*(src0->nb[3]));
++                for (int h = ih0; h < ih1; ++h) {
++                    memcpy((char *) s_snapshot + h*src0->nb[2], (char *) s + h*src0->nb[2], src0->nb[2]);
+                 }
+             }
+             // use the output as the source when it's not the first token-wise iteration
+--- a/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -19625,7 +19625,8 @@
+             tensor_clone = ggml_add_id(ggml_ctx, src_clone[0], src_clone[1], src_clone[2]);
+         } else if (tensor->op == GGML_OP_SSM_SCAN) {
+             tensor_clone = ggml_ssm_scan(ggml_ctx, src_clone[0], src_clone[1], src_clone[2],
+-                                         src_clone[3], src_clone[4], src_clone[5], src_clone[6]);
++                                         src_clone[3], src_clone[4], src_clone[5], src_clone[6],
++                                         ggml_get_op_params_i32(tensor, 0));
+         } else if (tensor->op == GGML_OP_SSM_CONV) {
+             tensor_clone = ggml_ssm_conv(ggml_ctx, src_clone[0], src_clone[1]);
+         } else if (tensor->op == GGML_OP_ROLL) {
+--- a/src/ggml.c
++++ b/src/ggml.c
+@@ -4315,7 +4315,7 @@
+ 
+     struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
+ 
+-    int32_t params[15] = { /*n_past*/ 0, n_dims, mode, /*n_ctx*/ 0, n_ctx_orig };
++    int32_t params[16] = { /*n_past*/ 0, n_dims, mode, /*n_ctx*/ 0, n_ctx_orig };
+     memcpy(params +  5, &freq_base,    sizeof(float));
+     memcpy(params +  6, &freq_scale,   sizeof(float));
+     memcpy(params +  7, &ext_factor,   sizeof(float));
+@@ -4327,6 +4327,8 @@
+     } else {
+         memset(params + 11, 0,         sizeof(int32_t) * GGML_MROPE_SECTIONS);
+     }
++    params[15] = 0; // n_offs, set via ggml_rope_set_offset()
++
+     ggml_set_op_params(result, params, sizeof(params));
+ 
+     result->op     = GGML_OP_ROPE;
+@@ -4539,13 +4541,13 @@
+ }
+ // ggml_clamp
+ 
+-struct ggml_tensor * ggml_clamp(
++static struct ggml_tensor * ggml_clamp_impl(
+         struct ggml_context * ctx,
+         struct ggml_tensor  * a,
+         float                 min,
+-        float                 max) {
+-    // TODO: when implement backward, fix this:
+-    struct ggml_tensor * result = ggml_view_tensor(ctx, a);
++        float                 max,
++        bool                  inplace) {
++    struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
+ 
+     float params[] = { min, max };
+     ggml_set_op_params(result, params, sizeof(params));
+@@ -4554,6 +4556,35 @@
+     result->src[0] = a;
+ 
+     return result;
++}
++
++struct ggml_tensor * ggml_clamp(
++    struct ggml_context * ctx,
++    struct ggml_tensor  * a,
++    float                 min,
++    float                 max) {
++    return ggml_clamp_impl(ctx, a, min, max, false);
++}
++
++struct ggml_tensor * ggml_clamp_inplace(
++    struct ggml_context * ctx,
++    struct ggml_tensor  * a,
++    float                 min,
++    float                 max) {
++    return ggml_clamp_impl(ctx, a, min, max, true);
++}
++
++struct ggml_tensor * ggml_rope_set_offset(
++        struct ggml_tensor  * a,
++        int                   n_offs) {
++    GGML_ASSERT(a->op == GGML_OP_ROPE || a->op == GGML_OP_ROPE_BACK);
++    GGML_ASSERT(n_offs >= 0);
++
++    const int32_t mode = ggml_get_op_params_i32(a, 2);
++    GGML_ASSERT(mode != GGML_ROPE_TYPE_VISION);
++
++    ggml_set_op_params_i32(a, 15, n_offs);
++    return a;
+ }
+ 
+ static int64_t ggml_calc_conv_output_size(int64_t ins, int64_t ks, int s, int p, int d) {
+@@ -5715,7 +5746,10 @@
+         struct ggml_tensor  * A,
+         struct ggml_tensor  * B,
+         struct ggml_tensor  * C,
+-        struct ggml_tensor  * ids) {
++        struct ggml_tensor  * ids,
++        int64_t               K) {
++    GGML_ASSERT(K >= 1);
++    GGML_ASSERT(K <= INT32_MAX);
+     GGML_ASSERT(ggml_is_contiguous(s));
+     GGML_ASSERT(ggml_is_contiguous(dt));
+     GGML_ASSERT(ggml_is_contiguous(A));
+@@ -5752,11 +5786,12 @@
+         if (A->ne[0] != 1) {
+             // Mamba-1 has more granular decay factors
+             GGML_ASSERT(A->ne[0] == d_state);
++            GGML_ASSERT(K == 1);
+         }
+     }
+ 
+     // concatenated y + ssm_states
+-    struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, ggml_nelements(x) + s->ne[0]*s->ne[1]*s->ne[2]*ids->ne[0]);
++    struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, ggml_nelements(x) + K*s->ne[0]*s->ne[1]*s->ne[2]*ids->ne[0]);
+ 
+     result->op   = GGML_OP_SSM_SCAN;
+     result->src[0] = s;
+@@ -5766,6 +5801,8 @@
+     result->src[4] = B;
+     result->src[5] = C;
+     result->src[6] = ids;
++
++    ggml_set_op_params_i32(result, 0, (int32_t) K);
+ 
+     return result;
+ }
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -4039,7 +4039,7 @@
+             C = ggml_new_tensor_4d(ctx, type, d_state,  n_group, n_seq_tokens, n_seqs);
+         }
+         ggml_tensor * ids = ggml_new_tensor_1d(ctx, GGML_TYPE_I32,  n_seqs);
+-        ggml_tensor * out = ggml_ssm_scan(ctx, s, x, dt, A, B, C, ids);
++        ggml_tensor * out = ggml_ssm_scan(ctx, s, x, dt, A, B, C, ids, 1);
+         return out;
+     }
+ 

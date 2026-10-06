@@ -1,0 +1,23 @@
+--- a/src/ggml.c
++++ b/src/ggml.c
+@@ -7205,6 +7205,9 @@
+                         mode, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow) :
+                     ggml_rope_multi_back(ctx, grad, src1, src2, n_dims, sections,
+                         mode, n_ctx_orig, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow);
++                if (mode != GGML_ROPE_TYPE_VISION) {
++                    ggml_rope_set_offset(rope_back, ggml_get_op_params_i32(tensor, 15));
++                }
+                 ggml_add_or_set(ctx, cgraph, isrc0, rope_back);
+             }
+             GGML_ASSERT((!src2 || !src2_needs_grads) && "gradients for freq factors not implemented");
+--- a/src/ggml-cpu/ops.cpp
++++ b/src/ggml-cpu/ops.cpp
+@@ -6210,7 +6210,7 @@
+                 if (!is_vision) {
+                     // fill the remain channels with data from src tensor
+                     for (int64_t i0 = 0; i0 < ne0; i0 += 2) {
+-                        if (i0 == n_offs) {
++                        if (n_dims > 0 && i0 == n_offs) {
+                             i0 += n_dims - 2; // skip the rotated channels
+                             continue;
+                         }
