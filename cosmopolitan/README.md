@@ -64,7 +64,10 @@ parallelize those large units.
 The dependency build is substantial on its first run. Its default cache is
 `cosmopolitan/out/software-webgpu`; later builds validate the pinned source
 and artifact identities before reuse. `--jobs` also sets the Rust, LLVM and
-Mesa job limits. Useful build switches:
+Mesa job limits. CI builds the dependency stages sequentially, with four
+workers for LLVM/Mesa and two for Rust; application compilation also uses
+two workers. Its validated dependency cache is saved before the application
+build. Useful build switches:
 
 ```sh
 python3 cosmopolitan/build.py --prepare-only
