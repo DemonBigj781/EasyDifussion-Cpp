@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/easy-diffusion.exe",
+    "llama",
+    "--backend",
+    "webgpu",
+    "--prompt",
+    "Once upon a time",
+    "--tokens",
+    "16"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 2.271,
+  "executable_sha256": "6f4ac2e658581315ee14ccaa139fef35fa76cf822422e397630c42bc16e5305b"
+}

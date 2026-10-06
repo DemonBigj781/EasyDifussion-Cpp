@@ -69,7 +69,10 @@ adapter kind and the foundation's actual native-loader-open count are separate
 checks. The full application must additionally demonstrate model prefill and
 decode using these backend calls.
 
-The adapter and full patched GGML WebGPU translation unit have been compiled
-with the Cosmopolitan 4.0.2 SDK and these exact WebGPU headers. Runtime shader,
-numerical and same-artifact operating-system checks are recorded by the
-application verification pipeline; compilation by itself does not establish them.
+The application's [validation record](../../COSMOPOLITAN_WEBGPU_VALIDATION.md)
+demonstrates direct scalar-checked GGML graphs and trained-model prefill/decoding
+through this adapter on one unchanged Windows/Linux executable, built with the
+Cosmopolitan 4.0.2 SDK and these exact WebGPU headers. The direct probe uses no
+CPU scheduler fallback; ordinary llama scheduling still includes CPU buffers
+and supported CPU operations. The recorded results apply to the tested software
+adapter, fixture and operations, with the capability restrictions above.

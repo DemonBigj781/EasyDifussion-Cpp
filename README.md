@@ -2,19 +2,23 @@
 
 ## Cosmopolitan integration
 
-The `cosmopolitan-test` branch includes an experimental x86-64 executable with
+The `cosmopolitan-test` branch builds one experimental x86-64 executable with
 one shared GGML, llama.cpp, the custom diffusion engine, the partial native
-SD 1.5 trainer, an HTTP server and embedded C++ UI resources. The same compiled
-file has passed native Windows and Linux integration checks.
+SD 1.5 trainer, an HTTP server and embedded C++ UI resources. The same
+CI-produced file passed native Windows execution and Linux isolated/bootstrap
+checks, including actual GGML WebGPU graphs and trained-model decoding through
+embedded wgpu-native, Mesa lavapipe and LLVM. This WebGPU path performs software
+compute on the CPU.
 
 - [Build and run the Cosmopolitan application](cosmopolitan/README.md).
-- [Exact tested artifact, results and limitations](COSMOPOLITAN_VALIDATION.md).
+- [Exact WebGPU artifact, execution results and limitations](COSMOPOLITAN_WEBGPU_VALIDATION.md).
+- [Historical CPU-only integration record](COSMOPOLITAN_VALIDATION.md).
 - [Whole-application scope and remaining work](cosmopolitan/PORTING.md).
 - [Audit of the earlier llama, diffusion and GGML updates](cosmopolitan/docs/source-audit.md).
 
-The validated portable build currently uses the CPU backend. Full application
-API behavior, end-to-end image generation and training, remaining Python
-replacements, LibTorch/ONNX and accelerator integration have separate gates.
+The ordinary GGML CPU backend is also available. Full application API behavior,
+end-to-end image generation and training, remaining Python replacements,
+LibTorch/ONNX and hardware acceleration have separate gates.
 
 ## Existing Easy Diffusion application
 

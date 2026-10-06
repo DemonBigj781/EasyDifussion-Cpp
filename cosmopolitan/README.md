@@ -11,10 +11,12 @@ remain linked in the same process.
 **Status: experimental native integration.** Application API parity,
 end-to-end image/training validation, LibTorch/ONNX tools, remaining Python
 replacements and hardware acceleration have separate completion gates.
-The new GGML WebGPU integration is implemented, but its application runtime
-and same-artifact Windows/Linux validation are pending. Earlier CPU-only
-application results and standalone software-Vulkan tests do not establish
-that this new integration passes.
+The recorded CI artifact passed direct WebGPU scalar-reference graphs and
+sixteen-token trained-model inference on Windows and Linux, using unchanged
+executable bytes. Separate decode counters establish matrix dispatch during
+decoding. The [validation record](../COSMOPOLITAN_WEBGPU_VALIDATION.md) identifies
+the exact artifact, launch modes, results and limits. Earlier CPU-only
+application and standalone software-Vulkan records retain their original scope.
 The full scope is in [PORTING.md](PORTING.md).
 
 ## Build
@@ -215,6 +217,12 @@ and SSM history. An x86-64 CPU-backend baseline therefore does not promise that
 every x86-64 machine can run this ShaderF16-dependent WebGPU path.
 
 ## Validation and its limits
+
+The software WebGPU application in
+[CI run 37531113555](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37531113555)
+passed the gates below on native Windows and isolated/bootstrap Linux. The
+[recorded artifact and raw evidence](../COSMOPOLITAN_WEBGPU_VALIDATION.md) pin
+the clean application source to `8d22e47b692d8865d703b7227a6288cc078817b6`.
 
 The workflow builds the application once, records its SHA-256, and passes
 that artifact to separate Windows and Linux runtime jobs. Windows executes

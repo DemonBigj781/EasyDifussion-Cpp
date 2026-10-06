@@ -84,10 +84,13 @@ Existing operator, shape and type checks remain authoritative, including the
 shared-GGML restrictions for custom RoPE offsets and SSM history. See
 [backend/README.md](backend/README.md) for exact API and capability limits.
 
-The implementation and translation-unit checks are in place. Runtime shader,
-numerical, model and same-artifact Windows/Linux validation of this application
-integration are still pending. The earlier CPU-only application evidence and
-standalone foundation results retain their original scope.
+The [tested CI artifact](../COSMOPOLITAN_WEBGPU_VALIDATION.md) passed the
+shared-GGML WebGPU tensor and model gates on native Windows and isolated/bootstrap
+Linux, using the same executable bytes. This completes the recorded software
+backend integration milestone. Full diffusion generation, end-to-end training,
+application parity and hardware acceleration remain separate gates. Earlier
+CPU-only application and standalone foundation records retain their original
+scope.
 
 ## Full application inventory
 

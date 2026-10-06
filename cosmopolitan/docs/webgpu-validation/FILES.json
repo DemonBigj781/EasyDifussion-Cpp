@@ -1,0 +1,384 @@
+{
+  "schema": 1,
+  "scope": "Byte-preserved raw CI evidence and separately labeled local public CLI evidence; no application/loader binaries",
+  "files": [
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/artifacts.json",
+      "bytes": 2750,
+      "sha256": "17742d692fde32c658c0055ab1d3f881e46a5db56abe972258eb7dbbf04a9df1",
+      "origin": "artifacts.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/application/BUILD.json",
+      "bytes": 311744,
+      "sha256": "1940e913e4b72cbf8568a3084ab5863848d94600a40e22c5c0ccbf38c367b98c",
+      "origin": "application/BUILD.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/application/SYMBOLS.json",
+      "bytes": 1614,
+      "sha256": "00e2a9a2b5f5d5999371d7513c177d8a54442f25bb67edb6b6efd01c830cffad",
+      "origin": "application/SYMBOLS.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/application/software-webgpu/LINK.json",
+      "bytes": 152146,
+      "sha256": "dde3df9f8caa8a5a7eaa170c5c32deae472bc95aa4935b213973c45b6e571282",
+      "origin": "application/software-webgpu/LINK.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/application/verify_runtime.py",
+      "bytes": 19874,
+      "sha256": "01e43d35f4b6900c07ddb3da485d0fe0483b3b48efe53a2e90f13d7a931b7e15",
+      "origin": "application/verify_runtime.py",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/application/verify_bootstrap.py",
+      "bytes": 7429,
+      "sha256": "1c98085054022b265da33dd9e9b87942da18ad2f9997111d5ad25a60d1b09fc5",
+      "origin": "application/verify_bootstrap.py",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows-job-112525334275.log",
+      "bytes": 18978,
+      "sha256": "496050bbb8b0c4a35d26f07ee2ac785a7a83212b12202ea0f0eae16d731b1883",
+      "origin": "windows-job-112525334275.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux-job-112525334307.log",
+      "bytes": 27211,
+      "sha256": "e33bc7a3b8e0d219a17e7ef35038a4fd2411dee8accece8a6b9531b44ad0ec5c",
+      "origin": "linux-job-112525334307.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/package-identity.from-build-log.json",
+      "bytes": 141,
+      "sha256": "a44836ef5a8bcfb4535e99fe3b07c856ccdc2f3f43c9f030e9bef07d2e7ec52b",
+      "origin": "package-identity.from-build-log.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/symbol-audit.from-build-log.json",
+      "bytes": 1614,
+      "sha256": "00e2a9a2b5f5d5999371d7513c177d8a54442f25bb67edb6b6efd01c830cffad",
+      "origin": "symbol-audit.from-build-log.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/devices.log",
+      "bytes": 538,
+      "sha256": "379045f9808cfc2ba20175dc2eb0519e27cf9e9775471d6fd9f8ff9602dc3fe1",
+      "origin": "windows/devices.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/devices.stderr.log",
+      "bytes": 194,
+      "sha256": "9203e037445b210f6617a942b766b74f4dcd21278b11c3707e7eb5e61bd380f4",
+      "origin": "windows/devices.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/devices.stdout.log",
+      "bytes": 312,
+      "sha256": "bd181dbfee64ee59eb3f6facbb7d4885dd1f05f07fbc16781cc79e6c564c4bd8",
+      "origin": "windows/devices.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/diffusion-command.log",
+      "bytes": 3807,
+      "sha256": "57c8f6940a5514bb6e02c2417044871dbcdf19ffe74e5c05e8449911f12ed3f2",
+      "origin": "windows/diffusion-command.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/diffusion-command.stderr.log",
+      "bytes": 3775,
+      "sha256": "2e329a99ce7c89d7cf004714e735b71543c45103b83656cd10c2c35ef75b3223",
+      "origin": "windows/diffusion-command.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/diffusion-command.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "windows/diffusion-command.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/report.json",
+      "bytes": 5506,
+      "sha256": "121b723f45a2c450cd588868a745204fa90a066fa98ae239d4802f169e91dd26",
+      "origin": "windows/report.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/self-test.log",
+      "bytes": 39610,
+      "sha256": "31116dd3a2db4163c7c2938227ba4097211cd6b44e594d778e7ca997e1235bf8",
+      "origin": "windows/self-test.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/self-test.stderr.log",
+      "bytes": 33687,
+      "sha256": "dbbf4e30552d692ce8dc79f308c5159cbf96ee0f76032ec14b47069d3d1c86fb",
+      "origin": "windows/self-test.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/self-test.stdout.log",
+      "bytes": 5891,
+      "sha256": "8d9bd398278a711d8c16b850bacda92ae7f5a84af3e9c7b6cee0b86f677f5be2",
+      "origin": "windows/self-test.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/server.log",
+      "bytes": 2110,
+      "sha256": "0f7488f86c555bd15afadab6fe03aa028a60453af4f8dc295a6f58ba3af520be",
+      "origin": "windows/server.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/server.stderr.log",
+      "bytes": 194,
+      "sha256": "9203e037445b210f6617a942b766b74f4dcd21278b11c3707e7eb5e61bd380f4",
+      "origin": "windows/server.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/server.stdout.log",
+      "bytes": 1884,
+      "sha256": "109aca81b2fe5d082fff3d20c5a4bf498dcb3aed3f4257d1370c7f2cee7c56cd",
+      "origin": "windows/server.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/training-command.log",
+      "bytes": 924,
+      "sha256": "95aca1b8aba2513f65087f8e83c64126ae2879f6916fa6ac3513a64f2797a697",
+      "origin": "windows/training-command.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/training-command.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "windows/training-command.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/training-command.stdout.log",
+      "bytes": 892,
+      "sha256": "5fe32b93da3fa8665fd560bd828e4591b02300173584bfaba36bf06ce750f778",
+      "origin": "windows/training-command.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/training-unmatched-option.log",
+      "bytes": 83,
+      "sha256": "5b448c05bc178c4f963489388ec6dcb916d6dabbcd396a1964256757eb88c467",
+      "origin": "windows/training-unmatched-option.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/training-unmatched-option.stderr.log",
+      "bytes": 51,
+      "sha256": "6c7788aa48655b36ac9585143cb3276651b6d1e2373ec4d295f405f5fd1b59d2",
+      "origin": "windows/training-unmatched-option.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/windows/training-unmatched-option.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "windows/training-unmatched-option.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/devices.log",
+      "bytes": 538,
+      "sha256": "60598743de5fc2de73ac5cae05ef15154c828968f93f85081922ba8674c659dd",
+      "origin": "linux/results-linux-isolated/devices.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/devices.stderr.log",
+      "bytes": 194,
+      "sha256": "9203e037445b210f6617a942b766b74f4dcd21278b11c3707e7eb5e61bd380f4",
+      "origin": "linux/results-linux-isolated/devices.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/devices.stdout.log",
+      "bytes": 312,
+      "sha256": "cec4836aa8529e74da4fe0071a35ec4ed65ff6ef60adb04cdfd03b1f6a9c883a",
+      "origin": "linux/results-linux-isolated/devices.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/diffusion-command.log",
+      "bytes": 3807,
+      "sha256": "57c8f6940a5514bb6e02c2417044871dbcdf19ffe74e5c05e8449911f12ed3f2",
+      "origin": "linux/results-linux-isolated/diffusion-command.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/diffusion-command.stderr.log",
+      "bytes": 3775,
+      "sha256": "2e329a99ce7c89d7cf004714e735b71543c45103b83656cd10c2c35ef75b3223",
+      "origin": "linux/results-linux-isolated/diffusion-command.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/diffusion-command.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "linux/results-linux-isolated/diffusion-command.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/report.json",
+      "bytes": 5317,
+      "sha256": "d6d3c00e6b697dace0dad9f6afa685828e5df6908fb04dc72b4fae32d88c0fcc",
+      "origin": "linux/results-linux-isolated/report.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/self-test.log",
+      "bytes": 39610,
+      "sha256": "ebe915b32f2d3ad9ecf7406d530bf5004d1a3a0ec94ae3c470b51da9494195db",
+      "origin": "linux/results-linux-isolated/self-test.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/self-test.stderr.log",
+      "bytes": 33687,
+      "sha256": "72d5c9bd3f871eec36445e598542c8b848c81834e996bfcf0d1b9c799489216e",
+      "origin": "linux/results-linux-isolated/self-test.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/self-test.stdout.log",
+      "bytes": 5891,
+      "sha256": "8d9bd398278a711d8c16b850bacda92ae7f5a84af3e9c7b6cee0b86f677f5be2",
+      "origin": "linux/results-linux-isolated/self-test.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/server.log",
+      "bytes": 2871,
+      "sha256": "a18df81040d5960dddcf5a84bbdf669b38f40d36d5f8f4d630fc7c6a54aadb86",
+      "origin": "linux/results-linux-isolated/server.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/server.stderr.log",
+      "bytes": 194,
+      "sha256": "9203e037445b210f6617a942b766b74f4dcd21278b11c3707e7eb5e61bd380f4",
+      "origin": "linux/results-linux-isolated/server.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/server.stdout.log",
+      "bytes": 2645,
+      "sha256": "0f410f0e436e6959f7154374b51405a45e0b4da0b01e4ef7abd44cbed506c2b4",
+      "origin": "linux/results-linux-isolated/server.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/training-command.log",
+      "bytes": 924,
+      "sha256": "95aca1b8aba2513f65087f8e83c64126ae2879f6916fa6ac3513a64f2797a697",
+      "origin": "linux/results-linux-isolated/training-command.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/training-command.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "linux/results-linux-isolated/training-command.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/training-command.stdout.log",
+      "bytes": 892,
+      "sha256": "5fe32b93da3fa8665fd560bd828e4591b02300173584bfaba36bf06ce750f778",
+      "origin": "linux/results-linux-isolated/training-command.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/training-unmatched-option.log",
+      "bytes": 83,
+      "sha256": "5b448c05bc178c4f963489388ec6dcb916d6dabbcd396a1964256757eb88c467",
+      "origin": "linux/results-linux-isolated/training-unmatched-option.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/training-unmatched-option.stderr.log",
+      "bytes": 51,
+      "sha256": "6c7788aa48655b36ac9585143cb3276651b6d1e2373ec4d295f405f5fd1b59d2",
+      "origin": "linux/results-linux-isolated/training-unmatched-option.stderr.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-isolated/training-unmatched-option.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "origin": "linux/results-linux-isolated/training-unmatched-option.stdout.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-bootstrap/report.json",
+      "bytes": 2988,
+      "sha256": "8fd65f3a55a08b10ffe0e0f57b95d81bf6a5beeac22a1ad5262b0d5b1453ec8b",
+      "origin": "linux/results-linux-bootstrap/report.json",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/linux/results-linux-bootstrap/self-test.log",
+      "bytes": 39578,
+      "sha256": "65d798979ac4e70647959f16dfb0588daaa047876ceff843e2cc6529503801ee",
+      "origin": "linux/results-linux-bootstrap/self-test.log",
+      "scope": "ci"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/local/llama-cli.json",
+      "bytes": 453,
+      "sha256": "fe027091a71ee5a4c4247cc1d6a9dd89f6abcfc391b2435fe5082f00cae0fe12",
+      "origin": "cosmopolitan/out/software-webgpu/llama-cli.json",
+      "scope": "local_cli"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/local/llama-cli.stdout.log",
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc",
+      "origin": "cosmopolitan/out/software-webgpu/llama-cli.stdout.log",
+      "scope": "local_cli"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/local/llama-cli.stderr.log",
+      "bytes": 17475,
+      "sha256": "9323db494b6f1a12010a1210624de0ecda8c80e4a5362fd0e1a1e79684abe43a",
+      "origin": "cosmopolitan/out/software-webgpu/llama-cli.stderr.log",
+      "scope": "local_cli"
+    },
+    {
+      "path": "cosmopolitan/docs/webgpu-validation/run.json",
+      "bytes": 431,
+      "sha256": "cbf35f8d16cba707b49c7560f3d07e4db261a5b35cbd045929cd3f9c1ec87b3e",
+      "origin": "run.json",
+      "scope": "ci"
+    }
+  ]
+}
