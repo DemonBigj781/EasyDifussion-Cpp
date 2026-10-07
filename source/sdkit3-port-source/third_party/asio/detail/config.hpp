@@ -823,7 +823,7 @@
 #endif // defined(ASIO_HAS_UNISTD_H)
 
 // Linux: epoll, eventfd, timerfd and io_uring.
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__COSMOPOLITAN__)
 # include <linux/version.h>
 # if !defined(ASIO_HAS_EPOLL)
 #  if !defined(ASIO_DISABLE_EPOLL)
