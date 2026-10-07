@@ -1,0 +1,425 @@
+# Reused from Theory@aa54da093aeeb9fa9ce34163f73d5797c31c316d.
+# Original workflow blob: 33fc0667066b529ac570c051928e47a8fc5e3b77.
+# The source filename starts with @@@, which is invalid in a reusable `uses`
+# reference; restore its earlier numeric name on this branch.
+# Keep its GHCR / one-run SSH key / approved-offer lifecycle. Optional prepared
+# images add the Cosmopolitan Docker preflight without another provisioner.
+name: '@@@ - Vast AI Runtime Test'
+
+"on":
+  workflow_call:
+    inputs:
+      approval:
+        description: 'Must be exactly APPROVE before any paid Vast.ai work can start'
+        required: true
+        type: string
+      offer_id:
+        description: 'Explicit Vast.ai offer ID selected by the human approving the paid test'
+        required: true
+        type: string
+      backend:
+        description: 'Backend/API target name'
+        required: true
+        type: string
+      artifact_name:
+        description: 'GitHub-built artifact to package into the Vast test image'
+        required: true
+        type: string
+      base_image:
+        description: 'Exact GHCR toolchain image used for the GitHub build'
+        required: true
+        type: string
+      prepared_image_artifact:
+        description: Optional current-run Docker image that already passed Cosmopolitan preflight
+        required: false
+        default: ''
+        type: string
+      max_hourly_usd:
+        description: Maximum on-demand quote with the requested disk allocation; transfers are separate
+        required: false
+        default: '0.10'
+        type: string
+      max_estimated_usd:
+        description: Reject conservative 90-minute session plus transfer estimate above this amount
+        required: false
+        default: '1.00'
+        type: string
+      driver_capabilities:
+        description: NVIDIA capabilities mounted at container creation
+        required: false
+        default: compute,utility
+        type: string
+      result_directory:
+        description: Absolute remote result directory to download before destruction
+        required: false
+        default: ''
+        type: string
+      test_timeout_seconds:
+        description: Hard SSH test timeout; remote test must also bound its child processes
+        required: false
+        default: 660
+        type: number
+      test_command:
+        description: 'Runtime test command; must not compile or link on Vast'
+        required: false
+        default: 'test -d /opt/edcpp-test/build && find /opt/edcpp-test/build -type f -print -quit | grep -q .'
+        type: string
+    secrets:
+      VASTAI_KEY:
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+
+jobs:
+  approval-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require explicit paid-test permission
+        env:
+          APPROVAL: ${{ inputs.approval }}
+          OFFER_ID: ${{ inputs.offer_id }}
+          BASE_IMAGE: ${{ inputs.base_image }}
+          BACKEND: ${{ inputs.backend }}
+          MAX_HOURLY_USD: ${{ inputs.max_hourly_usd }}
+          MAX_ESTIMATED_USD: ${{ inputs.max_estimated_usd }}
+          DRIVER_CAPABILITIES: ${{ inputs.driver_capabilities }}
+          TEST_TIMEOUT_SECONDS: ${{ inputs.test_timeout_seconds }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cosmopolitan/vast/workflow_support.py approval
+
+  package-and-test:
+    needs: approval-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      TEST_IMAGE_REPOSITORY: ghcr.io/demonbigj781/easydifussion-cpp-vast-test
+      TEST_IMAGE_TAG: ${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}
+      BASE_IMAGE: ${{ inputs.base_image }}
+      OFFER_ID: ${{ inputs.offer_id }}
+      MAX_HOURLY_USD: ${{ inputs.max_hourly_usd }}
+      MAX_ESTIMATED_USD: ${{ inputs.max_estimated_usd }}
+      DRIVER_CAPABILITIES: ${{ inputs.driver_capabilities }}
+      TEST_TIMEOUT_SECONDS: ${{ inputs.test_timeout_seconds }}
+      PREPARED_IMAGE_ARTIFACT: ${{ inputs.prepared_image_artifact }}
+      SUPPORT: cosmopolitan/vast/workflow_support.py
+      INSTANCE_LABEL: edcpp-${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create local evidence directory
+        run: mkdir -p vast-results
+      - name: Download GitHub-compiled API artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: vast-build
+
+      - name: Download the runtime image that passed this run's Docker preflight
+        if: inputs.prepared_image_artifact != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.prepared_image_artifact }}
+          path: prepared-image
+
+      - name: Verify and load the prepared runtime image without rebuilding the application
+        if: inputs.prepared_image_artifact != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$SUPPORT" check-image --directory prepared-image \
+            --image "$BASE_IMAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+          docker load --input prepared-image/runtime.tar.gz
+          python3 "$SUPPORT" check-image --directory prepared-image \
+            --image "$BASE_IMAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --loaded \
+            > vast-results/prepared-image.json
+
+      - name: Restore executable permissions in downloaded test artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          find vast-build -maxdepth 1 -type f \
+            \( -name '*-test' -o -name 'xformers-*-gen' \) \
+            -exec chmod 0755 {} +
+
+      - name: Build immutable Vast test image on GitHub
+        timeout-minutes: 15
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+          BACKEND: ${{ inputs.backend }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_IMAGE="${TEST_IMAGE_REPOSITORY}:${TEST_IMAGE_TAG}"
+          echo "TEST_IMAGE=$TEST_IMAGE" >> "$GITHUB_ENV"
+          mkdir -p vast-context
+          mv vast-build vast-context/vast-build
+          {
+            printf 'FROM %s\n' "$BASE_IMAGE"
+            cat <<'EOF'
+          COPY vast-build/ /opt/edcpp-test/build/
+          RUN find /opt/edcpp-test/build -maxdepth 1 -type f \( -name '*-test' -o -name 'xformers-*-gen' \) -exec chmod 0755 {} +
+          EOF
+          } > vast-context/Dockerfile
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          if [[ -z "$PREPARED_IMAGE_ARTIFACT" ]]; then docker pull "$BASE_IMAGE"; fi
+          docker build --pull=false \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "edcpp.vast-test.commit=$GITHUB_SHA" \
+            --label "edcpp.vast-test.backend=$BACKEND" \
+            -t "$TEST_IMAGE" vast-context
+          docker image inspect "$TEST_IMAGE" > vast-results/published-image.json
+          for attempt in 1 2 3; do
+            if docker push "$TEST_IMAGE"; then
+              image_ref="$(docker image inspect "$TEST_IMAGE" --format '{{index .RepoDigests 0}}')"
+              echo "TEST_IMAGE=$image_ref" >> "$GITHUB_ENV"
+              printf '%s\n' "$image_ref" > vast-results/published-image-reference.txt
+              # The saved Vast bootstrap pulls anonymously. Check access before
+              # any rental; do not pass repository credentials to a GPU host.
+              mkdir -p "$RUNNER_TEMP/vast-anonymous-docker"
+              DOCKER_CONFIG="$RUNNER_TEMP/vast-anonymous-docker" docker pull "$image_ref"
+              exit 0
+            fi
+            echo "GHCR push failed (attempt $attempt/3); retrying after clearing builder state" >&2
+            docker builder prune -af || true
+            sleep $((attempt * 5))
+          done
+          echo 'GHCR push failed after 3 attempts.' >&2
+          exit 1
+
+      - name: Install Vast.ai CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/vast-cli"
+          "$RUNNER_TEMP/vast-cli/bin/python" -m pip download --disable-pip-version-check \
+            --no-input --no-deps --only-binary=:all: --dest "$RUNNER_TEMP/vast-wheel" vastai==1.8.3
+          printf '%s  %s\n' \
+            8c50b291dd92feecc4e0a7eb57b365afe6f9ab719c4d6b4f681d0af367757010 \
+            "$RUNNER_TEMP/vast-wheel/vastai-1.8.3-py3-none-any.whl" | sha256sum --check --status
+          "$RUNNER_TEMP/vast-cli/bin/python" -m pip install --disable-pip-version-check --no-input \
+            "$RUNNER_TEMP/vast-wheel/vastai-1.8.3-py3-none-any.whl"
+          echo "$RUNNER_TEMP/vast-cli/bin" >> "$GITHUB_PATH"
+
+      - name: Generate one-run SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          key_path="$RUNNER_TEMP/vast_edcpp_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          ssh-keygen -q -t rsa -b 3072 -N '' -f "$key_path"
+          chmod 600 "$key_path"
+          echo "SSH_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+
+      - name: Create approved Vast.ai instance
+        id: create
+        timeout-minutes: 4
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Recheck this exact offer at the same on-demand/disk settings used
+          # for creation. Never silently substitute a cheaper/different offer.
+          query="id=$OFFER_ID rentable=true"
+          if [[ -n "$PREPARED_IMAGE_ARTIFACT" ]]; then
+            query="$query cpu_arch=amd64 num_gpus>=1 gpu_ram>=8 cpu_ram>=8 direct_port_count>=1"
+          fi
+          timeout 40s vastai search offers "$query" \
+            --type on-demand --storage 20 --limit 10 --api-key "$VASTAI_KEY" --raw \
+            > "$RUNNER_TEMP/vast-offer.json"
+          architecture=()
+          if [[ -n "$PREPARED_IMAGE_ARTIFACT" ]]; then architecture=(--require-amd64); fi
+          python3 "$SUPPORT" check-offer --input "$RUNNER_TEMP/vast-offer.json" \
+            --offer-id "$OFFER_ID" --maximum "$MAX_HOURLY_USD" --disk-gb 20 \
+            --max-estimated-usd "$MAX_ESTIMATED_USD" --image-metadata vast-results/published-image.json \
+            "${architecture[@]}" > vast-results/offer.json
+          python3 cosmopolitan/vast/vast_lifecycle.py --evidence-dir vast-results create \
+            --offer-id "$OFFER_ID" --image "$TEST_IMAGE" --label "$INSTANCE_LABEL" \
+            --driver-capabilities "$DRIVER_CAPABILITIES" --disk-gb 20
+
+      - name: Attach one-run SSH key through Vast.ai
+        timeout-minutes: 2
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_key="$(cat "${SSH_KEY_PATH}.pub")"
+          timeout 60s vastai attach ssh "$INSTANCE_ID" "$public_key" --api-key "$VASTAI_KEY" --raw \
+            > "$RUNNER_TEMP/vast-attach.json"
+          # CLI 1.8.3 prints a Python dict even with --raw for attach ssh.
+          python3 "$SUPPORT" check-success --python-repr --input "$RUNNER_TEMP/vast-attach.json"
+
+      - name: Wait for Vast.ai container
+        timeout-minutes: 8
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            timeout 20s vastai show instance "$INSTANCE_ID" --api-key "$VASTAI_KEY" --raw \
+              > "$RUNNER_TEMP/vast-instance.json"
+            python3 "$SUPPORT" check-instance --input "$RUNNER_TEMP/vast-instance.json" \
+              --instance-id "$INSTANCE_ID" --maximum "$MAX_HOURLY_USD" > vast-results/instance-status.json
+            status="$(python3 "$SUPPORT" check-instance --input "$RUNNER_TEMP/vast-instance.json" \
+              --instance-id "$INSTANCE_ID" --maximum "$MAX_HOURLY_USD" --status-only)"
+            echo "Vast.ai instance status: ${status:-unknown}"
+            case "$status" in
+              running) exit 0 ;;
+              exited|offline|unknown) echo "Instance entered terminal status: $status" >&2; exit 1 ;;
+            esac
+            sleep 5
+          done
+          echo 'Timed out waiting for Vast.ai instance to become running.' >&2
+          exit 1
+
+      - name: Resolve Vast.ai SSH endpoint
+        id: ssh
+        timeout-minutes: 1
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh_uri="$(timeout 30s vastai ssh-url "$INSTANCE_ID" --api-key "$VASTAI_KEY" --raw)"
+          if [[ ! "$ssh_uri" =~ ^ssh://([a-z_][a-z0-9_-]*)@([a-zA-Z0-9][a-zA-Z0-9.-]*):([0-9]{1,5})$ ]]; then
+            echo 'Unexpected Vast.ai SSH endpoint format' >&2
+            exit 1
+          fi
+          ssh_user=${BASH_REMATCH[1]}
+          ssh_host=${BASH_REMATCH[2]}
+          ssh_port=$((10#${BASH_REMATCH[3]}))
+          if ((ssh_port < 1 || ssh_port > 65535)); then exit 1; fi
+          echo "user=$ssh_user" >> "$GITHUB_OUTPUT"
+          echo "host=$ssh_host" >> "$GITHUB_OUTPUT"
+          echo "port=$ssh_port" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Vast.ai SSH service
+        timeout-minutes: 6
+        env:
+          SSH_USER: ${{ steps.ssh.outputs.user }}
+          SSH_HOST: ${{ steps.ssh.outputs.host }}
+          SSH_PORT: ${{ steps.ssh.outputs.port }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if ssh \
+              -i "$SSH_KEY_PATH" \
+              -p "$SSH_PORT" \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=accept-new \
+              -o "UserKnownHostsFile=$RUNNER_TEMP/vast-known-hosts" \
+              -o ConnectTimeout=5 \
+              "$SSH_USER@$SSH_HOST" \
+              'echo edcpp-ssh-ready' >/tmp/edcpp-ssh-ready.out 2>/tmp/edcpp-ssh-ready.err; then
+              cat /tmp/edcpp-ssh-ready.out
+              exit 0
+            fi
+            echo "SSH not ready yet (attempt $attempt/30): $(tail -n 1 /tmp/edcpp-ssh-ready.err 2>/dev/null || true)"
+            sleep 5
+          done
+          echo 'Timed out waiting for Vast.ai SSH service.' >&2
+          exit 1
+
+      - name: Run runtime test on Vast.ai without compiling
+        timeout-minutes: 31
+        env:
+          SSH_USER: ${{ steps.ssh.outputs.user }}
+          SSH_HOST: ${{ steps.ssh.outputs.host }}
+          SSH_PORT: ${{ steps.ssh.outputs.port }}
+          TEST_COMMAND: ${{ inputs.test_command }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=15s "${TEST_TIMEOUT_SECONDS}s" ssh \
+            -i "$SSH_KEY_PATH" \
+            -p "$SSH_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/vast-known-hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "$SSH_USER@$SSH_HOST" \
+            "$TEST_COMMAND" 2>&1 | tee vast-results/runtime.log
+
+      - name: Collect runtime evidence before destroying the instance
+        if: ${{ always() && steps.ssh.outputs.host != '' && inputs.result_directory != '' }}
+        timeout-minutes: 3
+        env:
+          SSH_USER: ${{ steps.ssh.outputs.user }}
+          SSH_HOST: ${{ steps.ssh.outputs.host }}
+          SSH_PORT: ${{ steps.ssh.outputs.port }}
+          RESULT_DIRECTORY: ${{ inputs.result_directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$RESULT_DIRECTORY" =~ ^/[a-zA-Z0-9_/-]+$ ]] || [[ "$RESULT_DIRECTORY" == / ]]; then
+            echo 'Invalid remote evidence directory' >&2
+            exit 1
+          fi
+          timeout --signal=TERM --kill-after=10s 120s ssh \
+            -i "$SSH_KEY_PATH" -p "$SSH_PORT" -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/vast-known-hosts" \
+            -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "$SSH_USER@$SSH_HOST" "tar -C '$RESULT_DIRECTORY' -czf - ." \
+            > vast-results/runtime-results.tar.gz
+
+      - name: Destroy Vast.ai instance
+        if: always()
+        timeout-minutes: 4
+        env:
+          VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
+          INSTANCE_ID: ${{ steps.create.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The local record survives a step interruption that loses outputs.
+          # It is written only after label precheck and before the single create.
+          mkdir -p vast-results
+          if [[ ! -f vast-results/creation.json ]]; then
+            printf '%s\n' '{"status":"not-created","creation_attempted":false}' > vast-results/cleanup.json
+            exit 0
+          fi
+          target=(--label "$INSTANCE_LABEL")
+          if [[ -n "$INSTANCE_ID" ]]; then target=(--instance-id "$INSTANCE_ID"); fi
+          if python3 cosmopolitan/vast/vast_lifecycle.py --evidence-dir vast-results destroy "${target[@]}"; then
+            echo "Instance deletion confirmed by complete account listing; see cleanup.json." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Cleanup for $INSTANCE_LABEL is UNCONFIRMED. Check the Vast console immediately."
+            echo "Cleanup for $INSTANCE_LABEL is UNCONFIRMED; billing may continue." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Remove one-run local key material
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${SSH_KEY_PATH:-}" ]]; then rm -f "$SSH_KEY_PATH" "${SSH_KEY_PATH}.pub"; fi
+          rm -f "$RUNNER_TEMP/vast-known-hosts" "$RUNNER_TEMP/vast-offer.json" \
+            "$RUNNER_TEMP/vast-instance.json" "$RUNNER_TEMP/vast-attach.json" "$RUNNER_TEMP/vast-destroy.json"
+
+      - name: Retain test, image, offer and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vast-${{ inputs.backend }}-${{ github.run_id }}-${{ github.run_attempt }}-results
+          path: vast-results/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,266 @@
+name: Cosmopolitan GPU Docker preflight
+run-name: GPU test preparation - ${{ inputs.mode || 'Preflight' }}
+
+on:
+  push:
+    branches: [cosmopolitan-test]
+    paths:
+      - cosmopolitan/vast/**
+      - .github/workflows/cosmopolitan-vast-test.yml
+      - .github/workflows/995-vast-ai-runtime-test.yml
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preflight spends no Vast credit; VastAI additionally requires explicit approval and offer
+        type: choice
+        options: [Preflight, VastAI]
+        default: Preflight
+      approval:
+        description: Literal APPROVE for the paid mode, after reviewing the selected offer
+        type: string
+        default: ''
+      offer_id:
+        description: Numeric Vast offer ID selected by the person approving the test
+        type: string
+        default: ''
+      max_hourly_usd:
+        description: Maximum quoted hourly instance rate, including the requested disk allocation
+        type: string
+        default: '0.10'
+      max_estimated_usd:
+        description: Maximum conservative session estimate including image transfer; cleanup outages can exceed estimates
+        type: string
+        default: '1.00'
+
+permissions:
+  contents: read
+  actions: read
+
+# Do not cancel a running paid lifecycle when another preparation is pushed.
+concurrency:
+  group: cosmopolitan-vast-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  compiler-cache:
+    name: Measure sccache with the actual Cosmopolitan C, C++ and Rust toolchains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SCCACHE_GHA_ENABLED: 'true'
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      SCCACHE_C_CUSTOM_CACHE_BUSTER: cosmocc-4.0.2-85b8c37a406d862e656ad4ec14be9f6ce474c1b436b9615e91a55208aced3f44
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the reviewed sccache action and exact cache binary version
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: v0.16.0
+      - name: Restore the existing pinned SDK and host tools without changing the production cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            cosmopolitan/out/downloads
+            cosmopolitan/out/sdk
+            cosmopolitan/out/tools
+          key: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
+      - name: Restore the pinned Rust toolchain from the existing software dependency cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: cosmopolitan/out/software-webgpu
+          key: cosmo-easydiffusion-webgpu-ubuntu24-v1-${{ hashFiles('cosmopolitan/software-webgpu/**', 'cosmopolitan/backend/patches/**') }}
+          restore-keys: |
+            cosmo-easydiffusion-webgpu-ubuntu24-v1-
+      - name: Compile small real inputs twice and measure independent cache hits
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cosmopolitan/vast/.out
+          python3 cosmopolitan/vast/cache_probe.py --out cosmopolitan/vast/.out/cache-probe \
+            --sdk-out cosmopolitan/out --software-out cosmopolitan/out/software-webgpu --timeout 2400 \
+            2>&1 | tee cosmopolitan/vast/.out/cache-probe.log
+      - name: Report support separately from successful uncached fallback
+        if: always()
+        shell: python
+        run: |
+          import json, os
+          from pathlib import Path
+          path = Path('cosmopolitan/vast/.out/cache-probe/report.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+                  summary.write('### Actual-toolchain sccache experiment\n\n')
+                  for name in ('c_cpp', 'rust'):
+                      item = report.get(name, {})
+                      summary.write(f"- {name}: **{item.get('status', 'not completed')}**; enable recommendation: `{item.get('recommended_enabled', False)}`\n")
+                  summary.write('\nThese small cache probes do not rebuild or change the pinned GPU-test application.\n')
+      - name: Preserve cache probe inputs, commands, stats and result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-sccache-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            cosmopolitan/vast/.out/cache-probe/report.json
+            cosmopolitan/vast/.out/cache-probe/*.log
+            cosmopolitan/vast/.out/cache-probe/*.json
+            cosmopolitan/vast/.out/cache-probe.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  preflight:
+    name: Validate the existing app in real Linux Docker containers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      RUNTIME_IMAGE: edcpp-cosmo-runtime:${{ github.run_id }}-${{ github.run_attempt }}
+      PREFLIGHT_IMAGE: edcpp-cosmo-preflight:${{ github.run_id }}-${{ github.run_attempt }}
+      OUT: cosmopolitan/vast/.out
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run focused harness and workflow failure checks without cloud credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/evidence"
+          python3 -m unittest discover -s cosmopolitan/vast -p 'test_*.py' -v \
+            2>&1 | tee "$OUT/evidence/offline-tests.log"
+      - name: Download the previously verified Windows and Linux application
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: easy-diffusion-cosmopolitan-x86_64
+          path: cosmopolitan/vast/.out/downloaded-app
+          github-token: ${{ github.token }}
+          run-id: '37568302821'
+      - name: Resolve Ubuntu and stage only the verified test payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull --platform linux/amd64 ubuntu:24.04 2>&1 | tee "$OUT/evidence/base-pull.log"
+          docker image inspect ubuntu:24.04 > "$OUT/evidence/base-image.json"
+          base_ref="$(docker image inspect ubuntu:24.04 --format '{{index .RepoDigests 0}}')"
+          UBUNTU_IMAGE="ubuntu:24.04@${base_ref##*@}"
+          echo "UBUNTU_IMAGE=$UBUNTU_IMAGE" >> "$GITHUB_ENV"
+          python3 cosmopolitan/vast/prepare_context.py \
+            --artifact-dir "$OUT/downloaded-app" --output "$OUT/context" \
+            --base-image "$UBUNTU_IMAGE" | tee "$OUT/evidence/context.json"
+      - name: Build the runtime image and the Mesa preflight variant on GitHub
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 --progress plain \
+            --build-arg "UBUNTU_IMAGE=$UBUNTU_IMAGE" --target runtime \
+            -t "$RUNTIME_IMAGE" "$OUT/context" 2>&1 | tee "$OUT/evidence/build-runtime.log"
+          docker build --platform linux/amd64 --progress plain \
+            --build-arg "UBUNTU_IMAGE=$UBUNTU_IMAGE" --target preflight \
+            -t "$PREFLIGHT_IMAGE" "$OUT/context" 2>&1 | tee "$OUT/evidence/build-preflight.log"
+          docker image inspect "$RUNTIME_IMAGE" "$PREFLIGHT_IMAGE" > "$OUT/evidence/test-images.json"
+      - name: Check the final runtime payload and prebuilt native loader helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/evidence/runtime-package"
+          docker run --rm --network none \
+            --mount "type=bind,src=$PWD/$OUT/evidence/runtime-package,dst=/opt/edcpp-test/results" \
+            "$RUNTIME_IMAGE" /usr/bin/python3 /opt/edcpp-test/run_test.py \
+            --mode package --output-dir /opt/edcpp-test/results \
+            2>&1 | tee "$OUT/evidence/runtime-package.log"
+      - name: Restore the external pinned SD 1.5 test checkpoint
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: cosmopolitan/vast/.out/models
+          key: cosmo-vast-model-c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b
+      - name: Verify or fetch the full image-inference checkpoint on GitHub
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cosmopolitan/inference/fetch_model.py --model-dir "$OUT/models" \
+            2>&1 | tee "$OUT/evidence/model-fetch.log"
+      - name: Require real software inference and rejection of false hardware success
+        timeout-minutes: 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/evidence/container-preflight"
+          docker run --rm --network none \
+            --mount "type=bind,src=$PWD/$OUT/evidence/container-preflight,dst=/opt/edcpp-test/results" \
+            --mount "type=bind,src=$PWD/$OUT/models,dst=/models,readonly" \
+            "$PREFLIGHT_IMAGE" /usr/bin/python3 /opt/edcpp-test/run_test.py \
+            --mode preflight --output-dir /opt/edcpp-test/results \
+            --vulkan-icd /opt/edcpp-test/lavapipe-icd.json \
+            --model /models/stable-diffusion-v1-5-Q4_0.gguf --timeout 1800 \
+            2>&1 | tee "$OUT/evidence/container-preflight.log"
+      - name: Export the verified runtime for the existing Vast packaging workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/runtime-image" "$OUT/vast-build"
+          docker save "$RUNTIME_IMAGE" | gzip -1 > "$OUT/runtime-image/runtime.tar.gz"
+          python3 cosmopolitan/vast/workflow_support.py record-image \
+            --directory "$OUT/runtime-image" --image "$RUNTIME_IMAGE" \
+            --preflight-report "$OUT/evidence/container-preflight/report.json" \
+            --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+          cp "$OUT/runtime-image/IMAGE.json" "$OUT/vast-build/PREFLIGHT_IMAGE.json"
+      - name: Include the already verified model for the explicitly requested paid test
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'VastAI'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/vast-build/models"
+          cp "$OUT/models/stable-diffusion-v1-5-Q4_0.gguf" "$OUT/vast-build/models/"
+      - name: Preserve the prepared runtime image
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-runtime-image-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cosmopolitan/vast/.out/runtime-image/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - name: Provide the current-run payload to the saved Vast workflow
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'VastAI'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-vast-data-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cosmopolitan/vast/.out/vast-build/
+          compression-level: 1
+          if-no-files-found: error
+          retention-days: 3
+      - name: Preserve preparation evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-docker-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cosmopolitan/vast/.out/evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  vast:
+    name: Existing approved Vast lifecycle
+    needs: preflight
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'VastAI'
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    uses: ./.github/workflows/995-vast-ai-runtime-test.yml
+    with:
+      approval: ${{ inputs.approval }}
+      offer_id: ${{ inputs.offer_id }}
+      max_hourly_usd: ${{ inputs.max_hourly_usd }}
+      max_estimated_usd: ${{ inputs.max_estimated_usd }}
+      backend: cosmo-vulkan-x86_64
+      artifact_name: cosmopolitan-vast-data-${{ github.run_id }}-${{ github.run_attempt }}
+      base_image: edcpp-cosmo-runtime:${{ github.run_id }}-${{ github.run_attempt }}
+      prepared_image_artifact: cosmopolitan-runtime-image-${{ github.run_id }}-${{ github.run_attempt }}
+      driver_capabilities: compute,utility,graphics
+      test_command: /usr/bin/python3 /opt/edcpp-test/run_test.py --mode hardware --output-dir /opt/edcpp-test/results --model /opt/edcpp-test/build/models/stable-diffusion-v1-5-Q4_0.gguf --timeout 600
+      result_directory: /opt/edcpp-test/results
+      test_timeout_seconds: 660
+    secrets:
+      VASTAI_KEY: ${{ secrets.VASTAI_KEY }}
