@@ -2685,6 +2685,36 @@ static webgpu_encoded_op ggml_webgpu_row_norm(webgpu_context & ctx, ggml_tensor 
     return ggml_backend_webgpu_build(ctx, pipeline, params, entries, ggml_nrows(src));
 }
 
+static webgpu_encoded_op ggml_webgpu_group_norm(webgpu_context & ctx, ggml_tensor * src, ggml_tensor * dst) {
+    const int32_t n_groups = ((const int32_t *)dst->op_params)[0];
+    const float eps = ggml_get_op_params_f32(dst, 1);
+    const uint32_t total_groups = (uint32_t)n_groups * (uint32_t)src->ne[3];
+
+    std::vector<uint32_t> params = {
+        (uint32_t)(ggml_webgpu_tensor_misalignment(ctx, src) / sizeof(float)),
+        (uint32_t)(ggml_webgpu_tensor_misalignment(ctx, dst) / sizeof(float)),
+        (uint32_t)src->ne[0],
+        (uint32_t)src->ne[1],
+        (uint32_t)src->ne[2],
+        (uint32_t)src->ne[3],
+        (uint32_t)n_groups,
+        ggml_webgpu_u32_from_f32(eps),
+    };
+
+    ggml_webgpu_shader_lib_context shader_lib_ctx = {};
+    shader_lib_ctx.src0 = src;
+    shader_lib_ctx.dst = dst;
+    shader_lib_ctx.max_wg_size = ctx->global_ctx->capabilities.limits.maxComputeInvocationsPerWorkgroup;
+    webgpu_pipeline pipeline = ctx->shader_lib->get_group_norm_pipeline(shader_lib_ctx);
+    auto *decisions = static_cast<ggml_webgpu_generic_shader_decisions *>(pipeline.context.get());
+
+    std::vector<wgpu::BindGroupEntry> entries = {ggml_webgpu_make_tensor_bind_group_entry(ctx, 0, src)};
+    if (!decisions->inplace) {
+        entries.push_back(ggml_webgpu_make_tensor_bind_group_entry(ctx, 1, dst));
+    }
+    return ggml_backend_webgpu_build(ctx, pipeline, params, entries, total_groups);
+}
+
 static webgpu_encoded_op ggml_webgpu_rope(webgpu_context & ctx,
                                           ggml_tensor *    src0,
                                           ggml_tensor *    src1,
@@ -3303,6 +3333,8 @@ static std::optional<webgpu_encoded_op> ggml_webgpu_encode(webgpu_context ctx,
             } else {
                 return ggml_webgpu_row_norm(ctx, src0, node);
             }
+        case GGML_OP_GROUP_NORM:
+            return ggml_webgpu_group_norm(ctx, src0, node);
         case GGML_OP_NORM:
         case GGML_OP_L2_NORM:
             return ggml_webgpu_row_norm(ctx, src0, node);
@@ -4465,6 +4497,24 @@ static bool ggml_backend_webgpu_device_supports_op(ggml_backend_dev_t dev, const
         case GGML_OP_L2_NORM:
             supports_op = (op->type == GGML_TYPE_F32 && src0->type == GGML_TYPE_F32) && ggml_is_contiguous_rows(src0);
             break;
+        case GGML_OP_GROUP_NORM:
+            {
+                const int32_t n_groups = ((const int32_t *)op->op_params)[0];
+                if (op->type == GGML_TYPE_F32 && src0->type == GGML_TYPE_F32 &&
+                    ggml_is_contiguous(src0) && ggml_is_contiguous(op) &&
+                    src0->ne[0] > 0 && src0->ne[1] > 0 && src0->ne[2] > 0 && src0->ne[3] > 0 &&
+                    n_groups > 0 && n_groups <= src0->ne[2]) {
+                    const uint64_t channels_per_group =
+                        ((uint64_t)src0->ne[2] + (uint64_t)n_groups - 1u) / (uint64_t)n_groups;
+                    // The CPU reference uses ceil-sized groups; do not schedule
+                    // invalid configurations that leave trailing groups empty.
+                    const uint64_t covered_channels = channels_per_group * (uint64_t)(n_groups - 1);
+                    const uint64_t total_groups = (uint64_t)n_groups * (uint64_t)src0->ne[3];
+                    supports_op = covered_channels < (uint64_t)src0->ne[2] &&
+                                  total_groups <= ctx->webgpu_global_ctx->capabilities.limits.maxComputeWorkgroupsPerDimension;
+                }
+                break;
+            }
         case GGML_OP_ROPE:
             supports_op = op->type == GGML_TYPE_F32 || op->type == GGML_TYPE_F16;
             break;

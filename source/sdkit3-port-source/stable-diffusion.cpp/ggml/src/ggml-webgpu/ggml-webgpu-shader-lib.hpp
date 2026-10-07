@@ -1195,6 +1195,7 @@ class ggml_webgpu_shader_lib {
     std::unordered_map<int, webgpu_pipeline> cumsum_pipelines;         // key is fixed, no variants yet
     std::unordered_map<ggml_webgpu_row_norm_pipeline_key, webgpu_pipeline, ggml_webgpu_row_norm_pipeline_key_hash>
         row_norm_pipelines;                                            // op/inplace
+    std::unordered_map<bool, webgpu_pipeline> group_norm_pipelines;    // inplace
 
     std::unordered_map<ggml_webgpu_get_rows_pipeline_key, webgpu_pipeline, ggml_webgpu_get_rows_pipeline_key_hash>
         get_rows_pipelines;   // src_type, vectorized
@@ -1349,6 +1350,33 @@ class ggml_webgpu_shader_lib {
         row_norm_pipelines[key]         = ggml_webgpu_create_pipeline(device, processed, variant);
         row_norm_pipelines[key].context = decisions;
         return row_norm_pipelines[key];
+    }
+
+    webgpu_pipeline get_group_norm_pipeline(const ggml_webgpu_shader_lib_context & context) {
+        const bool inplace = ggml_webgpu_tensor_equal(context.src0, context.dst);
+        auto it = group_norm_pipelines.find(inplace);
+        if (it != group_norm_pipelines.end()) {
+            return it->second;
+        }
+
+        uint32_t wg_size = 1;
+        const uint32_t max_wg_size = std::min(context.max_wg_size, 256u);
+        while (wg_size <= max_wg_size / 2u) {
+            wg_size *= 2u;
+        }
+        std::vector<std::string> defines = {std::string("WG_SIZE=") + std::to_string(wg_size)};
+        const std::string variant = inplace ? "group_norm_inplace" : "group_norm";
+        if (inplace) {
+            defines.push_back("INPLACE");
+        }
+        const std::string processed = preprocessor.preprocess(wgsl_group_norm, defines);
+        auto decisions = std::make_shared<ggml_webgpu_generic_shader_decisions>();
+        decisions->wg_size = wg_size;
+        decisions->inplace = inplace;
+        webgpu_pipeline pipeline = ggml_webgpu_create_pipeline(device, processed, variant);
+        pipeline.context = decisions;
+        group_norm_pipelines.emplace(inplace, pipeline);
+        return pipeline;
     }
 
     webgpu_pipeline get_argmax_pipeline(const ggml_webgpu_shader_lib_context & context) {

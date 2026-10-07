@@ -188,6 +188,112 @@ done:
     return failed;
 }
 
+static int group_norm_case(ggml_backend_t backend, int inplace) {
+    /* Uneven channel groups and two batches exercise indexing at both edges. */
+    enum { NE0 = 7, NE1 = 3, NE2 = 10, NE3 = 2, GROUPS = 3, ELEMENTS = NE0 * NE1 * NE2 * NE3 };
+    const float eps = 1e-5f;
+    const int channels_per_group = (NE2 + GROUPS - 1) / GROUPS;
+    int failed = 1;
+    float input[ELEMENTS], actual[ELEMENTS];
+    double expected[ELEMENTS];
+    ggml_backend_buffer_t buffer = NULL;
+    struct ggml_context *ctx = NULL;
+    ggml_backend_dev_t device = ggml_backend_get_device(backend);
+    struct ggml_init_params params = {
+        .mem_size = ggml_tensor_overhead() * 8 + ggml_graph_overhead_custom(8, false),
+        .mem_buffer = NULL,
+        .no_alloc = true,
+    };
+    ctx = ggml_init(params);
+    if (!ctx) goto done;
+
+    for (int i = 0; i < ELEMENTS; ++i)
+        input[i] = (float)((i * 13 + 5) % 47 - 23) / 16.0f;
+
+    struct ggml_tensor *src = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, NE0, NE1, NE2, NE3);
+    ggml_set_name(src, "group-norm-input");
+    struct ggml_tensor *dst = inplace ? ggml_group_norm_inplace(ctx, src, GROUPS, eps)
+                                      : ggml_group_norm(ctx, src, GROUPS, eps);
+    ggml_set_name(dst, "group-norm-output");
+    struct ggml_cgraph *graph = ggml_new_graph_custom(ctx, 8, false);
+    ggml_build_forward_expand(graph, dst);
+
+    if (!device || !ggml_backend_dev_supports_op(device, dst)) {
+        fprintf(stderr, "WEBGPU_GROUP_NORM_CHECK inplace=%d supported=0 FAIL\n", inplace);
+        goto done;
+    }
+
+    buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    if (!buffer || ggml_backend_buffer_is_host(buffer) ||
+        ggml_backend_buft_get_device(ggml_backend_buffer_get_type(buffer)) != device) {
+        fputs("WebGPU GroupNorm probe requires tensors owned by its non-host buffer type\n", stderr);
+        goto done;
+    }
+    ggml_backend_tensor_set(src, input, 0, sizeof(input));
+
+    for (int batch = 0; batch < NE3; ++batch) {
+        for (int group = 0; group < GROUPS; ++group) {
+            const int channel_begin = group * channels_per_group;
+            const int channel_end = channel_begin + channels_per_group < NE2
+                ? channel_begin + channels_per_group : NE2;
+            const int group_channels = channel_end - channel_begin;
+            const size_t group_elements = (size_t)NE0 * NE1 * group_channels;
+            double sum = 0.0;
+            for (int channel = channel_begin; channel < channel_end; ++channel)
+                for (int row = 0; row < NE1; ++row)
+                    for (int col = 0; col < NE0; ++col) {
+                        const size_t i = (((size_t)batch * NE2 + channel) * NE1 + row) * NE0 + col;
+                        sum += input[i];
+                    }
+            const double mean = sum / group_elements;
+            double squared_error = 0.0;
+            for (int channel = channel_begin; channel < channel_end; ++channel)
+                for (int row = 0; row < NE1; ++row)
+                    for (int col = 0; col < NE0; ++col) {
+                        const size_t i = (((size_t)batch * NE2 + channel) * NE1 + row) * NE0 + col;
+                        const double centered = input[i] - mean;
+                        squared_error += centered * centered;
+                    }
+            const double inverse_stddev = 1.0 / sqrt(squared_error / group_elements + eps);
+            for (int channel = channel_begin; channel < channel_end; ++channel)
+                for (int row = 0; row < NE1; ++row)
+                    for (int col = 0; col < NE0; ++col) {
+                        const size_t i = (((size_t)batch * NE2 + channel) * NE1 + row) * NE0 + col;
+                        expected[i] = (input[i] - mean) * inverse_stddev;
+                    }
+        }
+    }
+
+    const struct execution_counts before = snapshot();
+    if (ggml_backend_graph_compute(backend, graph) != GGML_STATUS_SUCCESS) goto done;
+    ggml_backend_tensor_get(dst, actual, 0, sizeof(actual));
+    double maximum_error = 0.0;
+    for (size_t i = 0; i < ELEMENTS; ++i) {
+        const double error = fabs((double)actual[i] - expected[i]);
+        if (!isfinite(actual[i]) || !isfinite(expected[i]) || error > 5e-4 * (1.0 + fabs(expected[i]))) {
+            fprintf(stderr, "WEBGPU_GROUP_NORM_CHECK inplace=%d index=%zu actual=%.9g expected=%.9g FAIL\n",
+                    inplace, i, (double)actual[i], expected[i]);
+            goto done;
+        }
+        if (error > maximum_error) maximum_error = error;
+    }
+    const struct execution_counts after = snapshot();
+    if (after.graphs <= before.graphs || after.submissions <= before.submissions ||
+        after.dispatches <= before.dispatches || after.readbacks <= before.readbacks) {
+        fputs("WebGPU GroupNorm did not establish direct-device execution evidence\n", stderr);
+        goto done;
+    }
+    printf("WEBGPU_GROUP_NORM_CHECK inplace=%d groups=%d shape=%dx%dx%dx%d values=%d "
+           "max_error=%.9g dispatches=%" PRIu64 " PASS\n",
+           inplace, GROUPS, NE0, NE1, NE2, NE3, ELEMENTS, maximum_error,
+           after.dispatches - before.dispatches);
+    failed = 0;
+done:
+    if (buffer) ggml_backend_buffer_free(buffer);
+    if (ctx) ggml_free(ctx);
+    return failed;
+}
+
 int cosmo_webgpu_selftest(void) {
     int failed = 1;
     ggml_backend_t backend = NULL;
@@ -255,6 +361,7 @@ int cosmo_webgpu_device_graph_probe(const char *selector, int require_hardware) 
     const struct execution_counts before = snapshot();
     for (unsigned iteration = 0; iteration < 2; ++iteration)
         if (graph_case(backend, 0, iteration, 0) || graph_case(backend, 1, iteration, 0)) goto done;
+    if (group_norm_case(backend, 0) || group_norm_case(backend, 1)) goto done;
     const struct execution_counts after = snapshot();
     printf("WEBGPU_DEVICE_ADAPTER %s\n", info->name);
     printf("WEBGPU_DEVICE_EXECUTION selector=%s provider=%s software=%d adapter_type=%" PRIu32

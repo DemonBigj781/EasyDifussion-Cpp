@@ -90,6 +90,22 @@ def validate_graph(text, policy, require_hardware):
     if set(checks) != {(kind, iteration, stage) for kind, iteration in expected
                       for stage in ("matmul", "bias-rmsnorm-silu", "softmax")}:
         raise RuntimeError("Missing the twelve independent scalar readback comparisons")
+    group_norm_checks = {}
+    for line in (line for line in lines if line.startswith("WEBGPU_GROUP_NORM_CHECK")):
+        check = re.fullmatch(r"WEBGPU_GROUP_NORM_CHECK inplace=([01]) groups=3 "
+                             r"shape=7x3x10x2 values=420 max_error=([0-9.eE+-]+) "
+                             r"dispatches=(\d+) PASS", line)
+        if not check:
+            raise RuntimeError("Malformed GroupNorm scalar-reference comparison")
+        mode = int(check.group(1))
+        error, dispatches = float(check.group(2)), int(check.group(3))
+        if mode in group_norm_checks or not math.isfinite(error) or error < 0 or dispatches <= 0:
+            raise RuntimeError("Duplicate or invalid GroupNorm comparison/device evidence")
+        group_norm_checks[mode] = {"inplace": bool(mode), "shape": [7, 3, 10, 2],
+                                   "groups": 3, "values": 420, "max_error": error,
+                                   "dispatches": dispatches}
+    if set(group_norm_checks) != {0, 1}:
+        raise RuntimeError("Missing out-of-place and in-place WebGPU GroupNorm comparisons")
     if [line for line in lines if line.startswith("WEBGPU_UNSUPPORTED")] != [
             "WEBGPU_UNSUPPORTED op=SILU_BACK supported=0"]:
         raise RuntimeError("Missing unsupported-operator rejection")
@@ -100,6 +116,7 @@ def validate_graph(text, policy, require_hardware):
             "adapter_type": adapter_type, "device_kind": kind, "hardware_verified": hardware,
             "adapter_name": adapter, "native_loader_opens": opens, "cpu_fallback": False,
             "execution": total, "graph_cases": [cases[key] for key in sorted(cases)],
+            "group_norm_checks": [group_norm_checks[key] for key in sorted(group_norm_checks)],
             "scalar_checks": [checks[key] for key in sorted(checks)]}
 
 
@@ -124,7 +141,8 @@ def validate_all(text, policy):
             current = None
         elif current is not None:
             current.append(line)
-        elif line.startswith(("WEBGPU_CHECK", "WEBGPU_GGML_EXECUTION", "WEBGPU_DEVICE_EXECUTION")):
+        elif line.startswith(("WEBGPU_CHECK", "WEBGPU_GGML_EXECUTION", "WEBGPU_GROUP_NORM_CHECK",
+                              "WEBGPU_DEVICE_EXECUTION")):
             raise RuntimeError("Unscoped graph result outside an adapter block")
     if current is not None or not count or len(blocks) != count or len({b["selector"] for b in blocks}) != count:
         raise RuntimeError("All-adapter graph count or unique selector check failed")

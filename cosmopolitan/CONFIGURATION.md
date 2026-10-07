@@ -118,7 +118,14 @@ On Linux:
 /bin/sh ./easy-diffusion.exe llama --config ./gpu.json --device WebGPU0 --prompt "Once upon a time" --tokens 16 --report-tokens
 ```
 
-Replace `WebGPU0` with the desired selector printed by `devices`; it is an example, not a promise about a particular GPU. Keep the same provider policy when enumerating and using a selector. Use `--device auto --require-hardware` in the diagnostic if any compatible physical GPU is acceptable. The diagnostic runs four real tensor graphs and twelve scalar comparisons; adapter enumeration alone is insufficient. `--require-hardware` belongs to `webgpu-device-test`, not the `image`, `llama` or server commands.
+Replace `WebGPU0` with the desired selector printed by `devices`; it is an
+example, not a promise about a particular GPU. Keep the same provider policy
+when enumerating and using a selector. Use `--device auto --require-hardware`
+in the diagnostic if any compatible physical GPU is acceptable. The diagnostic
+runs four real tensor graphs, twelve scalar comparisons, and out-of-place and
+in-place GroupNorm checks with uneven channel groups; adapter enumeration alone
+is insufficient. `--require-hardware` belongs to `webgpu-device-test`, not the
+`image`, `llama` or server commands.
 
 If `gpu.json` already exists, skip `config init`. Inspect it with `config show`; edit `compute.backend`, `compute.provider` and `compute.device` or save them through Settings, then run `config validate`. The `--device` overrides above affect only those invocations. To persist an exact selection, save it in `compute.device`; provider/device startup changes require restarting a running server. For explicit bundled software operation, use `--backend webgpu --provider embedded --device auto` with `image`, `llama` or `sdkit`.
 
