@@ -13,6 +13,10 @@ static void usage(const char *program) {
            "  config init|show|validate|defaults [--config PATH]\n"
            "                   Create, inspect or validate persistent settings\n"
            "  devices          List available compute devices\n"
+           "  shell [--serve] [-c SCRIPT | --file PATH]\n"
+           "                   Portable shell using the application's shared services\n"
+           "  infer image|text [OPTIONS]\n"
+           "                   Infer using saved defaults and the shared application API\n"
            "  --self-test       Check shared tensor, model, training and UI code\n"
            "  ggml-test         Check CPU tensor and quantized operations\n"
            "  webgpu-test       Check embedded WebGPU tensor and model execution\n"
@@ -60,6 +64,8 @@ int main(int argc, char **argv) {
         return 0;
     }
     if (!strcmp(argv[1], "ggml-test")) return cosmo_ggml_selftest();
+    if (!strcmp(argv[1], "shell") || !strcmp(argv[1], "infer"))
+        return cosmo_application_main(argc - 1, argv + 1);
 #ifdef COSMO_WEBGPU_BACKEND
     if (!strcmp(argv[1], "webgpu-test")) return cosmo_webgpu_selftest() || cosmo_llama_webgpu_selftest();
     if (!strcmp(argv[1], "webgpu-device-test")) return cosmo_webgpu_device_test(argc - 1, argv + 1);

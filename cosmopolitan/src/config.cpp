@@ -12,6 +12,8 @@
 #include <libc/dce.h>
 #endif
 #include <cerrno>
+#include <cmath>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -47,7 +49,10 @@ Json defaults() {
             {"options", {{"sd_model_checkpoint", ""}, {"live_previews_enable", false},
                          {"show_progress_every_n_steps", 5}, {"CLIP_stop_at_last_layers", -1},
                          {"sdxl_clip_l_skip", false}, {"samples_format", "png"},
-                         {"forge_additional_modules", Json::array()}}}};
+                         {"forge_additional_modules", Json::array()}}},
+            {"inference", {{"image", {{"prompt", ""}, {"negative_prompt", ""},
+                {"width", 512}, {"height", 512}, {"steps", 20}, {"cfg_scale", 7.0},
+                {"seed", 42}, {"sampler_name", "euler_a"}, {"scheduler", "discrete"}}}}}};
 }
 
 void require(bool condition, const std::string &message) {
@@ -78,9 +83,37 @@ long long integer(const Json &value, const std::string &where, long long low, lo
     return result;
 }
 
+void validate_image_defaults(const Json &image) {
+    const auto pattern = defaults()["inference"]["image"];
+    keys(image, pattern, "inference.image", true);
+    string_value(image["prompt"], "inference.image.prompt", 65536);
+    string_value(image["negative_prompt"], "inference.image.negative_prompt", 65536);
+    for (const char *dimension : {"width", "height"}) {
+        const auto pixels = integer(image[dimension], std::string("inference.image.") + dimension, 64, 2048);
+        require(pixels % 64 == 0, std::string("inference.image.") + dimension + " must be a multiple of 64");
+    }
+    integer(image["steps"], "inference.image.steps", 1, 200);
+    integer(image["seed"], "inference.image.seed", -1, INT32_MAX);
+    require(image["cfg_scale"].is_number(), "inference.image.cfg_scale must be a number");
+    const double cfg = image["cfg_scale"].get<double>();
+    require(std::isfinite(cfg) && cfg >= 0 && cfg <= 30, "inference.image.cfg_scale must be between 0 and 30");
+    const auto sampler = string_value(image["sampler_name"], "inference.image.sampler_name");
+    require(sampler == "euler" || sampler == "euler_a" || sampler == "dpm++2m", "Unsupported saved image sampler");
+    require(string_value(image["scheduler"], "inference.image.scheduler") == "discrete", "Saved image scheduler must be discrete");
+}
+
+Json normalize(Json value) {
+    // Schema 1 documents published before recipe defaults remain valid. Only
+    // the entirely absent optional section is filled; malformed fields fail.
+    if (value.is_object() && !value.contains("inference")) value["inference"] = defaults()["inference"];
+    return value;
+}
+
 void validate(const Json &value) {
     const auto base = defaults();
     keys(value, base, "config", true);
+    keys(value.at("inference"), base.at("inference"), "inference", true);
+    validate_image_defaults(value.at("inference").at("image"));
     integer(value.at("schema"), "schema", 1, 1);
     for (const auto *section : {"server", "models", "compute", "options"})
         keys(value.at(section), base.at(section), section, true);
@@ -106,8 +139,8 @@ void validate(const Json &value) {
     require(options["forge_additional_modules"].is_array() && options["forge_additional_modules"].empty(), "Companion modules are unsupported in portable settings");
 }
 
-Json parse(const std::string &text) {
-    require(text.size() <= kMaxConfigBytes, "Configuration exceeds 1 MiB");
+Json parse(const std::string &text, size_t limit = kMaxConfigBytes) {
+    require(text.size() <= limit, "JSON document exceeds the allowed size");
     try {
         std::vector<std::set<std::string>> object_keys;
         return Json::parse(text, [&](int, Json::parse_event_t event, Json &value) {
@@ -169,7 +202,12 @@ Json merged(Json value, const Json &patch) {
     for (const auto &section : patch.items()) {
         if (section.key() == "schema") { value["schema"] = section.value(); continue; }
         keys(section.value(), defaults().at(section.key()), section.key(), false);
-        for (const auto &item : section.value().items()) value[section.key()][item.key()] = item.value();
+        for (const auto &item : section.value().items()) {
+            if (section.key() == "inference" && item.key() == "image") {
+                keys(item.value(), defaults()["inference"]["image"], "inference.image", false);
+                for (const auto &field : item.value().items()) value["inference"]["image"][field.key()] = field.value();
+            } else value[section.key()][item.key()] = item.value();
+        }
     }
     validate(value);
     return value;
@@ -194,8 +232,8 @@ fs::path portable_path(std::string value) {
 
 Json document() {
     require(initialized, "Configuration has not been initialized");
-    Json saved_runtime = saved; saved_runtime.erase("options");
-    Json effective_runtime = effective; effective_runtime.erase("options");
+    Json saved_runtime = saved; saved_runtime.erase("options"); saved_runtime.erase("inference");
+    Json effective_runtime = effective; effective_runtime.erase("options"); effective_runtime.erase("inference");
     // Relative saved model paths resolve beside the config, not the launcher cwd.
     fs::path path = portable_path(saved_runtime["models"]["checkpoint_dir"].get<std::string>());
     if (path.is_relative()) path = config_path.parent_path() / path;
@@ -213,7 +251,7 @@ bool common_flag(const std::string &flag) {
 }
 
 bool no_value(const std::string &flag) {
-    static const std::set<std::string> flags = {"--help", "-h", "--require-hardware", "--all", "--report-tokens", "--list-devices", "--backend-info", "--image-vae-on-cpu", "--no-half", "--no-half-vae", "--vae-tiling", "--offload-to-cpu", "--mmap", "--no-mmap", "--keep-model-loaded", "--flash-attention", "--diffusion-fa", "--sage-attention", "--stream-layers", "--cuda-malloc", "--cuda-unified-memory", "--xformers", "--split-attention", "--control-net-cpu", "--image-clip-on-cpu", "--image-clip-vision-on-cpu", "--image-ip-adapter-on-cpu", "--video-clip-on-cpu", "--video-vae-on-cpu", "--video-offload-to-cpu", "--video-stream-layers", "--chroma-disable-dit-mask"};
+    static const std::set<std::string> flags = {"--help", "-h", "--serve", "--require-hardware", "--all", "--report-tokens", "--list-devices", "--backend-info", "--image-vae-on-cpu", "--no-half", "--no-half-vae", "--vae-tiling", "--offload-to-cpu", "--mmap", "--no-mmap", "--keep-model-loaded", "--flash-attention", "--diffusion-fa", "--sage-attention", "--stream-layers", "--cuda-malloc", "--cuda-unified-memory", "--xformers", "--split-attention", "--control-net-cpu", "--image-clip-on-cpu", "--image-clip-vision-on-cpu", "--image-ip-adapter-on-cpu", "--video-clip-on-cpu", "--video-vae-on-cpu", "--video-offload-to-cpu", "--video-stream-layers", "--chroma-disable-dit-mask"};
     return flags.count(flag) != 0;
 }
 } // namespace
@@ -240,9 +278,11 @@ extern "C" int cosmo_config_prepare(int *argc, char ***argv) {
         Json overrides = Json::object();
         std::string selected_path = "easy-diffusion.json";
         std::set<std::string> seen;
+        bool help = false;
         arguments.clear(); arguments.emplace_back((*argv)[0]);
         for (int i = 1; i < *argc; ++i) {
             const std::string flag((*argv)[i]);
+            if (flag == "--help" || flag == "-h") help = true;
             if (common_flag(flag)) {
                 require(seen.insert(flag).second, "Duplicate configuration option: " + flag);
                 require(i + 1 < *argc, "Missing value for " + flag);
@@ -260,7 +300,7 @@ extern "C" int cosmo_config_prepare(int *argc, char ***argv) {
                 arguments.push_back(flag);
                 // Keep command-specific option values opaque (including prompts
                 // whose literal text happens to look like a global option).
-                if (flag.rfind("--", 0) == 0 && !no_value(flag) && i + 1 < *argc)
+                if ((flag == "-c" || (flag.rfind("--", 0) == 0 && !no_value(flag))) && i + 1 < *argc)
                     arguments.emplace_back((*argv)[++i]);
             }
         }
@@ -270,9 +310,8 @@ extern "C" int cosmo_config_prepare(int *argc, char ***argv) {
         const bool config_command = command == "config";
         const bool device_diagnostic = command == "webgpu-device-test";
         if (device_diagnostic && !seen.count("--backend")) overrides["compute"]["backend"] = "webgpu";
-        const bool ordinary = command == "sdkit" || command == "image" || command == "llama" || command == "devices";
-        bool help = command == "--help" || command == "-h";
-        for (const auto &arg : arguments) help = help || arg == "--help" || arg == "-h";
+        const bool ordinary = command == "sdkit" || command == "image" || command == "llama" || command == "devices" || command == "shell" || command == "infer";
+        help = help || command == "--help" || command == "-h";
         config_path = fs::absolute(portable_path(selected_path)).lexically_normal();
         saved = defaults();
         const std::string action = config_command && arguments.size() > 2 ? arguments[2] : "show";
@@ -282,7 +321,7 @@ extern "C" int cosmo_config_prepare(int *argc, char ***argv) {
         if ((ordinary || config_command || device_diagnostic) && !help) {
             if (fs::exists(config_path)) {
                 require(!(config_command && action == "init"), "Configuration already exists; init does not overwrite it");
-                disk_contents = read_disk(config_path); saved = parse(disk_contents); validate(saved);
+                disk_contents = read_disk(config_path); saved = normalize(parse(disk_contents)); validate(saved);
             } else if (!device_diagnostic) {
                 require(!config_command || action == "init", "Configuration does not exist; run config init first");
                 if (config_command) saved = merged(saved, overrides);
@@ -304,7 +343,7 @@ extern "C" int cosmo_config_prepare(int *argc, char ***argv) {
             std::cout << document().dump(2) << '\n'; return 0;
         }
         if (ordinary && !help) {
-            arguments.insert(arguments.end(), {"--backend", backend});
+            if (command != "shell" && command != "infer") arguments.insert(arguments.end(), {"--backend", backend});
             if (command == "image" || command == "llama") arguments.insert(arguments.end(), {"--device", device});
             if (command == "sdkit" || command == "devices") {
                 arguments.insert(arguments.end(), {"--port", std::to_string(effective["server"]["port"].get<int>()),
@@ -338,6 +377,7 @@ std::string cosmo_config_update(const std::string &text) {
     }
     require(!patch.contains("options"), "Use the native options endpoint to update live generation settings");
     persist(merged(saved, patch));
+    effective["inference"] = saved["inference"];
     return document().dump();
 }
 
@@ -354,4 +394,30 @@ void cosmo_config_set_options(const std::string &text) {
     const Json candidate = merged(saved, {{"options", patch}});
     persist(candidate);
     effective["options"] = candidate["options"];
+}
+
+std::string cosmo_config_settings_update(const std::string &text) {
+    std::lock_guard<std::mutex> lock(config_mutex);
+    require(initialized, "Configuration has not been initialized");
+    const Json patch = parse(text);
+    require(patch.is_object(), "Settings must be an object");
+    for (const auto &item : patch.items())
+        require(item.key() == "options" || item.key() == "inference", "Settings accepts only options and inference");
+    const Json candidate = merged(saved, patch);
+    persist(candidate);
+    effective["options"] = candidate["options"];
+    effective["inference"] = candidate["inference"];
+    return document().dump();
+}
+
+std::string cosmo_config_image_request(const std::string &text) {
+    std::lock_guard<std::mutex> lock(config_mutex);
+    require(initialized, "Configuration has not been initialized");
+    Json request = parse(text, 64 * 1024 * 1024);
+    require(request.is_object(), "Image request must be an object");
+    // Preserve advanced native fields. Only missing ordinary recipe fields
+    // inherit persistent defaults; an explicit request never saves itself.
+    for (const auto &item : effective["inference"]["image"].items())
+        if (!request.contains(item.key())) request[item.key()] = item.value();
+    return request.dump();
 }

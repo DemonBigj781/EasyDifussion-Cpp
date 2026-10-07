@@ -39,6 +39,27 @@ the adapter still executes on the CPU. Physical GPU acceleration remains
 unvalidated, and the historical Windows/Linux software results retain their
 original artifact and scope.
 
+## Shared application services and saved inference defaults
+
+The current application extracts model discovery, options, image/text
+inference, task state and admission into `ApplicationServices`. The HTTP
+transport and the new C shell borrow that same service instance. Use
+`shell --serve` for the shell and UI together, or `infer image` / `infer text`
+for a single request through the common C API. The Generate page reads native
+checkpoint/recipe defaults and can save them together atomically. It no longer
+stores the selected checkpoint only in browser storage.
+
+See [SHELL.md](SHELL.md) for portable commands, scripts, shared state and
+remaining integration boundaries. Linux's existing native Vulkan main-thread
+executor remains responsible for native driver calls. The shell's `cd` changes
+only its own directory, preserving HTTP/model path resolution.
+
+The actual application build now supports [sccache](BUILD_CACHE.md), enabled
+in its main CI workflow while preserving Cosmocc and the pinned Rust runtime.
+The optional [Docker/physical GPU test preparation](vast/README.md) retains its
+separate scope and frozen earlier application identity; it is not required for
+configuration, the shell or local inference.
+
 The native `image` command now loads a complete diffusion checkpoint and
 writes a PNG through the shared engine. The portable Generate page uses the
 native checkpoint, generation, progress and task-specific interruption APIs.
@@ -59,6 +80,12 @@ is unnecessary. Run from the repository root:
 ```sh
 python3 cosmopolitan/build.py --jobs 2
 ```
+
+With the pinned sccache 0.16.0 available, use
+`python3 cosmopolitan/build.py --jobs 2 --compiler-launcher sccache`.
+Do not replace the Cosmocc compiler with `sccache gcc`. See
+[BUILD_CACHE.md](BUILD_CACHE.md) for wrapper ownership, Rust inheritance,
+actual-object replay and measured cache scope.
 
 The script verifies and installs Cosmocc 4.0.2, prepares the pinned source
 trees and patches, installs the pinned host CMake/Ninja versions, builds the
@@ -117,6 +144,8 @@ On Windows, invoke the executable directly:
 
 ```powershell
 .\easy-diffusion.exe --self-test
+.\easy-diffusion.exe shell --serve
+.\easy-diffusion.exe infer text --prompt "Once upon a time" --tokens 16
 .\easy-diffusion.exe llama --prompt "Once upon a time" --tokens 32
 .\easy-diffusion.exe llama --backend webgpu --prompt "Once upon a time" --tokens 32
 .\easy-diffusion.exe webgpu-test
@@ -129,6 +158,8 @@ On Linux, the portable shell entry point is:
 
 ```sh
 /bin/sh ./easy-diffusion.exe --self-test
+/bin/sh ./easy-diffusion.exe shell --serve
+/bin/sh ./easy-diffusion.exe infer text --prompt "Once upon a time" --tokens 16
 /bin/sh ./easy-diffusion.exe llama --prompt "Once upon a time" --tokens 32
 /bin/sh ./easy-diffusion.exe llama --backend webgpu --prompt "Once upon a time" --tokens 32
 /bin/sh ./easy-diffusion.exe webgpu-test
@@ -190,11 +221,12 @@ work between completed denoising steps, with CPU fallback allowed for
 unsupported operations. This does not establish every diffusion architecture
 or training operation.
 
-The current WebGPU device is **software execution on the CPU** through
-lavapipe and LLVM. It exercises the real WebGPU command/shader path but does
-not provide physical GPU acceleration. `WebGPU0` is the GGML device name;
-its description identifies the embedded software adapter. GGML's ordinary
-CPU backend remains a separate choice.
+The embedded WebGPU provider performs **software execution on the CPU**
+through lavapipe and LLVM. Native-provider device names and descriptions depend
+on the installed driver; an adapter named `WebGPU0` is not inherently physical
+or software. Use its reported provider/type/description. Available validation
+has exercised software Vulkan; physical GPU acceleration remains unvalidated.
+GGML's ordinary CPU backend remains a separate choice.
 
 ### Windows redirected logging with SDK 4.0.2
 
@@ -248,8 +280,10 @@ A limited C++ API adapter forwards its original WGSL kernels and resource
 operations to the pinned wgpu-native C API. It does not introduce a second
 GGML or replace shader dispatch with CPU tensor routines. See
 [backend/README.md](backend/README.md) for the adapter and callback contract.
-Hardware Vulkan, CUDA, Metal, SYCL and other accelerator implementations are
-not enabled, and unrelated backend plugins are not loaded into the process.
+The separate direct GGML Vulkan backend, CUDA, Metal, SYCL and other accelerator
+implementations are not enabled. The implemented native Vulkan path is reached
+through WebGPU and the installed driver. Unrelated backend plugins are not
+loaded into the process.
 
 The pinned WebGPU kernels require `ShaderF16`, including F32 matrix kernels
 that stage inputs through half-precision workgroup memory. Device registration

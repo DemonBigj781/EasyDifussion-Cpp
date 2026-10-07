@@ -32,13 +32,16 @@ def main():
         env = dict(os.environ)
         env.pop('COSMO_CONFIG_TEST_UPDATE', None)
         env.pop('COSMO_CONFIG_TEST_OPTIONS', None)
+        env.pop('COSMO_CONFIG_TEST_SETTINGS', None)
 
-        def run(*values, code=0, update=None, options=None):
+        def run(*values, code=0, update=None, options=None, settings=None):
             process_env = dict(env)
             if update is not None:
                 process_env['COSMO_CONFIG_TEST_UPDATE'] = json.dumps(update)
             if options is not None:
                 process_env['COSMO_CONFIG_TEST_OPTIONS'] = json.dumps(options)
+            if settings is not None:
+                process_env['COSMO_CONFIG_TEST_SETTINGS'] = json.dumps(settings)
             result = subprocess.run(command + list(values), cwd=root, env=process_env,
                                     text=True, capture_output=True, timeout=20)
             # The pinned Cosmopolitan Windows exit ABI exposes logical status << 8.
@@ -96,6 +99,36 @@ def main():
         for options in [{'unknown': 1}, {'live_previews_enable': True}, {'forge_additional_modules': ['a']}, {'sd_model_checkpoint': 4}]:
             run('sdkit', '--config', str(config), options=options, code=2)
             assert config.read_bytes() == before
+        # Shared recipe settings are live, atomic, and backward compatible.
+        old_schema = json.loads(config.read_text())
+        old_schema.pop('inference')
+        config.write_text(json.dumps(old_schema))
+        old_bytes = config.read_bytes()
+        loaded = document(run('shell', '--config', str(config), '-c', 'status'))
+        assert loaded['effective']['inference'] == defaults['inference']
+        assert config.read_bytes() == old_bytes, 'reading old schema must not rewrite it'
+        recipe = {'prompt': 'shared apple', 'steps': 24, 'seed': 17}
+        combined = document(run('shell', '--config', str(config), settings={
+            'options': {'sd_model_checkpoint': 'together.gguf'}, 'inference': {'image': recipe}}))
+        assert combined['saved']['options']['sd_model_checkpoint'] == 'together.gguf'
+        assert combined['effective']['inference']['image']['steps'] == 24
+        assert combined['effective']['inference'] == combined['saved']['inference']
+        assert not combined['restart_required']
+        atomic_before = config.read_bytes()
+        run('shell', '--config', str(config), settings={
+            'options': {'sd_model_checkpoint': 'must-not-save.gguf'},
+            'inference': {'image': {'width': 65}}}, code=2)
+        assert config.read_bytes() == atomic_before
+        for patch in [{'steps': 0}, {'cfg_scale': 31}, {'seed': 2147483648},
+                      {'sampler_name': 'not-a-sampler'}, {'scheduler': 'invalid'}, {'unknown': 1}]:
+            run('shell', '--config', str(config), update={'inference': {'image': patch}}, code=2)
+            assert config.read_bytes() == atomic_before
+        opaque = document(run('infer', 'image', '--config', str(config), '--prompt', '--help'))
+        assert opaque['effective']['options']['sd_model_checkpoint'] == 'together.gguf'
+        opaque_shell = run('shell', '--config', str(config), '-c', '--help')
+        assert document(opaque_shell)['effective']['inference']['image']['steps'] == 24
+        assert 'ARG -c\nARG --help' in opaque_shell.stdout
+        before = config.read_bytes()
         invalid = root / 'invalid.json'
         for text in ['{bad', '{"schema":1,"schema":1}', json.dumps({'schema': 1}), before.decode().replace('"port": 8188', '"port": "8188"')]:
             invalid.write_text(text)

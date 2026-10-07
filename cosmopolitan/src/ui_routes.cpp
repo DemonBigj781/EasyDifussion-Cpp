@@ -81,6 +81,10 @@ void cosmo_register_ui_routes(crow::SimpleApp &app) {
         capabilities["protocol"] = 1;
         capabilities["persistent_configuration"] = true;
         capabilities["configuration_schema"] = 1;
+        capabilities["shared_application_services"] = true;
+        capabilities["portable_shell"] = true;
+        capabilities["saved_image_defaults"] = true;
+        capabilities["native_text_completions"] = true;
         capabilities["mode"] = "native-single-user";
         capabilities["kiosk_supported"] = false;
         capabilities["kiosk_enabled"] = false;

@@ -9,7 +9,7 @@
     const status = byId("generation-queue-status"), progress = byId("generation-progress");
     const preview = byId("preview-content"), modelStatus = byId("generation-model-status");
     const editable = ["prompt", "negative_prompt", "seed", "width", "height", "steps", "guidance_scale", "sampler"];
-    let ready = false, active = null, loadingModels = false, models = new Set();
+    let ready = false, active = null, loadingModels = false, savingDefaults = false, models = new Set();
     const devices = new Map();
 
     for (const control of controls.querySelectorAll("input,select,textarea,button")) control.disabled = true;
@@ -45,6 +45,13 @@
     refresh.textContent = "Refresh checkpoints";
     refresh.disabled = true;
     modelStatus.after(refresh);
+    const saveDefaults = document.createElement("button");
+    saveDefaults.id = "cosmo-save-generation-defaults";
+    saveDefaults.type = "button";
+    saveDefaults.textContent = "Save generation defaults";
+    saveDefaults.title = "Save this checkpoint and image recipe for the UI, shell and API. Device startup preferences are saved in Settings.";
+    saveDefaults.disabled = true;
+    refresh.after(saveDefaults);
     const backendLabel = document.createElement("label");
     backendLabel.textContent = "Compute device ";
     const backend = document.createElement("select");
@@ -68,11 +75,12 @@
         status.dataset.state = failed ? "error" : "";
     }
     function updateControls() {
-        const available = ready && active === null && !loadingModels;
+        const available = ready && active === null && !loadingModels && !savingDefaults;
         for (const id of editable) byId(id).disabled = !available;
         checkpoint.disabled = !available || models.size === 0;
         backend.disabled = !available;
         refresh.disabled = !available;
+        saveDefaults.disabled = !available || !models.has(checkpoint.value);
         start.disabled = !available || !models.has(checkpoint.value) || !devices.has(backend.value);
         stop.disabled = !active || !active.sampling || active.stopping;
     }
@@ -106,18 +114,21 @@
         updateControls();
         try {
             if (rescan) await request("/v1/sdapi/v1/refresh-checkpoints", {});
-            const result = await request("/v1/sdapi/v1/checkpoints");
+            const [result, options] = await Promise.all([
+                request("/v1/sdapi/v1/checkpoints"), request("/v1/sdapi/v1/options"),
+            ]);
             if (!Array.isArray(result.models) || result.models.some(model => typeof model.name !== "string")) throw new Error("Invalid checkpoint list from the native server");
+            if (typeof options.sd_model_checkpoint !== "string") throw new Error("Invalid saved checkpoint from the native server");
             const previous = checkpoint.value;
             models = new Set(result.models.map(model => model.name));
             checkpoint.replaceChildren(new Option("Select a complete checkpoint", ""));
             for (const name of models) checkpoint.add(new Option(name, name));
-            let saved = "";
-            try { saved = localStorage.getItem("cosmo-native-checkpoint") || ""; } catch (_) {}
-            if (models.has(previous)) checkpoint.value = previous;
-            else if (models.has(saved)) checkpoint.value = saved;
-            else if (models.size === 1) checkpoint.value = [...models][0];
+            const saved = options.sd_model_checkpoint;
+            if (models.has(saved)) checkpoint.value = saved;
+            else if (!saved && models.has(previous)) checkpoint.value = previous;
+            else if (!saved && models.size === 1) checkpoint.value = [...models][0];
             modelStatus.textContent = models.size ? `${models.size} checkpoint(s) indexed. The selected file must contain the components required by its architecture.` : "No checkpoints found. Start sdkit with --ckpt-dir pointing to your model directory, then refresh.";
+            if (saved && !models.has(saved)) modelStatus.textContent = `Saved checkpoint ${saved} is unavailable in the model index. Select an available checkpoint or update its directory in Settings.`;
         } finally { loadingModels = false; updateControls(); }
     }
     function endJob(job) {
@@ -170,6 +181,33 @@
         preview.prepend(card);
         byId("initial-text")?.remove();
     }
+    function imageRecipe() {
+        const width = integer("width", 64, 2048), height = integer("height", 64, 2048);
+        if (width % 64 || height % 64) throw new Error("Width and height must be multiples of 64.");
+        const cfg = Number(byId("guidance_scale").value);
+        if (!Number.isFinite(cfg) || cfg < 0 || cfg > 30) throw new Error("Guidance must be between 0 and 30.");
+        return {
+            prompt: byId("prompt").value.trim(), negative_prompt: byId("negative_prompt").value,
+            width, height, steps: integer("steps", 1, 200), cfg_scale: cfg,
+            seed: integer("seed", -1, 2147483647), sampler_name: sampler.value, scheduler: "discrete",
+        };
+    }
+    async function persistDefaults() {
+        if (!ready || active || savingDefaults || loadingModels) return;
+        try {
+            if (!models.has(checkpoint.value)) throw new Error("Select an indexed checkpoint before saving defaults.");
+            const recipe = imageRecipe();
+            savingDefaults = true;
+            updateControls();
+            const result = await request("/v1/sdapi/v1/settings", {
+                options: {sd_model_checkpoint: checkpoint.value}, inference: {image: recipe},
+            });
+            if (result.saved?.options?.sd_model_checkpoint !== checkpoint.value ||
+                !result.saved?.inference?.image) throw new Error("The native server did not confirm saved generation defaults.");
+            message("Checkpoint and generation defaults saved for this application. The UI, shell and API use the same configuration file.");
+        } catch (error) { message(`Could not save generation defaults: ${error.message}`, true); }
+        finally { savingDefaults = false; updateControls(); }
+    }
     async function generate() {
         if (!ready || active) return;
         let job;
@@ -178,23 +216,17 @@
             if (!prompt) throw new Error("Enter a prompt first.");
             if (!models.has(checkpoint.value)) throw new Error("Select an indexed complete checkpoint.");
             if (!devices.has(backend.value)) throw new Error("Select an available compute device.");
-            const width = integer("width", 64, 2048), height = integer("height", 64, 2048);
-            if (width % 64 || height % 64) throw new Error("Width and height must be multiples of 64.");
-            const steps = integer("steps", 1, 200);
-            const cfg = Number(byId("guidance_scale").value);
-            if (!Number.isFinite(cfg) || cfg < 0 || cfg > 30) throw new Error("Guidance must be between 0 and 30.");
-            let seed = integer("seed", -1, 2147483647);
+            const recipe = imageRecipe();
+            let seed = recipe.seed;
             if (seed === -1) seed = crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
             const id = `cosmo-${Date.now()}-${crypto.getRandomValues(new Uint32Array(1))[0]}`;
-            job = {id, prompt, model: checkpoint.value, seed, steps, backend: backend.value, sampling: false, stopping: false, transportFailed: false, timer: null};
+            job = {id, prompt, model: checkpoint.value, seed, steps: recipe.steps, backend: backend.value, sampling: false, stopping: false, transportFailed: false, timer: null};
             active = job;
             updateControls();
             progress.removeAttribute("value");
             message("Loading the checkpoint and preparing generation. Stop becomes available after the first sampling step completes.");
             const body = {
-                force_task_id: id, prompt, negative_prompt: byId("negative_prompt").value,
-                width, height, steps, cfg_scale: cfg, seed, batch_size: 1,
-                sampler_name: sampler.value, scheduler: "discrete", backend: job.backend,
+                ...recipe, force_task_id: id, seed, batch_size: 1, backend: job.backend,
                 override_settings: {sd_model_checkpoint: job.model, forge_additional_modules: [], live_previews_enable: false},
             };
             job.timer = setTimeout(() => poll(job), 500);
@@ -236,10 +268,8 @@
     }
     start.addEventListener("click", generate);
     stop.addEventListener("click", cancel);
-    checkpoint.addEventListener("change", () => {
-        try { localStorage.setItem("cosmo-native-checkpoint", checkpoint.value); } catch (_) {}
-        updateControls();
-    });
+    checkpoint.addEventListener("change", updateControls);
+    saveDefaults.addEventListener("click", persistDefaults);
     backend.addEventListener("change", () => {
         updateControls();
         const selected = devices.get(backend.value);
@@ -258,6 +288,16 @@
             if (!Array.isArray(result.devices)) throw new Error("Invalid device list from the native server");
             const compute = config.effective?.compute;
             if (!compute || !["cpu", "webgpu"].includes(compute.backend)) throw new Error("Invalid effective compute configuration");
+            const recipe = config.effective?.inference?.image;
+            if (!recipe || recipe.scheduler !== "discrete") throw new Error("Invalid image defaults from the native configuration");
+            const fields = {prompt: "prompt", negative_prompt: "negative_prompt", width: "width", height: "height",
+                steps: "steps", cfg_scale: "guidance_scale", seed: "seed", sampler_name: "sampler"};
+            for (const [key, id] of Object.entries(fields)) {
+                if (recipe[key] === undefined) throw new Error(`Missing image default: ${key}`);
+                byId(id).value = recipe[key];
+            }
+            imageRecipe();
+            for (const id of ["width", "height"]) byId(`${id}-value`).textContent = `${byId(id).value} px`;
             for (const device of result.devices) {
                 const kind = String(device.backend).toLowerCase();
                 if (!["cpu", "webgpu"].includes(kind)) continue;

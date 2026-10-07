@@ -28,6 +28,11 @@ jobs:
     name: Build one application with shared GGML and both Vulkan providers
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    env:
+      COSMO_COMPILER_LAUNCHER: sccache
+      SCCACHE_GHA_ENABLED: 'true'
+      CARGO_INCREMENTAL: '0'
+      SCCACHE_C_CUSTOM_CACHE_BUSTER: cosmocc-4.0.2-85b8c37a406d862e656ad4ec14be9f6ce474c1b436b9615e91a55208aced3f44
     outputs:
       executable_sha256: ${{ steps.package.outputs.executable_sha256 }}
       model_sha256: ${{ steps.package.outputs.model_sha256 }}
@@ -35,6 +40,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install sccache for the actual application and pinned Rust builds
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: v0.16.0
+      - name: Configure the single Rust wrapper and snapshot compiler-cache counters
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cosmopolitan/out/build-cache
+          test "$(sccache --version)" = 'sccache 0.16.0'
+          test -z "${RUSTC_WORKSPACE_WRAPPER:-}"
+          printf 'RUSTC_WRAPPER=%s\n' "$(command -v sccache)" >> "$GITHUB_ENV"
+          sccache --show-stats --stats-format=json > cosmopolitan/out/build-cache/ci-before.json
       - name: Check the runner's host build prerequisites
         timeout-minutes: 5
         shell: bash
@@ -106,6 +124,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 cosmopolitan/tests/build_config_probe.py
+          python3 cosmopolitan/tests/verify_shell.py --build --sdk cosmopolitan/out/sdk --out cosmopolitan/out/shell-test
           python3 cosmopolitan/tests/verify_config.py \
             --probe cosmopolitan/out/config-test/config-probe.exe \
             --loader cosmopolitan/out/ape-x86_64.elf > cosmopolitan/out/config-test/report.json
@@ -120,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p cosmopolitan/out
-          python3 cosmopolitan/build.py --jobs 2 2>&1 | tee cosmopolitan/out/build.log
+          python3 cosmopolitan/build.py --jobs 2 --compiler-launcher sccache --cache-replay 2>&1 | tee cosmopolitan/out/build.log
       - name: Verify shared symbols and package identity
         id: package
         shell: bash
@@ -135,6 +154,10 @@ jobs:
           cp cosmopolitan/tests/verify_windows_native_discovery.py cosmopolitan/out/verify_windows_native_discovery.py
           cp cosmopolitan/tests/verify_configuration_api.py cosmopolitan/out/verify_configuration_api.py
           cp cosmopolitan/tests/verify_config.py cosmopolitan/out/verify_config.py
+          cp cosmopolitan/tests/verify_shell.py cosmopolitan/out/verify_shell.py
+          cp cosmopolitan/tests/verify_application.py cosmopolitan/out/verify_application.py
+          cp cosmopolitan/out/shell-test/shell-probe.exe cosmopolitan/out/shell-probe.exe
+          cp cosmopolitan/out/shell-test/BUILD.json cosmopolitan/out/SHELL_PROBE_BUILD.json
           cp cosmopolitan/tests/verify_device_policy.py cosmopolitan/out/verify_device_policy.py
           cp cosmopolitan/out/config-test/config-probe.exe cosmopolitan/out/config-probe.exe
           cp cosmopolitan/out/config-test/BUILD.json cosmopolitan/out/CONFIG_PROBE_BUILD.json
@@ -177,6 +200,10 @@ jobs:
             cosmopolitan/out/verify_windows_native_discovery.py
             cosmopolitan/out/verify_configuration_api.py
             cosmopolitan/out/verify_config.py
+            cosmopolitan/out/verify_shell.py
+            cosmopolitan/out/verify_application.py
+            cosmopolitan/out/shell-probe.exe
+            cosmopolitan/out/SHELL_PROBE_BUILD.json
             cosmopolitan/out/verify_device_policy.py
             cosmopolitan/out/config-probe.exe
             cosmopolitan/out/CONFIG_PROBE_BUILD.json
@@ -186,6 +213,47 @@ jobs:
             cosmopolitan/out/PIN.json
           if-no-files-found: error
           retention-days: 30
+      - name: Record real-build cache hits, misses and phase timings
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cosmopolitan/out/build-cache
+          sccache --show-stats --stats-format=json > cosmopolitan/out/build-cache/ci-after.json
+          python3 - <<'PY'
+          import importlib.util, json, os
+          from pathlib import Path
+          directory = Path('cosmopolitan/out/build-cache')
+          spec = importlib.util.spec_from_file_location('cosmo_build', 'cosmopolitan/build.py')
+          recipe = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(recipe)
+          before = json.loads((directory / 'ci-before.json').read_text())
+          after = json.loads((directory / 'ci-after.json').read_text())
+          result = {'schema': 1, 'delta': recipe.cache_delta(before, after),
+                    'cache_location': after.get('cache_location'), 'builds': {}}
+          for name in ('prepare', 'dependencies', 'application'):
+              path = directory / (name + '.json')
+              if path.is_file():
+                  result['builds'][name] = json.loads(path.read_text())
+          (directory / 'ci-summary.json').write_text(json.dumps(result, indent=2, sort_keys=True) + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('### Actual application compiler cache\n\n')
+              summary.write('| Language | Cache hits | Cache misses |\n| --- | ---: | ---: |\n')
+              for language in ('C/C++', 'Rust'):
+                  hits = result['delta']['cache_hits'].get(language, 0)
+                  misses = result['delta']['cache_misses'].get(language, 0)
+                  summary.write(f'| {language} | {hits} | {misses} |\n')
+              for name, report in result['builds'].items():
+                  summary.write(f"\n{name}: {report['status']}, {report['seconds']:.3f} seconds.\n")
+                  for phase in report['timings']:
+                      summary.write(f"- {phase['phase']}: {phase['seconds']:.3f} seconds ({phase['status']})\n")
+              summary.write('\nThe application uses the existing Cosmocc compilers with one sccache launcher. '
+                            'Rust uses the pinned custom target and standard library. Zero Rust requests may mean '
+                            'the validated dependency cache was restored, not a Rust cache failure. '
+                            'The optional replay recompiles two real application objects and requires cache hits '
+                            'with identical object hashes; it is not a complete build-speedup measurement. '
+                            'Mesa/Meson, direct compiler calls, linking and packaging are outside this cache coverage.\n')
+          PY
       - name: Preserve build diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -193,6 +261,7 @@ jobs:
           name: cosmopolitan-build-diagnostics
           path: |
             cosmopolitan/out/build.log
+            cosmopolitan/out/build-cache
             cosmopolitan/out/software-dependencies.log
             cosmopolitan/out/easy-diffusion.com.dbg
             cosmopolitan/out/build/CMakeFiles/CMakeConfigureLog.yaml
@@ -200,6 +269,7 @@ jobs:
             cosmopolitan/out/software-webgpu/foundation/o/llvm-cosmo/*.log
             cosmopolitan/out/software-webgpu/foundation/o/lavapipe/*.log
             cosmopolitan/out/config-test/report.json
+            cosmopolitan/out/shell-test/results
             cosmopolitan/out/device-policy-report.json
             cosmopolitan/out/native-main-executor-test/report.json
             cosmopolitan/out/native-main-executor-test/*.log
@@ -232,6 +302,12 @@ jobs:
           set -euo pipefail
           python3 artifact/verify_bootstrap.py --artifact-dir "$PWD/artifact" \
             --expected-sha256 "$EXPECTED_SHA256"
+      - name: Verify portable shell parsing with the identical probe artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 artifact/verify_shell.py --probe artifact/shell-probe.exe \
+            --loader artifact/ape-x86_64.elf --output-dir artifact/results-shell
       - name: Verify persistent configuration through the actual native HTTP server
         shell: bash
         run: |
@@ -253,7 +329,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json, subprocess, sys
+          import json, os, subprocess, sys
           from pathlib import Path
           directory = Path('artifact').resolve()
           pin = json.loads((directory / 'PIN.json').read_text())
@@ -267,6 +343,10 @@ jobs:
           subprocess.run([sys.executable, str(directory / 'verify_inference_api.py'),
                           '--artifact-dir', str(directory), '--model', str(model),
                           '--output-dir', str(directory / 'results-inference-api')], check=True)
+          subprocess.run([sys.executable, str(directory / 'verify_application.py'),
+                          '--artifact-dir', str(directory), '--model', str(model),
+                          '--expected-sha256', os.environ['EXPECTED_SHA256'],
+                          '--output-dir', str(directory / 'results-application')], check=True)
           PY
       - name: Preserve Linux results
         if: always()
@@ -280,6 +360,8 @@ jobs:
             artifact/results-inference-webgpu
             artifact/results-inference-api
             artifact/results-configuration-api
+            artifact/results-shell
+            artifact/results-application
           if-no-files-found: ignore
           retention-days: 30
 
@@ -312,6 +394,9 @@ jobs:
           python artifact/verify_configuration_api.py --artifact-dir artifact `
             --output-dir artifact/results-configuration-api
           if ($LASTEXITCODE -ne 0) { throw 'Windows persistent configuration HTTP verification failed' }
+          python artifact/verify_shell.py --probe artifact/shell-probe.exe `
+            --output-dir artifact/results-shell
+          if ($LASTEXITCODE -ne 0) { throw 'Windows portable shell verification failed' }
       - name: Verify the native Windows Vulkan DLL path and unsupported-device rejection
         shell: pwsh
         run: |
@@ -347,6 +432,9 @@ jobs:
           python artifact/verify_inference_api.py --artifact-dir artifact --model $modelPath `
             --output-dir artifact/results-inference-api
           if ($LASTEXITCODE -ne 0) { throw 'Native Windows inference API lifecycle verification failed' }
+          python artifact/verify_application.py --artifact-dir artifact --model $modelPath `
+            --expected-sha256 $env:EXPECTED_SHA256 --output-dir artifact/results-application
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows shared-application shell/HTTP verification failed' }
       - name: Preserve Windows results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -358,6 +446,8 @@ jobs:
             artifact/results-inference-webgpu
             artifact/results-inference-api
             artifact/results-configuration-api
+            artifact/results-shell
+            artifact/results-application
             artifact/config-report.json
             artifact/device-policy-report.json
             artifact/results-windows-native-discovery

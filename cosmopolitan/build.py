@@ -2,6 +2,7 @@
 """Build one x86-64 Cosmopolitan application from the vendored source trees."""
 
 import argparse
+from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
@@ -13,6 +14,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 import zipfile
 
@@ -190,6 +192,141 @@ def set_stack(path):
         file.write(struct.pack("<QQ", 8 * 1024 * 1024, 4096))
 
 
+SCCACHE_VERSION = "0.16.0"
+
+
+def cache_counts(snapshot, key):
+    """PerLanguageCount.adv_counts overlaps counts; do not sum both."""
+    value = snapshot["stats"][key]["counts"]
+    if not isinstance(value, dict) or any(type(n) is not int or n < 0 for n in value.values()):
+        raise RuntimeError("Unrecognized sccache per-language counters")
+    return value
+
+
+def cache_delta(before, after):
+    result = {}
+    for key in ("cache_hits", "cache_misses"):
+        start, end = cache_counts(before, key), cache_counts(after, key)
+        result[key] = {name: end.get(name, 0) - start.get(name, 0)
+                       for name in sorted(start.keys() | end.keys())}
+        if any(n < 0 for n in result[key].values()):
+            raise RuntimeError("sccache server counters reset during this build")
+    return result
+
+
+class BuildCache:
+    """One application compiler launcher, with unmodified Cosmocc/Rust recipes."""
+    def __init__(self, launcher, out, mode):
+        self.env = dict(os.environ)
+        self.launcher = None
+        self.path = out / "build-cache" / (mode + ".json")
+        self.report = {"schema": 1, "status": "running", "mode": mode,
+                       "enabled": launcher != "none", "timings": [], "replay": []}
+        self.started = time.monotonic()
+        if launcher != "none":
+            executable = shutil.which(launcher)
+            if not executable:
+                raise RuntimeError("Compiler cache launcher is not executable: " + launcher)
+            self.launcher = str(Path(executable).resolve())
+            version = subprocess.check_output([self.launcher, "--version"], text=True, timeout=30).strip()
+            if version != "sccache " + SCCACHE_VERSION:
+                raise RuntimeError("Supported compiler launcher is sccache " + SCCACHE_VERSION + "; got " + version)
+            # A workspace wrapper nests inside RUSTC_WRAPPER; never stack them.
+            if self.env.get("RUSTC_WORKSPACE_WRAPPER"):
+                raise RuntimeError("Unset RUSTC_WORKSPACE_WRAPPER before enabling the compiler cache")
+            for name in ("RUSTC_WRAPPER", "CMAKE_C_COMPILER_LAUNCHER", "CMAKE_CXX_COMPILER_LAUNCHER"):
+                value = self.env.get(name)
+                if value and str(Path(shutil.which(value) or value).resolve()) != self.launcher:
+                    raise RuntimeError("Conflicting compiler launcher in " + name)
+            buster = "cosmocc-" + SDK_VERSION + "-" + SDK_SHA256
+            if self.env.get("SCCACHE_C_CUSTOM_CACHE_BUSTER", buster) != buster:
+                raise RuntimeError("SCCACHE_C_CUSTOM_CACHE_BUSTER must identify the pinned Cosmocc SDK")
+            self.env.update(RUSTC_WRAPPER=self.launcher, CARGO_INCREMENTAL="0",
+                            SCCACHE_C_CUSTOM_CACHE_BUSTER=buster)
+            self.report["configuration"] = {"enabled": True, "launcher": self.launcher, "version": version,
+                "launcher_sha256": digest(self.launcher), "sdk_sha256": SDK_SHA256,
+                "cache_buster": buster, "rust_incremental": False,
+                "c_cpp": "CMake compiler launcher before the existing Cosmocc wrappers",
+                "rust": "RUSTC_WRAPPER inherited by the pinned custom-target Rust runner",
+                "excluded": ["Mesa Meson compilation", "direct compiler calls", "linking", "packaging"]}
+            self.report["before"] = self.snapshot()
+
+    def snapshot(self):
+        snapshot = json.loads(subprocess.check_output(
+            [self.launcher, "--show-stats", "--stats-format=json"], env=self.env, text=True, timeout=30))
+        for key in ("cache_hits", "cache_misses"):
+            cache_counts(snapshot, key)
+        return snapshot
+
+    @contextmanager
+    def phase(self, name):
+        started = time.monotonic()
+        item = {"phase": name, "status": "failed"}
+        self.report["timings"].append(item)
+        try:
+            yield
+            item["status"] = "passed"
+        finally:
+            item["seconds"] = round(time.monotonic() - started, 6)
+
+    def replay(self, build, ninja, env):
+        """Recompile two real application objects; never relink or rerun models."""
+        commands = json.loads((build / "compile_commands.json").read_text())
+        for filename, language in (("math_compat.c", "C"), ("config.cpp", "C++")):
+            source = HERE / "src" / filename
+            entries = [entry for entry in commands if (Path(entry["directory"]) / entry["file"]).resolve() == source.resolve()]
+            if len(entries) != 1:
+                raise RuntimeError("Expected exactly one application compile command for " + filename)
+            entry = entries[0]
+            argv = entry.get("arguments") or shlex.split(entry["command"])
+            output = Path(entry["directory"]) / argv[argv.index("-o") + 1]
+            output = output.resolve()
+            if not output.is_relative_to(build.resolve()) or not output.is_file():
+                raise RuntimeError("Missing or unsafe application object: " + str(output))
+            original = digest(output)
+            before = self.snapshot()
+            started = time.monotonic()
+            # Preserve the built object even if a cache/backend/compiler fails.
+            with tempfile.TemporaryDirectory(prefix="cache-replay-", dir=build) as temporary:
+                backup = Path(temporary) / "original.o"
+                shutil.copy2(output, backup)
+                try:
+                    output.unlink()
+                    run([ninja, "-C", build, "-j", "1", str(output.relative_to(build))], env=env)
+                    after = self.snapshot()
+                    delta = cache_delta(before, after)
+                    same = digest(output) == original
+                    record = {"source": str(source.relative_to(ROOT)), "language": language,
+                        "object": str(output.relative_to(build)), "before_sha256": original,
+                        "after_sha256": digest(output), "delta": delta,
+                        "seconds": round(time.monotonic() - started, 6), "before": before, "after": after}
+                    self.report["replay"].append(record)
+                    if not same or delta["cache_hits"].get("C/C++", 0) < 1:
+                        raise RuntimeError("Real " + language + " object replay needs an identical output and a cache hit")
+                except BaseException:
+                    shutil.copy2(backup, output)
+                    raise
+
+    def finish(self, error=None):
+        self.report["status"] = "failed" if error else "passed"
+        if error:
+            self.report["error"] = str(error)
+        try:
+            if self.launcher:
+                self.report["after"] = self.snapshot()
+                self.report["delta"] = cache_delta(self.report["before"], self.report["after"])
+        except Exception as stats_error:
+            self.report["statistics_error"] = str(stats_error)
+            if not error:
+                self.report["status"] = "failed"
+                raise
+        finally:
+            self.report["seconds"] = round(time.monotonic() - self.started, 6)
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.path.write_text(json.dumps(self.report, indent=2, sort_keys=True) + "\n")
+            print("Build/cache report: " + str(self.path), flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=HERE / "out")
@@ -203,17 +340,37 @@ def main():
                         help="cache for the pinned static WGPU/Mesa/LLVM dependencies")
     parser.add_argument("--foundation-source", type=Path,
                         help="local Git object source for the exact pinned software WebGPU commit")
+    parser.add_argument("--compiler-launcher", default=os.environ.get("COSMO_COMPILER_LAUNCHER", "none"),
+                        help="none (default), sccache, or its executable path; supported version 0.16.0")
+    parser.add_argument("--cache-replay", action="store_true",
+                        help="verify cache hits by rebuilding one actual C and C++ object after the application compile")
     args = parser.parse_args()
+    if args.cache_replay and (args.compiler_launcher == "none" or args.prepare_only or args.dependencies_only or args.libraries_only):
+        parser.error("--cache-replay requires a cached full application build")
     if args.jobs < 1:
         parser.error("--jobs must be positive")
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     lock = (out / "build.lock").open("w")
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    sdk = sdk_setup(out)
-    cmake, ninja = host_tools(out)
-    wrappers = make_wrappers(out, sdk)
-    source, shared, fingerprint = prepare_source(out)
+    mode = "prepare" if args.prepare_only else "dependencies" if args.dependencies_only else "application"
+    cache = BuildCache(args.compiler_launcher, out, mode)
+    try:
+        build_application(args, out, cache)
+    except BaseException as error:
+        cache.finish(error)
+        raise
+    else:
+        cache.finish()
+
+
+def build_application(args, out, cache):
+    with cache.phase("prepare_sdk_and_tools"):
+        sdk = sdk_setup(out)
+        cmake, ninja = host_tools(out)
+        wrappers = make_wrappers(out, sdk)
+    with cache.phase("prepare_application_source"):
+        source, shared, fingerprint = prepare_source(out)
     shutil.copy2(sdk / "bin/ape-x86_64.elf", out / "ape-x86_64.elf")
     software_out = (args.software_webgpu_out or out / "software-webgpu").resolve()
     software_command = [sys.executable, HERE / "software-webgpu/prepare.py",
@@ -221,27 +378,36 @@ def main():
     if args.foundation_source:
         software_command.extend(["--foundation-source", args.foundation_source.resolve()])
     if args.prepare_only:
-        run([*software_command, "--stage", "prepare"])
+        run([*software_command, "--stage", "prepare"], env=cache.env)
         print("Prepared source: " + str(source))
         return
     # A missing/failed backend is a build failure; never emit a CPU-only
     # application under the all-in-one backend build's name.
-    run(software_command)
+    with cache.phase("software_webgpu_dependencies"):
+        run(software_command, env=cache.env)
     software_metadata = software_out / "LINK.json"
     if args.dependencies_only:
         print("Prepared static software WebGPU dependencies: " + str(software_metadata))
         return
-    env = dict(os.environ, COSMO_SDK=str(sdk), COSMO_BUILD_TOOLS=str(wrappers))
+    env = dict(cache.env, COSMO_SDK=str(sdk), COSMO_BUILD_TOOLS=str(wrappers))
     env["PATH"] = str(wrappers) + os.pathsep + str(out / "tools/bin") + os.pathsep + env["PATH"]
     build = out / "build"
-    run([cmake, "-S", HERE, "-B", build, "-G", "Ninja",
+    with cache.phase("configure_application"):
+        run([cmake, "-S", HERE, "-B", build, "-G", "Ninja",
          "-DCMAKE_TOOLCHAIN_FILE=" + str(HERE / "cmake/cosmocc.cmake"),
          "-DCMAKE_MAKE_PROGRAM=" + str(ninja), "-DCMAKE_BUILD_TYPE=Release",
+         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+         "-DCMAKE_C_COMPILER_LAUNCHER=" + (cache.launcher or ""),
+         "-DCMAKE_CXX_COMPILER_LAUNCHER=" + (cache.launcher or ""),
          "-DCOSMO_SOURCE_ROOT=" + str(source), "-DCOSMO_SHARED_GGML=" + str(shared),
          "-DCOSMO_SOFTWARE_WEBGPU_METADATA=" + str(software_metadata),
          "-DCOSMO_BUILD_APP=" + ("OFF" if args.libraries_only else "ON")], env=env)
     targets = ["llama", "stable-diffusion", "easy-diffusion-ui"] if args.libraries_only else ["easy-diffusion"]
-    run([cmake, "--build", build, "--parallel", args.jobs, "--target", *targets], env=env)
+    with cache.phase("compile_application"):
+        run([cmake, "--build", build, "--parallel", args.jobs, "--target", *targets], env=env)
+    if args.cache_replay:
+        with cache.phase("replay_real_application_objects"):
+            cache.replay(build, ninja, env)
     if args.libraries_only:
         print("Shared GGML, llama.cpp, stable-diffusion.cpp, and UI static targets built")
         return
@@ -252,6 +418,7 @@ def main():
     set_stack(linked)
     shutil.copy2(debug, out / "easy-diffusion.com.dbg")
     metadata = {"cosmocc": {"version": SDK_VERSION, "url": SDK_URL, "sha256": SDK_SHA256},
+                "compiler_cache": cache.report.get("configuration", {"enabled": False}),
                 "llama_revision": LLAMA_REVISION, "source_fingerprint": fingerprint,
                 "cpu_baseline": "x86-64; no AVX requirement", "shared_ggml": True,
                 "openmp": False, "dynamic_backends": False,
@@ -269,8 +436,9 @@ def main():
     manifest = out / "LINK.json"
     manifest.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
     if not args.skip_package:
-        run([sys.executable, HERE / "package.py", "--input", linked,
-             "--output", out / "easy-diffusion.exe", "--metadata", manifest])
+        with cache.phase("package_application"):
+            run([sys.executable, HERE / "package.py", "--input", linked,
+                 "--output", out / "easy-diffusion.exe", "--metadata", manifest])
     print("Linked application: " + str(linked))
 
 

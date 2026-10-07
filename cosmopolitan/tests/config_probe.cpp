@@ -11,6 +11,7 @@ int main(int argc, char **argv) {
     try {
         if (const char *update = std::getenv("COSMO_CONFIG_TEST_UPDATE")) cosmo_config_update(update);
         if (const char *options = std::getenv("COSMO_CONFIG_TEST_OPTIONS")) cosmo_config_set_options(options);
+        if (const char *settings = std::getenv("COSMO_CONFIG_TEST_SETTINGS")) cosmo_config_settings_update(settings);
         std::cout << cosmo_config_document() << '\n';
         for (int i = 0; i < argc; ++i) std::cout << "ARG " << argv[i] << '\n';
         std::cout << "POLICY " << cosmo_config_backend() << ' ' << cosmo_config_provider() << ' ' << cosmo_config_device() << '\n';

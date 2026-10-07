@@ -46,7 +46,7 @@ void CosmoInferenceDispatcher::run() noexcept {
         {
             std::unique_lock<std::mutex> lock(mutex_);
             changed_.wait(lock, [this] { return stopping_ || static_cast<bool>(work_); });
-            if (stopping_) {
+            if (stopping_ && !work_) {
                 work_ = deliver_ = {};
                 busy_ = false;
                 return;

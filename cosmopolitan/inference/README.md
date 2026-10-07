@@ -1,5 +1,12 @@
 # Native image inference
 
+The shared application commands are `infer image` and `infer text`, also
+available inside the [portable C shell](../SHELL.md). They use the same
+application services, model index, task state and saved settings as HTTP/UI.
+The Generate page can atomically save its checkpoint and image recipe. The
+existing low-level `image` command below retains its diagnostic output and
+explicit model-path contract for regression and provider verification.
+
 The portable application has an `image` command and a native text-to-image
 Generate page. Both call the existing diffusion engine and the same shared
 GGML used by llama.cpp and the native trainer. The command frontend is C;

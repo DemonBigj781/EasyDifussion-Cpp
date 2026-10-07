@@ -167,11 +167,19 @@ it with OpenAI-compatible endpoints, OpenCL or OpenVINO.
 
 ## Runtime ownership
 
+The current shared application layer owns native image/text admission, task
+state, the checkpoint index and live settings. HTTP and the C shell borrow
+one service instance; `infer image` and `infer text` use its public C operation
+interface. The Generate page saves checkpoint and recipe defaults through
+the same atomic settings operation. `shell --serve` allows both frontends
+to observe and control the same tasks. See [SHELL.md](SHELL.md) and the current
+contract in [application-api.md](docs/application-api.md).
+
 One process owns the shared backend registry. Each task has explicit model,
 tensor-buffer and graph lifetimes. User-visible operations must not reset global
 backends while another operation still holds buffers or contexts.
 
-Native generation now has a server-owned coordinator with single-job admission.
+Native generation now has an application-owned coordinator with single-job admission.
 It copies request state, retains the request gate and temporary options, and
 posts completion back to the originating HTTP I/O thread. Model work runs on
 an explicitly requested and measured 8 MiB pthread stack; the coordinator

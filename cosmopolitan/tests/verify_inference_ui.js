@@ -15,7 +15,7 @@ const generate = fs.readFileSync(path.join(scripts, 'generate.js'), 'utf8');
 const kiosk = fs.readFileSync(path.join(scripts, 'kiosk.js'), 'utf8');
 const caps = {protocol:1,mode:'native-single-user',kiosk_supported:false,kiosk_enabled:false,txt2img:true,max_concurrent_generations:1};
 const flush = async () => { for (let i=0;i<12;i++) await new Promise(r=>setImmediate(r)); };
-function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'auto'}) {
+function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'auto'}, savedCheckpoint='') {
     const ids = new Map(), timers = new Map(), calls = [];
     let timerId=0, resolveGeneration, progressState={current_step:0,total_steps:4,completed:false};
     class Element {
@@ -40,6 +40,9 @@ function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'
     for(const id of names){const e=new Element();e.id=id;e.name=id;ids.set(id,e);}
     const scope = new Element();scope.querySelectorAll=()=>[...ids.values()];
     const values={width:128,height:128,steps:4,seed:42,guidance_scale:7,prompt:'a red cube',negative_prompt:''};
+    let saved = {options:{sd_model_checkpoint:savedCheckpoint},inference:{image:{
+        width:128,height:128,steps:4,seed:42,cfg_scale:7,prompt:'a red cube',negative_prompt:'',sampler_name:'euler_a',scheduler:'discrete',
+    }}};
     for(const [id,value] of Object.entries(values))ids.get(id).value=value;
     const document={getElementById:id=>ids.get(id),querySelector:()=>scope,createElement:tag=>new Element(tag),documentElement:new Element()};
     const response = (body,status=200) => ({ok:status<400,status,text:async()=>JSON.stringify(body),json:async()=>body});
@@ -49,7 +52,13 @@ function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'
             if(mode==='unavailable-capabilities')return response({message:'Unavailable'},503);
             return response(mode==='bad-capabilities'?{...caps,kiosk_enabled:true}:caps);
         }
-        if(path.endsWith('/config'))return response({effective:{compute}});
+        if(path.endsWith('/config'))return response({saved,effective:{compute,...saved}});
+        if(path.endsWith('/options'))return response(saved.options);
+        if(path.endsWith('/settings')) {
+            if(mode==='save-conflict')return response({message:'A native generation request is active'},409);
+            saved=JSON.parse(JSON.stringify(body));
+            return response({saved,effective:{compute,...saved}});
+        }
         if(path.endsWith('backend-devices'))return response({default_webgpu_selector:'WebGPU0',devices:[
             {backend:'WebGPU',selector:'WebGPU0',provider:'native',software:false,type:'gpu',description:'First physical GPU',stable_id:'uuid:first',stable_id_available:true,memory_known:false,memory_total:null},
             {backend:'WebGPU',selector:'WebGPU1',provider:'native',software:false,type:'integrated-gpu',description:'Second physical GPU',stable_id:'uuid:second',stable_id_available:true,memory_known:false,memory_total:null},
@@ -69,7 +78,7 @@ function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'
     const window={addEventListener(){}};
     const context=vm.createContext({window,document,fetch,crypto:webcrypto,Uint32Array,console,
         Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},
-        localStorage:{getItem:()=>null,setItem(){}},
+        localStorage:{getItem(){throw Error('Generate must read native settings');},setItem(){throw Error('Generate must save native settings');}},
         setTimeout(fn){const id=++timerId;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}
     });
     vm.runInContext(kiosk,context);
@@ -90,6 +99,7 @@ const watchdog = setTimeout(() => {
     const running=await normal.start();
     assert.equal(normal.ids.get('makeImage').disabled,true);
     assert.equal(normal.ids.get('stopImage').disabled,true);
+    assert.equal(normal.ids.get('cosmo-save-generation-defaults').disabled,true,'saving disabled during generation');
     const call=normal.calls.find(c=>c.path.endsWith('txt2img'));
     assert.equal(call.body.backend,'CPU');
     assert.equal(call.body.override_settings.sd_model_checkpoint,'model.safetensors');
@@ -109,6 +119,27 @@ const watchdog = setTimeout(() => {
     const card=png.ids.get('preview-content').children[0];
     assert.equal(card.children[0].src,'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==');
     assert.equal(card.children[2].download,'image-42.png');
+    assert(!png.calls.some(c=>c.path.endsWith('/settings')),'ordinary generation must not silently persist request overrides');
+
+    const defaults=harness('success',{backend:'cpu',provider:'auto',device:'auto'},'model.safetensors');await flush();
+    assert.equal(defaults.ids.get('stable_diffusion_model').value,'model.safetensors','native saved checkpoint loads without browser storage');
+    assert.equal(defaults.ids.get('prompt').value,'a red cube','native saved recipe populates the form');
+    defaults.ids.get('prompt').value='a blue sphere';defaults.ids.get('steps').value='8';defaults.ids.get('seed').value='-1';
+    await defaults.click('cosmo-save-generation-defaults');
+    const savedCall=defaults.calls.filter(c=>c.path.endsWith('/settings'));
+    assert.equal(savedCall.length,1,'checkpoint and recipe use one atomic native mutation');
+    assert.equal(savedCall[0].body.options.sd_model_checkpoint,'model.safetensors');
+    assert.equal(savedCall[0].body.inference.image.prompt,'a blue sphere');
+    assert.equal(savedCall[0].body.inference.image.steps,8);
+    assert.equal(savedCall[0].body.inference.image.seed,-1,'random seed preference is saved without converting it into a one-request seed');
+    assert.match(defaults.ids.get('generation-queue-status').textContent,/defaults saved/);
+    assert.equal(defaults.ids.get('cosmo-save-generation-defaults').disabled,false);
+    const missingCheckpoint=harness('success',{backend:'cpu',provider:'auto',device:'auto'},'missing.safetensors');await flush();
+    assert.equal(missingCheckpoint.ids.get('makeImage').disabled,true,'missing saved checkpoint does not select a different model');
+    assert.match(missingCheckpoint.ids.get('generation-model-status').textContent,/missing.safetensors.*unavailable/);
+    const saveConflict=harness('save-conflict');await flush();await saveConflict.click('cosmo-save-generation-defaults');
+    assert.match(saveConflict.ids.get('generation-queue-status').textContent,/Could not save.*active/);
+    assert.equal(saveConflict.ids.get('makeImage').disabled,false,'failed persistence restores editable controls');
 
     const hardware=harness('success',{backend:'webgpu',provider:'auto',device:'uuid:second'});await flush();
     assert.equal(hardware.ids.get('cosmo-generation-backend').value,'WebGPU1','stable ID resolves the correct current selector');
@@ -149,5 +180,5 @@ const watchdog = setTimeout(() => {
     assert.equal(unavailable.calls.length,1,'HTTP capability failure must not initialize generation');
     assert.equal(normal.ids.get('kiosk-mode-save').disabled,true);
     assert(!normal.calls.some(c=>c.path==='/render'));
-    console.log('UI_DOM_MOCK PASS: capability failure, CPU default, distinct hardware/software adapters, stable-ID default, missing-device rejection, exact device request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict');
+    console.log('UI_DOM_MOCK PASS: native checkpoint/recipe defaults, atomic explicit save and save conflict, missing saved checkpoint, temporary generation overrides, capability failure, CPU default, distinct hardware/software adapters, stable-ID default, missing-device rejection, exact device request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>clearTimeout(watchdog));

@@ -1,6 +1,6 @@
 # Persistent configuration and compute selection
 
-The portable executable reads `easy-diffusion.json` in the launcher's working directory. Its first ordinary `image`, `llama`, `sdkit`, or `devices` command creates this file if it is missing, using CPU, automatic provider policy, and automatic device selection. An invalid existing file stops startup with a configuration error; it is never silently replaced.
+The portable executable reads `easy-diffusion.json` in the launcher's working directory. Its first ordinary `shell`, `infer`, `image`, `llama`, `sdkit`, or `devices` command creates this file if it is missing, using CPU, automatic provider policy, and automatic device selection. An invalid existing file stops startup with a configuration error; it is never silently replaced.
 
 Use an explicit path when launching from different directories. From the folder containing the executable, Windows PowerShell commands are:
 
@@ -32,6 +32,14 @@ A generated configuration is:
   "server": {"port": 8188, "log_level": "info"},
   "models": {"checkpoint_dir": "models/checkpoints"},
   "compute": {"backend": "cpu", "provider": "auto", "device": "auto"},
+  "inference": {
+    "image": {
+      "prompt": "", "negative_prompt": "",
+      "width": 512, "height": 512, "steps": 20,
+      "cfg_scale": 7, "seed": 42,
+      "sampler_name": "euler_a", "scheduler": "discrete"
+    }
+  },
   "options": {
     "sd_model_checkpoint": "",
     "live_previews_enable": false,
@@ -55,6 +63,38 @@ The supported compute fields are:
 | `backend` | `cpu`, `webgpu` | CPU GGML execution or the shared GGML WebGPU backend. |
 | `provider` | `auto`, `native`, `embedded` | Automatic selection prefers physical hardware; native uses the operating system Vulkan path; embedded uses the included Mesa software driver. |
 | `device` | `auto`, exact registry selector, available stable ID | A concrete WebGPU selector such as `WebGPU0` or a driver-provided stable ID; CPU accepts `auto` or `CPU`. Unknown explicit selections fail. |
+
+## Saved inference defaults and the shared shell
+
+`inference.image` stores the portable image recipe. Existing schema-1 files
+without that section load with its defaults; inspection does not rewrite an
+older file. The next successful save includes the normalized section.
+Unknown fields and malformed recipe values remain errors. Changes to this
+section are live and do not require restarting the application.
+
+The Generate page reads the checkpoint from the native options store and the
+recipe from this configuration. **Save generation defaults** sends one
+`POST /v1/sdapi/v1/settings` request containing `options` and `inference`.
+Checkpoint validation and recipe validation precede one atomic save. Either
+both become live, or neither is persisted. The route returns the config
+document and rejects updates with 409 while inference is admitted.
+
+The [C shell](SHELL.md) uses the same services and file. For example, after
+starting `shell --serve`, the following commands update values visible to
+the UI and HTTP API:
+
+```text
+config set inference.image.steps 20
+options set sd_model_checkpoint "an-indexed-checkpoint.gguf"
+config show
+```
+
+`infer image` and the HTTP image operation fill missing recipe fields from
+these effective defaults. Request fields and checkpoint overrides apply
+only to that request. The shell's `cd` does not change the server's working
+directory or the configuration-relative model directory. Provider/device
+startup changes continue to require restart; a running shell never resets
+the initialized backend registry to apply them silently.
 
 ## Select and verify a native GPU
 

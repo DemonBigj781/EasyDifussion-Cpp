@@ -19,6 +19,7 @@ int cosmo_ui_selftest(void);
 int cosmo_ui_render(const char *path);
 int cosmo_sdkit_main(int argc, char **argv);
 int cosmo_train_main(int argc, char **argv);
+int cosmo_application_main(int argc, char **argv);
 
 #ifdef __cplusplus
 }
