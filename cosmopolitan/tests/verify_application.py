@@ -15,6 +15,7 @@ from pathlib import Path
 import platform
 import queue
 import signal
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -310,80 +311,80 @@ def verify(args):
     report={'schema':1,'status':'failed','platform':platform.platform(),'scope':'One actual application shared by C shell and HTTP',
             'external_model_tested':False,'quality_assessed':False,'physical_hardware_tested':False,'shell_commands':[],'http_requests':[],
             'verifier':{'file':Path(__file__).name,'sha256':sha256(Path(__file__))}}
-    start=time.monotonic();deadline=start+args.timeout;shell=None
+    start=time.monotonic();deadline=start+args.timeout;shell=None;work=None
     app=artifact/APPLICATION
     try:
         report['application_sha256_before']=verify_package(artifact,args.expected_sha256)
         report['build_source']=json.loads((artifact/'BUILD.json').read_text()).get('source')
-        with tempfile.TemporaryDirectory(prefix='cosmo-application-') as temporary:
-            work=Path(temporary);(work/'outputs with spaces').mkdir();(work/'models').mkdir()
-            config=work/'settings with spaces.json';port=free_port()
-            models=args.model.resolve().parent if args.model else work/'models'
-            command=([str(app)] if os.name=='nt' else [str(artifact/LOADER),str(app)])
-            command+=['shell','--serve','--config',str(config),'--backend','cpu','--provider','embedded','--port',str(port),'--ckpt-dir',str(models)]
-            env=runtime_environment(work);env['LP_NUM_THREADS']='2'
-            report.update(command=command,software_driver_threads=2)
-            shell=Shell(command,work,output,env,deadline,report['shell_commands'])
-            http=Http(port,deadline,report['http_requests'])
-            ready=min(deadline,time.monotonic()+20)
-            while time.monotonic()<ready:
-                require(shell.process.poll() is None, 'Application exited during shell/HTTP startup')
-                try: initial=http.call('/v1/application/status',timeout=0.5);break
-                except (OSError,TimeoutError):time.sleep(0.05)
-            else:raise TimeoutError('Shared HTTP service did not become ready')
-            require(initial.get('shared_services') is True and initial.get('application_id'), 'Missing shared service identity')
-            require(shell.one('status')==initial and initial['busy'] is False, 'Shell and HTTP do not share an idle application')
-            report['application_id']=initial['application_id']
-            document=shell.one('config show');require(document==http.call('/get/app_config')==http.call(PREFIX+'config'),'Config frontends disagree')
-            require(document['saved']==json.loads(config.read_text()),'Shared config differs from disk')
-            shell.one('options set CLIP_stop_at_last_layers 2')
-            options=shell.one('options show');require(options==http.call(PREFIX+'options') and options['CLIP_stop_at_last_layers']==2,'Shell options not visible through HTTP')
-            http.call(PREFIX+'options',{'CLIP_stop_at_last_layers':3})
-            require(shell.one('options show')['CLIP_stop_at_last_layers']==3,'HTTP options not visible through shell')
-            stable=sha256(config)
-            shell.command('config set compute.backend unsupported',failure=True)
-            require(sha256(config)==stable,'Rejected shell config update changed disk')
-            old_effective=shell.one('config show')['effective']
-            changed=shell.one('config set compute.provider native')
-            require(changed['saved']['compute']['provider']=='native' and changed['effective']==old_effective and changed['restart_required'] is True,
-                    'Saved provider change altered running provider or missed restart requirement')
-            require(changed==http.call(PREFIX+'config'),'HTTP missed shell provider update')
-            listing=shell.one('models');require(listing==http.call(PREFIX+'checkpoints'),'Model indices differ')
-            shell.command('cd "outputs with spaces"; pwd')
-            require(shell.one('config show')==changed and shell.one('models')==listing,'Shell cd changed service/config roots')
-            recipe={'inference':{'image':{'prompt':'literal --device value','width':256,'height':256,'steps':2}}}
-            defaults=shell.one('defaults save '+quote(json.dumps(recipe)))
-            require(defaults==http.call(PREFIX+'config') and shell.one('defaults show')==defaults['effective']['inference'], 'Shared saved recipe differs')
-            saved=sha256(config);shell.command('defaults save '+quote('{"inference":{"image":{"steps":0}}}'),failure=True)
-            require(sha256(config)==saved,'Rejected recipe changed disk')
-            report['shared_configuration']={'initial':document,'after_mutations':defaults,'invalid_updates_unchanged':True,'provider_restart_required':True,'shell_cd_preserved_service_roots':True}
-            first='shell-text-'+uuid.uuid4().hex
-            text1=check_text(shell.one('infer text --prompt "Once upon a time" --tokens 16 --threads 1 --task-id '+first,timeout=120))
-            require(text1['task_id']==first and shell.one('progress '+first)['completed'] is True,'Shell text task not shared/completed')
-            second='http-text-'+uuid.uuid4().hex
-            text2=check_text(http.call('/v1/text/completions',{'prompt':'Once upon a time','max_tokens':16,'threads':1,'force_task_id':second},timeout=120))
-            require(text2['task_id']==second and shell.one('progress '+second)['completed'] is True,'HTTP text task not visible in shell')
-            require(shell.one('status')['application_id']==initial['application_id'],'Application context was replaced between commands')
-            require(sha256(config)==saved,'Text inference persisted request overrides')
-            report['trained_text']={'shell':text1,'http':text2,'same_application_id':True,'independent_reference_match':True}
-            if args.model:
-                image_checks(args,shell,http,config,work,output,report,deadline)
-                final_text_id='post-diffusion-text-'+uuid.uuid4().hex
-                final_text=check_text(shell.one('infer text --prompt \"Once upon a time\" --tokens 16 --threads 1 --task-id '+final_text_id,timeout=120))
-                require(final_text['task_id']==final_text_id and shell.one('progress '+final_text_id)['completed'] is True,
-                        'Post-diffusion text task did not complete in the shared task table')
-                report['trained_text']['after_diffusion']=final_text
-                report['trained_text']['registry_reuse_after_diffusion']=True
-            require(shell.one('status')['application_id']==initial['application_id'],'Shared app identity changed')
-            report['final_configuration']=json.loads(config.read_text())
-            (output/'configuration.json').write_bytes(config.read_bytes())
-            report['shutdown']=shell.close(graceful=True);shell=None
-            with socket.socket() as check:
-                check.settimeout(1)
-                require(check.connect_ex(('127.0.0.1',port))!=0,'HTTP listener survived shell EOF')
-            report['shutdown']['http_listener_closed']=True
-            require(not list(work.rglob('*.tmp.*')),'Application left temporary files')
-            report['status']='passed'
+        work=Path(tempfile.mkdtemp(prefix='cosmo-application-'))
+        (work/'outputs with spaces').mkdir();(work/'models').mkdir()
+        config=work/'settings with spaces.json';port=free_port()
+        models=args.model.resolve().parent if args.model else work/'models'
+        command=([str(app)] if os.name=='nt' else [str(artifact/LOADER),str(app)])
+        command+=['shell','--serve','--config',str(config),'--backend','cpu','--provider','embedded','--port',str(port),'--ckpt-dir',str(models)]
+        env=runtime_environment(work);env['LP_NUM_THREADS']='2'
+        report.update(command=command,software_driver_threads=2)
+        shell=Shell(command,work,output,env,deadline,report['shell_commands'])
+        http=Http(port,deadline,report['http_requests'])
+        ready=min(deadline,time.monotonic()+20)
+        while time.monotonic()<ready:
+            require(shell.process.poll() is None, 'Application exited during shell/HTTP startup')
+            try: initial=http.call('/v1/application/status',timeout=0.5);break
+            except (OSError,TimeoutError):time.sleep(0.05)
+        else:raise TimeoutError('Shared HTTP service did not become ready')
+        require(initial.get('shared_services') is True and initial.get('application_id'), 'Missing shared service identity')
+        require(shell.one('status')==initial and initial['busy'] is False, 'Shell and HTTP do not share an idle application')
+        report['application_id']=initial['application_id']
+        document=shell.one('config show');require(document==http.call('/get/app_config')==http.call(PREFIX+'config'),'Config frontends disagree')
+        require(document['saved']==json.loads(config.read_text()),'Shared config differs from disk')
+        shell.one('options set CLIP_stop_at_last_layers 2')
+        options=shell.one('options show');require(options==http.call(PREFIX+'options') and options['CLIP_stop_at_last_layers']==2,'Shell options not visible through HTTP')
+        http.call(PREFIX+'options',{'CLIP_stop_at_last_layers':3})
+        require(shell.one('options show')['CLIP_stop_at_last_layers']==3,'HTTP options not visible through shell')
+        stable=sha256(config)
+        shell.command('config set compute.backend unsupported',failure=True)
+        require(sha256(config)==stable,'Rejected shell config update changed disk')
+        old_effective=shell.one('config show')['effective']
+        changed=shell.one('config set compute.provider native')
+        require(changed['saved']['compute']['provider']=='native' and changed['effective']==old_effective and changed['restart_required'] is True,
+                'Saved provider change altered running provider or missed restart requirement')
+        require(changed==http.call(PREFIX+'config'),'HTTP missed shell provider update')
+        listing=shell.one('models');require(listing==http.call(PREFIX+'checkpoints'),'Model indices differ')
+        shell.command('cd "outputs with spaces"; pwd')
+        require(shell.one('config show')==changed and shell.one('models')==listing,'Shell cd changed service/config roots')
+        recipe={'inference':{'image':{'prompt':'literal --device value','width':256,'height':256,'steps':2}}}
+        defaults=shell.one('defaults save '+quote(json.dumps(recipe)))
+        require(defaults==http.call(PREFIX+'config') and shell.one('defaults show')==defaults['effective']['inference'], 'Shared saved recipe differs')
+        saved=sha256(config);shell.command('defaults save '+quote('{"inference":{"image":{"steps":0}}}'),failure=True)
+        require(sha256(config)==saved,'Rejected recipe changed disk')
+        report['shared_configuration']={'initial':document,'after_mutations':defaults,'invalid_updates_unchanged':True,'provider_restart_required':True,'shell_cd_preserved_service_roots':True}
+        first='shell-text-'+uuid.uuid4().hex
+        text1=check_text(shell.one('infer text --prompt "Once upon a time" --tokens 16 --threads 1 --task-id '+first,timeout=120))
+        require(text1['task_id']==first and shell.one('progress '+first)['completed'] is True,'Shell text task not shared/completed')
+        second='http-text-'+uuid.uuid4().hex
+        text2=check_text(http.call('/v1/text/completions',{'prompt':'Once upon a time','max_tokens':16,'threads':1,'force_task_id':second},timeout=120))
+        require(text2['task_id']==second and shell.one('progress '+second)['completed'] is True,'HTTP text task not visible in shell')
+        require(shell.one('status')['application_id']==initial['application_id'],'Application context was replaced between commands')
+        require(sha256(config)==saved,'Text inference persisted request overrides')
+        report['trained_text']={'shell':text1,'http':text2,'same_application_id':True,'independent_reference_match':True}
+        if args.model:
+            image_checks(args,shell,http,config,work,output,report,deadline)
+            final_text_id='post-diffusion-text-'+uuid.uuid4().hex
+            final_text=check_text(shell.one('infer text --prompt \"Once upon a time\" --tokens 16 --threads 1 --task-id '+final_text_id,timeout=120))
+            require(final_text['task_id']==final_text_id and shell.one('progress '+final_text_id)['completed'] is True,
+                    'Post-diffusion text task did not complete in the shared task table')
+            report['trained_text']['after_diffusion']=final_text
+            report['trained_text']['registry_reuse_after_diffusion']=True
+        require(shell.one('status')['application_id']==initial['application_id'],'Shared app identity changed')
+        report['final_configuration']=json.loads(config.read_text())
+        (output/'configuration.json').write_bytes(config.read_bytes())
+        report['shutdown']=shell.close(graceful=True);shell=None
+        with socket.socket() as check:
+            check.settimeout(1)
+            require(check.connect_ex(('127.0.0.1',port))!=0,'HTTP listener survived shell EOF')
+        report['shutdown']['http_listener_closed']=True
+        require(not list(work.rglob('*.tmp.*')),'Application left temporary files')
+        report['status']='passed'
     except Exception as error:
         report['error']=str(error)
     finally:
@@ -392,6 +393,23 @@ def verify(args):
                 report['failure_cleanup']=shell.close(graceful=False)
             except Exception as error:
                 report['failure_cleanup']={'error':str(error),'exit_status':shell.process.poll()}
+        # Windows cannot remove a directory that is still a running child's
+        # cwd. Reap the child first, and never replace the original gate error
+        # with a secondary cleanup error. No automatic context-manager cleanup
+        # runs while the failure is unwinding.
+        if work is not None:
+            if shell is not None and shell.process.poll() is None:
+                report['workspace_cleanup']={'removed':False,'path':str(work),'reason':'Application is still running'}
+                report['status']='failed'
+                report.setdefault('error','Application could not be stopped before workspace cleanup')
+            else:
+                try:
+                    shutil.rmtree(work)
+                    report['workspace_cleanup']={'removed':True}
+                except Exception as error:
+                    report['workspace_cleanup']={'removed':False,'path':str(work),'error':str(error)}
+                    report['status']='failed'
+                    report.setdefault('error','Workspace cleanup failed: '+str(error))
         if report.get('model'):
             try:
                 report['model']['sha256_after']=sha256(args.model.resolve())
