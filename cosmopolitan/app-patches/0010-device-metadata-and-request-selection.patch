@@ -1,0 +1,210 @@
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -1,0 +2 @@
++#include "cosmo-webgpu.h"
+@@ -280,38 +281,114 @@
+ 
+ crow::response Server::handlePing() { return crow::response(200, "OK"); }
+ 
++static std::string cosmo_backend_token(std::string value) {
++    const auto begin = value.find_first_not_of(" \t\r\n");
++    if (begin == std::string::npos) return "";
++    const auto end = value.find_last_not_of(" \t\r\n");
++    return value.substr(begin, end - begin + 1);
++}
++
++static std::string cosmo_request_backend(const std::string &spec) {
++    if (spec.empty() || spec.size() > 4096) throw std::invalid_argument("backend must name available devices");
++    // Populate the registry before resolving process-local selectors or genuine stable IDs.
++    (void)sd_get_backend_device_count();
++    std::istringstream assignments(spec);
++    std::string assignment, result;
++    while (std::getline(assignments, assignment, ',')) {
++        assignment = cosmo_backend_token(assignment);
++        const auto equals = assignment.find('=');
++        std::string prefix;
++        if (equals != std::string::npos) {
++            const std::string module = cosmo_backend_token(assignment.substr(0, equals));
++            if (module.empty() || module.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.*-") != std::string::npos)
++                throw std::invalid_argument("Invalid backend module assignment");
++            prefix = module + "=";
++            assignment = assignment.substr(equals + 1);
++        }
++        std::istringstream devices(assignment);
++        std::string token, resolved;
++        while (std::getline(devices, token, '&')) {
++            token = cosmo_backend_token(token);
++            if (token.empty()) throw std::invalid_argument("Empty backend device selector");
++            std::string lower = token;
++            std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) { return std::tolower(ch); });
++            std::string selected;
++            if (lower == "cpu") {
++                selected = "CPU";
++            } else {
++                const char *request = lower == "webgpu" || lower == "auto" ? "auto" : token.c_str();
++                if (cosmo_webgpu_select_device(request))
++                    throw std::invalid_argument("Requested WebGPU device is unavailable: " + token);
++                const auto *info = cosmo_webgpu_device_metadata("auto");
++                if (!info) throw std::invalid_argument("Requested WebGPU device has no metadata");
++                selected = info->selector;
++            }
++            if (!resolved.empty()) resolved += "&";
++            resolved += selected;
++        }
++        if (resolved.empty() || (!assignment.empty() && assignment.back() == '&'))
++            throw std::invalid_argument("Empty backend device selector");
++        if (!result.empty()) result += ",";
++        result += prefix + resolved;
++    }
++    if (result.empty() || spec.back() == ',') throw std::invalid_argument("Empty backend assignment");
++    return result;
++}
++
+ crow::response Server::handleBackendDevices() {
+     crow::json::wvalue::list devices;
+     for (size_t index = 0; index < sd_get_backend_device_count(); ++index) {
+         sd_backend_device_info_t info{};
+-        if (!sd_get_backend_device_info(index, &info)) {
+-            continue;
+-        }
++        if (!sd_get_backend_device_info(index, &info)) continue;
++        const std::string selector = info.name ? info.name : "";
++        const auto *native = cosmo_webgpu_device_metadata(selector.c_str());
+         crow::json::wvalue device;
+-        device["selector"] = std::string(info.name ? info.name : "");
++        device["selector"] = selector;
+         device["backend"] = std::string(info.backend ? info.backend : "");
+         device["description"] = std::string(info.description ? info.description : "");
+         device["vendor"] = std::string(info.vendor ? info.vendor : "");
+-        device["memory_free"] = static_cast<uint64_t>(info.memory_free);
+-        device["memory_total"] = static_cast<uint64_t>(info.memory_total);
+-        switch (info.type) {
+-            case SD_BACKEND_DEVICE_TYPE_CPU:
+-                device["type"] = "cpu";
+-                break;
+-            case SD_BACKEND_DEVICE_TYPE_IGPU:
+-                device["type"] = "integrated-gpu";
+-                break;
+-            case SD_BACKEND_DEVICE_TYPE_GPU:
+-                device["type"] = "gpu";
+-                break;
+-            default:
+-                device["type"] = "other";
+-                break;
++        device["provider"] = native ? native->provider : "builtin";
++        device["software"] = native ? native->software != 0 : info.type == SD_BACKEND_DEVICE_TYPE_CPU;
++        device["stable_id"] = native && native->stable_id ? native->stable_id : "";
++        device["stable_id_available"] = native && native->stable_id && *native->stable_id;
++        device["selector_scope"] = "process";
++        const bool memory_known = native ? native->memory_known != 0 : info.memory_total != 0;
++        device["memory_known"] = memory_known;
++        if (memory_known) {
++            device["memory_free"] = static_cast<uint64_t>(native ? native->memory_free : info.memory_free);
++            device["memory_total"] = static_cast<uint64_t>(native ? native->memory_total : info.memory_total);
++        } else {
++            device["memory_free"] = nullptr;
++            device["memory_total"] = nullptr;
++        }
++        if (native && native->software) {
++            device["type"] = "software";
++        } else {
++            switch (info.type) {
++                case SD_BACKEND_DEVICE_TYPE_CPU: device["type"] = "cpu"; break;
++                case SD_BACKEND_DEVICE_TYPE_IGPU: device["type"] = "integrated-gpu"; break;
++                case SD_BACKEND_DEVICE_TYPE_GPU: device["type"] = "gpu"; break;
++                default: device["type"] = "unknown"; break;
++            }
+         }
+         devices.emplace_back(std::move(device));
+     }
+     crow::json::wvalue response;
+     response["devices"] = std::move(devices);
++    response["default_webgpu_selector"] = cosmo_webgpu_default_device();
++    response["provider_policy"] = cosmo_webgpu_requested_provider();
++    crow::json::wvalue::list unavailable;
++    for (size_t index = 0; index < cosmo_webgpu_unavailable_count(); ++index) {
++        const auto *entry = cosmo_webgpu_unavailable_at(index);
++        if (!entry) continue;
++        crow::json::wvalue item;
++        item["provider"] = entry->provider;
++        item["name"] = entry->name;
++        item["adapter_type"] = entry->adapter_type;
++        item["reason"] = entry->reason;
++        unavailable.emplace_back(std::move(item));
++    }
++    response["unavailable"] = std::move(unavailable);
+     return crow::response(200, response);
+ }
+ 
+@@ -440,7 +517,7 @@
+             if (json_body["backend"].t() != crow::json::type::String) {
+                 throw std::invalid_argument("backend must be a device-assignment string");
+             }
+-            params.backend = std::string(json_body["backend"].s());
++            params.backend = cosmo_request_backend(std::string(json_body["backend"].s()));
+         }
+         params.prompt          = json_body.has("prompt") ? std::string(json_body["prompt"].s()) : "";
+         params.negative_prompt = json_body.has("negative_prompt")
+@@ -599,7 +676,7 @@
+             if (json_body["backend"].t() != crow::json::type::String) {
+                 throw std::invalid_argument("backend must be a device-assignment string");
+             }
+-            params.backend = std::string(json_body["backend"].s());
++            params.backend = cosmo_request_backend(std::string(json_body["backend"].s()));
+         }
+         params.prompt = json_body.has("prompt") ? std::string(json_body["prompt"].s()) : "";
+         params.negative_prompt = json_body.has("negative_prompt") ? std::string(json_body["negative_prompt"].s()) : "";
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -1,3 +1,4 @@
++#include "cosmo-webgpu.h"
+ #include <algorithm>
+ #include <atomic>
+ #include <cctype>
+@@ -163,31 +164,23 @@
+ 
+ static void print_backend_devices() {
+     const size_t count = sd_get_backend_device_count();
+-    std::cout << "index\tbackend\tselector\ttype\tfree MiB\ttotal MiB\tvendor\tcapabilities\tdescription"
+-              << std::endl;
++    std::cout << "index\tbackend\tselector\ttype\tprovider\tfree MiB\ttotal MiB\tstable_id\tdescription" << std::endl;
+     for (size_t i = 0; i < count; ++i) {
+         sd_backend_device_info_t info{};
+-        if (!sd_get_backend_device_info(i, &info)) {
+-            continue;
+-        }
+-        std::ostringstream capabilities;
+-        capabilities << "async=" << (info.async ? "yes" : "no")
+-                     << ",host-buffer=" << (info.host_buffer ? "yes" : "no")
+-                     << ",host-pointer=" << (info.buffer_from_host_ptr ? "yes" : "no")
+-                     << ",events=" << (info.events ? "yes" : "no");
+-        std::cout << info.index << '\t'
+-                  << info.backend << '\t'
+-                  << info.name << '\t'
+-                  << device_type_name(info.type) << '\t'
+-                  << (info.memory_free / (1024 * 1024)) << '\t'
+-                  << (info.memory_total / (1024 * 1024)) << '\t'
+-                  << info.vendor << '\t'
+-                  << capabilities.str() << '\t'
+-                  << info.description;
+-        if (info.device_id[0] != '\0') {
+-            std::cout << " (" << info.device_id << ')';
+-        }
+-        std::cout << std::endl;
++        if (!sd_get_backend_device_info(i, &info)) continue;
++        const auto *native = cosmo_webgpu_device_metadata(info.name);
++        const bool known = native ? native->memory_known != 0 : info.memory_total != 0;
++        const char *type = native && native->software ? "software-cpu" : device_type_name(info.type);
++        std::cout << info.index << '\t' << info.backend << '\t' << info.name << '\t'
++                  << type << '\t' << (native ? native->provider : "builtin") << '\t';
++        if (known) std::cout << (info.memory_free / (1024 * 1024)) << '\t' << (info.memory_total / (1024 * 1024));
++        else std::cout << "unknown\tunknown";
++        std::cout << '\t' << (native && native->stable_id && *native->stable_id ? native->stable_id : "unavailable")
++                  << '\t' << info.description << std::endl;
++    }
++    for (size_t i = 0; i < cosmo_webgpu_unavailable_count(); ++i) {
++        const auto *entry = cosmo_webgpu_unavailable_at(i);
++        if (entry) std::cout << "unavailable\t" << entry->provider << '\t' << entry->name << '\t' << entry->reason << std::endl;
+     }
+ }
+ 

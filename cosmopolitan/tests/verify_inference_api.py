@@ -103,11 +103,11 @@ class PendingRequest:
         return self.response
 
 
-def task_body(model, steps):
+def task_body(model, steps, backend="cpu"):
     return {"force_task_id": "cosmo-api-" + uuid.uuid4().hex,
             "prompt": "a photograph of a red apple on a wooden table, natural light",
             "negative_prompt": "", "width": 256, "height": 256, "steps": steps,
-            "cfg_scale": 7.0, "seed": 42, "batch_size": 1, "backend": "cpu",
+            "cfg_scale": 7.0, "seed": 42, "batch_size": 1, "backend": backend,
             "sampler_name": "euler", "scheduler": "discrete",
             "override_settings": {"sd_model_checkpoint": model, "forge_additional_modules": [],
                                   "live_previews_enable": False}}
@@ -181,8 +181,8 @@ def inspect_ui(client, manifest):
             "browser_execution_tested": False}
 
 
-def generation_checks(client, model, baseline, process, deadline, logs, requests):
-    body = task_body(model, 4)
+def generation_checks(client, model, baseline, process, deadline, logs, requests, steps, backend):
+    body = task_body(model, steps, backend)
     pending = PendingRequest(client, body, deadline - time.monotonic())
     requests.append(pending)
     active = wait_for_task(client, pending, body["force_task_id"], process, deadline)
@@ -259,8 +259,8 @@ def invalid_override_checks(client, model, baseline):
     return tests
 
 
-def cancellation_check(client, model, baseline, process, deadline, requests, steps):
-    body = task_body(model, steps)
+def cancellation_check(client, model, baseline, process, deadline, requests, steps, backend):
+    body = task_body(model, steps, backend)
     pending = PendingRequest(client, body, deadline - time.monotonic())
     requests.append(pending)
     observed = wait_for_task(client, pending, body["force_task_id"], process, deadline, sampling=True)
@@ -299,7 +299,9 @@ def verify(args):
     logs.mkdir(parents=True, exist_ok=True)
     if any(logs.iterdir()):
         raise RuntimeError("Use a fresh --output-dir so old image/log evidence cannot satisfy this run")
-    report = {"status": "failed", "platform": platform.platform(), "backend": "cpu",
+    report = {"status": "failed", "platform": platform.platform(), "backend": args.backend,
+              "provider_policy": args.provider, "requested_device": args.device,
+              "require_hardware": args.require_hardware,
               "scope": "Real pinned SD1.5 native HTTP inference, request lifecycle, and served Generate assets",
               "filesystem_isolated": False, "fresh_working_directory": True,
               "browser_execution_tested": False, "model": {}, "http_events": []}
@@ -321,13 +323,21 @@ def verify(args):
             socket_.bind(("127.0.0.1", 0))
             port = socket_.getsockname()[1]
         command = [str(app)] if os.name == "nt" else [str(directory / LOADER), str(app)]
-        command += ["sdkit", "--backend", "cpu", "--ckpt-dir", str(model.parent), "--port", str(port)]
+        command += ["sdkit", "--backend", args.backend, "--provider", args.provider,
+                    "--device", args.device, "--ckpt-dir", str(model.parent), "--port", str(port)]
         report["command"] = command
         report["launch_mode"] = "native Windows PE" if os.name == "nt" else "explicit APE ELF loader"
         client = Client(f"http://127.0.0.1:{port}", deadline, report["http_events"])
         with tempfile.TemporaryDirectory(prefix="native-api-", dir=logs) as temporary:
             work = Path(temporary)
             environment = runtime_environment(work)
+            if args.provider != "embedded" and os.name != "nt":
+                # Cosmopolitan 4.0.2 builds its native dlopen helper using host cc.
+                # This run intentionally permits host libraries and a compiler.
+                environment["PATH"] = "/usr/bin:/bin"
+            if args.vulkan_icd:
+                environment["VK_DRIVER_FILES"] = str(args.vulkan_icd.resolve())
+                report["vulkan_icd"] = str(args.vulkan_icd.resolve())
             environment["LP_NUM_THREADS"] = str(args.lavapipe_threads)
             report["lavapipe_threads"] = args.lavapipe_threads
             stdout, stderr = logs / "server.stdout.log", logs / "server.stderr.log"
@@ -358,28 +368,77 @@ def verify(args):
                     if baseline.get("sd_model_checkpoint") != "":
                         raise RuntimeError("Fresh native server unexpectedly has a selected checkpoint")
                     report["baseline_options"] = baseline
-                    report["generation"] = generation_checks(client, model.name, baseline, process, deadline, logs, requests)
+                    devices = client.expect(PREFIX + "backend-devices")
+                    report["devices"] = devices
+                    requested_backend = args.device if args.backend == "webgpu" and args.device != "auto" else args.backend
+                    if args.backend == "webgpu":
+                        selector = devices.get("default_webgpu_selector") if args.device == "auto" else args.device
+                        selected = [item for item in devices.get("devices", [])
+                                    if item.get("selector") == selector or item.get("stable_id") == selector]
+                        if len(selected) != 1:
+                            raise RuntimeError("Requested WebGPU device is not uniquely available")
+                        report["selected_device"] = selected[0]
+                        if args.require_hardware and (selected[0].get("software") is not False or
+                                selected[0].get("provider") != "native" or
+                                selected[0].get("type") not in ("gpu", "integrated-gpu")):
+                            raise RuntimeError("Hardware inference required, but the selected adapter is not a native physical GPU")
+                    report["generation"] = generation_checks(client, model.name, baseline, process, deadline, logs, requests,
+                                                               args.steps, requested_backend)
                     report["invalid_overrides"] = invalid_override_checks(client, model.name, baseline)
                     if args.skip_cancel:
                         report["cancellation"] = {"status": "not-run", "reason": "explicit --skip-cancel"}
                     else:
                         report["cancellation"] = cancellation_check(client, model.name, baseline, process, deadline,
-                                                                     requests, args.cancel_steps)
+                                                                     requests, args.cancel_steps, requested_backend)
                     if process.poll() is not None:
                         raise RuntimeError("Server exited after inference instead of remaining available")
+                    main_lane = platform.system() == "Linux" and args.provider != "embedded"
+                    marker = "NATIVE_INFERENCE_MAIN" if main_lane else "NATIVE_INFERENCE_WORKER"
+                    execution_log = stderr.read_text(errors="replace")
                     worker_records = re.findall(
-                        r"^NATIVE_INFERENCE_WORKER stack_bytes=(\d+) guard_bytes=(\d+) "
+                        r"^" + marker + r" stack_bytes=(\d+) guard_bytes=(\d+) "
                         r"stack_source=pthread_getattr_np$",
-                        stderr.read_text(errors="replace"), re.MULTILINE)
+                        execution_log, re.MULTILINE)
                     expected_workers = 1 if args.skip_cancel else 2
                     if len(worker_records) != expected_workers or any(
-                            int(size) != 8 * 1024 * 1024 or int(guard) <= 0
+                            (int(size) < 8 * 1024 * 1024 if main_lane else int(size) != 8 * 1024 * 1024)
+                            or (not main_lane and int(guard) <= 0)
                             for size, guard in worker_records):
-                        raise RuntimeError("Native requests did not report their actual 8 MiB inference worker stacks")
+                        raise RuntimeError("Native requests did not report their actual inference execution stacks")
                     report["inference_workers"] = [
                         {"stack_bytes": int(size), "guard_bytes": int(guard),
-                         "source": "pthread_getattr_np"}
+                         "source": "pthread_getattr_np", "lane": "original-main" if main_lane else "worker"}
                         for size, guard in worker_records]
+                    execution_records = re.findall(
+                        r"^NATIVE_INFERENCE_EXECUTION success=([01]) selector=(\S+) provider=(\S+) "
+                        r"software=(-?\d+) adapter_type=(\d+) graphs=(\d+) submissions=(\d+) "
+                        r"dispatches=(\d+) matmuls=(\d+) readbacks=(\d+) native_loader_opens=(\d+)$",
+                        execution_log, re.MULTILINE)
+                    if len(execution_records) != expected_workers:
+                        raise RuntimeError("Missing scoped native inference execution counters")
+                    report["inference_execution"] = []
+                    for index, record in enumerate(execution_records):
+                        success, selector, provider, software, adapter_type, *values = record
+                        counts = dict(zip(("graphs", "submissions", "dispatches", "matmuls", "readbacks", "native_loader_opens"), map(int, values)))
+                        entry = {"success": success == "1", "selector": selector, "provider": provider,
+                                 "software": int(software), "adapter_type": int(adapter_type), **counts}
+                        report["inference_execution"].append(entry)
+                        if index == 0 and success != "1":
+                            raise RuntimeError("The successful image request has no successful execution record")
+                        if args.backend == "webgpu" and index == 0:
+                            selected = report["selected_device"]
+                            if selector != selected["selector"] or provider != selected["provider"]:
+                                raise RuntimeError("Inference execution used a different WebGPU device")
+                            if bool(int(software)) != selected["software"]:
+                                raise RuntimeError("Inference software classification differs from device metadata")
+                            if any(counts[key] <= 0 for key in ("graphs", "submissions", "dispatches", "matmuls", "readbacks")):
+                                raise RuntimeError("Image inference did not execute and read back WebGPU work")
+                            if provider == "native" and counts["native_loader_opens"] <= 0:
+                                raise RuntimeError("Native provider did not open the system Vulkan loader")
+                            if args.require_hardware and (int(software) != 0 or provider != "native" or int(adapter_type) not in (1, 2)):
+                                raise RuntimeError("Hardware-required execution was not on a native discrete or integrated GPU")
+                        if args.backend == "cpu" and any(counts[key] for key in ("graphs", "submissions", "dispatches", "matmuls", "readbacks")):
+                            raise RuntimeError("CPU-only request unexpectedly executed WebGPU work")
                     report["status"] = "passed"
                 finally:
                     report["server_exit_before_cleanup"] = process.poll()
@@ -425,11 +484,21 @@ def main():
     parser.add_argument("--model-pin", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--expected-sha256")
+    parser.add_argument("--backend", choices=("cpu", "webgpu"), default="cpu")
+    parser.add_argument("--provider", choices=("auto", "native", "embedded"), default="embedded")
+    parser.add_argument("--device", default="auto")
+    parser.add_argument("--steps", type=int, default=4)
+    parser.add_argument("--require-hardware", action="store_true")
+    parser.add_argument("--vulkan-icd", type=Path)
     parser.add_argument("--timeout", type=float, default=1800)
     parser.add_argument("--lavapipe-threads", type=int, default=2)
     parser.add_argument("--cancel-steps", type=int, default=8)
     parser.add_argument("--skip-cancel", action="store_true", help="Explicitly omit the second image request; report cancellation as not run")
     args = parser.parse_args()
+    if args.require_hardware and (args.backend != "webgpu" or args.provider == "embedded"):
+        parser.error("--require-hardware needs --backend webgpu and provider native or auto")
+    if not 2 <= args.steps <= 100:
+        parser.error("--steps must be in 2..100")
     if not math.isfinite(args.timeout) or not 1 <= args.timeout <= 14400:
         parser.error("--timeout must be finite and in 1..14400 seconds")
     if not 1 <= args.lavapipe_threads <= 64 or not 2 <= args.cancel_steps <= 100:

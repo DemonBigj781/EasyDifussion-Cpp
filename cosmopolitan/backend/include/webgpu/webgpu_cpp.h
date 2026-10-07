@@ -6,6 +6,7 @@
 #include <webgpu.h>
 #include <wgpu.h>
 #include "cosmo-webgpu.h"
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -15,6 +16,11 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+/* Application extension supplied by the pinned build patch. The total may
+ * change between calls; the callee never writes beyond the supplied capacity. */
+extern "C" size_t cosmo_wgpu_instance_enumerate_adapters(
+    WGPUInstance, const WGPUInstanceEnumerateAdapterOptions *, size_t, WGPUAdapter *);
 
 namespace wgpu {
 enum class BufferUsage : uint64_t {
@@ -78,7 +84,9 @@ using RequestAdapterOptions = WGPURequestAdapterOptions;
 using InstanceDescriptor = WGPUInstanceDescriptor;
 struct AdapterInfo {
     std::string vendor, architecture, device, description;
+    std::string provider, stableId;
     uint32_t vendorID = 0, deviceID = 0, subgroupMinSize = 0, subgroupMaxSize = 0;
+    uint32_t adapterType = WGPUAdapterType_Unknown;
     bool software = false;
 };
 struct FutureState { std::atomic<bool> completed{false}; };
@@ -314,6 +322,8 @@ struct DeviceDescriptor {
     }
 };
 class Adapter : COSMO_WGPU_OBJECT(Adapter)
+    std::string provider;
+    Adapter(WGPUAdapter handle, std::string origin) : Base(handle), provider(std::move(origin)) {}
     bool HasFeature(FeatureName feature) const { return wgpuAdapterHasFeature(Get(), WGPUFeatureName(feature)); }
     void GetLimits(Limits *limits) const {
         *limits = WGPU_LIMITS_INIT;
@@ -330,8 +340,12 @@ class Adapter : COSMO_WGPU_OBJECT(Adapter)
         info->deviceID = native.deviceID;
         info->subgroupMinSize = native.subgroupMinSize;
         info->subgroupMaxSize = native.subgroupMaxSize;
+        info->provider = provider;
+        info->adapterType = native.adapterType;
+        /* This pinned C API does not expose a physical UUID/LUID. Vendor and
+         * product IDs are not unique, so do not fabricate a persistent ID. */
+        info->stableId.clear();
         info->software = native.adapterType == WGPUAdapterType_CPU;
-        cosmo_webgpu_note_adapter(info->device.c_str(), info->software);
         wgpuAdapterInfoFreeMembers(native);
     }
     template <class F> Future RequestDevice(const DeviceDescriptor *desc, CallbackMode, F fn) const {
@@ -356,20 +370,78 @@ class Adapter : COSMO_WGPU_OBJECT(Adapter)
     }
 };
 class Instance : COSMO_WGPU_OBJECT(Instance)
+    struct Source { Base handle; std::string provider; };
+    std::vector<Source> sources;
+    void AddProvider(const char *provider, const InstanceDescriptor *desc) {
+        auto raw = static_cast<WGPUInstance>(cosmo_webgpu_create_instance(provider, desc));
+        if (!raw) return;
+        Base handle(raw);
+        if (!Get()) Base::operator=(handle);
+        sources.push_back({std::move(handle), provider});
+    }
+    std::vector<Adapter> EnumerateAdapters() const {
+        struct Item { Adapter adapter; int rank; };
+        std::vector<Item> found;
+        WGPUInstanceEnumerateAdapterOptions options{};
+        options.backends = WGPUInstanceBackend_Vulkan;
+        for (const auto &source : sources) {
+            size_t count = cosmo_wgpu_instance_enumerate_adapters(source.handle.Get(), &options, 0, nullptr);
+            if (!count) continue;
+            std::vector<WGPUAdapter> raw;
+            bool complete = false;
+            for (unsigned attempt = 0; attempt < 4; ++attempt) {
+                raw.assign(count, nullptr);
+                const size_t total = cosmo_wgpu_instance_enumerate_adapters(
+                    source.handle.Get(), &options, raw.size(), raw.data());
+                if (total <= raw.size()) {
+                    raw.resize(total); // Shrink is safe: remaining slots were never initialized.
+                    complete = true;
+                    break;
+                }
+                // The native extension dropped IDs that did not fit. Release
+                // only the references actually returned before retrying growth.
+                for (auto handle : raw) if (handle) wgpuAdapterRelease(handle);
+                raw.clear();
+                count = total;
+            }
+            if (!complete) {
+                cosmo_webgpu_note_unavailable_adapter(source.provider.c_str(), "adapter enumeration",
+                    WGPUAdapterType_Unknown, "adapter enumeration kept growing across four bounded attempts");
+                continue;
+            }
+            for (auto handle : raw) {
+                Adapter adapter(handle, source.provider);
+                AdapterInfo info;
+                adapter.GetInfo(&info);
+                const bool physical = info.adapterType == WGPUAdapterType_DiscreteGPU ||
+                                      info.adapterType == WGPUAdapterType_IntegratedGPU;
+                const int rank = physical ? 0 : source.provider == "embedded" ? 1 : 2;
+                found.push_back({std::move(adapter), rank});
+            }
+        }
+        std::stable_sort(found.begin(), found.end(), [](const Item &a, const Item &b) {
+            return a.rank < b.rank;
+        });
+        std::vector<Adapter> result;
+        result.reserve(found.size());
+        for (auto &item : found) result.push_back(std::move(item.adapter));
+        return result;
+    }
     template <class F> Future RequestAdapter(const RequestAdapterOptions *options, CallbackMode, F fn) const {
         Future future;
-        auto *callback = make_callback(fn, future);
-        WGPURequestAdapterCallbackInfo info = WGPU_REQUEST_ADAPTER_CALLBACK_INFO_INIT;
-        info.mode = WGPUCallbackMode_AllowSpontaneous;
-        info.userdata1 = callback;
-        info.callback = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringView message, void *u, void *) {
-            std::string text = StringView(message);
-            finish_callback<F>(u, RequestAdapterStatus(status), Adapter(adapter), text.c_str());
-        };
-        WGPURequestAdapterOptions native = options ? *options : WGPU_REQUEST_ADAPTER_OPTIONS_INIT;
-        native.backendType = WGPUBackendType_Vulkan;
-        native.forceFallbackAdapter = WGPU_TRUE;
-        wgpuInstanceRequestAdapter(Get(), &native, info);
+        future.state = std::make_shared<FutureState>();
+        Adapter selected;
+        for (auto &adapter : EnumerateAdapters()) {
+            AdapterInfo info;
+            adapter.GetInfo(&info);
+            if (options && options->forceFallbackAdapter && !info.software) continue;
+            if (!adapter.HasFeature(FeatureName::ShaderF16)) continue;
+            selected = std::move(adapter);
+            break;
+        }
+        if (selected) fn(RequestAdapterStatus::Success, std::move(selected), "");
+        else fn(RequestAdapterStatus::Error, Adapter(), "No compatible Vulkan adapter");
+        future.state->completed.store(true, std::memory_order_release);
         return future;
     }
     WaitStatus WaitAny(const Future &future, uint64_t timeout) const {
@@ -378,7 +450,7 @@ class Instance : COSMO_WGPU_OBJECT(Instance)
         while (!future.state->completed.load(std::memory_order_acquire)) {
             /* wgpu-native 29 returns NULL_FUTURE and doesn't implement WaitAny.
              * Its ProcessEvents polls all instance devices and runs callbacks. */
-            wgpuInstanceProcessEvents(Get());
+            for (const auto &source : sources) wgpuInstanceProcessEvents(source.handle.Get());
             if (future.state->completed.load(std::memory_order_acquire)) return WaitStatus::Success;
             if (timeout != UINT64_MAX && uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::steady_clock::now() - start).count()) >= timeout) return WaitStatus::TimedOut;
@@ -389,7 +461,11 @@ class Instance : COSMO_WGPU_OBJECT(Instance)
 };
 inline Instance CreateInstance(const InstanceDescriptor *desc) {
     if (cosmo_webgpu_initialize() != 0) return Instance();
-    return Instance(wgpuCreateInstance(desc));
+    Instance result;
+    const std::string provider = cosmo_webgpu_requested_provider();
+    if (provider == "auto" || provider == "native") result.AddProvider("native", desc);
+    if (provider == "auto" || provider == "embedded") result.AddProvider("embedded", desc);
+    return result;
 }
 #undef COSMO_WGPU_OBJECT
 }  // namespace wgpu

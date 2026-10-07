@@ -49,6 +49,14 @@ def source_inventory(root):
     return {str(p.relative_to(root)): sha(p) for p in sorted(files)}
 
 
+def application_patches():
+    # Additive C ABI fixes belong to this application layer. Keep the pinned
+    # foundation's imported source bytes and archive identity pristine.
+    directory = PORT / "backend/patches"
+    return {str(path.relative_to(PORT)): sha(path)
+            for path in sorted(directory.glob("*.patch"))}
+
+
 def prepare_source(out, selected):
     root = out / "foundation"
     archive = out / "foundation.tar"
@@ -154,6 +162,9 @@ def build_rust(out, root, sdk, env):
     runner = root / "third_party/rust_ape/run.sh"
     run(["bash", runner, "setup"], cwd=root, env=env)
     run([sys.executable, root / "third_party/wgpu_native/prepare.py"], cwd=root, env=env)
+    for name in application_patches():
+        run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", PORT / name],
+            cwd=root / "o/webgpu/source")
     env["WGPU_NATIVE_VERSION"] = "v" + PIN["wgpu_native_version"]
     env["BINDGEN_EXTRA_CLANG_ARGS"] = (f'-I"{sdk / "include"}" -include '
                                        f'"{sdk / "include/libc/normalize.inc"}"')
@@ -212,8 +223,10 @@ def make_manifest(out, root, sdk):
     inputs = [*archives, *shims, mesa_path, Path(mesa["llvm_metadata"]),
               root / "o/webgpu/generated/vulkan_signatures.inc",
               root / "o/webgpu/source/Cargo.lock"]
+    inputs.extend(sorted((root / "o/webgpu/source/src").rglob("*.rs")))
     manifest = {
         "format": 1, "pin": PIN, "recipe_sha256": sha(Path(__file__)),
+        "application_patches": application_patches(),
         "foundation_root": str(root), "foundation_sources": source_inventory(root),
         "sdk_root": str(sdk), "sdk_archive_sha256": SDK_SHA,
         "target": "x86_64 Cosmopolitan APE", "static": True,
@@ -241,6 +254,7 @@ def cached(out, root, sdk):
         return False
     data = json.loads(path.read_text())
     if (data.get("pin") != PIN or data.get("recipe_sha256") != sha(Path(__file__))
+            or data.get("application_patches") != application_patches()
             or data.get("foundation_sources") != source_inventory(root)
             or data.get("sdk_root") != str(sdk)):
         return False

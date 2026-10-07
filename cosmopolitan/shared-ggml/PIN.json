@@ -19,6 +19,7 @@
     "0002-built-in-backend-registry.patch": "a5e7169c1eeb02ca7e149db025913f8000bb6ee360dfe77b8fb7fd9803cb28ea",
     "0003-preserve-rope-offset-in-gradient-graph.patch": "ef03ba4290888aa19b6c86e73e34f381668b6d664b59803d0d060873a9a29859",
     "0004-wgpu-native-c-api-backend.patch": "4b774204f4f21a55a8602407eb68794401f3ba08c0cebd21a1fd4fb7819d31dc",
-    "0005-preserve-inplace-storage-placement.patch": "b9a996cf03a5ffff91d6a6d5ac8708f7d73a7fccbb41898ff396d818bd2b2f8d"
+    "0005-preserve-inplace-storage-placement.patch": "b9a996cf03a5ffff91d6a6d5ac8708f7d73a7fccbb41898ff396d818bd2b2f8d",
+    "0006-enumerate-webgpu-devices.patch": "c6f8958cf0aa6faf77f3b78acd874f08db69dd2847c5e9d0fd3ea61829e758de"
   }
 }

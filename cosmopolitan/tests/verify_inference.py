@@ -432,6 +432,7 @@ def verify(args):
               "scope": "Real trained SD1.5 inference and decoded PNG plumbing; visual quality not assessed",
               "low_step_plumbing": args.steps <= 4, "filesystem_isolated": False,
               "software_driver_workers": {"environment": "LP_NUM_THREADS", "value": args.software_threads},
+              "provider_policy": "embedded", "device_selector": "auto",
               "parameters": {"prompt": args.prompt, "negative_prompt": args.negative_prompt,
                              "width": args.width, "height": args.height, "steps": args.steps,
                              "seed": args.seed, "threads": args.threads, "cfg_scale": args.cfg_scale},
@@ -452,7 +453,8 @@ def verify(args):
         expected = args.expected_sha256 or os.environ.get("EXPECTED_SHA256")
         report["sha256_before"] = verify_package(directory, expected)
         command = [str(app)] if os.name == "nt" else [str(directory / LOADER), str(app)]
-        command += ["image", "--model", str(model), "--prompt", args.prompt,
+        command += ["image", "--provider", "embedded", "--device", "auto",
+                    "--model", str(model), "--prompt", args.prompt,
                     "--output", str(image), "--backend", args.backend,
                     "--width", str(args.width), "--height", str(args.height),
                     "--steps", str(args.steps), "--seed", str(args.seed),

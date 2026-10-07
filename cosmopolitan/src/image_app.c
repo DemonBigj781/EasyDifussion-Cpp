@@ -3,6 +3,7 @@
 #endif
 
 #include "runtime.h"
+#include "config.h"
 #include "image_bridge.h"
 
 #include "ggml-backend.h"
@@ -125,7 +126,8 @@ static void image_print_stage(const char *stage, bool webgpu, bool succeeded,
 
 static void image_usage(void) {
     puts("Usage: image --model PATH --prompt TEXT --output PATH [OPTIONS]\n"
-         "  --backend cpu|webgpu   Compute backend (default: cpu)\n"
+         "  --backend cpu|webgpu   Compute backend (default: saved configuration)\n"
+         "  --device NAME          auto, listed selector, or an available stable ID\n"
          "  --width N --height N   Multiples of 64, 64..4096 (default: 512)\n"
          "  --steps N             Sampling steps, 1..1000 (default: 20)\n"
          "  --seed N              Reproducible seed, 0..INT64_MAX (default: 42)\n"
@@ -136,7 +138,7 @@ static void image_usage(void) {
          "  --scheduler NAME      Native scheduler (default: model default)\n"
          "  --vae PATH            Optional separate VAE weights\n"
          "Saves one PNG. Model and output paths must be explicit.\n"
-         "WebGPU uses embedded software Vulkan and permits GGML CPU fallback\n"
+         "WebGPU uses the configured Vulkan provider and permits GGML CPU fallback\n"
          "for unsupported operators; execution counters measure WebGPU work.\n"
          "Flash attention and SageAttention are disabled by default.");
 }
@@ -232,10 +234,14 @@ int cosmo_image_generate(int argc, char **argv) {
     static const char *const names[] = {
         "--model", "--prompt", "--output", "--backend", "--width", "--height",
         "--steps", "--seed", "--threads", "--cfg-scale", "--negative-prompt",
-        "--sampler", "--scheduler", "--vae"
+        "--sampler", "--scheduler", "--vae", "--device"
     };
     bool seen[sizeof(names) / sizeof(names[0])] = {false};
-    bool webgpu = false;
+    bool webgpu = !strcmp(cosmo_config_backend(), "webgpu");
+    const char *requested_device = cosmo_config_device();
+#ifdef COSMO_WEBGPU_BACKEND
+    const struct cosmo_webgpu_device_info *selected_info = NULL;
+#endif
     const char *output = NULL;
     sd_ctx_params_t context_params;
     sd_img_gen_params_t params;
@@ -298,6 +304,10 @@ int cosmo_image_generate(int argc, char **argv) {
                 if (params.sample_params.scheduler == SCHEDULER_COUNT) goto bad_value;
                 break;
             case 13: context_params.vae_path = value; break;
+            case 14:
+                if (!*value) goto bad_value;
+                requested_device = value;
+                break;
         }
         continue;
 bad_value:
@@ -324,7 +334,7 @@ bad_value:
     }
 #ifdef COSMO_WEBGPU_BACKEND
     if (cosmo_webgpu_initialize()) {
-        fputs("image: embedded WebGPU provider initialization failed\n", stderr);
+        fputs("image: WebGPU provider initialization failed\n", stderr);
         return 1;
     }
 #else
@@ -338,7 +348,29 @@ bad_value:
         fprintf(stderr, "image: requested %s backend is unavailable\n", webgpu ? "WebGPU" : "CPU");
         return 1;
     }
-    context_params.backend = ggml_backend_dev_name(ggml_backend_reg_dev_get(registry, 0));
+    ggml_backend_dev_t selected_device = NULL;
+    if (webgpu) {
+#ifdef COSMO_WEBGPU_BACKEND
+        if (cosmo_webgpu_select_device(requested_device)) {
+            fprintf(stderr, "image: requested WebGPU device is unavailable: %s\n", requested_device);
+            return 2;
+        }
+        selected_info = cosmo_webgpu_device_metadata("auto");
+        if (!selected_info) return 1;
+        selected_device = ggml_backend_dev_by_name(selected_info->selector);
+        if (!selected_device || ggml_backend_dev_backend_reg(selected_device) != registry) return 1;
+        printf("IMAGE_DEVICE selector=%s provider=%s software=%d stable_id=%s\n",
+               selected_info->selector, selected_info->provider, selected_info->software,
+               selected_info->stable_id && *selected_info->stable_id ? selected_info->stable_id : "unavailable");
+#endif
+    } else {
+        if (strcmp(requested_device, "auto") && strcmp(requested_device, "CPU") && strcmp(requested_device, "cpu")) {
+            fprintf(stderr, "image: device %s does not belong to the CPU backend\n", requested_device);
+            return 2;
+        }
+        selected_device = ggml_backend_reg_dev_get(registry, 0);
+    }
+    context_params.backend = ggml_backend_dev_name(selected_device);
     context_params.flash_attn = false;
     context_params.diffusion_flash_attn = false;
     context_params.diffusion_sage_attn = false;
@@ -402,10 +434,11 @@ bad_value:
                provider ? provider : "unknown", software, native_opens);
         const char *adapter = cosmo_webgpu_adapter_name();
         printf("IMAGE_WEBGPU_ADAPTER %s\n", adapter ? adapter : "unknown");
-        if (!provider || strcmp(provider, "embedded") || software != 1 || native_opens ||
+        if (!provider || !selected_info || strcmp(provider, selected_info->provider) ||
+            software != selected_info->software ||
             !executed.graphs || !executed.submissions || !executed.dispatches ||
             !executed.matmuls || !executed.readbacks) {
-            fputs("image: generation did not establish requested embedded WebGPU execution\n", stderr);
+            fputs("image: generation did not establish requested WebGPU device execution\n", stderr);
             goto cleanup;
         }
     }

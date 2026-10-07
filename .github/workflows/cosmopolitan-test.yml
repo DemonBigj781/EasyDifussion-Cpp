@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build one application with shared GGML and embedded WebGPU
+    name: Build one application with shared GGML and both Vulkan providers
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     outputs:
@@ -68,13 +68,17 @@ jobs:
           key: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
       - name: Check the native Generate adapter's asynchronous behavior
         shell: bash
-        run: node cosmopolitan/tests/verify_inference_ui.js
+        run: |
+          node cosmopolitan/tests/verify_inference_ui.js
+          node cosmopolitan/tests/verify_config_ui.js
       - name: Restore the pinned software WebGPU dependency build
         id: software-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: cosmopolitan/out/software-webgpu
-          key: cosmo-easydiffusion-webgpu-ubuntu24-v1-${{ hashFiles('cosmopolitan/software-webgpu/**') }}
+          key: cosmo-easydiffusion-webgpu-ubuntu24-v1-${{ hashFiles('cosmopolitan/software-webgpu/**', 'cosmopolitan/backend/patches/**') }}
+          restore-keys: |
+            cosmo-easydiffusion-webgpu-ubuntu24-v1-
       - name: Build and validate the pinned software WebGPU dependencies
         shell: bash
         run: |
@@ -96,6 +100,20 @@ jobs:
         with:
           path: cosmopolitan/out/software-webgpu
           key: ${{ steps.software-cache.outputs.cache-primary-key }}
+      - name: Verify persistent configuration, device policy and Linux native thread execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cosmopolitan/tests/build_config_probe.py
+          python3 cosmopolitan/tests/verify_config.py \
+            --probe cosmopolitan/out/config-test/config-probe.exe \
+            --loader cosmopolitan/out/ape-x86_64.elf > cosmopolitan/out/config-test/report.json
+          python3 cosmopolitan/tests/verify_device_policy.py --build > cosmopolitan/out/device-policy-report.json
+          python3 cosmopolitan/tests/verify_native_main_executor.py
+          rustc --edition=2021 --test \
+            cosmopolitan/out/software-webgpu/foundation/o/webgpu/source/src/cosmo_adapter_enumeration.rs \
+            -o cosmopolitan/out/adapter-enumeration-test
+          cosmopolitan/out/adapter-enumeration-test > cosmopolitan/out/adapter-enumeration-test.log
       - name: Compile and embed application resources
         shell: bash
         run: |
@@ -112,6 +130,15 @@ jobs:
           cp cosmopolitan/tests/verify_bootstrap.py cosmopolitan/out/verify_bootstrap.py
           cp cosmopolitan/tests/verify_inference.py cosmopolitan/out/verify_inference.py
           cp cosmopolitan/tests/verify_inference_api.py cosmopolitan/out/verify_inference_api.py
+          cp cosmopolitan/tests/verify_webgpu_device.py cosmopolitan/out/verify_webgpu_device.py
+          cp cosmopolitan/tests/verify_windows_native_discovery.py cosmopolitan/out/verify_windows_native_discovery.py
+          cp cosmopolitan/tests/verify_configuration_api.py cosmopolitan/out/verify_configuration_api.py
+          cp cosmopolitan/tests/verify_config.py cosmopolitan/out/verify_config.py
+          cp cosmopolitan/tests/verify_device_policy.py cosmopolitan/out/verify_device_policy.py
+          cp cosmopolitan/out/config-test/config-probe.exe cosmopolitan/out/config-probe.exe
+          cp cosmopolitan/out/config-test/BUILD.json cosmopolitan/out/CONFIG_PROBE_BUILD.json
+          cp cosmopolitan/out/device-policy-test/device-policy-test.exe cosmopolitan/out/device-policy-test.exe
+          cp cosmopolitan/out/device-policy-test/BUILD.json cosmopolitan/out/DEVICE_POLICY_BUILD.json
           cp cosmopolitan/inference/fetch_model.py cosmopolitan/out/fetch_inference_model.py
           cp cosmopolitan/inference/PIN.json cosmopolitan/out/PIN.json
           python3 - <<'PY'
@@ -129,7 +156,7 @@ jobs:
               summary.write('### One application artifact\n\n')
               summary.write(f'SHA-256: `{digest}`\n\n')
               summary.write('Windows and Linux execute this file without rebuilding it. ')
-              summary.write('The executable contains wgpu-native, Mesa lavapipe and LLVM. Runtime jobs require trained text and image inference, WebGPU dispatch during denoising, and native generation API lifecycle checks, alongside the existing CPU, training-math and UI checks. The pinned SD 1.5 weights are external test data.\n')
+              summary.write('The executable contains wgpu-native, Mesa lavapipe and LLVM and can also use the installed native Vulkan driver. Embedded-provider jobs require trained text and image inference, WebGPU dispatch during denoising, and native generation API lifecycle checks. A separate Linux job verifies the native loader, dual-provider graph execution and image inference using an explicitly identified host software driver. These CI runners do not establish physical GPU support. Configuration and selector probes are separate from shader/inference evidence. The pinned SD 1.5 weights are external test data.\n')
           PY
       - name: Upload the application for both operating systems
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -145,6 +172,15 @@ jobs:
             cosmopolitan/out/verify_bootstrap.py
             cosmopolitan/out/verify_inference.py
             cosmopolitan/out/verify_inference_api.py
+            cosmopolitan/out/verify_webgpu_device.py
+            cosmopolitan/out/verify_windows_native_discovery.py
+            cosmopolitan/out/verify_configuration_api.py
+            cosmopolitan/out/verify_config.py
+            cosmopolitan/out/verify_device_policy.py
+            cosmopolitan/out/config-probe.exe
+            cosmopolitan/out/CONFIG_PROBE_BUILD.json
+            cosmopolitan/out/device-policy-test.exe
+            cosmopolitan/out/DEVICE_POLICY_BUILD.json
             cosmopolitan/out/fetch_inference_model.py
             cosmopolitan/out/PIN.json
           if-no-files-found: error
@@ -162,6 +198,11 @@ jobs:
             cosmopolitan/out/software-webgpu/*.log
             cosmopolitan/out/software-webgpu/foundation/o/llvm-cosmo/*.log
             cosmopolitan/out/software-webgpu/foundation/o/lavapipe/*.log
+            cosmopolitan/out/config-test/report.json
+            cosmopolitan/out/device-policy-report.json
+            cosmopolitan/out/native-main-executor-test/report.json
+            cosmopolitan/out/native-main-executor-test/*.log
+            cosmopolitan/out/adapter-enumeration-test.log
           if-no-files-found: ignore
           retention-days: 14
 
@@ -190,6 +231,12 @@ jobs:
           set -euo pipefail
           python3 artifact/verify_bootstrap.py --artifact-dir "$PWD/artifact" \
             --expected-sha256 "$EXPECTED_SHA256"
+      - name: Verify persistent configuration through the actual native HTTP server
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 artifact/verify_configuration_api.py --artifact-dir artifact \
+            --output-dir artifact/results-configuration-api
       - name: Restore the external pinned diffusion checkpoint
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -231,6 +278,7 @@ jobs:
             artifact/results-inference-cpu
             artifact/results-inference-webgpu
             artifact/results-inference-api
+            artifact/results-configuration-api
           if-no-files-found: ignore
           retention-days: 30
 
@@ -252,6 +300,24 @@ jobs:
           $ErrorActionPreference = 'Stop'
           python artifact/verify_runtime.py --artifact-dir artifact
           if ($LASTEXITCODE -ne 0) { throw 'Native Windows runtime verification failed' }
+      - name: Run the identical configuration and device policy probes on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python artifact/verify_config.py --probe artifact/config-probe.exe > artifact/config-report.json
+          if ($LASTEXITCODE -ne 0) { throw 'Windows configuration module verification failed' }
+          python artifact/verify_device_policy.py --probe artifact/device-policy-test.exe > artifact/device-policy-report.json
+          if ($LASTEXITCODE -ne 0) { throw 'Windows device policy verification failed' }
+          python artifact/verify_configuration_api.py --artifact-dir artifact `
+            --output-dir artifact/results-configuration-api
+          if ($LASTEXITCODE -ne 0) { throw 'Windows persistent configuration HTTP verification failed' }
+      - name: Verify the native Windows Vulkan DLL path and unsupported-device rejection
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python artifact/verify_windows_native_discovery.py --artifact-dir artifact `
+            --output-dir artifact/results-windows-native-discovery
+          if ($LASTEXITCODE -ne 0) { throw 'Windows native Vulkan discovery/rejection verification failed' }
       - name: Restore the external pinned diffusion checkpoint
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -290,5 +356,87 @@ jobs:
             artifact/results-inference-cpu
             artifact/results-inference-webgpu
             artifact/results-inference-api
+            artifact/results-configuration-api
+            artifact/config-report.json
+            artifact/device-policy-report.json
+            artifact/results-windows-native-discovery
+          if-no-files-found: ignore
+          retention-days: 30
+
+  linux_native:
+    name: Linux native Vulkan loader and software-driver inference
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      EXPECTED_SHA256: ${{ needs.build.outputs.executable_sha256 }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: easy-diffusion-cosmopolitan-x86_64
+          path: artifact
+      - name: Install and identify the host Vulkan software driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x artifact/ape-x86_64.elf artifact/easy-diffusion.exe
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers vulkan-tools
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          candidates = list(Path('/usr/share/vulkan/icd.d').glob('lvp_icd*.json'))
+          if len(candidates) != 1:
+              raise RuntimeError('Expected exactly one host lavapipe ICD: ' + repr(candidates))
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('NATIVE_ICD=' + str(candidates[0]) + '\n')
+          PY
+          dpkg-query -W libvulkan1 mesa-vulkan-drivers > artifact/native-driver-packages.txt
+      - name: Execute native-driver graphs and trained text inference with software classification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 artifact/verify_webgpu_device.py --artifact-dir artifact \
+            --provider native --device WebGPU0 --vulkan-icd "$NATIVE_ICD" \
+            --output-dir artifact/results-native-device
+          python3 artifact/verify_webgpu_device.py --artifact-dir artifact \
+            --provider auto --all --vulkan-icd "$NATIVE_ICD" \
+            --output-dir artifact/results-dual-provider
+      - name: Restore the external pinned diffusion checkpoint
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: artifact/inference-models
+          key: cosmo-sd15-inference-v1-${{ needs.build.outputs.model_sha256 }}
+          enableCrossOsArchive: true
+      - name: Fetch and verify the external trained checkpoint
+        timeout-minutes: 20
+        shell: bash
+        run: python3 artifact/fetch_inference_model.py --model-dir artifact/inference-models
+      - name: Execute image inference through the Linux main-thread native driver path
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          directory = Path('artifact').resolve()
+          pin = json.loads((directory / 'PIN.json').read_text())
+          model = directory / 'inference-models' / pin['filename']
+          subprocess.run([sys.executable, str(directory / 'verify_inference_api.py'),
+                          '--artifact-dir', str(directory), '--model', str(model),
+                          '--backend', 'webgpu', '--provider', 'native', '--device', 'WebGPU0',
+                          '--vulkan-icd', os.environ['NATIVE_ICD'], '--steps', '2', '--skip-cancel',
+                          '--output-dir', str(directory / 'results-native-inference-api')], check=True)
+          PY
+      - name: Preserve native driver results with actual adapter classification
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cosmopolitan-linux-native-results
+          path: |
+            artifact/native-driver-packages.txt
+            artifact/results-native-device
+            artifact/results-dual-provider
+            artifact/results-native-inference-api
           if-no-files-found: ignore
           retention-days: 30

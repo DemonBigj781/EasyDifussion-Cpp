@@ -4,6 +4,7 @@
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
 #include "ggml-webgpu.h"
+#include <webgpu.h>
 
 #include <inttypes.h>
 #include <math.h>
@@ -49,7 +50,7 @@ static void read_result(const struct ggml_tensor *tensor, float *out) {
     ggml_backend_tensor_get(tensor, out, 0, sizeof(float) * N * M);
 }
 
-static int graph_case(ggml_backend_t backend, int quantized, unsigned iteration) {
+static int graph_case(ggml_backend_t backend, int quantized, unsigned iteration, int strict_embedded) {
     int failed = 1;
     const char *type = quantized ? "Q4_0" : "F32";
     float a[K * N], b[K * M], bias[N], decoded_a[K * N], out[N * M];
@@ -165,16 +166,19 @@ static int graph_case(ggml_backend_t backend, int quantized, unsigned iteration)
     if (after.graphs <= before.graphs || after.submissions <= before.submissions ||
         after.dispatches <= before.dispatches || after.matmuls <= before.matmuls ||
         after.readbacks < before.readbacks + 3 ||
-        cosmo_webgpu_native_loader_open_count() != 0) {
-        fputs("WebGPU graph lacks actual embedded compute/submission/readback evidence\n", stderr);
+        (strict_embedded && cosmo_webgpu_native_loader_open_count() != 0)) {
+        fputs("WebGPU graph lacks actual compute/submission/readback evidence\n", stderr);
         goto done;
     }
-    printf("WEBGPU_GGML_EXECUTION type=%s iteration=%u provider=embedded software=1 "
+    const struct cosmo_webgpu_device_info *info = cosmo_webgpu_device_metadata(ggml_backend_dev_name(device));
+    if (!info || (strict_embedded && (strcmp(info->provider, "embedded") || info->software != 1))) goto done;
+    printf("WEBGPU_GGML_EXECUTION type=%s iteration=%u provider=%s software=%d "
            "graphs=%" PRIu64 " submissions=%" PRIu64 " dispatches=%" PRIu64
-           " matmuls=%" PRIu64 " readbacks=%" PRIu64 " native_loader_opens=0 cpu_fallback=0\n",
-           type, iteration, after.graphs - before.graphs, after.submissions - before.submissions,
+           " matmuls=%" PRIu64 " readbacks=%" PRIu64 " native_loader_opens=%lu cpu_fallback=0\n",
+           type, iteration, info->provider, info->software,
+           after.graphs - before.graphs, after.submissions - before.submissions,
            after.dispatches - before.dispatches, after.matmuls - before.matmuls,
-           after.readbacks - before.readbacks);
+           after.readbacks - before.readbacks, cosmo_webgpu_native_loader_open_count());
     failed = 0;
 done:
     free(qa);
@@ -207,7 +211,7 @@ int cosmo_webgpu_selftest(void) {
     printf("WEBGPU_ADAPTER name=%s provider=embedded software=1 native_loader_opens=0\n",
            cosmo_webgpu_adapter_name());
     for (unsigned iteration = 0; iteration < 2; ++iteration) {
-        if (graph_case(backend, 0, iteration) || graph_case(backend, 1, iteration)) goto done;
+        if (graph_case(backend, 0, iteration, 1) || graph_case(backend, 1, iteration, 1)) goto done;
     }
     failed = 0;
 done:
@@ -218,4 +222,52 @@ done:
     }
     puts("WEBGPU_GGML_SELFTEST PASS");
     return 0;
+}
+
+/* Called on the original main thread, including through the native HTTP lane.
+   All tensors remain on the selected WebGPU device; no scheduler exists here. */
+int cosmo_webgpu_device_graph_probe(const char *selector, int require_hardware) {
+    ggml_backend_t backend = NULL;
+    int result = 1;
+    ggml_backend_reg_t registry = ggml_backend_reg_by_name(GGML_WEBGPU_NAME);
+    if (!registry || !ggml_backend_reg_dev_count(registry) ||
+        cosmo_webgpu_select_device(selector)) {
+        fprintf(stderr, "WEBGPU_DEVICE_TEST FAIL: %s\n", cosmo_webgpu_last_error());
+        return 1;
+    }
+    const struct cosmo_webgpu_device_info *info = cosmo_webgpu_device_metadata("auto");
+    ggml_backend_dev_t device = info ? ggml_backend_dev_by_name(info->selector) : NULL;
+    if (!device || ggml_backend_dev_backend_reg(device) != registry) {
+        fputs("WEBGPU_DEVICE_TEST FAIL: selected device is not registered by WebGPU\n", stderr);
+        return 1;
+    }
+    const int hardware = !strcmp(info->provider, "native") && !info->software &&
+        (info->adapter_type == WGPUAdapterType_DiscreteGPU || info->adapter_type == WGPUAdapterType_IntegratedGPU);
+    const char *kind = info->software ? "software-cpu" : info->adapter_type == WGPUAdapterType_DiscreteGPU ? "discrete-gpu" :
+        info->adapter_type == WGPUAdapterType_IntegratedGPU ? "integrated-gpu" : "unknown";
+    if (require_hardware && !hardware) {
+        fprintf(stderr, "WEBGPU_DEVICE_TEST FAIL: hardware required, selected %s provider=%s type=%s\n",
+                info->selector, info->provider, kind);
+        return 1;
+    }
+    backend = ggml_backend_dev_init(device, NULL);
+    if (!backend) goto done;
+    const struct execution_counts before = snapshot();
+    for (unsigned iteration = 0; iteration < 2; ++iteration)
+        if (graph_case(backend, 0, iteration, 0) || graph_case(backend, 1, iteration, 0)) goto done;
+    const struct execution_counts after = snapshot();
+    printf("WEBGPU_DEVICE_ADAPTER %s\n", info->name);
+    printf("WEBGPU_DEVICE_EXECUTION selector=%s provider=%s software=%d adapter_type=%" PRIu32
+           " device_kind=%s require_hardware=%d graphs=%" PRIu64 " submissions=%" PRIu64
+           " dispatches=%" PRIu64 " matmuls=%" PRIu64 " readbacks=%" PRIu64
+           " native_loader_opens=%lu cpu_fallback=0\n",
+           info->selector, info->provider, info->software, info->adapter_type, kind, require_hardware,
+           after.graphs - before.graphs, after.submissions - before.submissions,
+           after.dispatches - before.dispatches, after.matmuls - before.matmuls,
+           after.readbacks - before.readbacks, cosmo_webgpu_native_loader_open_count());
+    result = 0;
+done:
+    if (backend) ggml_backend_free(backend);
+    puts(result ? "WEBGPU_DEVICE_TEST FAIL" : "WEBGPU_DEVICE_TEST PASS");
+    return result;
 }

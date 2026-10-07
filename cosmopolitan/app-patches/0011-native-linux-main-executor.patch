@@ -1,0 +1,51 @@
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -3,6 +3,7 @@
+ #include "ui_routes.hpp"
+ #include "config.hpp"
+ #include "inference_worker.hpp"
++#include "native_main_executor.hpp"
+ 
+ #include <algorithm>
+ #include <cctype>
+@@ -414,10 +415,27 @@
+ 
+ void Server::run() {
+     std::cout << "Starting server on port " << port_ << std::endl;
+-    app_.bindaddr("127.0.0.1").port(port_).multithreaded().run();
+-    // Crow signal handling stops its I/O pools directly. They have joined when
+-    // run returns, but their io_service objects remain owned by app_.
+-    finishAsyncRequests();
++    if (cosmo_native_main_required()) {
++        // Registry enumeration can enter the host Vulkan loader. Complete it
++        // on the original main thread; HTTP metadata queries use cached data.
++        const size_t count = sd_get_backend_device_count();
++        for (size_t i = 0; i < count; ++i) {
++            sd_backend_device_info_t info{};
++            if (!sd_get_backend_device_info(i, &info))
++                throw std::runtime_error("Cannot initialize native backend metadata");
++        }
++    }
++    cosmo_native_main_service([this] {
++        try {
++            app_.bindaddr("127.0.0.1").port(port_).multithreaded().run();
++        } catch (...) {
++            finishAsyncRequests();
++            throw;
++        }
++        // Join inference coordinators while the original main-thread lane is
++        // still pumping. app_ continues to own stopped I/O contexts here.
++        finishAsyncRequests();
++    });
+ }
+ 
+ void Server::stop() {
+@@ -1361,6 +1379,8 @@
+ }
+ 
+ crow::response Server::handleExtraBatchImages(const crow::request& req) {
++    if (cosmo_native_main_required())
++        return request_error(501, "Native Vulkan HTTP upscaling is not routed through the main-thread executor");
+     try {
+         auto json_body = crow::json::load(req.body);
+         if (!json_body) {

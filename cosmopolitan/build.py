@@ -259,7 +259,7 @@ def main():
                 "software_webgpu": json.loads(software_metadata.read_text()),
                 "software_webgpu_metadata_sha256": digest(software_metadata)}
     recipe_files = [HERE / "build.py", HERE / "build.sh", HERE / "CMakeLists.txt"]
-    for directory in ("cmake", "patches", "app-patches", "software-webgpu", "backend"):
+    for directory in ("cmake", "patches", "app-patches", "software-webgpu", "backend", "src"):
         recipe_files.extend(p for p in (HERE / directory).rglob("*") if p.is_file())
     metadata["build_recipe_sha256"] = {
         str(p.relative_to(HERE)): digest(p) for p in sorted(recipe_files)}

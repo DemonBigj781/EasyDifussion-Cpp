@@ -71,7 +71,7 @@ if(COSMO_BUILD_APP)
     target_compile_definitions(cosmo-sdkit PUBLIC
         ASIO_DISABLE_EPOLL ASIO_DISABLE_EVENTFD ASIO_DISABLE_TIMERFD ASIO_DISABLE_SERIAL_PORT)
     target_compile_definitions(cosmo-sdkit PRIVATE COSMO_SDKIT_MAIN_SOURCE="${SDKIT_SOURCE}/src/main.cpp")
-    target_link_libraries(cosmo-sdkit PUBLIC stable-diffusion ggml easy-diffusion-ui)
+    target_link_libraries(cosmo-sdkit PUBLIC stable-diffusion ggml easy-diffusion-ui cosmo-ggml-webgpu-adapter)
     file(GLOB FRONTEND_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
     list(REMOVE_ITEM FRONTEND_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/sdkit_entry.cpp")

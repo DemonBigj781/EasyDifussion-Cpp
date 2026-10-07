@@ -7,8 +7,9 @@
 #include <vector>
 
 /* Synchronous request boundary: references captured by work remain alive until
-   its explicitly sized worker is joined. Native cancellation uses the existing
-   ImageGenerator context and never cancels this pthread. */
+   completion. Embedded/Windows use an explicitly sized worker. Linux native
+   work uses the original-main executor, preserving host-library TLS. Native
+   cancellation uses ImageGenerator's context, never pthread cancellation. */
 std::vector<std::string> cosmo_inference_worker(
     std::function<std::vector<std::string>()> work);
 

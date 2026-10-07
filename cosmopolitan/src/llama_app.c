@@ -1,4 +1,7 @@
 #include "runtime.h"
+#ifndef COSMO_LLAMA_REFERENCE_BUILD
+#include "config.h"
+#endif
 
 #include "ggml-backend.h"
 #include "ggml-cpu.h"
@@ -40,15 +43,18 @@ struct llama_run_options {
     int threads;
     bool selftest;
     bool webgpu;
+    const char *device;
+    bool report_tokens;
 };
 
 static void llama_usage(void) {
     fputs("Usage: llama [--model FILE.gguf] [--prompt TEXT] "
-          "[--tokens N] [--threads N] [--backend cpu|webgpu]\n"
+          "[--tokens N] [--threads N] [--backend cpu|webgpu] [--device NAME] [--report-tokens]\n"
           "  Default model: embedded trained stories260K.gguf\n"
           "  Default prompt: Once upon a time\n"
           "  Default generation: 64 greedy tokens, 1 CPU thread\n"
-          "  WebGPU uses the embedded software Vulkan driver.\n"
+          "  --device accepts auto, a listed selector, or an available stable ID.\n"
+          "  WebGPU uses the configured native/embedded Vulkan provider.\n"
           "  Limits: 1..4096 tokens, 1..256 threads, 32768 context tokens\n"
           "  This entry point supports decoder-only text models.\n",
           stdout);
@@ -132,19 +138,23 @@ static int llama_run(const struct llama_run_options *options) {
     struct llama_model *model = NULL;
     struct llama_context *context = NULL;
     llama_token *prompt_tokens = NULL;
-    llama_token selftest_ids[LLAMA_SELFTEST_STEPS];
+    llama_token selftest_ids[LLAMA_MAX_GENERATED];
     int generated = 0;
     int decode_steps = 0;
     int32_t prompt_count = 0;
     const struct llama_vocab *vocab = NULL;
     ggml_backend_dev_t selected_devices[] = {NULL, NULL};
+    const char *requested_device = options->device ? options->device : "auto";
+#ifdef COSMO_WEBGPU_BACKEND
+    const struct cosmo_webgpu_device_info *selected_info = NULL;
+#endif
 #ifdef COSMO_WEBGPU_BACKEND
     uint64_t graphs_before = 0, dispatches_before = 0, matmuls_before = 0;
     uint64_t submissions_before = 0, readbacks_before = 0;
     uint64_t decode_graphs_before = 0, decode_dispatches_before = 0, decode_matmuls_before = 0;
     uint64_t decode_submissions_before = 0, decode_readbacks_before = 0;
     if (cosmo_webgpu_initialize()) {
-        fputs("llama: embedded WebGPU provider initialization failed\n", stderr);
+        fputs("llama: WebGPU provider initialization failed\n", stderr);
         return 1;
     }
 #else
@@ -180,11 +190,27 @@ static int llama_run(const struct llama_run_options *options) {
             fputs("llama: requested WebGPU backend is unavailable\n", stderr);
             goto cleanup;
         }
-        selected_devices[0] = ggml_backend_reg_dev_get(webgpu, 0);
-        if (selected_devices[0] == NULL) {
-            fputs("llama: requested WebGPU device is unavailable\n", stderr);
+#ifdef COSMO_WEBGPU_BACKEND
+        if (cosmo_webgpu_select_device(requested_device)) {
+            fprintf(stderr, "llama: requested WebGPU device is unavailable: %s\n", requested_device);
             goto cleanup;
         }
+        selected_info = cosmo_webgpu_device_metadata("auto");
+        if (selected_info == NULL) goto cleanup;
+        selected_devices[0] = ggml_backend_dev_by_name(selected_info->selector);
+        if (selected_devices[0] == NULL || ggml_backend_dev_backend_reg(selected_devices[0]) != webgpu) {
+            fputs("llama: selected adapter has no matching GGML device\n", stderr);
+            goto cleanup;
+        }
+        fprintf(stderr, "LLAMA_DEVICE selector=%s provider=%s software=%d stable_id=%s\n",
+                selected_info->selector, selected_info->provider, selected_info->software,
+                selected_info->stable_id && *selected_info->stable_id ? selected_info->stable_id : "unavailable");
+#endif
+    } else if (strcmp(requested_device, "auto") && strcmp(requested_device, "CPU") &&
+               strcmp(requested_device, "cpu")) {
+        fprintf(stderr, "llama: device %s does not belong to the CPU backend\n", requested_device);
+        result = 2;
+        goto cleanup;
     }
     llama_backend_init();
     backend_initialized = true;
@@ -315,13 +341,14 @@ static int llama_run(const struct llama_run_options *options) {
         if (!options->selftest && llama_vocab_is_eog(vocab, token)) {
             break;
         }
-        if (options->selftest) {
-            if (step >= LLAMA_SELFTEST_STEPS) {
+        if (options->selftest || options->report_tokens) {
+            if (step >= LLAMA_MAX_GENERATED) {
                 fputs("llama: invalid self-test token count\n", stderr);
                 goto cleanup;
             }
             selftest_ids[step] = token;
-        } else if (llama_write_piece(vocab, token) != 0) {
+        }
+        if (!options->selftest && llama_write_piece(vocab, token) != 0) {
             goto cleanup;
         }
         ++generated;
@@ -366,6 +393,15 @@ static int llama_run(const struct llama_run_options *options) {
         putchar('\n');
         fprintf(stderr, "llama: generated %d tokens using the linked %s backend\n",
                 generated, options->webgpu ? "WebGPU" : "CPU");
+        if (options->report_tokens) {
+            fputs("LLAMA_GENERATED_IDS ", stderr);
+            for (int i = 0; i < generated; ++i)
+                fprintf(stderr, "%s%" PRId32, i ? "," : "", selftest_ids[i]);
+            fputc('\n', stderr);
+            fprintf(stderr, "LLAMA_GENERATION prompt_tokens=%" PRId32
+                    " decode_steps=%d vocab=%" PRId32 " finite_logits=1 threads=%d\n",
+                    prompt_count, decode_steps, vocabulary_size, options->threads);
+        }
     }
 #ifdef COSMO_WEBGPU_BACKEND
     if (options->webgpu) {
@@ -381,9 +417,15 @@ static int llama_run(const struct llama_run_options *options) {
         const uint64_t decode_readbacks = cosmo_webgpu_readback_count() - decode_readbacks_before;
         const unsigned long native_opens = cosmo_webgpu_native_loader_open_count();
         const char *provider = cosmo_webgpu_provider_name();
-        if (!graphs || !dispatches || !matmuls || !submissions || !readbacks || native_opens ||
-            !cosmo_webgpu_adapter_is_software() || provider == NULL || strcmp(provider, "embedded")) {
-            fputs("llama: requested embedded WebGPU execution was not established\n", stderr);
+        const int software = cosmo_webgpu_adapter_is_software();
+        if (!graphs || !dispatches || !matmuls || !submissions || !readbacks ||
+            selected_info == NULL || provider == NULL || strcmp(provider, selected_info->provider) ||
+            software != selected_info->software) {
+            fputs("llama: requested WebGPU device execution was not established\n", stderr);
+            goto cleanup;
+        }
+        if (options->selftest && (native_opens || software != 1 || strcmp(provider, "embedded"))) {
+            fputs("llama: self-test requires the embedded software WebGPU provider\n", stderr);
             goto cleanup;
         }
         if (decode_steps && (!decode_graphs || !decode_dispatches || !decode_matmuls ||
@@ -392,10 +434,10 @@ static int llama_run(const struct llama_run_options *options) {
             goto cleanup;
         }
         fprintf(options->selftest ? stdout : stderr,
-                "WEBGPU_LLAMA_EXECUTION provider=%s software=1 graphs=%" PRIu64
+                "WEBGPU_LLAMA_EXECUTION provider=%s software=%d graphs=%" PRIu64
                 " submissions=%" PRIu64 " dispatches=%" PRIu64 " matmuls=%" PRIu64
                 " readbacks=%" PRIu64 " native_loader_opens=%lu\n",
-                provider, graphs, submissions, dispatches, matmuls, readbacks, native_opens);
+                provider, software, graphs, submissions, dispatches, matmuls, readbacks, native_opens);
         fprintf(options->selftest ? stdout : stderr,
                 "WEBGPU_LLAMA_DECODE_EXECUTION steps=%d graphs=%" PRIu64
                 " submissions=%" PRIu64 " dispatches=%" PRIu64 " matmuls=%" PRIu64
@@ -438,31 +480,39 @@ int cosmo_llama_selftest(void) {
     }
 #endif
     const struct llama_run_options options = {
-        model_path, LLAMA_DEMO_PROMPT, LLAMA_SELFTEST_STEPS, 1, true, false
+        model_path, LLAMA_DEMO_PROMPT, LLAMA_SELFTEST_STEPS, 1, true, false, "auto", false
     };
     return llama_run(&options);
 }
 
 int cosmo_llama_webgpu_selftest(void) {
     const struct llama_run_options options = {
-        LLAMA_DEMO_MODEL, LLAMA_DEMO_PROMPT, LLAMA_SELFTEST_STEPS, 1, true, true
+        LLAMA_DEMO_MODEL, LLAMA_DEMO_PROMPT, LLAMA_SELFTEST_STEPS, 1, true, true, "auto", false
     };
     return llama_run(&options);
 }
 
 int cosmo_llama_generate(int argc, char **argv) {
     struct llama_run_options options = {
-        LLAMA_DEMO_MODEL, LLAMA_DEMO_PROMPT, 64, 1, false, false
+        LLAMA_DEMO_MODEL, LLAMA_DEMO_PROMPT, 64, 1, false, false, "auto", false
     };
+#ifndef COSMO_LLAMA_REFERENCE_BUILD
+    options.device = cosmo_config_device();
+    options.webgpu = !strcmp(cosmo_config_backend(), "webgpu");
+#endif
     for (int i = 1; i < argc; ++i) {
         const char *argument = argv[i];
+        if (!strcmp(argument, "--report-tokens")) {
+            options.report_tokens = true;
+            continue;
+        }
         if (!strcmp(argument, "--help") || !strcmp(argument, "-h")) {
             llama_usage();
             return 0;
         }
         if (strcmp(argument, "--model") && strcmp(argument, "--prompt") &&
             strcmp(argument, "--tokens") && strcmp(argument, "--threads") &&
-            strcmp(argument, "--backend")) {
+            strcmp(argument, "--backend") && strcmp(argument, "--device")) {
             fprintf(stderr, "llama: unknown argument: %s\n", argument);
             return 2;
         }
@@ -483,6 +533,12 @@ int cosmo_llama_generate(int argc, char **argv) {
                 fputs("llama: --tokens must be an integer from 1 to 4096\n", stderr);
                 return 2;
             }
+        } else if (!strcmp(argument, "--device")) {
+            if (!*argv[i]) {
+                fputs("llama: --device must not be empty\n", stderr);
+                return 2;
+            }
+            options.device = argv[i];
         } else if (!strcmp(argument, "--backend")) {
             if (strcmp(argv[i], "cpu") && strcmp(argv[i], "webgpu")) {
                 fputs("llama: --backend must be cpu or webgpu\n", stderr);

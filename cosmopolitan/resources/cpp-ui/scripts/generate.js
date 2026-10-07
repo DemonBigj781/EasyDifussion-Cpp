@@ -10,6 +10,7 @@
     const preview = byId("preview-content"), modelStatus = byId("generation-model-status");
     const editable = ["prompt", "negative_prompt", "seed", "width", "height", "steps", "guidance_scale", "sampler"];
     let ready = false, active = null, loadingModels = false, models = new Set();
+    const devices = new Map();
 
     for (const control of controls.querySelectorAll("input,select,textarea,button")) control.disabled = true;
     byId("show-download-popup").disabled = true;
@@ -45,14 +46,14 @@
     refresh.disabled = true;
     modelStatus.after(refresh);
     const backendLabel = document.createElement("label");
-    backendLabel.textContent = "Compute backend ";
+    backendLabel.textContent = "Compute device ";
     const backend = document.createElement("select");
     backend.id = "cosmo-generation-backend";
     backend.disabled = true;
     backendLabel.append(backend);
     refresh.after(backendLabel);
     const backendHelp = document.createElement("p");
-    backendHelp.textContent = "CPU is the default. Embedded software WebGPU also runs on the CPU through the bundled Vulkan driver; unsupported operations may fall back to GGML CPU.";
+    backendHelp.textContent = "Software adapters run on the CPU. Hardware entries identify an actual integrated or discrete GPU. Unsupported operations may fall back to GGML CPU; device memory is shown only when measured.";
     backendLabel.after(backendHelp);
     const sampler = byId("sampler");
     sampler.replaceChildren(new Option("Euler", "euler"), new Option("Euler a", "euler_a"), new Option("DPM++ 2M", "dpm++2m"));
@@ -72,7 +73,7 @@
         checkpoint.disabled = !available || models.size === 0;
         backend.disabled = !available;
         refresh.disabled = !available;
-        start.disabled = !available || !models.has(checkpoint.value) || !backend.value;
+        start.disabled = !available || !models.has(checkpoint.value) || !devices.has(backend.value);
         stop.disabled = !active || !active.sampling || active.stopping;
     }
     async function request(path, body) {
@@ -176,6 +177,7 @@
             const prompt = byId("prompt").value.trim();
             if (!prompt) throw new Error("Enter a prompt first.");
             if (!models.has(checkpoint.value)) throw new Error("Select an indexed complete checkpoint.");
+            if (!devices.has(backend.value)) throw new Error("Select an available compute device.");
             const width = integer("width", 64, 2048), height = integer("height", 64, 2048);
             if (width % 64 || height % 64) throw new Error("Width and height must be multiples of 64.");
             const steps = integer("steps", 1, 200);
@@ -238,6 +240,11 @@
         try { localStorage.setItem("cosmo-native-checkpoint", checkpoint.value); } catch (_) {}
         updateControls();
     });
+    backend.addEventListener("change", () => {
+        updateControls();
+        const selected = devices.get(backend.value);
+        if (selected) message(`Selected ${selected.label}. This request uses ${selected.selector}.`);
+    });
     refresh.addEventListener("click", () => loadModels(true).catch(error => message(error.message, true)));
     byId("clear-all-previews").addEventListener("click", () => preview.replaceChildren());
     window.addEventListener("beforeunload", event => { if (active) { event.preventDefault(); event.returnValue = ""; } });
@@ -245,16 +252,54 @@
         try {
             const state = await window.CppKiosk.ready;
             if (state.capabilities.txt2img !== true || state.capabilities.max_concurrent_generations !== 1) throw new Error("Unsupported native generation protocol");
-            const result = await request("/v1/sdapi/v1/backend-devices");
-            if (!Array.isArray(result.devices)) throw new Error("Invalid backend list from the native server");
-            const available = new Set(result.devices.map(device => String(device.backend).toLowerCase()));
-            if (available.has("cpu")) backend.add(new Option("GGML CPU", "cpu"));
-            if (available.has("webgpu")) backend.add(new Option("Embedded software WebGPU", "webgpu"));
-            if (!backend.options.length) throw new Error("No supported native image backend is available");
+            const [result, config] = await Promise.all([
+                request("/v1/sdapi/v1/backend-devices"), request("/v1/sdapi/v1/config"),
+            ]);
+            if (!Array.isArray(result.devices)) throw new Error("Invalid device list from the native server");
+            const compute = config.effective?.compute;
+            if (!compute || !["cpu", "webgpu"].includes(compute.backend)) throw new Error("Invalid effective compute configuration");
+            for (const device of result.devices) {
+                const kind = String(device.backend).toLowerCase();
+                if (!["cpu", "webgpu"].includes(kind)) continue;
+                if (typeof device.selector !== "string" || !device.selector || devices.has(device.selector))
+                    throw new Error("Missing or duplicate native device selector");
+                let label;
+                if (kind === "cpu") label = "GGML CPU";
+                else {
+                    if (typeof device.software !== "boolean" || typeof device.provider !== "string")
+                        throw new Error("WebGPU device classification is unavailable");
+                    const type = device.software ? "Software CPU" : device.type === "integrated-gpu" ? "Integrated GPU" : device.type === "gpu" ? "Discrete GPU" : "Unknown adapter type";
+                    label = `${type} · ${device.description || device.selector} · ${device.provider}`;
+                    if (device.memory_known === true && Number(device.memory_total) > 0)
+                        label += ` · ${(Number(device.memory_total) / 1073741824).toFixed(1)} GiB`;
+                }
+                label += ` [${device.selector}]`;
+                devices.set(device.selector, {...device, kind, label});
+                backend.add(new Option(label, device.selector));
+            }
+            if (!backend.options.length) throw new Error("No supported native image device is available");
+            const requested = compute.device || "auto";
+            const choices = [...devices.values()].filter(device => device.kind === compute.backend);
+            let selected;
+            if (requested === "auto") {
+                selected = compute.backend === "cpu" ? choices[0] : choices.find(device => device.selector === result.default_webgpu_selector);
+            } else {
+                const matches = choices.filter(device => device.selector === requested ||
+                    (device.stable_id_available === true && device.stable_id === requested));
+                if (matches.length === 1) selected = matches[0];
+            }
+            if (selected) backend.value = selected.selector;
+            else {
+                const unavailable = new Option(`Configured device unavailable: ${requested}`, "");
+                unavailable.disabled = true;
+                backend.add(unavailable);
+                backend.value = "";
+            }
             await loadModels();
             ready = true;
             updateControls();
-            message("Ready for text-to-image generation using a complete checkpoint. Models load when you choose Generate.");
+            message(selected ? "Ready for text-to-image generation using a complete checkpoint. Models load when you choose Generate." :
+                "The configured device is unavailable. Choose an available compute device or update Settings; no replacement was selected.", !selected);
         } catch (error) {
             ready = false;
             updateControls();

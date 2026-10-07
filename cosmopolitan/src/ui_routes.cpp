@@ -8,7 +8,7 @@
 
 namespace {
 
-std::string native_generate_scripts(std::string html) {
+std::string native_page_scripts(std::string html, const std::string &script) {
     const std::string prefix = "<script defer src=\"";
     size_t position = 0;
     while ((position = html.find(prefix, position)) != std::string::npos) {
@@ -17,7 +17,7 @@ std::string native_generate_scripts(std::string html) {
         const size_t end = html.find("</script>", name_end);
         if (name_end == std::string::npos || end == std::string::npos) break;
         const std::string name = html.substr(name_start, name_end - name_start);
-        if (name == "/cpp-ui/scripts/kiosk.js" || name == "/cpp-ui/scripts/generate.js") {
+        if (name == "/cpp-ui/scripts/kiosk.js" || name == script) {
             position = end + 9;
         } else {
             html.erase(position, end + 9 - position);
@@ -29,7 +29,9 @@ std::string native_generate_scripts(std::string html) {
 crow::response page(const std::string &path) {
     try {
         std::string html = easy_diffusion::ui::pages::render(path).render();
-        if (path == "/") html = native_generate_scripts(std::move(html));
+        if (path == "/") html = native_page_scripts(std::move(html), "/cpp-ui/scripts/generate.js");
+        if (path == "/settings" || path == "/settings/gpu")
+            html = native_page_scripts(std::move(html), "/cpp-ui/scripts/backend-platform.js");
         crow::response result(std::move(html));
         result.set_header("Content-Type", "text/html; charset=utf-8");
         return result;
@@ -77,6 +79,8 @@ void cosmo_register_ui_routes(crow::SimpleApp &app) {
     CROW_ROUTE(app, "/v1/sdapi/v1/cosmopolitan-capabilities").methods("GET"_method)([] {
         crow::json::wvalue capabilities;
         capabilities["protocol"] = 1;
+        capabilities["persistent_configuration"] = true;
+        capabilities["configuration_schema"] = 1;
         capabilities["mode"] = "native-single-user";
         capabilities["kiosk_supported"] = false;
         capabilities["kiosk_enabled"] = false;

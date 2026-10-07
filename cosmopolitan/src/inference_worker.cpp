@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 #include "inference_worker.hpp"
+#include "native_main_executor.hpp"
 #include "logging.h"
+#ifdef COSMO_WEBGPU_BACKEND
+#include "cosmo-webgpu.h"
+#include <cinttypes>
+#endif
 
 #include <cstdio>
 #include <exception>
@@ -23,9 +28,15 @@ void require_pthread(int error, const char * operation) {
     if (error) throw std::system_error(error, std::generic_category(), operation);
 }
 
-void * run(void * opaque) noexcept {
-    auto & work = *static_cast<Work *>(opaque);
+void execute(Work &work, bool original_main) noexcept {
     reset_sd_generation_error();
+#ifdef COSMO_WEBGPU_BACKEND
+    const uint64_t graphs = cosmo_webgpu_graph_count();
+    const uint64_t submissions = cosmo_webgpu_submission_count();
+    const uint64_t dispatches = cosmo_webgpu_dispatch_count();
+    const uint64_t matmuls = cosmo_webgpu_matmul_dispatch_count();
+    const uint64_t readbacks = cosmo_webgpu_readback_count();
+#endif
     try {
         pthread_attr_t actual;
         require_pthread(pthread_getattr_np(pthread_self(), &actual), "inference pthread_getattr_np");
@@ -37,9 +48,10 @@ void * run(void * opaque) noexcept {
         require_pthread(guard_error, "inference pthread_attr_getguardsize");
         require_pthread(destroy_error, "inference pthread_attr_destroy(actual)");
         if (bytes < inference_stack_bytes)
-            throw std::runtime_error("Native inference worker stack is smaller than requested");
-        std::fprintf(stderr, "NATIVE_INFERENCE_WORKER stack_bytes=%zu guard_bytes=%zu "
-                             "stack_source=pthread_getattr_np\n", bytes, guard);
+            throw std::runtime_error("Native inference stack is smaller than 8 MiB");
+        std::fprintf(stderr, "%s stack_bytes=%zu guard_bytes=%zu "
+                             "stack_source=pthread_getattr_np\n",
+                     original_main ? "NATIVE_INFERENCE_MAIN" : "NATIVE_INFERENCE_WORKER", bytes, guard);
         std::fflush(stderr);
         work.result = work.function();
     } catch (...) {
@@ -48,6 +60,27 @@ void * run(void * opaque) noexcept {
         work.failure = std::current_exception();
     }
     work.out_of_vram = sd_generation_error_out_of_vram();
+#ifdef COSMO_WEBGPU_BACKEND
+    const auto *device = cosmo_webgpu_device_metadata("auto");
+    std::fprintf(stderr, "NATIVE_INFERENCE_EXECUTION success=%d selector=%s provider=%s "
+                         "software=%d adapter_type=%u graphs=%" PRIu64 " submissions=%" PRIu64
+                         " dispatches=%" PRIu64 " matmuls=%" PRIu64 " readbacks=%" PRIu64
+                         " native_loader_opens=%lu\n",
+                 !work.failure && !work.result.empty(), device ? device->selector : "none",
+                 device ? device->provider : "unselected", device ? device->software : -1,
+                 device ? device->adapter_type : 0,
+                 cosmo_webgpu_graph_count() - graphs,
+                 cosmo_webgpu_submission_count() - submissions,
+                 cosmo_webgpu_dispatch_count() - dispatches,
+                 cosmo_webgpu_matmul_dispatch_count() - matmuls,
+                 cosmo_webgpu_readback_count() - readbacks,
+                 cosmo_webgpu_native_loader_open_count());
+    std::fflush(stderr);
+#endif
+}
+
+void * run(void * opaque) noexcept {
+    execute(*static_cast<Work *>(opaque), false);
     return nullptr;
 }
 }
@@ -55,6 +88,12 @@ void * run(void * opaque) noexcept {
 std::vector<std::string> cosmo_inference_worker(
     std::function<std::vector<std::string>()> function) {
     Work work{std::move(function), {}, {}, false};
+    if (cosmo_native_main_required()) {
+        cosmo_native_main_invoke([&] { execute(work, true); });
+        set_sd_generation_error_out_of_vram(work.out_of_vram);
+        if (work.failure) std::rethrow_exception(work.failure);
+        return std::move(work.result);
+    }
     pthread_attr_t attributes;
     require_pthread(pthread_attr_init(&attributes), "inference pthread_attr_init");
     const int stack_error = pthread_attr_setstacksize(&attributes, inference_stack_bytes);

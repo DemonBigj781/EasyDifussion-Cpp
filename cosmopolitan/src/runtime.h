@@ -10,6 +10,7 @@ int cosmo_shared_ggml_selftest(void);
 int cosmo_llama_selftest(void);
 int cosmo_llama_webgpu_selftest(void);
 int cosmo_webgpu_selftest(void);
+int cosmo_webgpu_device_test(int argc, char **argv);
 int cosmo_webgpu_inplace_selftest(void);
 int cosmo_llama_generate(int argc, char **argv);
 int cosmo_image_generate(int argc, char **argv);

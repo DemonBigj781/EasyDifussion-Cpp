@@ -117,7 +117,7 @@ def verify(args):
             started = time.monotonic()
             try:
                 with log.open("wb") as output:
-                    result = subprocess.run(["/bin/sh", str(application), "--self-test"],
+                    result = subprocess.run(["/bin/sh", str(application), "--self-test", "--provider", "embedded", "--device", "auto"],
                                             cwd=root, env=environment, stdin=subprocess.DEVNULL,
                                             stdout=output, stderr=subprocess.STDOUT, timeout=240)
             finally:
@@ -127,7 +127,7 @@ def verify(args):
                 report["hash_unchanged"] = (report["sha256_copy_after"] == original
                                              == report["sha256_after"])
             report["exit_code"] = result.returncode
-            report["command"] = ["/bin/sh", APPLICATION, "--self-test"]
+            report["command"] = ["/bin/sh", APPLICATION, "--self-test", "--provider", "embedded", "--device", "auto"]
             if result.returncode != 0:
                 raise RuntimeError(f"Shell bootstrap self-test exited with code {result.returncode}")
             if not report["hash_unchanged"]:

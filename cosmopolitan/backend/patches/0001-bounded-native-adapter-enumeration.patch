@@ -1,0 +1,134 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -2931,6 +2931,33 @@
+     NULL_FUTURE
+ }
+ 
++
++mod cosmo_adapter_enumeration;
++
++
++/// Application extension: unlike upstream's unbounded output array, this
++/// function writes at most `capacity` handles and returns the full new count.
++/// The caller owns exactly min(capacity, count) references if output is nonnull.
++#[no_mangle]
++pub unsafe extern "C" fn cosmo_wgpu_instance_enumerate_adapters(
++    instance: native::WGPUInstance,
++    options: Option<&native::WGPUInstanceEnumerateAdapterOptions>,
++    capacity: usize,
++    adapters: *mut native::WGPUAdapter,
++) -> usize {
++    let instance = instance.as_ref().expect("invalid instance");
++    let context = &instance.context;
++    let inputs = match options {
++        Some(options) => map_instance_backend_flags(options.backends as native::WGPUInstanceBackend),
++        None => wgt::Backends::all(),
++    };
++    cosmo_adapter_enumeration::cosmo_transfer_adapters(
++        context.enumerate_adapters(inputs), capacity, adapters,
++        |id| Arc::into_raw(Arc::new(WGPUAdapterImpl { context: context.clone(), id })),
++        |id| context.adapter_drop(id),
++    )
++}
++
+ #[no_mangle]
+ pub unsafe extern "C" fn wgpuInstanceEnumerateAdapters(
+     instance: native::WGPUInstance,
+--- /dev/null
++++ b/src/cosmo_adapter_enumeration.rs
+@@ -0,0 +1,95 @@
++// COSMO_BOUNDED_ADAPTER_TRANSFER_BEGIN
++// Own every item from one enumeration. Return ownership only for initialized
++// output slots, and dispose every item that does not fit the caller's capacity.
++pub(crate) unsafe fn cosmo_transfer_adapters<T, R>(
++    result: Vec<T>,
++    capacity: usize,
++    output: *mut R,
++    mut wrap: impl FnMut(T) -> R,
++    mut dispose: impl FnMut(T),
++) -> usize {
++    let total = result.len();
++    for (index, item) in result.into_iter().enumerate() {
++        if !output.is_null() && index < capacity {
++            output.add(index).write(wrap(item));
++        } else {
++            dispose(item);
++        }
++    }
++    total
++}
++
++#[cfg(test)]
++mod cosmo_bounded_adapter_tests {
++    use super::cosmo_transfer_adapters;
++    use std::{cell::RefCell, ptr, rc::Rc};
++
++    struct Owned {
++        id: usize,
++        dropped: Rc<RefCell<Vec<usize>>>,
++    }
++    impl Drop for Owned {
++        fn drop(&mut self) { self.dropped.borrow_mut().push(self.id); }
++    }
++    fn items(count: usize, dropped: &Rc<RefCell<Vec<usize>>>) -> Vec<Owned> {
++        (0..count).map(|id| Owned { id, dropped: dropped.clone() }).collect()
++    }
++    fn returned(item: Owned) -> *mut Owned { Box::into_raw(Box::new(item)) }
++
++    #[test]
++    fn null_query_disposes_all_without_creating_handles() {
++        let dropped = Rc::new(RefCell::new(Vec::new()));
++        let total = unsafe { cosmo_transfer_adapters(items(3, &dropped), usize::MAX,
++            ptr::null_mut::<*mut Owned>(), |_| panic!("null query created a handle"), drop) };
++        assert_eq!(total, 3);
++        assert_eq!(*dropped.borrow(), vec![0, 1, 2]);
++    }
++    #[test]
++    fn zero_capacity_never_writes_nonnull_output() {
++        let dropped = Rc::new(RefCell::new(Vec::new()));
++        let sentinel = 123usize as *mut Owned;
++        let mut output = sentinel;
++        let total = unsafe { cosmo_transfer_adapters(items(2, &dropped), 0, &mut output,
++            |_| panic!("zero capacity created a handle"), drop) };
++        assert_eq!(total, 2);
++        assert_eq!(output, sentinel);
++        assert_eq!(*dropped.borrow(), vec![0, 1]);
++    }
++    #[test]
++    fn growth_writes_only_capacity_and_releases_unreturned_items() {
++        let dropped = Rc::new(RefCell::new(Vec::new()));
++        let sentinel = 123usize as *mut Owned;
++        let mut output = [sentinel, ptr::null_mut(), sentinel];
++        let total = unsafe { cosmo_transfer_adapters(items(3, &dropped), 1,
++            output.as_mut_ptr().add(1), returned, drop) };
++        assert_eq!(total, 3);
++        assert_eq!(output[0], sentinel);
++        assert_eq!(output[2], sentinel);
++        assert_eq!(*dropped.borrow(), vec![1, 2]);
++        unsafe { assert_eq!((*output[1]).id, 0); drop(Box::from_raw(output[1])); }
++        assert_eq!(*dropped.borrow(), vec![1, 2, 0]);
++    }
++    #[test]
++    fn exact_capacity_transfers_every_item_once() {
++        let dropped = Rc::new(RefCell::new(Vec::new()));
++        let mut output = [ptr::null_mut(); 3];
++        assert_eq!(unsafe { cosmo_transfer_adapters(items(3, &dropped), output.len(),
++            output.as_mut_ptr(), returned, drop) }, 3);
++        assert!(dropped.borrow().is_empty());
++        for (id, pointer) in output.into_iter().enumerate() {
++            unsafe { assert_eq!((*pointer).id, id); drop(Box::from_raw(pointer)); }
++        }
++        assert_eq!(*dropped.borrow(), vec![0, 1, 2]);
++    }
++    #[test]
++    fn shrink_preserves_unused_slots() {
++        let dropped = Rc::new(RefCell::new(Vec::new()));
++        let mut output = [ptr::null_mut(); 3];
++        assert_eq!(unsafe { cosmo_transfer_adapters(items(1, &dropped), output.len(),
++            output.as_mut_ptr(), returned, drop) }, 1);
++        assert!(output[1].is_null() && output[2].is_null());
++        unsafe { drop(Box::from_raw(output[0])); }
++        assert_eq!(*dropped.borrow(), vec![0]);
++    }
++}
++// COSMO_BOUNDED_ADAPTER_TRANSFER_END

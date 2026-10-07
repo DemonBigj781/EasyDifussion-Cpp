@@ -22,6 +22,16 @@ WebGPU text/tensor and standalone software-Vulkan records retain their
 original scope.
 The full scope is in [PORTING.md](PORTING.md).
 
+This revision adds persistent native configuration, discovery of installed
+Windows/Linux Vulkan drivers, explicit adapter selection, and separate native
+and embedded provider policies. Settings and GPU pages use the same native
+configuration store as the CLI. See [CONFIGURATION.md](CONFIGURATION.md) for
+the generated `easy-diffusion.json`, startup settings, live options and restart
+behavior, and [backend details](backend/README.md) for the driver/threading
+contract. These additions do not turn the earlier software-only validation
+record into physical GPU evidence. The native CI gate identifies its host
+software driver and exercises it separately.
+
 The native `image` command now loads a complete diffusion checkpoint and
 writes a PNG through the shared engine. The portable Generate page uses the
 native checkpoint, generation, progress and task-specific interruption APIs.
@@ -104,6 +114,8 @@ On Windows, invoke the executable directly:
 .\easy-diffusion.exe llama --backend webgpu --prompt "Once upon a time" --tokens 32
 .\easy-diffusion.exe webgpu-test
 .\easy-diffusion.exe sdkit --backend cpu --port 8188
+.\easy-diffusion.exe devices --provider auto
+.\easy-diffusion.exe webgpu-device-test --backend webgpu --provider native --require-hardware
 ```
 
 On Linux, the portable shell entry point is:
@@ -114,6 +126,8 @@ On Linux, the portable shell entry point is:
 /bin/sh ./easy-diffusion.exe llama --backend webgpu --prompt "Once upon a time" --tokens 32
 /bin/sh ./easy-diffusion.exe webgpu-test
 /bin/sh ./easy-diffusion.exe sdkit --backend cpu --port 8188
+/bin/sh ./easy-diffusion.exe devices --provider auto
+/bin/sh ./easy-diffusion.exe webgpu-device-test --backend webgpu --provider native --require-hardware
 ```
 
 The shell entry point extracts the executable's bundled APE loader into a
@@ -121,6 +135,18 @@ temporary directory. The application file stays unchanged. It requires the
 ordinary shell/bootstrap utilities; the separate isolated-filesystem test
 uses an explicitly supplied APE loader and requires no shell or host shared
 libraries inside the application root.
+
+Ordinary inference/server/device commands create `easy-diffusion.json` on
+first launch. Use `config show`, `config validate`, or `--config PATH` to
+inspect or choose it. Inference still defaults to the CPU backend. Select
+`--backend webgpu` to offload supported work; `--provider auto` prefers an
+available compatible physical GPU and can use embedded software otherwise.
+`--provider native` with automatic device selection fails when no compatible
+physical GPU exists. `llvmpipe` remains explicitly labeled as software.
+Use `--provider embedded` when you want the included CPU software renderer
+without opening installed Vulkan libraries. Physical acceleration requires
+the operating system's Vulkan driver; on Linux the pinned SDK also needs a
+host C compiler to create its native loading helper on first use.
 
 The native server's C++ UI is at `http://127.0.0.1:8188/`. Rendering a page
 does not establish that every control's backend service has been ported;

@@ -15,7 +15,7 @@ const generate = fs.readFileSync(path.join(scripts, 'generate.js'), 'utf8');
 const kiosk = fs.readFileSync(path.join(scripts, 'kiosk.js'), 'utf8');
 const caps = {protocol:1,mode:'native-single-user',kiosk_supported:false,kiosk_enabled:false,txt2img:true,max_concurrent_generations:1};
 const flush = async () => { for (let i=0;i<12;i++) await new Promise(r=>setImmediate(r)); };
-function harness(mode='success') {
+function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'auto'}) {
     const ids = new Map(), timers = new Map(), calls = [];
     let timerId=0, resolveGeneration, progressState={current_step:0,total_steps:4,completed:false};
     class Element {
@@ -49,7 +49,13 @@ function harness(mode='success') {
             if(mode==='unavailable-capabilities')return response({message:'Unavailable'},503);
             return response(mode==='bad-capabilities'?{...caps,kiosk_enabled:true}:caps);
         }
-        if(path.endsWith('backend-devices'))return response({devices:[{backend:'WebGPU'},{backend:'CPU'}]});
+        if(path.endsWith('/config'))return response({effective:{compute}});
+        if(path.endsWith('backend-devices'))return response({default_webgpu_selector:'WebGPU0',devices:[
+            {backend:'WebGPU',selector:'WebGPU0',provider:'native',software:false,type:'gpu',description:'First physical GPU',stable_id:'uuid:first',stable_id_available:true,memory_known:false,memory_total:null},
+            {backend:'WebGPU',selector:'WebGPU1',provider:'native',software:false,type:'integrated-gpu',description:'Second physical GPU',stable_id:'uuid:second',stable_id_available:true,memory_known:false,memory_total:null},
+            {backend:'WebGPU',selector:'WebGPU2',provider:'embedded',software:true,type:'software',description:'llvmpipe',stable_id:'',stable_id_available:false,memory_known:false,memory_total:null},
+            {backend:'CPU',selector:'CPU',provider:'builtin',software:true,type:'cpu',memory_known:true,memory_total:8589934592},
+        ]});
         if(path.endsWith('checkpoints'))return response({models:[{name:'model.safetensors'}]});
         if(path.endsWith('txt2img')) {
             if(mode==='conflict')return response({message:'Another generation is active'},409);
@@ -85,7 +91,7 @@ const watchdog = setTimeout(() => {
     assert.equal(normal.ids.get('makeImage').disabled,true);
     assert.equal(normal.ids.get('stopImage').disabled,true);
     const call=normal.calls.find(c=>c.path.endsWith('txt2img'));
-    assert.equal(call.body.backend,'cpu');
+    assert.equal(call.body.backend,'CPU');
     assert.equal(call.body.override_settings.sd_model_checkpoint,'model.safetensors');
     assert.equal(call.body.batch_size,1);
     await normal.tick({current_step:1,total_steps:4,completed:false});
@@ -97,12 +103,30 @@ const watchdog = setTimeout(() => {
     assert.equal(normal.ids.get('makeImage').disabled,false);
     assert.match(normal.ids.get('generation-queue-status').textContent,/stopped/);
 
-    const png=harness();await flush();png.ids.get('cosmo-generation-backend').value='webgpu';const imageJob=await png.start();
-    assert.equal(png.calls.find(c=>c.path.endsWith('txt2img')).body.backend,'webgpu');
+    const png=harness();await flush();png.ids.get('cosmo-generation-backend').value='WebGPU2';const imageJob=await png.start();
+    assert.equal(png.calls.find(c=>c.path.endsWith('txt2img')).body.backend,'WebGPU2');
     await png.finish({images:['iVBORw0KGgoAAAANSUhEUg==']});await imageJob.promise;
     const card=png.ids.get('preview-content').children[0];
     assert.equal(card.children[0].src,'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==');
     assert.equal(card.children[2].download,'image-42.png');
+
+    const hardware=harness('success',{backend:'webgpu',provider:'auto',device:'uuid:second'});await flush();
+    assert.equal(hardware.ids.get('cosmo-generation-backend').value,'WebGPU1','stable ID resolves the correct current selector');
+    const choices=hardware.ids.get('cosmo-generation-backend').options;
+    assert.equal(choices.length,4,'physical adapters must not collapse into one backend option');
+    assert.match(choices.find(option=>option.value==='WebGPU2').textContent,/Software CPU/);
+    assert.doesNotMatch(choices.find(option=>option.value==='WebGPU2').textContent,/Discrete GPU|Integrated GPU|GiB/);
+    assert.match(choices.find(option=>option.value==='WebGPU1').textContent,/Integrated GPU/);
+    const hardwareJob=await hardware.start();
+    assert.equal(hardware.calls.find(c=>c.path.endsWith('txt2img')).body.backend,'WebGPU1');
+    await hardware.finish({images:['iVBORw0KGgoAAAANSUhEUg==']});await hardwareJob.promise;
+    const absent=harness('success',{backend:'webgpu',provider:'native',device:'uuid:missing'});await flush();
+    assert.equal(absent.ids.get('makeImage').disabled,true,'missing saved device must not silently choose another');
+    assert.equal(absent.ids.get('cosmo-generation-backend').value,'');
+    assert.match(absent.ids.get('generation-queue-status').textContent,/unavailable/);
+    absent.ids.get('cosmo-generation-backend').value='WebGPU0';
+    absent.ids.get('cosmo-generation-backend').handlers.change();
+    assert.equal(absent.ids.get('makeImage').disabled,false,'explicit alternate selection restores generation');
 
     const network=harness('network');await flush();await network.start();
     assert.equal(network.ids.get('makeImage').disabled,true,'uncertain request must stay blocked');
@@ -125,5 +149,5 @@ const watchdog = setTimeout(() => {
     assert.equal(unavailable.calls.length,1,'HTTP capability failure must not initialize generation');
     assert.equal(normal.ids.get('kiosk-mode-save').disabled,true);
     assert(!normal.calls.some(c=>c.path==='/render'));
-    console.log('UI_DOM_MOCK PASS: capability failure, CPU default, WebGPU selection, native request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict');
+    console.log('UI_DOM_MOCK PASS: capability failure, CPU default, distinct hardware/software adapters, stable-ID default, missing-device rejection, exact device request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>clearTimeout(watchdog));

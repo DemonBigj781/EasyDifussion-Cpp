@@ -304,7 +304,7 @@ def http_checks(root, isolate, logs):
 
     path = logs / "server.log"
     with capture_logs(path) as (output, errors):
-        process = subprocess.Popen(command_for(root, ["sdkit", "--backend", "cpu", "--port", str(port)], isolate),
+        process = subprocess.Popen(command_for(root, ["sdkit", "--backend", "cpu", "--provider", "embedded", "--port", str(port)], isolate),
                                    cwd=root / "tmp", env=runtime_environment(root / "tmp"),
                                    stdin=subprocess.DEVNULL, stdout=output, stderr=errors)
         try:
@@ -395,7 +395,7 @@ def verify(args):
             result["inplace_storage"] = validate_inplace_output(text)
             report["tests"].append(result)
             for label, arguments in [
-                ("devices", ["sdkit", "--list-devices"]),
+                ("devices", ["sdkit", "--list-devices", "--provider", "embedded"]),
                 ("diffusion-command", ["sdkit", "--help"]),
                 ("image-command", ["image", "--help"]),
                 ("training-command", ["train", "--help"]),
@@ -413,7 +413,7 @@ def verify(args):
             for label, arguments, required in [
                 ("image-unmatched-option", ["image", "--model"], "unknown, duplicate, or incomplete option"),
                 ("image-invalid-dimensions", ["image", "--width", "65"], "invalid value for --width"),
-                ("image-invalid-backend", ["image", "--backend", "missing"], "invalid value for --backend"),
+                ("image-invalid-backend", ["image", "--backend", "missing"], "compute.backend must be cpu or webgpu"),
             ]:
                 text, result = run_command(root, arguments, args.isolate, logs, label, expected_exit=2)
                 if required not in text:
