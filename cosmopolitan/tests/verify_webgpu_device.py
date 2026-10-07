@@ -91,21 +91,37 @@ def validate_graph(text, policy, require_hardware):
                       for stage in ("matmul", "bias-rmsnorm-silu", "softmax")}:
         raise RuntimeError("Missing the twelve independent scalar readback comparisons")
     group_norm_checks = {}
-    for line in (line for line in lines if line.startswith("WEBGPU_GROUP_NORM_CHECK")):
-        check = re.fullmatch(r"WEBGPU_GROUP_NORM_CHECK inplace=([01]) groups=3 "
-                             r"shape=7x3x10x2 values=420 max_error=([0-9.eE+-]+) "
-                             r"dispatches=(\d+) PASS", line)
-        if not check:
-            raise RuntimeError("Malformed GroupNorm scalar-reference comparison")
-        mode = int(check.group(1))
-        error, dispatches = float(check.group(2)), int(check.group(3))
-        if mode in group_norm_checks or not math.isfinite(error) or error < 0 or dispatches <= 0:
-            raise RuntimeError("Duplicate or invalid GroupNorm comparison/device evidence")
-        group_norm_checks[mode] = {"inplace": bool(mode), "shape": [7, 3, 10, 2],
-                                   "groups": 3, "values": 420, "max_error": error,
-                                   "dispatches": dispatches}
+    if software:
+        if any(line.startswith("WEBGPU_GROUP_NORM_CHECK") for line in lines):
+            raise RuntimeError("Software adapter executed the WebGPU-only GroupNorm kernel")
+        for line in (line for line in lines if line.startswith("WEBGPU_GROUP_NORM_FALLBACK")):
+            check = re.fullmatch(r"WEBGPU_GROUP_NORM_FALLBACK inplace=([01]) groups=3 "
+                                 r"shape=7x3x10x2 supported=0 cpu_fallback_allowed=1 PASS", line)
+            if not check:
+                raise RuntimeError("Malformed software GroupNorm fallback-policy record")
+            mode = int(check.group(1))
+            if mode in group_norm_checks:
+                raise RuntimeError("Duplicate software GroupNorm fallback-policy record")
+            group_norm_checks[mode] = {"inplace": bool(mode), "shape": [7, 3, 10, 2],
+                                       "groups": 3, "route": "cpu-fallback"}
+    else:
+        if any(line.startswith("WEBGPU_GROUP_NORM_FALLBACK") for line in lines):
+            raise RuntimeError("Physical adapter unexpectedly routed GroupNorm to CPU")
+        for line in (line for line in lines if line.startswith("WEBGPU_GROUP_NORM_CHECK")):
+            check = re.fullmatch(r"WEBGPU_GROUP_NORM_CHECK inplace=([01]) groups=3 "
+                                 r"shape=7x3x10x2 values=420 max_error=([0-9.eE+-]+) "
+                                 r"dispatches=(\d+) PASS", line)
+            if not check:
+                raise RuntimeError("Malformed GroupNorm scalar-reference comparison")
+            mode = int(check.group(1))
+            error, dispatches = float(check.group(2)), int(check.group(3))
+            if mode in group_norm_checks or not math.isfinite(error) or error < 0 or dispatches <= 0:
+                raise RuntimeError("Duplicate or invalid GroupNorm comparison/device evidence")
+            group_norm_checks[mode] = {"inplace": bool(mode), "shape": [7, 3, 10, 2],
+                                       "groups": 3, "values": 420, "max_error": error,
+                                       "dispatches": dispatches, "route": "webgpu"}
     if set(group_norm_checks) != {0, 1}:
-        raise RuntimeError("Missing out-of-place and in-place WebGPU GroupNorm comparisons")
+        raise RuntimeError("Missing in-place/out-of-place GroupNorm execution or fallback-policy checks")
     if [line for line in lines if line.startswith("WEBGPU_UNSUPPORTED")] != [
             "WEBGPU_UNSUPPORTED op=SILU_BACK supported=0"]:
         raise RuntimeError("Missing unsupported-operator rejection")
@@ -142,7 +158,7 @@ def validate_all(text, policy):
         elif current is not None:
             current.append(line)
         elif line.startswith(("WEBGPU_CHECK", "WEBGPU_GGML_EXECUTION", "WEBGPU_GROUP_NORM_CHECK",
-                              "WEBGPU_DEVICE_EXECUTION")):
+                              "WEBGPU_GROUP_NORM_FALLBACK", "WEBGPU_DEVICE_EXECUTION")):
             raise RuntimeError("Unscoped graph result outside an adapter block")
     if current is not None or not count or len(blocks) != count or len({b["selector"] for b in blocks}) != count:
         raise RuntimeError("All-adapter graph count or unique selector check failed")

@@ -4499,6 +4499,14 @@ static bool ggml_backend_webgpu_device_supports_op(ggml_backend_dev_t dev, const
             break;
         case GGML_OP_GROUP_NORM:
             {
+#ifdef GGML_WEBGPU_COSMO
+                // Software adapters do not accelerate the large GroupNorm
+                // reductions; retain CPU scheduling for the bundled software
+                // Vulkan provider instead of timing out on the CPU renderer.
+                if (cosmo_webgpu_adapter_is_software() == 1) {
+                    break;
+                }
+#endif
                 const int32_t n_groups = ((const int32_t *)op->op_params)[0];
                 if (op->type == GGML_TYPE_F32 && src0->type == GGML_TYPE_F32 &&
                     ggml_is_contiguous(src0) && ggml_is_contiguous(op) &&

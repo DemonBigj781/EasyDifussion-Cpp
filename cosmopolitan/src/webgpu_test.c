@@ -188,7 +188,7 @@ done:
     return failed;
 }
 
-static int group_norm_case(ggml_backend_t backend, int inplace) {
+static int group_norm_case(ggml_backend_t backend, int inplace, int expect_webgpu) {
     /* Uneven channel groups, two batches, and idle lanes exercise indexing and
        reduction barriers at the workgroup boundary. */
     enum { NE0 = 7, NE1 = 3, NE2 = 10, NE3 = 2, GROUPS = 3, ELEMENTS = NE0 * NE1 * NE2 * NE3 };
@@ -219,7 +219,23 @@ static int group_norm_case(ggml_backend_t backend, int inplace) {
     struct ggml_cgraph *graph = ggml_new_graph_custom(ctx, 8, false);
     ggml_build_forward_expand(graph, dst);
 
-    if (!device || !ggml_backend_dev_supports_op(device, dst)) {
+    if (!device) {
+        fprintf(stderr, "WEBGPU_GROUP_NORM_CHECK inplace=%d device=missing FAIL\n", inplace);
+        goto done;
+    }
+    const int supported = ggml_backend_dev_supports_op(device, dst);
+    if (!expect_webgpu) {
+        if (supported) {
+            fprintf(stderr, "WEBGPU_GROUP_NORM_FALLBACK inplace=%d supported=1 FAIL\n", inplace);
+            goto done;
+        }
+        printf("WEBGPU_GROUP_NORM_FALLBACK inplace=%d groups=%d shape=%dx%dx%dx%d "
+               "supported=0 cpu_fallback_allowed=1 PASS\n",
+               inplace, GROUPS, NE0, NE1, NE2, NE3);
+        failed = 0;
+        goto done;
+    }
+    if (!supported) {
         fprintf(stderr, "WEBGPU_GROUP_NORM_CHECK inplace=%d supported=0 FAIL\n", inplace);
         goto done;
     }
@@ -362,7 +378,8 @@ int cosmo_webgpu_device_graph_probe(const char *selector, int require_hardware) 
     const struct execution_counts before = snapshot();
     for (unsigned iteration = 0; iteration < 2; ++iteration)
         if (graph_case(backend, 0, iteration, 0) || graph_case(backend, 1, iteration, 0)) goto done;
-    if (group_norm_case(backend, 0) || group_norm_case(backend, 1)) goto done;
+    if (group_norm_case(backend, 0, !info->software) ||
+        group_norm_case(backend, 1, !info->software)) goto done;
     const struct execution_counts after = snapshot();
     printf("WEBGPU_DEVICE_ADAPTER %s\n", info->name);
     printf("WEBGPU_DEVICE_EXECUTION selector=%s provider=%s software=%d adapter_type=%" PRIu32

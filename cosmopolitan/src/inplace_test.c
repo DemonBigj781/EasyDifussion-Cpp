@@ -169,9 +169,9 @@ static int graph_case(ggml_backend_t webgpu, ggml_backend_t cpu, int preallocate
     ggml_set_output(activated); /* Keep the shared storage available for its numerical assertion. */
     struct ggml_cgraph * graph = ggml_new_graph_custom(ctx, GRAPH_SIZE, false);
     ggml_build_forward_expand(graph, product);
-    if (!ggml_backend_supports_op(webgpu, normalized) || !ggml_backend_supports_op(cpu, normalized) ||
+    if (ggml_backend_supports_op(webgpu, normalized) || !ggml_backend_supports_op(cpu, normalized) ||
         !ggml_backend_supports_op(webgpu, product)) {
-        fputs("WEBGPU_INPLACE requires GroupNorm support on CPU and WebGPU and WebGPU matmul support\n", stderr);
+        fputs("WEBGPU_INPLACE required CPU-only software GroupNorm / WebGPU matmul capabilities changed\n", stderr);
         goto done;
     }
     for (size_t i = 1; i < sizeof(aliases) / sizeof(aliases[0]); ++i) {
@@ -191,9 +191,6 @@ static int graph_case(ggml_backend_t webgpu, ggml_backend_t cpu, int preallocate
     scheduler = ggml_backend_sched_new(backends, NULL, 2, GRAPH_SIZE, false, true);
     if (!scheduler) goto done;
     ggml_backend_sched_set_tensor_backend(scheduler, a, cpu);
-    /* GroupNorm now supports WebGPU too. Pin this owner to CPU explicitly so
-       the alias-placement regression still exercises a CPU-resident owner. */
-    ggml_backend_sched_set_tensor_backend(scheduler, normalized, cpu);
     /* This reproduces the inconsistent placement that previously sent a CPU
        owner pointer to WebGPU's tensor_buf() as a native WebGPU buffer. */
     for (size_t i = 1; i < sizeof(aliases) / sizeof(aliases[0]); ++i)
