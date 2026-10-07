@@ -66,6 +66,8 @@ fn main(@builtin(workgroup_id) workgroup_id: vec3<u32>,
         workgroupBarrier();
     }
     let mean = scratch[0] / f32(group_size);
+    // All lanes must read the reduced mean before any lane reuses scratch.
+    workgroupBarrier();
 
     var partial_variance = 0.0f;
     for (var base = 0u; base < group_size; base += WG_SIZE) {

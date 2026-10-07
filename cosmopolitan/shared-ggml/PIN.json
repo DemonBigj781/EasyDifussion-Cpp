@@ -2,7 +2,7 @@
   "schema": 1,
   "authoritative_source": "source/sdkit3-port-source/stable-diffusion.cpp/ggml",
   "authoritative_ggml_base_revision": "e20c3a14aa70ee84ca58499814206dd08d8026bc",
-  "authoritative_tree_sha256": "c75fe3f56d3d7778b4b0efb7fc7caba26ed07d9184fe9338b9c974f3bd4166f4",
+  "authoritative_tree_sha256": "47db62f5971a887a5da1daae9c6faa3397f597c4f757454433c64c3d452a3198",
   "authoritative_file_count": 2210,
   "llama_source": "source/llama.cpp/ggml",
   "llama_revision": "c589f0ed10c643678c4707dd160c21ac7633ebc0",

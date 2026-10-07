@@ -189,7 +189,8 @@ done:
 }
 
 static int group_norm_case(ggml_backend_t backend, int inplace) {
-    /* Uneven channel groups and two batches exercise indexing at both edges. */
+    /* Uneven channel groups, two batches, and idle lanes exercise indexing and
+       reduction barriers at the workgroup boundary. */
     enum { NE0 = 7, NE1 = 3, NE2 = 10, NE3 = 2, GROUPS = 3, ELEMENTS = NE0 * NE1 * NE2 * NE3 };
     const float eps = 1e-5f;
     const int channels_per_group = (NE2 + GROUPS - 1) / GROUPS;
