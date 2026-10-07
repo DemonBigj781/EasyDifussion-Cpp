@@ -1,0 +1,3 @@
+Static Mesa device: llvmpipe (LLVM 19.1.7, 256 bits)
+Vulkan API: 1.4.318; device type: 4
+PASS: direct static lavapipe instance and CPU enumeration

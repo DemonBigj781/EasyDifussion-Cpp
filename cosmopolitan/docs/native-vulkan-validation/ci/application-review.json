@@ -1,0 +1,111 @@
+{
+  "status": "passed",
+  "scope": "Downloaded package and embedded resource integrity; no application or model execution",
+  "details": {
+    "source": {
+      "commit": "1730424270e35ff4a06bd978654c9990cfd5777e",
+      "dirty": false,
+      "repository": "DemonBigj781/EasyDifussion-Cpp"
+    },
+    "app_sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+    "embedded_resources": 850,
+    "symbols": "passed"
+  },
+  "inventory": [
+    {
+      "path": "app/BUILD.json",
+      "bytes": 317324,
+      "sha256": "f0f43ab3d85b7fce4ae4bf382041e1866ca6f0c8032c229618ea36db89cfa1d6"
+    },
+    {
+      "path": "app/easy-diffusion.exe",
+      "bytes": 190491826,
+      "sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9"
+    },
+    {
+      "path": "app/verify_runtime.py",
+      "bytes": 24724,
+      "sha256": "b8c69a3e558cecf2f2c3212d25ef33dcf5e059d99bf4ba8f63526de336fca5f4"
+    },
+    {
+      "path": "app/verify_bootstrap.py",
+      "bytes": 7521,
+      "sha256": "074928f2d1aeee3718449941a3138cbe2f0eedf65008b060a424d96bd56931b2"
+    },
+    {
+      "path": "app/verify_inference.py",
+      "bytes": 30002,
+      "sha256": "65047c714c5f247273e58a102dda90a9261e897bf40f3d9d5ec98830b46b797c"
+    },
+    {
+      "path": "app/verify_inference_api.py",
+      "bytes": 31075,
+      "sha256": "a3f160e4067272df72a0315b33ab085ae5524fb9f680572b94ee80d2a1cdd2a5"
+    },
+    {
+      "path": "app/verify_webgpu_device.py",
+      "bytes": 17201,
+      "sha256": "e5d115bd69ca1ac7e223bf794cd4fee2937d5261294fed2ab67d3ab3cb7b6901"
+    },
+    {
+      "path": "app/verify_configuration_api.py",
+      "bytes": 13286,
+      "sha256": "c9ed74de9304eaa33a9dc64b7f6e1ac11ea44ef0c5c50fc205598cd128f4e872"
+    },
+    {
+      "path": "app/verify_windows_native_discovery.py",
+      "bytes": 9281,
+      "sha256": "2544216958ce85b34710cacf0b4359a58adc6198ef430ffcd2c85c945b0ab139"
+    },
+    {
+      "path": "app/verify_config.py",
+      "bytes": 7263,
+      "sha256": "2d8202e602f57dce1a1879ceaec4f49d3148d38f1b2480921bad43222bb418c0"
+    },
+    {
+      "path": "app/verify_device_policy.py",
+      "bytes": 4259,
+      "sha256": "747b159e4f8cb0a91ce9f45cbf29715eddb768723492d1cfb08baf591e84345c"
+    },
+    {
+      "path": "app/PIN.json",
+      "bytes": 996,
+      "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca"
+    },
+    {
+      "path": "app/SYMBOLS.json",
+      "bytes": 1852,
+      "sha256": "29826943a1f29615b4e2506e70d11767297d151e63027e1dd6b48180120aad6b"
+    },
+    {
+      "path": "app/software-webgpu/LINK.json",
+      "bytes": 153553,
+      "sha256": "1914fbe64218620cf25843ab776b4f7ee43eb89d95c7ac07170a96cc88c70036"
+    },
+    {
+      "path": "app/ape-x86_64.elf",
+      "bytes": 9249,
+      "sha256": "cc31af13515fcf091768bfbf12da899286b35ff1bf1302f304936db4b03d512e"
+    },
+    {
+      "path": "app/config-probe.exe",
+      "bytes": 1858411,
+      "sha256": "cd271c35f5e865af5a0f785d60863977b7a5d39aad05f73fc19e9e7dff6e7f6c"
+    },
+    {
+      "path": "app/CONFIG_PROBE_BUILD.json",
+      "bytes": 1775,
+      "sha256": "46a46bca3a36d90e24bbd9a9bb88a3a9c9a17c830603afd8b3e3d89de204e944"
+    },
+    {
+      "path": "app/device-policy-test.exe",
+      "bytes": 889988,
+      "sha256": "0a958d63a1880c046de24165e6c94d7f064fa679f13787ca20b90f19d23c036c"
+    },
+    {
+      "path": "app/DEVICE_POLICY_BUILD.json",
+      "bytes": 3057,
+      "sha256": "f67cd76cbd0d720998ff23b295838b0adc122a53503973978b5cc1df6f4ed5a7"
+    }
+  ]
+}

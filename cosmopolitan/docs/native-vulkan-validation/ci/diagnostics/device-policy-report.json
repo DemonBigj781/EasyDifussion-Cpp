@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "scope": "device policy unit; factory mocked; no Vulkan/GPU execution",
+  "artifact_sha256": "0a958d63a1880c046de24165e6c94d7f064fa679f13787ca20b90f19d23c036c",
+  "cases": [
+    {
+      "status": "PASS",
+      "scenario": "hardware-first",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 0
+    },
+    {
+      "status": "PASS",
+      "scenario": "embedded-fallback",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 0
+    },
+    {
+      "status": "PASS",
+      "scenario": "native-requires-hardware",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 0
+    },
+    {
+      "status": "PASS",
+      "scenario": "explicit-native-software",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 0
+    },
+    {
+      "status": "PASS",
+      "scenario": "missing-and-ambiguous",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 0
+    },
+    {
+      "status": "PASS",
+      "scenario": "configured-default",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 0
+    },
+    {
+      "status": "PASS",
+      "scenario": "immutable-factory",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 1
+    },
+    {
+      "status": "PASS",
+      "scenario": "native-thread-guard",
+      "scope": "real policy with mocked Vulkan/WGPU factory",
+      "linux": true,
+      "factory_calls": 0
+    }
+  ]
+}

@@ -1,0 +1,338 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:200 (message)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      The target system is: Linux -  - x86_64
+      The host system is: Linux - 6.17.0-1022-azure - x86_64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc 
+      Build flags: -march=x86-64;-mtune=generic;-ffunction-sections;-fdata-sections;-fno-omit-frame-pointer
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is GNU, found in:
+        /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/3.31.10/CompilerIdC/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cxx 
+      Build flags: -march=x86-64;-mtune=generic;-ffunction-sections;-fdata-sections;-fno-omit-frame-pointer
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is GNU, found in:
+        /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/3.31.10/CompilerIdCXX/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:1238 (message)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineASMCompiler.cmake:135 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Checking whether the ASM compiler is GNU using "--version" matched "(GNU assembler)|(GCC)|(Free Software Foundation)":
+      x86_64-unknown-cosmo-cc (GCC) 14.1.0
+      Copyright (c) 2024 Justine Alexandra Roberts Tunney
+      Cosmopolitan Libc and LLVM libcxx/compiler-rt are subject to non-GPL
+      notice licenses, e.g. ISC, MIT, etc. Your compiled programs must embed
+      our copyright notices. This toolchain is configured to do so default.
+      Cosmopolitan comes with absolutely NO WARRANTY of any kind.
+      For more information, see the Cosmopolitan LICENSE files.
+      Copyright (C) 2022 Free Software Foundation, Inc.
+      This launches GNU GCC/Binutils subprocesses, which is free software; see
+      cosmocc's LICENSE files for source code and copying conditions. There is
+      NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:74 (try_compile)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-2Y29y1"
+      binary: "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-2Y29y1"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_POSITION_INDEPENDENT_CODE: "OFF"
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-2Y29y1'
+        
+        Run Build Command(s): /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja -v cmTC_1a581
+        [1/2] /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc   -march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer    -v -o CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o -c /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCCompilerABI.c
+        Using built-in specs.
+        COLLECT_GCC=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-linux-cosmo-gcc
+        Target: x86_64-linux-cosmo
+        Configured with: /ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc/configure --prefix=/ahgamut/superconfigure/cosmos/x86_64 --without-headers --srcdir=/ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc --datarootdir=/zip/usr/share --sysconfdir=/zip/usr/share --with-system-zlib --disable-shared --enable-static --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point --disable-lto --with-static-standard-libraries --disable-libada --disable-libssp --disable-host-shared --disable-objc-gc --enable-languages=c,c++ --disable-bootstrap --disable-assembly --disable-werror -enable-tls --enable-multilib --enable-multiarch --disable-libmudflap --disable-libsanitizer --disable-gnu-indirect-function --disable-libmpx --enable-initfini-array --disable-libstdcxx --without-libffi --without-libatomic --disable-gcov --enable-analyzer --disable-libvtv --disable-libgomp --disable-libatomic --disable-sjlj-exceptions --enable-gnu-indirect-function --with-gnu-as=yes --with-gnu-ld=yes --build=x86_64-linux-gnu --target=x86_64-linux-cosmo CFLAGS='-Os -D_LARGEFILE64_SOURCE=1 -DDONT_USE_BUILTIN_SETJMP=1'
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 14.1.0 (GCC) 
+        COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-Wno-implicit-int' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18,16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_1a581.dir/'
+         /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/cc1 -quiet -nostdinc -v -imultiarch x86_64-linux-cosmo -iprefix /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/x86_64-linux-cosmo/14.1.0/ -D __COSMOPOLITAN__ -D __COSMOCC__ -include libc/integral/normalize.inc -isystem /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_1a581.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mno-tls-direct-seg-refs -mno-red-zone -march=x86-64 -mtune=generic -Wno-implicit-int -version -fportcosmo -fno-semantic-interposition -fpatchable-function-entry=18,16 -fno-inline-functions-called-once -fno-schedule-insns2 -fno-pie -ffunction-sections -fdata-sections -fno-omit-frame-pointer -o /tmp/cct9vtb3.s
+        GNU C17 (GCC) version 14.1.0 (x86_64-linux-cosmo)
+        	compiled by GNU C version 14.1.0, GMP version 6.3.0, MPFR version 4.2.0, MPC version 1.3.0, isl version isl-0.18-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include
+        End of search list.
+        Compiler executable checksum: 130537552d515b8d899fb0727e588514
+        COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-Wno-implicit-int' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18,16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_1a581.dir/'
+         /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/as -v --64 -o CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o /tmp/cct9vtb3.s
+        GNU assembler version 2.42 (x86_64-linux-cosmo) using BFD version (GNU Binutils) 2.42
+        COMPILER_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/
+        LIBRARY_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/
+        COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-Wno-implicit-int' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18,16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.'
+        [2/2] : && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/bin/cmake -E rm -f libcmTC_1a581.a && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ar qc libcmTC_1a581.a  CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ranlib libcmTC_1a581.a && :
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:182 (message)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include]
+        end of search list found
+        collapse include dir [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include] ==> [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include]
+        implicit include dirs: [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:218 (message)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
+        ignore line: [Change Dir: '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-2Y29y1']
+        ignore line: []
+        ignore line: [Run Build Command(s): /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja -v cmTC_1a581]
+        ignore line: [[1/2] /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc   -march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer    -v -o CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o -c /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCCompilerABI.c]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-linux-cosmo-gcc]
+        ignore line: [Target: x86_64-linux-cosmo]
+        ignore line: [Configured with: /ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc/configure --prefix=/ahgamut/superconfigure/cosmos/x86_64 --without-headers --srcdir=/ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc --datarootdir=/zip/usr/share --sysconfdir=/zip/usr/share --with-system-zlib --disable-shared --enable-static --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point --disable-lto --with-static-standard-libraries --disable-libada --disable-libssp --disable-host-shared --disable-objc-gc --enable-languages=c,c++ --disable-bootstrap --disable-assembly --disable-werror -enable-tls --enable-multilib --enable-multiarch --disable-libmudflap --disable-libsanitizer --disable-gnu-indirect-function --disable-libmpx --enable-initfini-array --disable-libstdcxx --without-libffi --without-libatomic --disable-gcov --enable-analyzer --disable-libvtv --disable-libgomp --disable-libatomic --disable-sjlj-exceptions --enable-gnu-indirect-function --with-gnu-as=yes --with-gnu-ld=yes --build=x86_64-linux-gnu --target=x86_64-linux-cosmo CFLAGS='-Os -D_LARGEFILE64_SOURCE=1 -DDONT_USE_BUILTIN_SETJMP=1']
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 14.1.0 (GCC) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-Wno-implicit-int' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18 16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_1a581.dir/']
+        ignore line: [ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/cc1 -quiet -nostdinc -v -imultiarch x86_64-linux-cosmo -iprefix /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/x86_64-linux-cosmo/14.1.0/ -D __COSMOPOLITAN__ -D __COSMOCC__ -include libc/integral/normalize.inc -isystem /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_1a581.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mno-tls-direct-seg-refs -mno-red-zone -march=x86-64 -mtune=generic -Wno-implicit-int -version -fportcosmo -fno-semantic-interposition -fpatchable-function-entry=18 16 -fno-inline-functions-called-once -fno-schedule-insns2 -fno-pie -ffunction-sections -fdata-sections -fno-omit-frame-pointer -o /tmp/cct9vtb3.s]
+        ignore line: [GNU C17 (GCC) version 14.1.0 (x86_64-linux-cosmo)]
+        ignore line: [	compiled by GNU C version 14.1.0  GMP version 6.3.0  MPFR version 4.2.0  MPC version 1.3.0  isl version isl-0.18-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include]
+        ignore line: [End of search list.]
+        ignore line: [Compiler executable checksum: 130537552d515b8d899fb0727e588514]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-Wno-implicit-int' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18 16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_1a581.dir/']
+        ignore line: [ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/as -v --64 -o CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o /tmp/cct9vtb3.s]
+        ignore line: [GNU assembler version 2.42 (x86_64-linux-cosmo) using BFD version (GNU Binutils) 2.42]
+        ignore line: [COMPILER_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/]
+        ignore line: [LIBRARY_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-Wno-implicit-int' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18 16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.']
+        ignore line: [[2/2] : && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/bin/cmake -E rm -f libcmTC_1a581.a && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ar qc libcmTC_1a581.a  CMakeFiles/cmTC_1a581.dir/CMakeCCompilerABI.c.o && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ranlib libcmTC_1a581.a && :]
+        ignore line: []
+        ignore line: []
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:74 (try_compile)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-z5yj1B"
+      binary: "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-z5yj1B"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_POSITION_INDEPENDENT_CODE: "OFF"
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-z5yj1B'
+        
+        Run Build Command(s): /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja -v cmTC_dc750
+        [1/2] /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cxx   -march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer    -v -o CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o -c /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp
+        Using built-in specs.
+        COLLECT_GCC=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-linux-cosmo-g++
+        Target: x86_64-linux-cosmo
+        Configured with: /ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc/configure --prefix=/ahgamut/superconfigure/cosmos/x86_64 --without-headers --srcdir=/ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc --datarootdir=/zip/usr/share --sysconfdir=/zip/usr/share --with-system-zlib --disable-shared --enable-static --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point --disable-lto --with-static-standard-libraries --disable-libada --disable-libssp --disable-host-shared --disable-objc-gc --enable-languages=c,c++ --disable-bootstrap --disable-assembly --disable-werror -enable-tls --enable-multilib --enable-multiarch --disable-libmudflap --disable-libsanitizer --disable-gnu-indirect-function --disable-libmpx --enable-initfini-array --disable-libstdcxx --without-libffi --without-libatomic --disable-gcov --enable-analyzer --disable-libvtv --disable-libgomp --disable-libatomic --disable-sjlj-exceptions --enable-gnu-indirect-function --with-gnu-as=yes --with-gnu-ld=yes --build=x86_64-linux-gnu --target=x86_64-linux-cosmo CFLAGS='-Os -D_LARGEFILE64_SOURCE=1 -DDONT_USE_BUILTIN_SETJMP=1'
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 14.1.0 (GCC) 
+        COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18,16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_dc750.dir/'
+         /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/cc1plus -quiet -nostdinc -v -imultiarch x86_64-linux-cosmo -iprefix /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/x86_64-linux-cosmo/14.1.0/ -D_GNU_SOURCE -D __COSMOPOLITAN__ -D __COSMOCC__ -include libc/integral/normalize.inc -isystem /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx -isystem /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_dc750.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mno-tls-direct-seg-refs -mno-red-zone -march=x86-64 -mtune=generic -version -fportcosmo -fno-semantic-interposition -fpatchable-function-entry=18,16 -fno-inline-functions-called-once -fno-schedule-insns2 -fno-pie -ffunction-sections -fdata-sections -fno-omit-frame-pointer -o /tmp/ccfz8e4c.s
+        GNU C++17 (GCC) version 14.1.0 (x86_64-linux-cosmo)
+        	compiled by GNU C version 14.1.0, GMP version 6.3.0, MPFR version 4.2.0, MPC version 1.3.0, isl version isl-0.18-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx
+         /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include
+        End of search list.
+        Compiler executable checksum: d7c0f8ed833efc310e0ea58320e9cbb2
+        COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18,16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_dc750.dir/'
+         /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/as -v --64 -o CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccfz8e4c.s
+        GNU assembler version 2.42 (x86_64-linux-cosmo) using BFD version (GNU Binutils) 2.42
+        COMPILER_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/
+        LIBRARY_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/
+        COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18,16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.'
+        [2/2] : && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/bin/cmake -E rm -f libcmTC_dc750.a && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ar qc libcmTC_dc750.a  CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ranlib libcmTC_dc750.a && :
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:182 (message)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx]
+          add: [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include]
+        end of search list found
+        collapse include dir [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx] ==> [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx]
+        collapse include dir [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include] ==> [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include]
+        implicit include dirs: [/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx;/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeDetermineCompilerABI.cmake:218 (message)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
+        ignore line: [Change Dir: '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-z5yj1B']
+        ignore line: []
+        ignore line: [Run Build Command(s): /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja -v cmTC_dc750]
+        ignore line: [[1/2] /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cxx   -march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer    -v -o CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o -c /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-linux-cosmo-g++]
+        ignore line: [Target: x86_64-linux-cosmo]
+        ignore line: [Configured with: /ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc/configure --prefix=/ahgamut/superconfigure/cosmos/x86_64 --without-headers --srcdir=/ahgamut/superconfigure/o/compiler/gcc-14.1-patched/gcc --datarootdir=/zip/usr/share --sysconfdir=/zip/usr/share --with-system-zlib --disable-shared --enable-static --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point --disable-lto --with-static-standard-libraries --disable-libada --disable-libssp --disable-host-shared --disable-objc-gc --enable-languages=c,c++ --disable-bootstrap --disable-assembly --disable-werror -enable-tls --enable-multilib --enable-multiarch --disable-libmudflap --disable-libsanitizer --disable-gnu-indirect-function --disable-libmpx --enable-initfini-array --disable-libstdcxx --without-libffi --without-libatomic --disable-gcov --enable-analyzer --disable-libvtv --disable-libgomp --disable-libatomic --disable-sjlj-exceptions --enable-gnu-indirect-function --with-gnu-as=yes --with-gnu-ld=yes --build=x86_64-linux-gnu --target=x86_64-linux-cosmo CFLAGS='-Os -D_LARGEFILE64_SOURCE=1 -DDONT_USE_BUILTIN_SETJMP=1']
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 14.1.0 (GCC) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18 16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_dc750.dir/']
+        ignore line: [ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/cc1plus -quiet -nostdinc -v -imultiarch x86_64-linux-cosmo -iprefix /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/x86_64-linux-cosmo/14.1.0/ -D_GNU_SOURCE -D __COSMOPOLITAN__ -D __COSMOCC__ -include libc/integral/normalize.inc -isystem /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx -isystem /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_dc750.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mno-tls-direct-seg-refs -mno-red-zone -march=x86-64 -mtune=generic -version -fportcosmo -fno-semantic-interposition -fpatchable-function-entry=18 16 -fno-inline-functions-called-once -fno-schedule-insns2 -fno-pie -ffunction-sections -fdata-sections -fno-omit-frame-pointer -o /tmp/ccfz8e4c.s]
+        ignore line: [GNU C++17 (GCC) version 14.1.0 (x86_64-linux-cosmo)]
+        ignore line: [	compiled by GNU C version 14.1.0  GMP version 6.3.0  MPFR version 4.2.0  MPC version 1.3.0  isl version isl-0.18-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx]
+        ignore line: [ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include]
+        ignore line: [End of search list.]
+        ignore line: [Compiler executable checksum: d7c0f8ed833efc310e0ea58320e9cbb2]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18 16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_dc750.dir/']
+        ignore line: [ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/as -v --64 -o CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccfz8e4c.s]
+        ignore line: [GNU assembler version 2.42 (x86_64-linux-cosmo) using BFD version (GNU Binutils) 2.42]
+        ignore line: [COMPILER_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/14.1.0/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/x86_64-linux-cosmo/:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../libexec/gcc/]
+        ignore line: [LIBRARY_PATH=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../lib/gcc/]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' '__COSMOPOLITAN__' '-D' '__COSMOCC__' '-include' 'libc/integral/normalize.inc' '-fportcosmo' '-fno-semantic-interposition' '-mno-tls-direct-seg-refs' '-fpatchable-function-entry=18 16' '-fno-inline-functions-called-once' '-fno-schedule-insns2' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include/third_party/libcxx' '-fno-pie' '-nostdinc' '-isystem' '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/../include' '-mno-red-zone' '-march=x86-64' '-mtune=generic' '-ffunction-sections' '-fdata-sections' '-v' '-o' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-fno-omit-frame-pointer' '-dumpdir' 'CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [[2/2] : && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/bin/cmake -E rm -f libcmTC_dc750.a && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ar qc libcmTC_dc750.a  CMakeFiles/cmTC_dc750.dir/CMakeCXXCompilerABI.cpp.o && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ranlib libcmTC_dc750.a && :]
+        ignore line: []
+        ignore line: []
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/Internal/CheckSourceCompiles.cmake:108 (try_compile)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/CheckCSourceCompiles.cmake:58 (cmake_check_source_compiles)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/FindThreads.cmake:97 (CHECK_C_SOURCE_COMPILES)"
+      - "out/tools/lib/python3.12/site-packages/cmake/data/share/cmake-3.31/Modules/FindThreads.cmake:163 (_threads_check_libc)"
+      - "out/source/shared-ggml/CMakeLists.txt:294 (find_package)"
+    checks:
+      - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
+    directories:
+      source: "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-xTCoB2"
+      binary: "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-xTCoB2"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer"
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/cmake/"
+      CMAKE_POSITION_INDEPENDENT_CODE: "OFF"
+    buildResult:
+      variable: "CMAKE_HAVE_LIBC_PTHREAD"
+      cached: true
+      stdout: |
+        Change Dir: '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-xTCoB2'
+        
+        Run Build Command(s): /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja -v cmTC_8fe83
+        [1/2] /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc -DCMAKE_HAVE_LIBC_PTHREAD  -march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer  -std=gnu11 -o CMakeFiles/cmTC_8fe83.dir/src.c.o -c /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/CMakeFiles/CMakeScratch/TryCompile-xTCoB2/src.c
+        [2/2] : && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/lib/python3.12/site-packages/cmake/data/bin/cmake -E rm -f libcmTC_8fe83.a && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ar qc libcmTC_8fe83.a  CMakeFiles/cmTC_8fe83.dir/src.c.o && /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/ranlib libcmTC_8fe83.a && :
+        
+      exitCode: 0
+...

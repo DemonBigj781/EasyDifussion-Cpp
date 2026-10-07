@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "success": false,
+  "scope": "One exact previously failing direct native image command with corrected CI application; 2-step plumbing, not image quality or physical GPU validation",
+  "captured_at": "2026-10-07T04:06:18.064672+00:00",
+  "prior_report": {
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-crash-repro/direct-report.json",
+    "sha256": "3e03bcc3da843eade6a786c8463978f7d6c90bc49e6e1cdf7d58a3fb7eadb5d0",
+    "returncode": -11,
+    "app_sha256": "b5f1ef5e13adf049e8e938d8ab157807c7748fff9a2934080c5d44ae5e5acf6e"
+  },
+  "source": {
+    "commit": "1730424270e35ff4a06bd978654c9990cfd5777e",
+    "dirty": false,
+    "repository": "DemonBigj781/EasyDifussion-Cpp"
+  },
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-final-ci/application/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-final-ci/application/easy-diffusion.exe",
+    "image",
+    "--model",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "--backend",
+    "webgpu",
+    "--provider",
+    "native",
+    "--device",
+    "WebGPU0",
+    "--prompt",
+    "a red apple on a wooden table",
+    "--output",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-fixed-repro/image.png",
+    "--width",
+    "256",
+    "--height",
+    "256",
+    "--steps",
+    "2",
+    "--threads",
+    "2",
+    "--cfg-scale",
+    "7",
+    "--seed",
+    "42"
+  ],
+  "cwd": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-fixed-repro",
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "TZ": "UTC",
+    "TERM": "dumb",
+    "PATH": "/usr/bin:/bin",
+    "TMPDIR": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-fixed-repro/tmp",
+    "LP_NUM_THREADS": "2",
+    "VK_DRIVER_FILES": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-icd/lvp.json",
+    "VK_ICD_FILENAMES": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-icd/lvp.json"
+  },
+  "timeout_seconds": 1800,
+  "application": {
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-final-ci/application/easy-diffusion.exe",
+    "bytes": 190491826,
+    "sha256_before": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+    "sha256_after": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+    "unchanged": true
+  },
+  "model": {
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "bytes": 1747190784,
+    "sha256_before": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "sha256_after": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "unchanged": true
+  },
+  "software_driver_threads": 2,
+  "traced": false,
+  "verification_helpers": {
+    "verify_inference.py": "65047c714c5f247273e58a102dda90a9261e897bf40f3d9d5ec98830b46b797c",
+    "verify_runtime.py": "b8c69a3e558cecf2f2c3212d25ef33dcf5e059d99bf4ba8f63526de336fca5f4"
+  },
+  "evidence": {
+    "direct.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "direct.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "run.py": {
+      "bytes": 8036,
+      "sha256": "a9756c432b1f2b6668ce0b39a349ed02ba348039290d530a68b1bf8e59839f99"
+    }
+  },
+  "error": "PermissionError: [Errno 13] Permission denied: '/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-final-ci/application/ape-x86_64.elf'"
+}

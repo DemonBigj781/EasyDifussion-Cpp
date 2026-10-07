@@ -1,0 +1,6 @@
+Created configuration: /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-fixed-repro/easy-diffusion.json
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 20.1.2, 256 bits) | device_desc: Mesa 25.2.8-0ubuntu0.24.04.2 (LLVM 20.1.2)
+
+IMAGE_SAMPLE_PROGRESS step=1 total_steps=2 seconds=201.242691
+
+IMAGE_SAMPLE_PROGRESS step=2 total_steps=2 seconds=199.877380

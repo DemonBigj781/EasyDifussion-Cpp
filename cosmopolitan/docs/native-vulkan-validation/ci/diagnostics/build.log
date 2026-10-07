@@ -1,0 +1,753 @@
++ /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/shared-ggml/prepare.py --output /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
++ /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/software-webgpu/prepare.py --out /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu --sdk /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk --jobs 2
+Verified software WebGPU dependency cache: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json
++ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/cmake -S /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan -B /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build -G Ninja -DCMAKE_TOOLCHAIN_FILE=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/cmake/cosmocc.cmake -DCMAKE_MAKE_PROGRAM=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja -DCMAKE_BUILD_TYPE=Release -DCOSMO_SOURCE_ROOT=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source -DCOSMO_SHARED_GGML=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml -DCOSMO_SOFTWARE_WEBGPU_METADATA=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json -DCOSMO_BUILD_APP=ON
+-- The C compiler identification is GNU 14.1.0
+-- The CXX compiler identification is GNU 14.1.0
+-- The ASM compiler identification is GNU
+-- Found assembler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cxx - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu:  
+-- Found Python3: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/python3.12 (found version "3.12.3") found components: Interpreter
+-- Shader output dir: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/shared-ggml/src/ggml-webgpu/generated
+-- Including WebGPU backend
+-- ggml version: 0.19.0
+-- ggml commit:  e20c3a1
+-- llama.cpp version: 0.3.0-dev
+CMAKE_BUILD_TYPE=Release
+-- Found Git: /usr/bin/git (found version "2.55.0")
+-- stable-diffusion.cpp version snapshot
+-- stable-diffusion.cpp commit 6b3edaa
+-- Build static library
+-- Configuring done (1.8s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build
++ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/cmake --build /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build --parallel 2 --target easy-diffusion
+[0/2] Re-checking globbed directories...
+[1/519] Building C object CMakeFiles/cosmo-software-webgpu.dir/out/software-webgpu/foundation/third_party/wgpu_native/runtime/win64_bridge.c.o
+[2/519] Building C object CMakeFiles/cosmo-software-webgpu.dir/out/software-webgpu/foundation/third_party/wgpu_native/runtime/vulkan_loader.c.o
+[3/519] Linking C static library lib/libcosmo-software-webgpu.a
+[4/519] Building CXX object backend/CMakeFiles/cosmo-ggml-webgpu-adapter.dir/wgpu_adapter.cpp.o
+[5/519] Building CXX object backend/CMakeFiles/cosmo-ggml-webgpu-adapter.dir/wgpu_devices.cpp.o
+[6/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[7/519] Building C object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[8/519] Building C object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+cc1: note: rewrote 1 switch statements
+[9/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[10/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[11/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-backend-meta.cpp: In function 'void ggml_backend_meta_device_get_props(ggml_backend_dev_t, ggml_backend_dev_props*)':
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-backend-meta.cpp:135:5: warning: missing initializer for member 'ggml_backend_dev_caps::mmap_support' [-Wmissing-field-initializers]
+  135 |     };
+      |     ^
+[12/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[13/519] Building C object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[14/519] Generating generated/ggml-wgsl-shaders.hpp
+Embedding WGSL shaders to ggml-wgsl-shaders.hpp
+[15/519] Linking CXX static library lib/libcosmo-ggml-webgpu-adapter.a
+[16/519] Building C object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[17/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[18/519] Linking CXX static library lib/libggml-base.a
+[19/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[20/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[21/519] Building C object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[22/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[23/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[24/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[25/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[26/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[27/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[28/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[29/519] Building C object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/quants.c.o
+[30/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/repack.cpp.o
+[31/519] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-cpu/ops.cpp: In function 'void ggml_compute_forward_clamp(const ggml_compute_params*, ggml_tensor*)':
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-cpu/ops.cpp:5889:12: warning: enumeration value 'GGML_TYPE_F8_E4M3' not handled in switch [-Wswitch]
+ 5889 |     switch (src0->type) {
+      |            ^
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-cpu/ops.cpp:5889:12: warning: enumeration value 'GGML_TYPE_F8_E5M2' not handled in switch [-Wswitch]
+[32/519] Building CXX object shared-ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[33/519] Building CXX object shared-ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[34/519] Linking CXX static library lib/libggml-cpu.a
+[35/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama.cpp for CXX dependencies
+[36/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-adapter.cpp for CXX dependencies
+[37/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-arch.cpp for CXX dependencies
+[38/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-batch.cpp for CXX dependencies
+[39/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-chat.cpp for CXX dependencies
+[40/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-context.cpp for CXX dependencies
+[41/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-cparams.cpp for CXX dependencies
+[42/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-grammar.cpp for CXX dependencies
+[43/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-graph.cpp for CXX dependencies
+[44/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-hparams.cpp for CXX dependencies
+[45/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-impl.cpp for CXX dependencies
+[46/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-io.cpp for CXX dependencies
+[47/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache.cpp for CXX dependencies
+[48/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-iswa.cpp for CXX dependencies
+[49/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-dsa.cpp for CXX dependencies
+[50/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-dsa-iswa.cpp for CXX dependencies
+[51/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-msa.cpp for CXX dependencies
+[52/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-dsv4.cpp for CXX dependencies
+[53/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory.cpp for CXX dependencies
+[54/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-hybrid.cpp for CXX dependencies
+[55/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-hybrid-iswa.cpp for CXX dependencies
+[56/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-hybrid-idx.cpp for CXX dependencies
+[57/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-recurrent.cpp for CXX dependencies
+[58/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-mmap.cpp for CXX dependencies
+[59/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-model-loader.cpp for CXX dependencies
+[60/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-model-saver.cpp for CXX dependencies
+[61/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-model.cpp for CXX dependencies
+[62/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-quant.cpp for CXX dependencies
+[63/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-sampler.cpp for CXX dependencies
+[64/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-vocab.cpp for CXX dependencies
+[65/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/unicode-data.cpp for CXX dependencies
+[66/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/unicode.cpp for CXX dependencies
+[67/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/afmoe.cpp for CXX dependencies
+[68/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/apertus.cpp for CXX dependencies
+[69/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/arcee.cpp for CXX dependencies
+[70/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/arctic.cpp for CXX dependencies
+[71/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/arwkv7.cpp for CXX dependencies
+[72/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/baichuan.cpp for CXX dependencies
+[73/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bailingmoe.cpp for CXX dependencies
+[74/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bailingmoe2.cpp for CXX dependencies
+[75/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bailingmoe3.cpp for CXX dependencies
+[76/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bert.cpp for CXX dependencies
+[77/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bitnet.cpp for CXX dependencies
+[78/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bloom.cpp for CXX dependencies
+[79/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/chameleon.cpp for CXX dependencies
+[80/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/chatglm.cpp for CXX dependencies
+[81/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/clip.cpp for CXX dependencies
+[82/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/codeshell.cpp for CXX dependencies
+[83/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/cogvlm.cpp for CXX dependencies
+[84/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/cohere2.cpp for CXX dependencies
+[85/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/cohere2moe.cpp for CXX dependencies
+[86/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/command-r.cpp for CXX dependencies
+[87/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dbrx.cpp for CXX dependencies
+[88/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deci.cpp for CXX dependencies
+[89/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek.cpp for CXX dependencies
+[90/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek2.cpp for CXX dependencies
+[91/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek2ocr.cpp for CXX dependencies
+[92/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek32.cpp for CXX dependencies
+[93/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek4.cpp for CXX dependencies
+[94/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/delta-net-base.cpp for CXX dependencies
+[95/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dflash.cpp for CXX dependencies
+[96/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dots1.cpp for CXX dependencies
+[97/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dots3note.cpp for CXX dependencies
+[98/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dream.cpp for CXX dependencies
+[99/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/eagle3.cpp for CXX dependencies
+[100/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/ernie4-5-moe.cpp for CXX dependencies
+[101/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/ernie4-5.cpp for CXX dependencies
+[102/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/eurobert.cpp for CXX dependencies
+[103/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/exaone-moe.cpp for CXX dependencies
+[104/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/exaone.cpp for CXX dependencies
+[105/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/exaone4.cpp for CXX dependencies
+[106/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/falcon-h1.cpp for CXX dependencies
+[107/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/falcon.cpp for CXX dependencies
+[108/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma-embedding.cpp for CXX dependencies
+[109/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma.cpp for CXX dependencies
+[110/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma2.cpp for CXX dependencies
+[111/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma3.cpp for CXX dependencies
+[112/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma3n.cpp for CXX dependencies
+[113/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma4-assistant.cpp for CXX dependencies
+[114/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma4.cpp for CXX dependencies
+[115/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/glm-dsa.cpp for CXX dependencies
+[116/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/glm4-moe.cpp for CXX dependencies
+[117/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/glm4.cpp for CXX dependencies
+[118/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gpt2.cpp for CXX dependencies
+[119/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gptneox.cpp for CXX dependencies
+[120/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-hybrid.cpp for CXX dependencies
+[121/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-moe.cpp for CXX dependencies
+[122/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-swa.cpp for CXX dependencies
+[123/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-switch.cpp for CXX dependencies
+[124/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite.cpp for CXX dependencies
+[125/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/grok.cpp for CXX dependencies
+[126/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/grovemoe.cpp for CXX dependencies
+[127/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hunyuan-dense.cpp for CXX dependencies
+[128/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hunyuan-moe.cpp for CXX dependencies
+[129/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hunyuan-vl.cpp for CXX dependencies
+[130/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hy-v3.cpp for CXX dependencies
+[131/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/internlm2.cpp for CXX dependencies
+[132/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jais.cpp for CXX dependencies
+[133/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jais2.cpp for CXX dependencies
+[134/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jamba.cpp for CXX dependencies
+[135/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jina-bert-v2.cpp for CXX dependencies
+[136/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jina-bert-v3.cpp for CXX dependencies
+[137/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/kimi-k3.cpp for CXX dependencies
+[138/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/kimi-linear.cpp for CXX dependencies
+[139/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/laguna.cpp for CXX dependencies
+[140/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/lfm2.cpp for CXX dependencies
+[141/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/lfm2moe.cpp for CXX dependencies
+[142/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llada-moe.cpp for CXX dependencies
+[143/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llada.cpp for CXX dependencies
+[144/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llama-embed.cpp for CXX dependencies
+[145/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llama.cpp for CXX dependencies
+[146/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llama4.cpp for CXX dependencies
+[147/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/maincoder.cpp for CXX dependencies
+[148/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mamba-base.cpp for CXX dependencies
+[149/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mamba.cpp for CXX dependencies
+[150/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mamba2.cpp for CXX dependencies
+[151/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mellum.cpp for CXX dependencies
+[152/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mimo2.cpp for CXX dependencies
+[153/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minicpm.cpp for CXX dependencies
+[154/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minicpm3.cpp for CXX dependencies
+[155/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minimax-01.cpp for CXX dependencies
+[156/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minimax-m2.cpp for CXX dependencies
+[157/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minimax-m3.cpp for CXX dependencies
+[158/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mistral3.cpp for CXX dependencies
+[159/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mistral4.cpp for CXX dependencies
+[160/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/modern-bert.cpp for CXX dependencies
+[161/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mpt.cpp for CXX dependencies
+[162/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/muse-glimmer.cpp for CXX dependencies
+[163/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nanbeige.cpp for CXX dependencies
+[164/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nemotron-h-moe.cpp for CXX dependencies
+[165/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nemotron-h.cpp for CXX dependencies
+[166/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nemotron.cpp for CXX dependencies
+[167/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/neo-bert.cpp for CXX dependencies
+[168/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nomic-bert-moe.cpp for CXX dependencies
+[169/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nomic-bert.cpp for CXX dependencies
+[170/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/olmo.cpp for CXX dependencies
+[171/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/olmo2.cpp for CXX dependencies
+[172/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/olmoe.cpp for CXX dependencies
+[173/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/openai-moe.cpp for CXX dependencies
+[174/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/openelm.cpp for CXX dependencies
+[175/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/orion.cpp for CXX dependencies
+[176/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/paddleocr.cpp for CXX dependencies
+[177/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/pangu-embed.cpp for CXX dependencies
+[178/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/phi2.cpp for CXX dependencies
+[179/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/phi3.cpp for CXX dependencies
+[180/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/phimoe.cpp for CXX dependencies
+[181/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plamo.cpp for CXX dependencies
+[182/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plamo2.cpp for CXX dependencies
+[183/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plamo3.cpp for CXX dependencies
+[184/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plm.cpp for CXX dependencies
+[185/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/pockettts.cpp for CXX dependencies
+[186/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen.cpp for CXX dependencies
+[187/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen2.cpp for CXX dependencies
+[188/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen2moe.cpp for CXX dependencies
+[189/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen2vl.cpp for CXX dependencies
+[190/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3.cpp for CXX dependencies
+[191/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen35.cpp for CXX dependencies
+[192/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen35moe.cpp for CXX dependencies
+[193/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3moe.cpp for CXX dependencies
+[194/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3next.cpp for CXX dependencies
+[195/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3tts.cpp for CXX dependencies
+[196/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3vl.cpp for CXX dependencies
+[197/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3vlmoe.cpp for CXX dependencies
+[198/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen4exp.cpp for CXX dependencies
+[199/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/refact.cpp for CXX dependencies
+[200/519] Building CXX object shared-ggml/src/ggml-webgpu/CMakeFiles/ggml-webgpu.dir/ggml-webgpu.cpp.o
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp: In function 'void ggml_backend_webgpu_device_get_props(ggml_backend_dev_t, ggml_backend_dev_props*)':
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:3992:5: warning: missing initializer for member 'ggml_backend_dev_caps::mmap_support' [-Wmissing-field-initializers]
+ 3992 |     };
+      |     ^
+In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/construct_at.h:23,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__string/constexpr_c_functions.h:14,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__algorithm/equal.h:20,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/array:114,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/../ggml-impl.h:749,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:9:
+In function 'void std::__1::__libcpp_operator_delete(_Args ...) [with _Args = {void*, long unsigned int}]',
+    inlined from 'void std::__1::__do_deallocate_handle_size(void*, size_t, _Args ...) [with _Args = {}]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:301:39,
+    inlined from 'void std::__1::__libcpp_deallocate(void*, size_t, size_t)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:314:39,
+    inlined from 'void std::__1::allocator<_Tp>::deallocate(_Tp*, size_t) [with _Tp = wgpu::BindGroupEntry]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:132:31,
+    inlined from 'static void std::__1::allocator_traits<_Alloc>::deallocate(allocator_type&, pointer, size_type) [with _Alloc = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator_traits.h:312:19,
+    inlined from 'std::__1::__split_buffer<_Tp, _Allocator>::~__split_buffer() [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>&]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__split_buffer:365:31,
+    inlined from 'std::__1::vector<_Tp, _Alloc>::pointer std::__1::vector<_Tp, _Alloc>::__push_back_slow_path(_Up&&) [with _Up = wgpu::BindGroupEntry; _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1469:1,
+    inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1491:34,
+    inlined from 'webgpu_encoded_op ggml_webgpu_set(webgpu_context&, ggml_tensor*, ggml_tensor*, ggml_tensor*)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:853:22:
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:279:20: warning: 'void operator delete(void*, size_t)' called on pointer '<unknown>' with nonzero offset [40, 9223372036854775807] [-Wfree-nonheap-object]
+  279 |   ::operator delete(__args...);
+      |   ~~~~~~~~~~~~~~~~~^~~~~~~~~~~
+In function 'void* std::__1::__libcpp_operator_new(_Args ...) [with _Args = {long unsigned int}]',
+    inlined from 'void* std::__1::__libcpp_allocate(size_t, size_t)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:292:31,
+    inlined from '_Tp* std::__1::allocator<_Tp>::allocate(size_t) [with _Tp = wgpu::BindGroupEntry]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:118:54,
+    inlined from 'constexpr std::__1::__allocation_result<typename std::__1::allocator_traits<_Alloc>::pointer> std::__1::__allocate_at_least(_Alloc&, size_t) [with _Alloc = allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocate_at_least.h:41:27,
+    inlined from 'std::__1::__split_buffer<_Tp, _Allocator>::__split_buffer(size_type, size_type, __alloc_rr&) [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>&]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__split_buffer:353:49,
+    inlined from 'std::__1::vector<_Tp, _Alloc>::pointer std::__1::vector<_Tp, _Alloc>::__push_back_slow_path(_Up&&) [with _Up = wgpu::BindGroupEntry; _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1463:47,
+    inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1491:34,
+    inlined from 'webgpu_encoded_op ggml_webgpu_set(webgpu_context&, ggml_tensor*, ggml_tensor*, ggml_tensor*)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:852:22:
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:270:24: note: returned from 'void* operator new(size_t)'
+  270 |   return ::operator new(__args...);
+      |          ~~~~~~~~~~~~~~^~~~~~~~~~~
+[201/519] Linking CXX static library lib/libggml-webgpu.a
+[202/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rnd1.cpp for CXX dependencies
+[203/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv6-base.cpp for CXX dependencies
+[204/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv6.cpp for CXX dependencies
+[205/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv6qwen2.cpp for CXX dependencies
+[206/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv7-base.cpp for CXX dependencies
+[207/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv7.cpp for CXX dependencies
+[208/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/seed-oss.cpp for CXX dependencies
+[209/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/smallthinker.cpp for CXX dependencies
+[210/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/smollm3.cpp for CXX dependencies
+[211/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/stablelm.cpp for CXX dependencies
+[212/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/starcoder.cpp for CXX dependencies
+[213/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/starcoder2.cpp for CXX dependencies
+[214/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/step35.cpp for CXX dependencies
+[215/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/t5.cpp for CXX dependencies
+[216/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/t5encoder.cpp for CXX dependencies
+[217/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/talkie.cpp for CXX dependencies
+[218/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/wavtokenizer-dec.cpp for CXX dependencies
+[219/519] 
+[220/519] 
+[221/519] 
+[222/519] 
+[223/519] 
+[224/519] 
+[225/519] 
+[226/519] 
+[227/519] 
+[228/519] 
+[229/519] 
+[230/519] 
+[231/519] Linking CXX static library lib/libggml.a
+[232/519] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/xverse.cpp for CXX dependencies
+[233/519] Generating CXX dyndep file llama/src/CMakeFiles/llama.dir/CXX.dd
+[234/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/src/ui.cpp.o
+[235/519] Building C object stable-diffusion/thirdparty/CMakeFiles/zip.dir/zip.c.o
+In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/zip.c:40:
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/miniz.h:4988:9: note: '#pragma message: Using fopen, ftello, fseeko, stat() etc. path for file I/O - this path may not support large files.'
+ 4988 | #pragma message(                                                               \
+      |         ^~~~~~~
+[236/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Image_Gallery.cpp.o
+[237/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Window.cpp.o
+[238/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Options.cpp.o
+[239/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Navigate.cpp.o
+[240/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Load.cpp.o
+[241/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Settings/native_device_routing.cpp.o
+[242/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/plugin_tab_inject.cpp.o
+[243/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/pages.cpp.o
+[244/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/controlnet.cpp.o
+[245/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/image_options.cpp.o
+[246/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/display.cpp.o
+[247/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/image_view.cpp.o
+[248/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/lora.cpp.o
+[249/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/output_options.cpp.o
+[250/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/options.cpp.o
+[251/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/Main.cpp.o
+[252/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/prompts.cpp.o
+[253/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/queue.cpp.o
+[254/519] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/render_options.cpp.o
+[255/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/image_filters.cpp.o
+[256/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama.cpp.o
+[257/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+[258/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/convert.cpp.o
+[259/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[260/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/backend_fit.cpp.o
+In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/string:609,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.h:4,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.cpp:1:
+In member function 'void std::__1::allocator<_Tp>::construct(_Up*, _Args&& ...) [with _Up = sd::backend_fit::{anonymous}::Component; _Args = {sd::backend_fit::{anonymous}::Component}; _Tp = sd::backend_fit::{anonymous}::Component]',
+    inlined from 'static void std::__1::allocator_traits<_Alloc>::construct(allocator_type&, _Tp*, _Args&& ...) [with _Tp = sd::backend_fit::{anonymous}::Component; _Args = {sd::backend_fit::{anonymous}::Component}; typename std::__1::enable_if<std::__1::__has_construct<_Alloc, _Tp*, _Args ...>::value, int>::type <anonymous> = 0; _Alloc = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator_traits.h:319:18,
+    inlined from 'void std::__1::vector<_Tp, _Alloc>::__construct_one_at_end(_Args&& ...) [with _Args = {sd::backend_fit::{anonymous}::Component}; _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:926:30,
+    inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1488:27,
+    inlined from 'std::__1::vector<sd::backend_fit::{anonymous}::Component> sd::backend_fit::{anonymous}::estimate_components(ModelLoader&, ggml_type)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.cpp:103:26:
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:165:5: warning: writing 1 byte into a region of size 0 [-Wstringop-overflow=]
+  165 |     ::new ((void*)__p) _Up(std::forward<_Args>(__args)...);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/construct_at.h:23,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__string/constexpr_c_functions.h:14,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__algorithm/find.h:23,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__algorithm/remove.h:12,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/string:593:
+In function 'void* std::__1::__libcpp_operator_new(_Args ...) [with _Args = {long unsigned int}]',
+    inlined from 'void* std::__1::__libcpp_allocate(size_t, size_t)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:292:31,
+    inlined from '_Tp* std::__1::allocator<_Tp>::allocate(size_t) [with _Tp = sd::backend_fit::{anonymous}::Component]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:118:54,
+    inlined from 'constexpr std::__1::__allocation_result<typename std::__1::allocator_traits<_Alloc>::pointer> std::__1::__allocate_at_least(_Alloc&, size_t) [with _Alloc = allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocate_at_least.h:41:27,
+    inlined from 'std::__1::__split_buffer<_Tp, _Allocator>::__split_buffer(size_type, size_type, __alloc_rr&) [with _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>&]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__split_buffer:353:49,
+    inlined from 'std::__1::vector<_Tp, _Alloc>::pointer std::__1::vector<_Tp, _Alloc>::__push_back_slow_path(_Up&&) [with _Up = sd::backend_fit::{anonymous}::Component; _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1463:47,
+    inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1491:34,
+    inlined from 'std::__1::vector<sd::backend_fit::{anonymous}::Component> sd::backend_fit::{anonymous}::estimate_components(ModelLoader&, ggml_type)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.cpp:102:26:
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:270:24: note: at offset 72 into destination object of size 40 allocated by 'operator new'
+  270 |   return ::operator new(__args...);
+      |          ~~~~~~~~~~~~~~^~~~~~~~~~~
+[261/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-batch.cpp.o
+[262/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/ggml_extend_backend.cpp.o
+[263/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/ggml_graph_cut.cpp.o
+[264/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/layer_split_partition.cpp.o
+[265/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/util.cpp.o
+[266/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-chat.cpp.o
+[267/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-context.cpp.o
+[268/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+[269/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[270/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/detailer.cpp.o
+[271/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-graph.cpp.o
+[272/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[273/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-impl.cpp.o
+[274/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-io.cpp.o
+[275/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+[276/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+[277/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+[278/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-dsa-iswa.cpp.o
+[279/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-msa.cpp.o
+[280/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-dsv4.cpp.o
+[281/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/extensions/photomaker_extension.cpp.o
+[282/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory.cpp.o
+[283/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[284/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[285/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-hybrid-idx.cpp.o
+[286/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/extensions/pulid_extension.cpp.o
+[287/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/gguf_io.cpp.o
+[288/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[289/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[290/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/pickle_io.cpp.o
+[291/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[292/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+[293/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/safetensors_io.cpp.o
+[294/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/torch_legacy_io.cpp.o
+[295/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/torch_zip_io.cpp.o
+[296/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-model.cpp.o
+[297/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_loader.cpp.o
+[298/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-quant.cpp.o
+[299/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_manager.cpp.o
+[300/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+[301/519] Building CXX object llama/src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[302/519] Building CXX object llama/src/CMakeFiles/llama.dir/unicode-data.cpp.o
+[303/519] Building CXX object llama/src/CMakeFiles/llama.dir/unicode.cpp.o
+[304/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/afmoe.cpp.o
+[305/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/apertus.cpp.o
+[306/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/arcee.cpp.o
+[307/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/arctic.cpp.o
+[308/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/arwkv7.cpp.o
+[309/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/baichuan.cpp.o
+[310/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/bailingmoe.cpp.o
+[311/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/bailingmoe2.cpp.o
+[312/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/bailingmoe3.cpp.o
+[313/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/bert.cpp.o
+[314/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/bitnet.cpp.o
+[315/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/bloom.cpp.o
+[316/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/chameleon.cpp.o
+[317/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/chatglm.cpp.o
+[318/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/clip.cpp.o
+[319/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/codeshell.cpp.o
+[320/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/cogvlm.cpp.o
+[321/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/cohere2.cpp.o
+[322/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/cohere2moe.cpp.o
+[323/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/command-r.cpp.o
+[324/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/dbrx.cpp.o
+[325/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/deci.cpp.o
+[326/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek.cpp.o
+[327/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek2.cpp.o
+[328/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek2ocr.cpp.o
+[329/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek32.cpp.o
+[330/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek4.cpp.o
+[331/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/delta-net-base.cpp.o
+[332/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/dflash.cpp.o
+[333/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/dots1.cpp.o
+[334/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/dots3note.cpp.o
+[335/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/dream.cpp.o
+[336/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/eagle3.cpp.o
+[337/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/ernie4-5-moe.cpp.o
+[338/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/ernie4-5.cpp.o
+[339/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/eurobert.cpp.o
+[340/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/exaone-moe.cpp.o
+[341/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/exaone.cpp.o
+[342/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/exaone4.cpp.o
+[343/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/falcon-h1.cpp.o
+[344/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/falcon.cpp.o
+[345/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma-embedding.cpp.o
+[346/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma.cpp.o
+[347/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma2.cpp.o
+[348/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma3.cpp.o
+[349/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma3n.cpp.o
+[350/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma4-assistant.cpp.o
+[351/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma4.cpp.o
+[352/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/glm-dsa.cpp.o
+[353/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/glm4-moe.cpp.o
+[354/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/glm4.cpp.o
+[355/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gpt2.cpp.o
+[356/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/gptneox.cpp.o
+[357/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-hybrid.cpp.o
+[358/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-moe.cpp.o
+[359/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-swa.cpp.o
+[360/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-switch.cpp.o
+[361/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite.cpp.o
+[362/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/grok.cpp.o
+[363/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/grovemoe.cpp.o
+[364/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/hunyuan-dense.cpp.o
+[365/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/hunyuan-moe.cpp.o
+[366/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/hunyuan-vl.cpp.o
+[367/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/hy-v3.cpp.o
+[368/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/internlm2.cpp.o
+[369/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/jais.cpp.o
+[370/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/jais2.cpp.o
+[371/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/jamba.cpp.o
+[372/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/jina-bert-v2.cpp.o
+[373/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/jina-bert-v3.cpp.o
+[374/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/kimi-k3.cpp.o
+[375/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/kimi-linear.cpp.o
+[376/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/laguna.cpp.o
+[377/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/lfm2.cpp.o
+[378/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/lfm2moe.cpp.o
+[379/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/llada-moe.cpp.o
+[380/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/llada.cpp.o
+[381/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/name_conversion.cpp.o
+[382/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/flex_attention.cpp.o
+[383/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/llama-embed.cpp.o
+[384/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/llama.cpp.o
+[385/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/guidance.cpp.o
+[386/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/llama4.cpp.o
+[387/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/maincoder.cpp.o
+[388/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/imatrix.cpp.o
+[389/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mamba-base.cpp.o
+[390/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mamba.cpp.o
+[391/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mamba2.cpp.o
+[392/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mellum.cpp.o
+[393/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mimo2.cpp.o
+[394/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/sample-cache.cpp.o
+[395/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/minicpm.cpp.o
+[396/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/minicpm3.cpp.o
+[397/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/minimax-01.cpp.o
+[398/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/minimax-m2.cpp.o
+[399/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/minimax-m3.cpp.o
+[400/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mistral3.cpp.o
+[401/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mistral4.cpp.o
+[402/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/modern-bert.cpp.o
+[403/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/mpt.cpp.o
+[404/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/muse-glimmer.cpp.o
+[405/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/nanbeige.cpp.o
+[406/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/nemotron-h-moe.cpp.o
+[407/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/nemotron-h.cpp.o
+[408/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/nemotron.cpp.o
+[409/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/neo-bert.cpp.o
+[410/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/nomic-bert-moe.cpp.o
+[411/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/nomic-bert.cpp.o
+[412/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/olmo.cpp.o
+[413/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/olmo2.cpp.o
+[414/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/olmoe.cpp.o
+[415/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/openai-moe.cpp.o
+[416/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/openelm.cpp.o
+[417/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/orion.cpp.o
+[418/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/paddleocr.cpp.o
+[419/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/pangu-embed.cpp.o
+[420/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/phi2.cpp.o
+[421/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/phi3.cpp.o
+[422/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/phimoe.cpp.o
+[423/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/plamo.cpp.o
+[424/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/plamo2.cpp.o
+[425/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/plamo3.cpp.o
+[426/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/plm.cpp.o
+[427/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/pockettts.cpp.o
+[428/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen.cpp.o
+[429/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen2.cpp.o
+[430/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen2moe.cpp.o
+[431/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen2vl.cpp.o
+[432/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3.cpp.o
+[433/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen35.cpp.o
+[434/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen35moe.cpp.o
+[435/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3moe.cpp.o
+[436/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3next.cpp.o
+[437/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3tts.cpp.o
+[438/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3vl.cpp.o
+[439/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3vlmoe.cpp.o
+[440/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen4exp.cpp.o
+[441/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/refact.cpp.o
+[442/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/rnd1.cpp.o
+[443/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv6-base.cpp.o
+[444/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv6.cpp.o
+[445/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv6qwen2.cpp.o
+[446/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv7-base.cpp.o
+[447/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv7.cpp.o
+[448/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/seed-oss.cpp.o
+[449/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/smallthinker.cpp.o
+[450/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/smollm3.cpp.o
+[451/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/stablelm.cpp.o
+[452/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/starcoder.cpp.o
+[453/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/starcoder2.cpp.o
+[454/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/step35.cpp.o
+[455/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/t5.cpp.o
+[456/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/t5encoder.cpp.o
+[457/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/talkie.cpp.o
+[458/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/wavtokenizer-dec.cpp.o
+[459/519] Building CXX object llama/src/CMakeFiles/llama.dir/models/xverse.cpp.o
+[460/519] Linking CXX static library lib/libeasy-diffusion-ui.a
+[461/519] Linking CXX static library lib/libllama.a
+[462/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/stable-diffusion.cpp.o
+[463/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/bpe_tokenizer.cpp.o
+[464/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/clip_tokenizer.cpp.o
+[465/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/gemma_tokenizer.cpp.o
+[466/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/gpt_oss_tokenizer.cpp.o
+[467/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/mistral_tokenizer.cpp.o
+[468/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/qwen2_tokenizer.cpp.o
+[469/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/t5_unigram_tokenizer.cpp.o
+[470/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/tokenize_util.cpp.o
+[471/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/tokenizer.cpp.o
+[472/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/upscaler.cpp.o
+[473/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/version.cpp.o
+[474/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_clip_merges.cpp.o
+[475/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_qwen2_merges.cpp.o
+[476/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_mistral_merges.cpp.o
+[477/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_mistral_vocab_json.cpp.o
+[478/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_t5_tokenizer_json.cpp.o
+[479/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_umt5_tokenizer_json.cpp.o
+[480/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma_merges.cpp.o
+[481/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma_vocab_json.cpp.o
+[482/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma2_merges.cpp.o
+[483/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma2_vocab_json.cpp.o
+[484/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gpt_oss_merges.cpp.o
+[485/519] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gpt_oss_vocab_json.cpp.o
+[486/519] Linking CXX static library lib/libstable-diffusion.a
+[487/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/image_generator.cpp.o
+[488/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/image_utils.cpp.o
+In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/image_utils.cpp:13:
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h: In function 'void stbir__decode_scanline(stbir__info*, int)':
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1272:10: note: in expansion of macro 'STBIR__DECODE'
+ 1272 |     case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_LINEAR):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1282:10: note: in expansion of macro 'STBIR__DECODE'
+ 1282 |     case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_SRGB):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1295:10: note: in expansion of macro 'STBIR__DECODE'
+ 1295 |     case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_LINEAR):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1305:10: note: in expansion of macro 'STBIR__DECODE'
+ 1305 |     case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_SRGB):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1318:10: note: in expansion of macro 'STBIR__DECODE'
+ 1318 |     case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_LINEAR):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1328:10: note: in expansion of macro 'STBIR__DECODE'
+ 1328 |     case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_SRGB):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1341:10: note: in expansion of macro 'STBIR__DECODE'
+ 1341 |     case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_LINEAR):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1351:10: note: in expansion of macro 'STBIR__DECODE'
+ 1351 |     case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_SRGB):
+      |          ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h: In function 'void stbir__encode_scanline(stbir__info*, int, void*, float*, int, int, int)':
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1740:14: note: in expansion of macro 'STBIR__DECODE'
+ 1740 |         case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_LINEAR):
+      |              ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1753:14: note: in expansion of macro 'STBIR__DECODE'
+ 1753 |         case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_SRGB):
+      |              ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1769:14: note: in expansion of macro 'STBIR__DECODE'
+ 1769 |         case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_LINEAR):
+      |              ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1782:14: note: in expansion of macro 'STBIR__DECODE'
+ 1782 |         case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_SRGB):
+      |              ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1799:14: note: in expansion of macro 'STBIR__DECODE'
+ 1799 |         case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_LINEAR):
+      |              ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1812:14: note: in expansion of macro 'STBIR__DECODE'
+ 1812 |         case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_SRGB):
+      |              ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1828:14: note: in expansion of macro 'STBIR__DECODE'
+ 1828 |         case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_LINEAR):
+      |              ^~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+      |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1841:14: note: in expansion of macro 'STBIR__DECODE'
+ 1841 |         case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_SRGB):
+      |              ^~~~~~~~~~~~~
+[489/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/logging.cpp.o
+[490/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/model_detection.cpp.o
+[491/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/model_manager.cpp.o
+[492/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/options_manager.cpp.o
+[493/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/server.cpp.o
+[494/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/string_utils.cpp.o
+[495/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/task_state.cpp.o
+[496/519] Building CXX object CMakeFiles/cosmo-sdkit.dir/src/sdkit_entry.cpp.o
+[497/519] Linking CXX static library lib/libcosmo-sdkit.a
+[498/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/backward_test.cpp.o
+[499/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/config.cpp.o
+[500/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/device_test.cpp.o
+[501/519] Building C object CMakeFiles/easy-diffusion.dir/src/diffusion_test.c.o
+[502/519] Building C object CMakeFiles/easy-diffusion.dir/src/ggml_test.c.o
+[503/519] Building C object CMakeFiles/easy-diffusion.dir/src/image_app.c.o
+[504/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/image_bridge.cpp.o
+[505/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/inference_dispatcher.cpp.o
+[506/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/inference_worker.cpp.o
+[507/519] Building C object CMakeFiles/easy-diffusion.dir/src/inplace_test.c.o
+[508/519] Building C object CMakeFiles/easy-diffusion.dir/src/llama_app.c.o
+[509/519] Building C object CMakeFiles/easy-diffusion.dir/src/main.c.o
+[510/519] Building C object CMakeFiles/easy-diffusion.dir/src/math_compat.c.o
+[511/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/native_main_executor.cpp.o
+[512/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/optimizer_test.cpp.o
+[513/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/train_entry.cpp.o
+In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/tokenizers/t5_unigram_tokenizer.h:10,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/model/te/t5.hpp:16,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/conditioning/conditioner.hpp:16,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/tools/sd15_lora_train.cpp:26,
+                 from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/src/train_entry.cpp:8:
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/darts.h:1465:34: warning: arithmetic between different enumeration types 'Darts::Details::DoubleArrayBuilder::<unnamed enum>' and 'Darts::Details::DoubleArrayBuilder::<unnamed enum>' is deprecated [-Wdeprecated-enum-enum-conversion]
+ 1465 |   enum { NUM_EXTRAS = BLOCK_SIZE * NUM_EXTRA_BLOCKS };
+      |                       ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+[514/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/ui_entry.cpp.o
+[515/519] Building CXX object CMakeFiles/easy-diffusion.dir/src/ui_routes.cpp.o
+[516/519] Building C object CMakeFiles/easy-diffusion.dir/src/webgpu_test.c.o
+[517/519] Building C object CMakeFiles/easy-diffusion.dir/shared-ggml/compat_test.c.o
+[518/519] Linking CXX executable bin/easy-diffusion.com.dbg
++ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/apelink -o /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.unpacked.exe -l /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/bin/easy-diffusion.com.dbg
++ /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/package.py --input /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.unpacked.exe --output /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.exe --metadata /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/LINK.json
+Fetching pinned inference fixture: ggml-org/tiny-llamas
+{
+  "filename": "easy-diffusion.exe",
+  "bytes": 190491826,
+  "sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9"
+}
+Linked application: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.unpacked.exe

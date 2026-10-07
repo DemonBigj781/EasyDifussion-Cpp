@@ -1,0 +1,501 @@
+{
+  "total_count": 4,
+  "jobs": [
+    {
+      "id": 112621048339,
+      "run_id": 37568302821,
+      "workflow_name": "One Easy Diffusion APE - cosmopolitan-test",
+      "head_branch": "cosmopolitan-test",
+      "run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUIYouc8AAAAaOLzSEw",
+      "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e",
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/jobs/112621048339",
+      "html_url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112621048339",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-07T03:46:40Z",
+      "started_at": "2026-10-07T03:46:42Z",
+      "completed_at": "2026-10-07T03:59:16Z",
+      "name": "Build one application with shared GGML and both Vulkan providers",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-07T03:46:42Z",
+          "completed_at": "2026-10-07T03:46:44Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-07T03:46:44Z",
+          "completed_at": "2026-10-07T03:46:53Z"
+        },
+        {
+          "name": "Check the runner's host build prerequisites",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-07T03:46:53Z",
+          "completed_at": "2026-10-07T03:46:58Z"
+        },
+        {
+          "name": "Restore the pinned SDK and host tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-07T03:46:58Z",
+          "completed_at": "2026-10-07T03:47:11Z"
+        },
+        {
+          "name": "Check the native Generate adapter's asynchronous behavior",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-07T03:47:11Z",
+          "completed_at": "2026-10-07T03:47:11Z"
+        },
+        {
+          "name": "Restore the pinned software WebGPU dependency build",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-07T03:47:11Z",
+          "completed_at": "2026-10-07T03:47:53Z"
+        },
+        {
+          "name": "Build and validate the pinned software WebGPU dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-07T03:47:53Z",
+          "completed_at": "2026-10-07T03:47:56Z"
+        },
+        {
+          "name": "Save the validated driver and compiler before the application build",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-10-07T03:47:56Z",
+          "completed_at": "2026-10-07T03:47:56Z"
+        },
+        {
+          "name": "Verify persistent configuration, device policy and Linux native thread execution",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-07T03:47:56Z",
+          "completed_at": "2026-10-07T03:48:07Z"
+        },
+        {
+          "name": "Compile and embed application resources",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-07T03:48:07Z",
+          "completed_at": "2026-10-07T03:58:55Z"
+        },
+        {
+          "name": "Verify shared symbols and package identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-07T03:58:55Z",
+          "completed_at": "2026-10-07T03:59:03Z"
+        },
+        {
+          "name": "Upload the application for both operating systems",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-07T03:59:03Z",
+          "completed_at": "2026-10-07T03:59:09Z"
+        },
+        {
+          "name": "Preserve build diagnostics",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-07T03:59:09Z",
+          "completed_at": "2026-10-07T03:59:14Z"
+        },
+        {
+          "name": "Post Restore the pinned SDK and host tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25,
+          "started_at": "2026-10-07T03:59:14Z",
+          "completed_at": "2026-10-07T03:59:14Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26,
+          "started_at": "2026-10-07T03:59:14Z",
+          "completed_at": "2026-10-07T03:59:14Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27,
+          "started_at": "2026-10-07T03:59:14Z",
+          "completed_at": "2026-10-07T03:59:14Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/check-runs/112621048339",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000005313,
+      "runner_name": "GitHub Actions 1000005313",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 112624037392,
+      "run_id": 37568302821,
+      "workflow_name": "One Easy Diffusion APE - cosmopolitan-test",
+      "head_branch": "cosmopolitan-test",
+      "run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUIYouc8AAAAaOOpuEA",
+      "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e",
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/jobs/112624037392",
+      "html_url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112624037392",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-07T03:59:16Z",
+      "started_at": "2026-10-07T03:59:18Z",
+      "completed_at": "2026-10-07T04:19:01Z",
+      "name": "Linux native Vulkan loader and software-driver inference",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-07T03:59:19Z",
+          "completed_at": "2026-10-07T03:59:20Z"
+        },
+        {
+          "name": "Run actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-07T03:59:20Z",
+          "completed_at": "2026-10-07T03:59:22Z"
+        },
+        {
+          "name": "Install and identify the host Vulkan software driver",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-07T03:59:22Z",
+          "completed_at": "2026-10-07T03:59:34Z"
+        },
+        {
+          "name": "Execute native-driver graphs and trained text inference with software classification",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-07T03:59:34Z",
+          "completed_at": "2026-10-07T03:59:47Z"
+        },
+        {
+          "name": "Restore the external pinned diffusion checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-07T03:59:47Z",
+          "completed_at": "2026-10-07T03:59:56Z"
+        },
+        {
+          "name": "Fetch and verify the external trained checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-07T03:59:56Z",
+          "completed_at": "2026-10-07T03:59:57Z"
+        },
+        {
+          "name": "Execute image inference through the Linux main-thread native driver path",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-07T03:59:57Z",
+          "completed_at": "2026-10-07T04:18:59Z"
+        },
+        {
+          "name": "Preserve native driver results with actual adapter classification",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-07T04:18:59Z",
+          "completed_at": "2026-10-07T04:19:00Z"
+        },
+        {
+          "name": "Post Restore the external pinned diffusion checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-07T04:19:00Z",
+          "completed_at": "2026-10-07T04:19:00Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-10-07T04:19:00Z",
+          "completed_at": "2026-10-07T04:19:00Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/check-runs/112624037392",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000005316,
+      "runner_name": "GitHub Actions 1000005316",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 112624037443,
+      "run_id": 37568302821,
+      "workflow_name": "One Easy Diffusion APE - cosmopolitan-test",
+      "head_branch": "cosmopolitan-test",
+      "run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUIYouc8AAAAaOOpuQw",
+      "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e",
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/jobs/112624037443",
+      "html_url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112624037443",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-07T03:59:16Z",
+      "started_at": "2026-10-07T03:59:18Z",
+      "completed_at": "2026-10-07T04:21:10Z",
+      "name": "Linux application in an empty filesystem",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-07T03:59:19Z",
+          "completed_at": "2026-10-07T03:59:21Z"
+        },
+        {
+          "name": "Run actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-07T03:59:21Z",
+          "completed_at": "2026-10-07T03:59:24Z"
+        },
+        {
+          "name": "Run shared-GGML WebGPU inference, CPU math, server and UI without host libraries",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-07T03:59:24Z",
+          "completed_at": "2026-10-07T03:59:30Z"
+        },
+        {
+          "name": "Launch the single application file through its bundled Linux bootstrap",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-07T03:59:30Z",
+          "completed_at": "2026-10-07T03:59:35Z"
+        },
+        {
+          "name": "Verify persistent configuration through the actual native HTTP server",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-07T03:59:35Z",
+          "completed_at": "2026-10-07T03:59:36Z"
+        },
+        {
+          "name": "Restore the external pinned diffusion checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-07T03:59:36Z",
+          "completed_at": "2026-10-07T03:59:54Z"
+        },
+        {
+          "name": "Fetch and verify the external trained checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-07T03:59:54Z",
+          "completed_at": "2026-10-07T03:59:55Z"
+        },
+        {
+          "name": "Generate images on CPU and embedded software WebGPU",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-07T03:59:55Z",
+          "completed_at": "2026-10-07T04:21:07Z"
+        },
+        {
+          "name": "Preserve Linux results",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-07T04:21:07Z",
+          "completed_at": "2026-10-07T04:21:08Z"
+        },
+        {
+          "name": "Post Restore the external pinned diffusion checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-10-07T04:21:08Z",
+          "completed_at": "2026-10-07T04:21:08Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-10-07T04:21:08Z",
+          "completed_at": "2026-10-07T04:21:08Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/check-runs/112624037443",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000005317,
+      "runner_name": "GitHub Actions 1000005317",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 112624037460,
+      "run_id": 37568302821,
+      "workflow_name": "One Easy Diffusion APE - cosmopolitan-test",
+      "head_branch": "cosmopolitan-test",
+      "run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUIYouc8AAAAaOOpuVA",
+      "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e",
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/jobs/112624037460",
+      "html_url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112624037460",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-07T03:59:16Z",
+      "started_at": "2026-10-07T03:59:18Z",
+      "completed_at": "2026-10-07T04:23:26Z",
+      "name": "Windows native PE with the identical application",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-07T03:59:19Z",
+          "completed_at": "2026-10-07T03:59:21Z"
+        },
+        {
+          "name": "Run actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-07T03:59:21Z",
+          "completed_at": "2026-10-07T03:59:25Z"
+        },
+        {
+          "name": "Run the PE directly from a clean application directory",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-07T03:59:25Z",
+          "completed_at": "2026-10-07T03:59:36Z"
+        },
+        {
+          "name": "Run the identical configuration and device policy probes on Windows",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-07T03:59:36Z",
+          "completed_at": "2026-10-07T03:59:41Z"
+        },
+        {
+          "name": "Verify the native Windows Vulkan DLL path and unsupported-device rejection",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-07T03:59:41Z",
+          "completed_at": "2026-10-07T03:59:44Z"
+        },
+        {
+          "name": "Restore the external pinned diffusion checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-07T03:59:44Z",
+          "completed_at": "2026-10-07T04:00:05Z"
+        },
+        {
+          "name": "Fetch and verify the external trained checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-07T04:00:05Z",
+          "completed_at": "2026-10-07T04:00:08Z"
+        },
+        {
+          "name": "Generate images on CPU and embedded software WebGPU",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-07T04:00:08Z",
+          "completed_at": "2026-10-07T04:23:23Z"
+        },
+        {
+          "name": "Preserve Windows results",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-07T04:23:23Z",
+          "completed_at": "2026-10-07T04:23:24Z"
+        },
+        {
+          "name": "Post Restore the external pinned diffusion checkpoint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-10-07T04:23:24Z",
+          "completed_at": "2026-10-07T04:23:24Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-10-07T04:23:24Z",
+          "completed_at": "2026-10-07T04:23:24Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/check-runs/112624037460",
+      "labels": [
+        "windows-2022"
+      ],
+      "runner_id": 1000005318,
+      "runner_name": "GitHub Actions 1000005318",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

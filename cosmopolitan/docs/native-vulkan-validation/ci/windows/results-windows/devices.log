@@ -1,0 +1,9 @@
+
+--- stdout ---
+index	backend	selector	type	provider	free MiB	total MiB	stable_id	description
+0	WebGPU	WebGPU0	software-cpu	embedded	unknown	unknown	unavailable	WebGPU / embedded / software CPU / llvmpipe (LLVM 19.1.7, 256 bits)
+1	CPU	CPU	cpu	builtin	16378	16378	unavailable	CPU
+
+--- stderr ---
+Created configuration: /C/Users/RUNNER~1/AppData/Local/Temp/easy-diffusion-runtime-blty5slh/tmp/easy-diffusion.json
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)

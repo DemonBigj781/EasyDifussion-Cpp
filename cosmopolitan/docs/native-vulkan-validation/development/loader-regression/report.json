@@ -1,0 +1,58 @@
+{
+  "success": true,
+  "scope": "host TLS, native Vulkan loader enumeration, synchronous main lane, exception/OOM transfer and shutdown; no shader/GPU proof",
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-review/final-regression/native-main-executor-test.com",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-review/final-regression/libnative_tls_fixture.so"
+  ],
+  "returncode": 0,
+  "sha256_before": "e6a2500419f16bdd02ee037f8c4d4246b72546b9347ec8dfc6f61a7805ebaaae",
+  "sha256_after": "e6a2500419f16bdd02ee037f8c4d4246b72546b9347ec8dfc6f61a7805ebaaae",
+  "fixture_sha256": "4721d1dadcc1d4226050397d2fc68ab533ba6605230ff9014fbe000803a5979c",
+  "build_commands": [
+    [
+      "/usr/bin/cc",
+      "-shared",
+      "-fPIC",
+      "-O2",
+      "-pthread",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/tests/native_tls_fixture.c",
+      "-o",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-review/final-regression/libnative_tls_fixture.so"
+    ],
+    [
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++",
+      "-std=c++20",
+      "-O2",
+      "-g",
+      "-pthread",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/backend/include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/source/sdkit3-port-source/stable-diffusion.cpp/include",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src/native_main_executor.cpp",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src/inference_worker.cpp",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/tests/native_main_executor_test.cpp",
+      "-o",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-review/final-regression/native-main-executor-test.com"
+    ]
+  ],
+  "stdout_sha256": "c3c96e872bf9b4a14eb25b145246d79fd8b01e294824478e9ce0150854d18080",
+  "stderr_sha256": "07a1e506018f09cac7b58bf156f1dd415a1a58fe94f926cc0f2320bed2de0011",
+  "model_loader": {
+    "checks": 9,
+    "native_host_tls_and_vulkan_enumeration": true,
+    "native_policy_runs_inline": true,
+    "embedded_policy_preserved": true,
+    "wrong_thread_rejected_before_work": true,
+    "scope": "actual host TLS and Vulkan loader; not checkpoint upload or shader proof"
+  },
+  "legacy_loader_worker": {
+    "returncode": -11,
+    "expected_returncode": -11,
+    "fault_reproduced": true,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "bc04369ef5c601a179e265a82e5b1d8511b8aeb194abcb4cac28e37cdca2b0b1"
+  }
+}

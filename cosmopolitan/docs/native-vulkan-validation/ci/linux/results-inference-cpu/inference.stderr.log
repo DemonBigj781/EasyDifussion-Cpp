@@ -1,0 +1,10 @@
+Created configuration: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-inference-cpu/easy-diffusion.json
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)
+
+IMAGE_SAMPLE_PROGRESS step=1 total_steps=4 seconds=53.297890
+
+IMAGE_SAMPLE_PROGRESS step=2 total_steps=4 seconds=52.809170
+
+IMAGE_SAMPLE_PROGRESS step=3 total_steps=4 seconds=52.807262
+
+IMAGE_SAMPLE_PROGRESS step=4 total_steps=4 seconds=52.769920

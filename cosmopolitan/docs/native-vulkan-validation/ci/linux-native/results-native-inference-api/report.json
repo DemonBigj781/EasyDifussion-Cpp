@@ -1,0 +1,798 @@
+{
+  "status": "passed",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "backend": "webgpu",
+  "provider_policy": "native",
+  "requested_device": "WebGPU0",
+  "require_hardware": false,
+  "scope": "Real pinned SD1.5 native HTTP inference, request lifecycle, and served Generate assets",
+  "filesystem_isolated": false,
+  "fresh_working_directory": true,
+  "browser_execution_tested": false,
+  "model": {
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "expected_sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "bytes": 1747190784,
+    "sha256_before": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "sha256_after": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b"
+  },
+  "http_events": [
+    {
+      "path": "/v1/internal/ping",
+      "method": "GET",
+      "error": "<urlopen error [Errno 111] Connection refused>",
+      "seconds": 0.0014
+    },
+    {
+      "path": "/v1/internal/ping",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/sdapi/v1/cosmopolitan-capabilities",
+      "method": "GET",
+      "status": 200,
+      "bytes": 358,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/kiosk",
+      "method": "GET",
+      "status": 200,
+      "bytes": 83,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/kiosk",
+      "method": "POST",
+      "status": 501,
+      "bytes": 94,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/kiosk",
+      "method": "GET",
+      "status": 200,
+      "bytes": 83,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/",
+      "method": "GET",
+      "status": 200,
+      "bytes": 8654,
+      "seconds": 0.0009
+    },
+    {
+      "path": "/cpp-ui/scripts/kiosk.js",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2146,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/cpp-ui/scripts/generate.js",
+      "method": "GET",
+      "status": 200,
+      "bytes": 17617,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/checkpoints",
+      "method": "GET",
+      "status": 200,
+      "bytes": 55,
+      "seconds": 0.0078
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/backend-devices",
+      "method": "GET",
+      "status": 200,
+      "bytes": 673,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 404,
+      "bytes": 28,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0009
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 409,
+      "bytes": 51,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 409,
+      "bytes": 51,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/sdapi/v1/interrupt",
+      "method": "POST",
+      "status": 409,
+      "bytes": 61,
+      "seconds": 0.0009
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0131
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0216
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 200,
+      "bytes": 215549,
+      "seconds": 1137.3002
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 124,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/interrupt",
+      "method": "POST",
+      "status": 409,
+      "bytes": 61,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 409,
+      "bytes": 49,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0013
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 400,
+      "bytes": 68,
+      "seconds": 0.0019
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0014
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 400,
+      "bytes": 65,
+      "seconds": 0.0125
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0012
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 400,
+      "bytes": 57,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0015
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    }
+  ],
+  "model_pin": {
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/PIN.json",
+    "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+    "metadata": {
+      "schema": 1,
+      "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+      "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+      "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+      "bytes": 1747190784,
+      "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+      "url": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/resolve/dcac270609fffc0ce7c7d41a3c0e752721859f7c/stable-diffusion-v1-5-Q4_0.gguf",
+      "model_card": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/blob/dcac270609fffc0ce7c7d41a3c0e752721859f7c/README.md",
+      "license": "creativeml-openrail-m",
+      "architecture": "Stable Diffusion 1.5",
+      "components": {
+        "diffusion": "Q4_0 conversion",
+        "clip_l": "F16",
+        "vae": "F16"
+      },
+      "purpose": "External trained image-inference validation checkpoint; never embedded into the application or committed to Git",
+      "short_run_scope": "Small-resolution, few-step runs test loading, denoising and image decoding; they are not image-quality benchmarks"
+    }
+  },
+  "sha256_before": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "command": [
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+    "sdkit",
+    "--backend",
+    "webgpu",
+    "--provider",
+    "native",
+    "--device",
+    "WebGPU0",
+    "--ckpt-dir",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models",
+    "--port",
+    "42807"
+  ],
+  "launch_mode": "explicit APE ELF loader",
+  "vulkan_icd": "/usr/share/vulkan/icd.d/lvp_icd.json",
+  "lavapipe_threads": 2,
+  "ui": {
+    "capabilities": {
+      "output_formats": [
+        "png"
+      ],
+      "companion_models_ui": false,
+      "cancel_during_model_load": false,
+      "full_checkpoint_required": true,
+      "mode": "native-single-user",
+      "txt2img": true,
+      "generation_plugins_ui": false,
+      "max_concurrent_generations": 1,
+      "img2img_ui": false,
+      "kiosk_enabled": false,
+      "protocol": 1,
+      "persistent_configuration": true,
+      "kiosk_supported": false,
+      "configuration_schema": 1
+    },
+    "kiosk": {
+      "allowed_models": [],
+      "enabled": false,
+      "supported": false,
+      "mode": "native-single-user"
+    },
+    "scripts": [
+      {
+        "path": "/cpp-ui/scripts/kiosk.js",
+        "bytes": 2146,
+        "sha256": "aa81a4fb833f9948149612d948f18b09df2f9519aa3dc80b6d0524498a81141a"
+      },
+      {
+        "path": "/cpp-ui/scripts/generate.js",
+        "bytes": 17617,
+        "sha256": "b6fc7d415d1a43d14cb10214caef7825563c3cc22939739d55699417864e8f39"
+      }
+    ],
+    "browser_execution_tested": false
+  },
+  "baseline_options": {
+    "show_progress_every_n_steps": 5,
+    "sdxl_clip_l_skip": false,
+    "forge_additional_modules": [],
+    "samples_format": "png",
+    "live_previews_enable": false,
+    "sd_model_checkpoint": "",
+    "CLIP_stop_at_last_layers": -1
+  },
+  "devices": {
+    "provider_policy": "native",
+    "default_webgpu_selector": "WebGPU0",
+    "unavailable": [],
+    "devices": [
+      {
+        "selector": "WebGPU0",
+        "description": "WebGPU / native / software CPU / llvmpipe (LLVM 20.1.2, 256 bits)",
+        "memory_total": null,
+        "software": true,
+        "stable_id_available": false,
+        "backend": "WebGPU",
+        "selector_scope": "process",
+        "stable_id": "",
+        "type": "software",
+        "memory_known": false,
+        "vendor": "",
+        "provider": "native",
+        "memory_free": null
+      },
+      {
+        "memory_free": 16766410752,
+        "provider": "builtin",
+        "memory_known": true,
+        "vendor": "",
+        "type": "cpu",
+        "stable_id": "",
+        "selector_scope": "process",
+        "backend": "CPU",
+        "stable_id_available": false,
+        "memory_total": 16766410752,
+        "software": true,
+        "description": "CPU",
+        "selector": "CPU"
+      }
+    ]
+  },
+  "selected_device": {
+    "selector": "WebGPU0",
+    "description": "WebGPU / native / software CPU / llvmpipe (LLVM 20.1.2, 256 bits)",
+    "memory_total": null,
+    "software": true,
+    "stable_id_available": false,
+    "backend": "WebGPU",
+    "selector_scope": "process",
+    "stable_id": "",
+    "type": "software",
+    "memory_known": false,
+    "vendor": "",
+    "provider": "native",
+    "memory_free": null
+  },
+  "generation": {
+    "task_id": "cosmo-api-eed41e4c4e844178baa134735762ab49",
+    "parameters": {
+      "force_task_id": "cosmo-api-eed41e4c4e844178baa134735762ab49",
+      "prompt": "a photograph of a red apple on a wooden table, natural light",
+      "negative_prompt": "",
+      "width": 256,
+      "height": 256,
+      "steps": 2,
+      "cfg_scale": 7.0,
+      "seed": 42,
+      "batch_size": 1,
+      "backend": "WebGPU0",
+      "sampler_name": "euler",
+      "scheduler": "discrete",
+      "override_settings": {
+        "sd_model_checkpoint": "stable-diffusion-v1-5-Q4_0.gguf",
+        "forge_additional_modules": [],
+        "live_previews_enable": false
+      }
+    },
+    "observed_active_progress": {
+      "live_preview": "",
+      "total_steps": 0,
+      "current_step": 0,
+      "id_live_preview": 0,
+      "progress": 0.0,
+      "interrupted": false,
+      "completed": false
+    },
+    "final_progress": {
+      "live_preview": "",
+      "total_steps": 2,
+      "current_step": 2,
+      "id_live_preview": 0,
+      "progress": 1.0,
+      "interrupted": false,
+      "completed": true
+    },
+    "png": {
+      "width": 256,
+      "height": 256,
+      "channels": 3,
+      "bytes": 161428,
+      "sha256": "03ef021bebbab74764753f7c734fe7f666c4a44c1712f17a895362e11df40d91",
+      "decoded_pixel_sha256": "5cd42fcad7f48572d129ccd1ca6c5e3e0414b4072c9f1c3d7452ce28f956f8ab",
+      "chunk_crc_verified": true,
+      "nonconstant_color_pixels": true,
+      "distinct_colors_capped_at_257": 257,
+      "color_min": 0,
+      "color_max": 255,
+      "color_mean": 94.22074890136719,
+      "color_stddev": 89.14790068645715,
+      "pixel_bytes": 196608,
+      "pixel_min": 0,
+      "pixel_max": 255,
+      "pixel_mean": 94.22074890136719,
+      "quality_assessed": false
+    },
+    "concurrent_generation_status": 409,
+    "concurrent_options_status": 409,
+    "wrong_task_interrupt_status": 409,
+    "finished_task_interrupt_status": 409,
+    "duplicate_task_id_status": 409,
+    "persistent_options_unchanged": true,
+    "active_progress_responsiveness": {
+      "requests": 32,
+      "timeout_seconds": 2,
+      "elapsed_seconds": [
+        0.017969,
+        0.018581,
+        0.018568,
+        0.018609,
+        0.031014,
+        0.018248,
+        0.019355,
+        0.027074,
+        0.018237,
+        0.018311,
+        0.018132,
+        0.01817,
+        0.018106,
+        0.017628,
+        0.017719,
+        0.017695,
+        0.018638,
+        0.023185,
+        0.01812,
+        0.018099,
+        0.018374,
+        0.018255,
+        0.018341,
+        0.03927,
+        0.017804,
+        0.017638,
+        0.018222,
+        0.017742,
+        0.01777,
+        0.017593,
+        0.017639,
+        0.017864
+      ],
+      "max_seconds": 0.03927
+    }
+  },
+  "invalid_overrides": [
+    {
+      "override": {
+        "sd_model_checkpoint": 42
+      },
+      "status": 400,
+      "message": "sd_model_checkpoint must be an indexed checkpoint name",
+      "gate_released": true
+    },
+    {
+      "override": {
+        "unknown_native_option": true
+      },
+      "status": 400,
+      "message": "Unsupported request override: unknown_native_option",
+      "gate_released": true
+    },
+    {
+      "override": {
+        "sd_model_checkpoint": "__missing_indexed_checkpoint__.gguf"
+      },
+      "status": 400,
+      "message": "Checkpoint is not in the native model index",
+      "gate_released": true
+    }
+  ],
+  "cancellation": {
+    "status": "not-run",
+    "reason": "explicit --skip-cancel"
+  },
+  "inference_workers": [
+    {
+      "stack_bytes": 16777216,
+      "guard_bytes": 0,
+      "source": "pthread_getattr_np",
+      "lane": "original-main"
+    }
+  ],
+  "inference_execution": [
+    {
+      "success": true,
+      "selector": "WebGPU0",
+      "provider": "native",
+      "software": 1,
+      "adapter_type": 3,
+      "graphs": 287,
+      "submissions": 1156,
+      "dispatches": 6061,
+      "matmuls": 1608,
+      "readbacks": 855,
+      "native_loader_opens": 1
+    }
+  ],
+  "server_exit_before_cleanup": null,
+  "server_cleanup_exit_status": 0,
+  "sha256_after": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "app_hash_unchanged": true,
+  "model_hash_unchanged": true,
+  "elapsed_seconds": 1141.647,
+  "evidence": [
+    {
+      "path": "server.stdout.log",
+      "bytes": 13100,
+      "sha256": "a2f5e790ec36caa4deee48dbbd12cf1d2b3dd644796fe8b9fbc983ddca7dbdac"
+    },
+    {
+      "path": "server.stderr.log",
+      "bytes": 716,
+      "sha256": "db7232f0eda9397d399d833d5a7f1f9f8b77e07bec58eab25aef01841c3d4ae4"
+    },
+    {
+      "path": "api-image.png",
+      "bytes": 161428,
+      "sha256": "03ef021bebbab74764753f7c734fe7f666c4a44c1712f17a895362e11df40d91"
+    }
+  ]
+}

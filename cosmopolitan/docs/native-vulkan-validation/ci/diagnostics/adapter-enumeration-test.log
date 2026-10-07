@@ -1,0 +1,10 @@
+
+running 5 tests
+test cosmo_bounded_adapter_tests::exact_capacity_transfers_every_item_once ... ok
+test cosmo_bounded_adapter_tests::growth_writes_only_capacity_and_releases_unreturned_items ... ok
+test cosmo_bounded_adapter_tests::null_query_disposes_all_without_creating_handles ... ok
+test cosmo_bounded_adapter_tests::shrink_preserves_unused_slots ... ok
+test cosmo_bounded_adapter_tests::zero_capacity_never_writes_nonnull_output ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

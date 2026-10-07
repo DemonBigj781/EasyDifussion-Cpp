@@ -1,0 +1,1689 @@
+{
+  "status": "passed",
+  "expected_source": "1730424270e35ff4a06bd978654c9990cfd5777e",
+  "application_sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "groups": [
+    {
+      "group": "application-package",
+      "status": "passed",
+      "details": {
+        "source": {
+          "commit": "1730424270e35ff4a06bd978654c9990cfd5777e",
+          "dirty": false,
+          "repository": "DemonBigj781/EasyDifussion-Cpp"
+        },
+        "app_sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+        "embedded_resources": 850,
+        "symbols": "passed"
+      }
+    },
+    {
+      "group": "linux-isolated-runtime",
+      "status": "passed",
+      "details": {
+        "isolated": true,
+        "native_windows_negative_status": null,
+        "command_count": 10,
+        "shared_alias_checks": 12
+      }
+    },
+    {
+      "group": "windows-native-runtime",
+      "status": "passed",
+      "details": {
+        "isolated": false,
+        "native_windows_negative_status": 512,
+        "command_count": 10,
+        "shared_alias_checks": 12
+      }
+    },
+    {
+      "group": "linux-shell-bootstrap",
+      "status": "passed",
+      "details": {
+        "scope": "host /bin/sh and utilities, transient embedded loader extraction; not chroot"
+      }
+    },
+    {
+      "group": "linux-image-cpu",
+      "status": "passed",
+      "details": {
+        "seconds": 347.844,
+        "png_sha256": "ff2ae616f92aa8c3b94d0103711b3d6d756df87983a4a59b13f6176f682fc5dd",
+        "sampling": {
+          "first_step": 1,
+          "last_step": 4,
+          "total_steps": 4,
+          "completed_callbacks": 4,
+          "intervals": 3,
+          "monotonic": true,
+          "graphs": 0,
+          "submissions": 0,
+          "dispatches": 0,
+          "matmuls": 0,
+          "readbacks": 0,
+          "progress": [
+            {
+              "step": 1,
+              "seconds": 53.29789
+            },
+            {
+              "step": 2,
+              "seconds": 52.80917
+            },
+            {
+              "step": 3,
+              "seconds": 52.807262
+            },
+            {
+              "step": 4,
+              "seconds": 52.76992
+            }
+          ],
+          "scope": "Denoising intervals between completed steps; excludes first step, CLIP and VAE; previews disabled"
+        },
+        "cpu_fallback_fraction_measured": false,
+        "image_quality_assessed": false
+      }
+    },
+    {
+      "group": "linux-image-webgpu",
+      "status": "passed",
+      "details": {
+        "seconds": 558.8,
+        "png_sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca",
+        "sampling": {
+          "first_step": 1,
+          "last_step": 2,
+          "total_steps": 2,
+          "completed_callbacks": 2,
+          "intervals": 1,
+          "monotonic": true,
+          "graphs": 126,
+          "submissions": 498,
+          "dispatches": 2582,
+          "matmuls": 692,
+          "readbacks": 370,
+          "progress": [
+            {
+              "step": 1,
+              "seconds": 176.739456
+            },
+            {
+              "step": 2,
+              "seconds": 174.907364
+            }
+          ],
+          "scope": "Denoising intervals between completed steps; excludes first step, CLIP and VAE; previews disabled"
+        },
+        "cpu_fallback_fraction_measured": false,
+        "image_quality_assessed": false
+      }
+    },
+    {
+      "group": "linux-inference-api",
+      "status": "passed",
+      "details": {
+        "seconds": 359.195,
+        "png_sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39",
+        "progress_max_seconds": 0.050452,
+        "execution": [
+          {
+            "success": true,
+            "selector": "WebGPU0",
+            "provider": "embedded",
+            "software": 1,
+            "adapter_type": 3,
+            "graphs": 0,
+            "submissions": 0,
+            "dispatches": 0,
+            "matmuls": 0,
+            "readbacks": 0,
+            "native_loader_opens": 0
+          },
+          {
+            "success": false,
+            "selector": "WebGPU0",
+            "provider": "embedded",
+            "software": 1,
+            "adapter_type": 3,
+            "graphs": 0,
+            "submissions": 0,
+            "dispatches": 0,
+            "matmuls": 0,
+            "readbacks": 0,
+            "native_loader_opens": 0
+          }
+        ],
+        "cancellation_tested": true,
+        "cleanup_status": 0,
+        "counter_scope": "whole inference closure; native API counters are not denoising-only"
+      }
+    },
+    {
+      "group": "linux-configuration-http-restart",
+      "status": "passed",
+      "details": {
+        "real_http_restart": true,
+        "browser_executed": false,
+        "model_execution": false,
+        "cleanup_method": "SIGTERM"
+      }
+    },
+    {
+      "group": "windows-image-cpu",
+      "status": "passed",
+      "details": {
+        "seconds": 339.344,
+        "png_sha256": "ff2ae616f92aa8c3b94d0103711b3d6d756df87983a4a59b13f6176f682fc5dd",
+        "sampling": {
+          "first_step": 1,
+          "last_step": 4,
+          "total_steps": 4,
+          "completed_callbacks": 4,
+          "intervals": 3,
+          "monotonic": true,
+          "graphs": 0,
+          "submissions": 0,
+          "dispatches": 0,
+          "matmuls": 0,
+          "readbacks": 0,
+          "progress": [
+            {
+              "step": 1,
+              "seconds": 54.937634
+            },
+            {
+              "step": 2,
+              "seconds": 47.985332
+            },
+            {
+              "step": 3,
+              "seconds": 49.631039
+            },
+            {
+              "step": 4,
+              "seconds": 51.462849
+            }
+          ],
+          "scope": "Denoising intervals between completed steps; excludes first step, CLIP and VAE; previews disabled"
+        },
+        "cpu_fallback_fraction_measured": false,
+        "image_quality_assessed": false
+      }
+    },
+    {
+      "group": "windows-image-webgpu",
+      "status": "passed",
+      "details": {
+        "seconds": 642.047,
+        "png_sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca",
+        "sampling": {
+          "first_step": 1,
+          "last_step": 2,
+          "total_steps": 2,
+          "completed_callbacks": 2,
+          "intervals": 1,
+          "monotonic": true,
+          "graphs": 126,
+          "submissions": 498,
+          "dispatches": 2582,
+          "matmuls": 692,
+          "readbacks": 370,
+          "progress": [
+            {
+              "step": 1,
+              "seconds": 202.766571
+            },
+            {
+              "step": 2,
+              "seconds": 205.764801
+            }
+          ],
+          "scope": "Denoising intervals between completed steps; excludes first step, CLIP and VAE; previews disabled"
+        },
+        "cpu_fallback_fraction_measured": false,
+        "image_quality_assessed": false
+      }
+    },
+    {
+      "group": "windows-inference-api",
+      "status": "passed",
+      "details": {
+        "seconds": 403.032,
+        "png_sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39",
+        "progress_max_seconds": 0.234,
+        "execution": [
+          {
+            "success": true,
+            "selector": "WebGPU0",
+            "provider": "embedded",
+            "software": 1,
+            "adapter_type": 3,
+            "graphs": 0,
+            "submissions": 0,
+            "dispatches": 0,
+            "matmuls": 0,
+            "readbacks": 0,
+            "native_loader_opens": 0
+          },
+          {
+            "success": false,
+            "selector": "WebGPU0",
+            "provider": "embedded",
+            "software": 1,
+            "adapter_type": 3,
+            "graphs": 0,
+            "submissions": 0,
+            "dispatches": 0,
+            "matmuls": 0,
+            "readbacks": 0,
+            "native_loader_opens": 0
+          }
+        ],
+        "cancellation_tested": true,
+        "cleanup_status": 1,
+        "counter_scope": "whole inference closure; native API counters are not denoising-only"
+      }
+    },
+    {
+      "group": "windows-configuration-http-restart",
+      "status": "passed",
+      "details": {
+        "real_http_restart": true,
+        "browser_executed": false,
+        "model_execution": false,
+        "cleanup_method": "TerminateProcess"
+      }
+    },
+    {
+      "group": "linux-native-device",
+      "status": "passed",
+      "details": {
+        "devices": [
+          {
+            "selector": "WebGPU0",
+            "provider": "native",
+            "software": true,
+            "adapter_type": 3,
+            "device_kind": "software-cpu",
+            "hardware_verified": false,
+            "adapter_name": "llvmpipe (LLVM 20.1.2, 256 bits)",
+            "native_loader_opens": 1,
+            "cpu_fallback": false,
+            "execution": {
+              "graphs": 4,
+              "submissions": 16,
+              "dispatches": 20,
+              "matmuls": 4,
+              "readbacks": 12
+            },
+            "graph_cases": [
+              {
+                "type": "F32",
+                "iteration": 0,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              }
+            ],
+            "scalar_checks": [
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 1.84800599e-07
+              },
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.11464063e-08
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 2.06550482e-07
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.16552808e-08
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 1.87900205e-07
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.79208283e-08
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 2.81014707e-07
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.09649803e-08
+              }
+            ]
+          }
+        ],
+        "dual_provider_graphs_same_process": false,
+        "llama_runs_are_separate_processes": true,
+        "physical_hardware_verified": false
+      }
+    },
+    {
+      "group": "linux-native-embedded-coexistence",
+      "status": "passed",
+      "details": {
+        "devices": [
+          {
+            "selector": "WebGPU0",
+            "provider": "embedded",
+            "software": true,
+            "adapter_type": 3,
+            "device_kind": "software-cpu",
+            "hardware_verified": false,
+            "adapter_name": "llvmpipe (LLVM 19.1.7, 256 bits)",
+            "native_loader_opens": 1,
+            "cpu_fallback": false,
+            "execution": {
+              "graphs": 4,
+              "submissions": 16,
+              "dispatches": 20,
+              "matmuls": 4,
+              "readbacks": 12
+            },
+            "graph_cases": [
+              {
+                "type": "F32",
+                "iteration": 0,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              }
+            ],
+            "scalar_checks": [
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 1.84800599e-07
+              },
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.11464063e-08
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 2.06550482e-07
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.16552808e-08
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 1.87900205e-07
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.79208283e-08
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 2.81014707e-07
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.09649803e-08
+              }
+            ]
+          },
+          {
+            "selector": "WebGPU1",
+            "provider": "native",
+            "software": true,
+            "adapter_type": 3,
+            "device_kind": "software-cpu",
+            "hardware_verified": false,
+            "adapter_name": "llvmpipe (LLVM 20.1.2, 256 bits)",
+            "native_loader_opens": 1,
+            "cpu_fallback": false,
+            "execution": {
+              "graphs": 4,
+              "submissions": 16,
+              "dispatches": 20,
+              "matmuls": 4,
+              "readbacks": 12
+            },
+            "graph_cases": [
+              {
+                "type": "F32",
+                "iteration": 0,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "graphs": 1,
+                "submissions": 4,
+                "dispatches": 5,
+                "matmuls": 1,
+                "readbacks": 3
+              }
+            ],
+            "scalar_checks": [
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 1.84800599e-07
+              },
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "F32",
+                "iteration": 0,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.11464063e-08
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 2.06550482e-07
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "F32",
+                "iteration": 1,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.16552808e-08
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 1.87900205e-07
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 0,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.79208283e-08
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "bias-rmsnorm-silu",
+                "values": 143,
+                "max_error": 2.81014707e-07
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "matmul",
+                "values": 143,
+                "max_error": 0.0
+              },
+              {
+                "type": "Q4_0",
+                "iteration": 1,
+                "stage": "softmax",
+                "values": 143,
+                "max_error": 5.09649803e-08
+              }
+            ]
+          }
+        ],
+        "dual_provider_graphs_same_process": true,
+        "llama_runs_are_separate_processes": true,
+        "physical_hardware_verified": false
+      }
+    },
+    {
+      "group": "linux-native-inference-api",
+      "status": "passed",
+      "details": {
+        "seconds": 1141.647,
+        "png_sha256": "03ef021bebbab74764753f7c734fe7f666c4a44c1712f17a895362e11df40d91",
+        "progress_max_seconds": 0.03927,
+        "execution": [
+          {
+            "success": true,
+            "selector": "WebGPU0",
+            "provider": "native",
+            "software": 1,
+            "adapter_type": 3,
+            "graphs": 287,
+            "submissions": 1156,
+            "dispatches": 6061,
+            "matmuls": 1608,
+            "readbacks": 855,
+            "native_loader_opens": 1
+          }
+        ],
+        "cancellation_tested": false,
+        "cleanup_status": 0,
+        "counter_scope": "whole inference closure; native API counters are not denoising-only"
+      }
+    },
+    {
+      "group": "windows-real-DLL-discovery-and-rejection",
+      "status": "passed",
+      "details": {
+        "native_DLL_discovery": true,
+        "shader_f16_rejection": true,
+        "compute_verified": false,
+        "DLL_hashes_scope": "recorded on runner; installed DLL bytes are not retained here"
+      }
+    },
+    {
+      "group": "linux-configuration-unit",
+      "status": "passed",
+      "details": {
+        "checks": 38,
+        "expected_negative_native_exit": 2,
+        "ordered_arguments_and_statuses_verified": true,
+        "device_diagnostic_cases": 3,
+        "device_diagnostic_contract": [
+          "explicit native provider implies WebGPU without creating config",
+          "explicit WebGPU0 preserves --all without creating config",
+          "existing configuration preserves saved compute defaults"
+        ],
+        "contract_evidence": "PASS from hash-matched production verifier; report retains argv/status, not probe stdout or filesystem snapshots",
+        "scope": "configuration module probe; no HTTP or hardware"
+      }
+    },
+    {
+      "group": "windows-configuration-unit",
+      "status": "passed",
+      "details": {
+        "checks": 38,
+        "expected_negative_native_exit": 512,
+        "ordered_arguments_and_statuses_verified": true,
+        "device_diagnostic_cases": 3,
+        "device_diagnostic_contract": [
+          "explicit native provider implies WebGPU without creating config",
+          "explicit WebGPU0 preserves --all without creating config",
+          "existing configuration preserves saved compute defaults"
+        ],
+        "contract_evidence": "PASS from hash-matched production verifier; report retains argv/status, not probe stdout or filesystem snapshots",
+        "scope": "configuration module probe; no HTTP or hardware"
+      }
+    },
+    {
+      "group": "linux-device-policy-unit",
+      "status": "passed",
+      "details": {
+        "cases": 8,
+        "scope": "mock factory only; no native driver proof"
+      }
+    },
+    {
+      "group": "windows-device-policy-unit",
+      "status": "passed",
+      "details": {
+        "cases": 8,
+        "scope": "mock factory only; no native driver proof"
+      }
+    },
+    {
+      "group": "linux-native-TLS-main-lane-unit",
+      "status": "passed",
+      "details": {
+        "checks": 14,
+        "model_loader_checks": 9,
+        "scope": "native TLS/Vulkan enumeration; no shader proof",
+        "probe_bytes_retained": false
+      }
+    },
+    {
+      "group": "rust-adapter-enumeration-unit",
+      "status": "passed",
+      "details": {
+        "tests": 5,
+        "scope": "adapter reference/list handling units; no physical GPU"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "app/BUILD.json",
+      "bytes": 317324,
+      "sha256": "f0f43ab3d85b7fce4ae4bf382041e1866ca6f0c8032c229618ea36db89cfa1d6"
+    },
+    {
+      "path": "app/CONFIG_PROBE_BUILD.json",
+      "bytes": 1775,
+      "sha256": "46a46bca3a36d90e24bbd9a9bb88a3a9c9a17c830603afd8b3e3d89de204e944"
+    },
+    {
+      "path": "app/DEVICE_POLICY_BUILD.json",
+      "bytes": 3057,
+      "sha256": "f67cd76cbd0d720998ff23b295838b0adc122a53503973978b5cc1df6f4ed5a7"
+    },
+    {
+      "path": "app/PIN.json",
+      "bytes": 996,
+      "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca"
+    },
+    {
+      "path": "app/SYMBOLS.json",
+      "bytes": 1852,
+      "sha256": "29826943a1f29615b4e2506e70d11767297d151e63027e1dd6b48180120aad6b"
+    },
+    {
+      "path": "app/ape-x86_64.elf",
+      "bytes": 9249,
+      "sha256": "cc31af13515fcf091768bfbf12da899286b35ff1bf1302f304936db4b03d512e"
+    },
+    {
+      "path": "app/config-probe.exe",
+      "bytes": 1858411,
+      "sha256": "cd271c35f5e865af5a0f785d60863977b7a5d39aad05f73fc19e9e7dff6e7f6c"
+    },
+    {
+      "path": "app/device-policy-test.exe",
+      "bytes": 889988,
+      "sha256": "0a958d63a1880c046de24165e6c94d7f064fa679f13787ca20b90f19d23c036c"
+    },
+    {
+      "path": "app/easy-diffusion.exe",
+      "bytes": 190491826,
+      "sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9"
+    },
+    {
+      "path": "app/software-webgpu/LINK.json",
+      "bytes": 153553,
+      "sha256": "1914fbe64218620cf25843ab776b4f7ee43eb89d95c7ac07170a96cc88c70036"
+    },
+    {
+      "path": "app/verify_bootstrap.py",
+      "bytes": 7521,
+      "sha256": "074928f2d1aeee3718449941a3138cbe2f0eedf65008b060a424d96bd56931b2"
+    },
+    {
+      "path": "app/verify_config.py",
+      "bytes": 7263,
+      "sha256": "2d8202e602f57dce1a1879ceaec4f49d3148d38f1b2480921bad43222bb418c0"
+    },
+    {
+      "path": "app/verify_configuration_api.py",
+      "bytes": 13286,
+      "sha256": "c9ed74de9304eaa33a9dc64b7f6e1ac11ea44ef0c5c50fc205598cd128f4e872"
+    },
+    {
+      "path": "app/verify_device_policy.py",
+      "bytes": 4259,
+      "sha256": "747b159e4f8cb0a91ce9f45cbf29715eddb768723492d1cfb08baf591e84345c"
+    },
+    {
+      "path": "app/verify_inference.py",
+      "bytes": 30002,
+      "sha256": "65047c714c5f247273e58a102dda90a9261e897bf40f3d9d5ec98830b46b797c"
+    },
+    {
+      "path": "app/verify_inference_api.py",
+      "bytes": 31075,
+      "sha256": "a3f160e4067272df72a0315b33ab085ae5524fb9f680572b94ee80d2a1cdd2a5"
+    },
+    {
+      "path": "app/verify_runtime.py",
+      "bytes": 24724,
+      "sha256": "b8c69a3e558cecf2f2c3212d25ef33dcf5e059d99bf4ba8f63526de336fca5f4"
+    },
+    {
+      "path": "app/verify_webgpu_device.py",
+      "bytes": 17201,
+      "sha256": "e5d115bd69ca1ac7e223bf794cd4fee2937d5261294fed2ab67d3ab3cb7b6901"
+    },
+    {
+      "path": "app/verify_windows_native_discovery.py",
+      "bytes": 9281,
+      "sha256": "2544216958ce85b34710cacf0b4359a58adc6198ef430ffcd2c85c945b0ab139"
+    },
+    {
+      "path": "diagnostics/adapter-enumeration-test.log",
+      "bytes": 538,
+      "sha256": "732fbbb7adb89f1bc5529d1ee5331ed33faec724b89e2e055fdf522a1981de7b"
+    },
+    {
+      "path": "diagnostics/config-test/report.json",
+      "bytes": 6206,
+      "sha256": "1f1374dbf1669fb1670d7f932dfa4c5b5c5ceff8f80287f123a231003847572c"
+    },
+    {
+      "path": "diagnostics/device-policy-report.json",
+      "bytes": 1693,
+      "sha256": "fe8764fe655af51dd698413f355c2bec7e2b467d2282e361293b6171959f1804"
+    },
+    {
+      "path": "diagnostics/native-main-executor-test/legacy-worker.stderr.log",
+      "bytes": 78,
+      "sha256": "5b6088fd4ab02dbeaef0782c920ecfa2acbeacc8141e18402aeb8dca125f5efb"
+    },
+    {
+      "path": "diagnostics/native-main-executor-test/legacy-worker.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "diagnostics/native-main-executor-test/report.json",
+      "bytes": 3033,
+      "sha256": "5b0bde7d3ac82600f38aec1e92e57b1d93281a1a14afe89a4820eb20f664314d"
+    },
+    {
+      "path": "diagnostics/native-main-executor-test/stderr.log",
+      "bytes": 356,
+      "sha256": "4a8ff1c660ef0262be84374032cee0329a47d9eb75a014a57f35b1d78bcca879"
+    },
+    {
+      "path": "diagnostics/native-main-executor-test/stdout.log",
+      "bytes": 158,
+      "sha256": "8393446e8e9e4d7393e3a7fd45d94c0b713c250960a3efd7805be243550a2e50"
+    },
+    {
+      "path": "linux-native/native-driver-packages.txt",
+      "bytes": 85,
+      "sha256": "5ec05528e7ed92b444f5b72c8a5d88e03fe30083561f1825f37a0ce1c2307289"
+    },
+    {
+      "path": "linux-native/results-dual-provider/graph.stderr.log",
+      "bytes": 477,
+      "sha256": "c24468c125975c1e66473f321b256cba4a80a249b006de4f8b2561e0ddc16795"
+    },
+    {
+      "path": "linux-native/results-dual-provider/graph.stdout.log",
+      "bytes": 4383,
+      "sha256": "1dcde667240fe5b7c2a6cad9b0ba283b6d613d8cad70ee8a0ccb9b0e9d8866be"
+    },
+    {
+      "path": "linux-native/results-dual-provider/hardware-rejection-0.stderr.log",
+      "bytes": 574,
+      "sha256": "ec163f466f69de80904704526513699e7ece7cca1151f9a2a0e4d11037e519d7"
+    },
+    {
+      "path": "linux-native/results-dual-provider/hardware-rejection-0.stdout.log",
+      "bytes": 44,
+      "sha256": "15f41796a5db58f7a9fda86a26ad1b8dd4bb37dc7dd78828a9dbaa5ec4d0e1f2"
+    },
+    {
+      "path": "linux-native/results-dual-provider/hardware-rejection-1.stderr.log",
+      "bytes": 572,
+      "sha256": "c8ebff9cb9e5cab53199657301886a94b2a89488acdf6303479e38895d7a1ac0"
+    },
+    {
+      "path": "linux-native/results-dual-provider/hardware-rejection-1.stdout.log",
+      "bytes": 44,
+      "sha256": "15f41796a5db58f7a9fda86a26ad1b8dd4bb37dc7dd78828a9dbaa5ec4d0e1f2"
+    },
+    {
+      "path": "linux-native/results-dual-provider/llama-0.stderr.log",
+      "bytes": 18061,
+      "sha256": "5ef202ac64ed3331700030a1468bfff1d5bbf16fce0378c45df0a9e46076b18f"
+    },
+    {
+      "path": "linux-native/results-dual-provider/llama-0.stdout.log",
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc"
+    },
+    {
+      "path": "linux-native/results-dual-provider/llama-1.stderr.log",
+      "bytes": 18033,
+      "sha256": "b6c94e87625ea072b88a41d2fcff6c71d8de304fadad3c6132ff2efd5dc69f15"
+    },
+    {
+      "path": "linux-native/results-dual-provider/llama-1.stdout.log",
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc"
+    },
+    {
+      "path": "linux-native/results-dual-provider/report.json",
+      "bytes": 14973,
+      "sha256": "6bd2879b2c3e6ec553991e5b7ee809b4902a68b1e92721d5526101ed14deda1e"
+    },
+    {
+      "path": "linux-native/results-native-device/graph.stderr.log",
+      "bytes": 283,
+      "sha256": "4e7de2f26ae1665e604ea6c103ac8032afdde033e08b05636e4f184681e3b608"
+    },
+    {
+      "path": "linux-native/results-native-device/graph.stdout.log",
+      "bytes": 2112,
+      "sha256": "fc84766e3d826dc7130f26ad8e1a7c90a112913d956372ea846b084d85982579"
+    },
+    {
+      "path": "linux-native/results-native-device/hardware-rejection-0.stderr.log",
+      "bytes": 378,
+      "sha256": "763b20ef6f68608bba06d87b43b9c308dd6233fa27f4ce2c7efb5d2ed3af4bc4"
+    },
+    {
+      "path": "linux-native/results-native-device/hardware-rejection-0.stdout.log",
+      "bytes": 44,
+      "sha256": "15f41796a5db58f7a9fda86a26ad1b8dd4bb37dc7dd78828a9dbaa5ec4d0e1f2"
+    },
+    {
+      "path": "linux-native/results-native-device/llama-0.stderr.log",
+      "bytes": 17761,
+      "sha256": "5aa83d9c408b0faf21f9a415e2cd1ccc6f93b52c9ce39490db2c902779f835a1"
+    },
+    {
+      "path": "linux-native/results-native-device/llama-0.stdout.log",
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc"
+    },
+    {
+      "path": "linux-native/results-native-device/report.json",
+      "bytes": 8332,
+      "sha256": "3d3d9bdad6c52e9aed4204634944596a022cf79585adab64ace259de95783de5"
+    },
+    {
+      "path": "linux-native/results-native-inference-api/api-image.png",
+      "bytes": 161428,
+      "sha256": "03ef021bebbab74764753f7c734fe7f666c4a44c1712f17a895362e11df40d91"
+    },
+    {
+      "path": "linux-native/results-native-inference-api/report.json",
+      "bytes": 19392,
+      "sha256": "7f1a421b7ab37f53d77f7f3567ec481421bf23e0a8071cfc9b6e61318a84e854"
+    },
+    {
+      "path": "linux-native/results-native-inference-api/server.stderr.log",
+      "bytes": 716,
+      "sha256": "db7232f0eda9397d399d833d5a7f1f9f8b77e07bec58eab25aef01841c3d4ae4"
+    },
+    {
+      "path": "linux-native/results-native-inference-api/server.stdout.log",
+      "bytes": 13100,
+      "sha256": "a2f5e790ec36caa4deee48dbbd12cf1d2b3dd644796fe8b9fbc983ddca7dbdac"
+    },
+    {
+      "path": "linux/results-configuration-api/first-configuration.json",
+      "bytes": 489,
+      "sha256": "c287262fda66f506d3f6ab7e38ba64c068ac21d1da4bcbadddc6a13483fd7c6b"
+    },
+    {
+      "path": "linux/results-configuration-api/first.log",
+      "bytes": 6135,
+      "sha256": "ddc38a964777601679c9dad916c75c6ad141422f8e03ad06637126d51dd287a8"
+    },
+    {
+      "path": "linux/results-configuration-api/first.stderr.log",
+      "bytes": 74,
+      "sha256": "c5f9957e39f9290de4ccb519243af05f2d6dcebcdc3df2f67573d876f6d410e9"
+    },
+    {
+      "path": "linux/results-configuration-api/first.stdout.log",
+      "bytes": 6029,
+      "sha256": "c09e338dc00c03140f7e14688df6df8be694a7528feda833a6c591f50c13d52a"
+    },
+    {
+      "path": "linux/results-configuration-api/report.json",
+      "bytes": 10822,
+      "sha256": "579cd6d4e064e5f1d8d20415c6a480c54c6210babe14533461f198d6297c1f88"
+    },
+    {
+      "path": "linux/results-configuration-api/restarted-configuration.json",
+      "bytes": 489,
+      "sha256": "c287262fda66f506d3f6ab7e38ba64c068ac21d1da4bcbadddc6a13483fd7c6b"
+    },
+    {
+      "path": "linux/results-configuration-api/restarted.log",
+      "bytes": 134,
+      "sha256": "2c0a9679c1e7279e13e0481bbca368d4a3a8379c02c11c4664c1a658b4bcce22"
+    },
+    {
+      "path": "linux/results-configuration-api/restarted.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/results-configuration-api/restarted.stdout.log",
+      "bytes": 102,
+      "sha256": "c36eaa59e4b900fdcba9ea881b03c9fa617efcdd5b0d4183fa28b9d301f79357"
+    },
+    {
+      "path": "linux/results-inference-api/api-image.png",
+      "bytes": 120155,
+      "sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39"
+    },
+    {
+      "path": "linux/results-inference-api/report.json",
+      "bytes": 96923,
+      "sha256": "e0d3e94af1864b8075b68b0b80e4c289c6ef4168f0de78913c1ca1eaf2a463af"
+    },
+    {
+      "path": "linux/results-inference-api/server.stderr.log",
+      "bytes": 1203,
+      "sha256": "a426a37c9567e3ab56a25179f8c79356109efcbdb4a0caa7a93902941bdde8d1"
+    },
+    {
+      "path": "linux/results-inference-api/server.stdout.log",
+      "bytes": 15914,
+      "sha256": "9cc9fba817043e99479fa62e5550ee357dc653d8ad8b4eec1bce90bf75b637bf"
+    },
+    {
+      "path": "linux/results-inference-cpu/image.png",
+      "bytes": 156929,
+      "sha256": "ff2ae616f92aa8c3b94d0103711b3d6d756df87983a4a59b13f6176f682fc5dd"
+    },
+    {
+      "path": "linux/results-inference-cpu/inference.stderr.log",
+      "bytes": 570,
+      "sha256": "a9a1dfea2238306afde6d4e74a4211f9dd758c4044e988e8ddafb37fb204c6ba"
+    },
+    {
+      "path": "linux/results-inference-cpu/inference.stdout.log",
+      "bytes": 1074,
+      "sha256": "cbaa67396b9c62e5530e4904bbf866e1b34ffa3b2e0abc25e406a57a9770103d"
+    },
+    {
+      "path": "linux/results-inference-cpu/report.json",
+      "bytes": 8298,
+      "sha256": "8fab20d3dff584fbd86d3d9d1850f0f40ed142fc1089e80f6792e090d1006661"
+    },
+    {
+      "path": "linux/results-inference-webgpu/image.png",
+      "bytes": 153959,
+      "sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca"
+    },
+    {
+      "path": "linux/results-inference-webgpu/inference.stderr.log",
+      "bytes": 451,
+      "sha256": "a9ac5a4cce70f8494e2cf2277750dbf84a533ac284edaa66df3507cecd6e0988"
+    },
+    {
+      "path": "linux/results-inference-webgpu/inference.stdout.log",
+      "bytes": 1288,
+      "sha256": "0097fa9f27523b0fc785b738fb7d4260e472d891b3f1c179d16fd1a1fc783eb7"
+    },
+    {
+      "path": "linux/results-inference-webgpu/report.json",
+      "bytes": 8333,
+      "sha256": "488eaf7d5e1fdd2410a8adaae337276d2a4ca94e6fc23edb8af26672e5362b66"
+    },
+    {
+      "path": "linux/results-linux-bootstrap/report.json",
+      "bytes": 3050,
+      "sha256": "9d09ed498a66d2b09a0a52050b89bc1d1197b4f8c5438233183059fa0cd6a42a"
+    },
+    {
+      "path": "linux/results-linux-bootstrap/self-test.log",
+      "bytes": 42457,
+      "sha256": "cf307ae6ecb173c05ef9a708f60b9571d1237c90e92bdb42bafdbfde4ab33d7c"
+    },
+    {
+      "path": "linux/results-linux-isolated/devices.log",
+      "bytes": 537,
+      "sha256": "60e9afd9c315fe0c5104b230d3769ee0c5f40ee65880e23b56c93ab147f47770"
+    },
+    {
+      "path": "linux/results-linux-isolated/devices.stderr.log",
+      "bytes": 242,
+      "sha256": "42eec176d81d001af8192b81619f84e65940206a83cbad750d4af7c951c41680"
+    },
+    {
+      "path": "linux/results-linux-isolated/devices.stdout.log",
+      "bytes": 263,
+      "sha256": "56797193319c71f468fd0113533288896534c84a7c91e5c8270f5f14feded547"
+    },
+    {
+      "path": "linux/results-linux-isolated/diffusion-command.log",
+      "bytes": 3936,
+      "sha256": "27af6683e8d030bf70788ce41b12f1ae4d6d8bd295ad670d1cb3a83bf432236b"
+    },
+    {
+      "path": "linux/results-linux-isolated/diffusion-command.stderr.log",
+      "bytes": 3904,
+      "sha256": "6612ad64c78b682226b6dd9f1c49c33b6a9d2c934dd4d5febc463fc666d51d11"
+    },
+    {
+      "path": "linux/results-linux-isolated/diffusion-command.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-command.log",
+      "bytes": 1084,
+      "sha256": "0f29751cf171bdc67d47f1192de3f49ae76ee6787af58dd160f4b9a0c8421dfc"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-command.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-command.stdout.log",
+      "bytes": 1052,
+      "sha256": "0242493912e81b02848ebec3bede317a9e585c256abb9bbc762c78112a65d007"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-invalid-backend.log",
+      "bytes": 85,
+      "sha256": "e9e3aafea068411a681b93a0b81b6249ac4026501118de8f8ec1989b39c3fa3e"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-invalid-backend.stderr.log",
+      "bytes": 53,
+      "sha256": "58eb821b7e63c180d5622c5b4f5453f10423bb882fda718b4fb36d6d96b607c9"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-invalid-backend.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-invalid-dimensions.log",
+      "bytes": 69,
+      "sha256": "ee6e6093ae32f701e7ac70b3aeeaedcdfc0629b2975680444016291735c19df9"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-invalid-dimensions.stderr.log",
+      "bytes": 37,
+      "sha256": "4baa7fa9e3bf5c95f84be6cc02e0c631035d823cfd01d8632916c313c9653a0a"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-invalid-dimensions.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-unmatched-option.log",
+      "bytes": 85,
+      "sha256": "71969b7bdf6c60760b03e83c3733a970b8633022d30ade8acbc4204fcab368e4"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-unmatched-option.stderr.log",
+      "bytes": 53,
+      "sha256": "d5ff5959f2245fa780812d90f703ad080ce3daf323927656cebfdadae910549d"
+    },
+    {
+      "path": "linux/results-linux-isolated/image-unmatched-option.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/results-linux-isolated/report.json",
+      "bytes": 9154,
+      "sha256": "85ad94d27b411b44be75ff1b62762d6f3eb7949301b2661807f4fbe41d2e2096"
+    },
+    {
+      "path": "linux/results-linux-isolated/self-test.log",
+      "bytes": 42489,
+      "sha256": "31059b2d8fee5f25424260c137ba323754de14195ec23893c19113dd8487d19a"
+    },
+    {
+      "path": "linux/results-linux-isolated/self-test.stderr.log",
+      "bytes": 33735,
+      "sha256": "c8289c18bf42f5b627643ec89f456f978038a3c2aa3044fea24b0133ad6dc52a"
+    },
+    {
+      "path": "linux/results-linux-isolated/self-test.stdout.log",
+      "bytes": 8722,
+      "sha256": "e23ccb4ea6c21cc843e6c0e6ff48982c070564881b55ebd2114a3569b838f2d9"
+    },
+    {
+      "path": "linux/results-linux-isolated/server.log",
+      "bytes": 4261,
+      "sha256": "75c1e110efa7c5f12cc7c9129366cb32ee2fec166ceb580e70b57bed6cf6756e"
+    },
+    {
+      "path": "linux/results-linux-isolated/server.stderr.log",
+      "bytes": 287,
+      "sha256": "7542f38caa55f5513f2270bfe818040a81c50402806b8af0ba74b721b8fc9701"
+    },
+    {
+      "path": "linux/results-linux-isolated/server.stdout.log",
+      "bytes": 3942,
+      "sha256": "dbfa206d4c4f84cc3e40ad0ec29d518a88efafe415c5e1ac302944a299b0a547"
+    },
+    {
+      "path": "linux/results-linux-isolated/training-command.log",
+      "bytes": 924,
+      "sha256": "95aca1b8aba2513f65087f8e83c64126ae2879f6916fa6ac3513a64f2797a697"
+    },
+    {
+      "path": "linux/results-linux-isolated/training-command.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "linux/results-linux-isolated/training-command.stdout.log",
+      "bytes": 892,
+      "sha256": "5fe32b93da3fa8665fd560bd828e4591b02300173584bfaba36bf06ce750f778"
+    },
+    {
+      "path": "linux/results-linux-isolated/training-unmatched-option.log",
+      "bytes": 83,
+      "sha256": "5b448c05bc178c4f963489388ec6dcb916d6dabbcd396a1964256757eb88c467"
+    },
+    {
+      "path": "linux/results-linux-isolated/training-unmatched-option.stderr.log",
+      "bytes": 51,
+      "sha256": "6c7788aa48655b36ac9585143cb3276651b6d1e2373ec4d295f405f5fd1b59d2"
+    },
+    {
+      "path": "linux/results-linux-isolated/training-unmatched-option.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/config-report.json",
+      "bytes": 7435,
+      "sha256": "6e4775b5d7351589b734b1330b2568b94f4793f4359333d67af6302efbb84ac0"
+    },
+    {
+      "path": "windows/device-policy-report.json",
+      "bytes": 1764,
+      "sha256": "2870e989de16f02e2eaa22364b187bcb6b55c982f372d33c952d9fbe1c96a846"
+    },
+    {
+      "path": "windows/results-configuration-api/first-configuration.json",
+      "bytes": 489,
+      "sha256": "c7e355c35667547a4c19aa63a9982bd62dca20bdba4ea9fcffa66d1919507980"
+    },
+    {
+      "path": "windows/results-configuration-api/first.log",
+      "bytes": 5207,
+      "sha256": "f63f2d7889bbfadba2aca5f7b44dc6435f63dbb1cab9120ddc792e46db12d1ab"
+    },
+    {
+      "path": "windows/results-configuration-api/first.stderr.log",
+      "bytes": 106,
+      "sha256": "08a3d540150a03962ce3991a2f17a49450d79968b2e592a5f752fcbd257c0ccf"
+    },
+    {
+      "path": "windows/results-configuration-api/first.stdout.log",
+      "bytes": 5069,
+      "sha256": "8bad3f33392f4857e3397050a71d409ecfbf7ae3c79bab262f484b7f1795e124"
+    },
+    {
+      "path": "windows/results-configuration-api/report.json",
+      "bytes": 11664,
+      "sha256": "dc35d30854ef75affb903ee98abb8db30b6960f9c857175634a6a7f1bf823a21"
+    },
+    {
+      "path": "windows/results-configuration-api/restarted-configuration.json",
+      "bytes": 489,
+      "sha256": "c7e355c35667547a4c19aa63a9982bd62dca20bdba4ea9fcffa66d1919507980"
+    },
+    {
+      "path": "windows/results-configuration-api/restarted.log",
+      "bytes": 118,
+      "sha256": "383f1476204ef5b5315bcb27042993b55e5dd1bbff3c773dd82d2bc1f8112fcb"
+    },
+    {
+      "path": "windows/results-configuration-api/restarted.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/results-configuration-api/restarted.stdout.log",
+      "bytes": 86,
+      "sha256": "cba0a69ca02e891f844c07880deef042bed3652a529b433200e146cfd5d695a4"
+    },
+    {
+      "path": "windows/results-inference-api/api-image.png",
+      "bytes": 120155,
+      "sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39"
+    },
+    {
+      "path": "windows/results-inference-api/report.json",
+      "bytes": 68561,
+      "sha256": "b5fc448c6e827d79859b650a2f364bcdb156f3b7a89ea6ca72c4cb14282d0178"
+    },
+    {
+      "path": "windows/results-inference-api/server.stderr.log",
+      "bytes": 1190,
+      "sha256": "28f7bba76a63a13da500c6134da8295784579a92f8fa4d075c1687203ed236d2"
+    },
+    {
+      "path": "windows/results-inference-api/server.stdout.log",
+      "bytes": 15207,
+      "sha256": "c09290a2d86ab5b501fed84e177a5d414d0fa99d44cf77eb57649845a5de1891"
+    },
+    {
+      "path": "windows/results-inference-cpu/image.png",
+      "bytes": 156929,
+      "sha256": "ff2ae616f92aa8c3b94d0103711b3d6d756df87983a4a59b13f6176f682fc5dd"
+    },
+    {
+      "path": "windows/results-inference-cpu/inference.stderr.log",
+      "bytes": 557,
+      "sha256": "f9383b67ea4db5e1bda2d144b5e55937863f22bed9588de5de12380df007f14d"
+    },
+    {
+      "path": "windows/results-inference-cpu/inference.stdout.log",
+      "bytes": 1794,
+      "sha256": "02feeb41865127ac71aa468a05d7f6c174ebf41acbe1f30258bb0b09216f52bb"
+    },
+    {
+      "path": "windows/results-inference-cpu/report.json",
+      "bytes": 6644,
+      "sha256": "91c0f3feeeef2a8b1a3eb6b60180c08c03961f8d6eaf4cdd24136afaedd0eb36"
+    },
+    {
+      "path": "windows/results-inference-webgpu/image.png",
+      "bytes": 153959,
+      "sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca"
+    },
+    {
+      "path": "windows/results-inference-webgpu/inference.stderr.log",
+      "bytes": 438,
+      "sha256": "c5fb77dec7352163f0d4c021eb446ddb26e44803a750f5ed7be6333852770fbb"
+    },
+    {
+      "path": "windows/results-inference-webgpu/inference.stdout.log",
+      "bytes": 2162,
+      "sha256": "aa9638a86ea788252face012b44b44f4edc37458be827af050edc08e4d1e7cd4"
+    },
+    {
+      "path": "windows/results-inference-webgpu/report.json",
+      "bytes": 6666,
+      "sha256": "dfe0019481ccc9f94962a59304a01b42240488f0e51788d04fa605d64dfa9821"
+    },
+    {
+      "path": "windows/results-windows-native-discovery/discovery.stderr.log",
+      "bytes": 422,
+      "sha256": "cf41dccd11e72bce891ff849da508cf7569641e41f7caa10a87eaaa34d89e423"
+    },
+    {
+      "path": "windows/results-windows-native-discovery/discovery.stdout.log",
+      "bytes": 227,
+      "sha256": "10099ee8ecce74bb8454101cc80ee15187a0da7497e1d3bb998af9abe0c5e9d0"
+    },
+    {
+      "path": "windows/results-windows-native-discovery/feature-rejection.stderr.log",
+      "bytes": 299,
+      "sha256": "623b5572d877ca2e7bea9bc13f4a680533062fb6399b2c844d4920c0bbd17052"
+    },
+    {
+      "path": "windows/results-windows-native-discovery/feature-rejection.stdout.log",
+      "bytes": 31,
+      "sha256": "0685b364ca7a675bf8ab1a8814445f00f761b72fedbb22c0c9e602d968da73af"
+    },
+    {
+      "path": "windows/results-windows-native-discovery/report.json",
+      "bytes": 4044,
+      "sha256": "c65766a97efac6af2ba8b8cc0508f08bd09bc628499732e454215c3916337f73"
+    },
+    {
+      "path": "windows/results-windows/devices.log",
+      "bytes": 605,
+      "sha256": "fd6fe0a412e57bcb3a0a9ccead1ffd87be4b4ffa3fff703ade916f57dd1a0bb5"
+    },
+    {
+      "path": "windows/results-windows/devices.stderr.log",
+      "bytes": 310,
+      "sha256": "d9ffb49095aaa60a5bdb7f1231bb7d3819428bf37ce6b6db7ac2493bc8a454c3"
+    },
+    {
+      "path": "windows/results-windows/devices.stdout.log",
+      "bytes": 263,
+      "sha256": "6065f4f2dca7136b90ea8a11fcca77b00299c011f167fb78fd0f739a30ff56b9"
+    },
+    {
+      "path": "windows/results-windows/diffusion-command.log",
+      "bytes": 3936,
+      "sha256": "27af6683e8d030bf70788ce41b12f1ae4d6d8bd295ad670d1cb3a83bf432236b"
+    },
+    {
+      "path": "windows/results-windows/diffusion-command.stderr.log",
+      "bytes": 3904,
+      "sha256": "6612ad64c78b682226b6dd9f1c49c33b6a9d2c934dd4d5febc463fc666d51d11"
+    },
+    {
+      "path": "windows/results-windows/diffusion-command.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/results-windows/image-command.log",
+      "bytes": 1084,
+      "sha256": "0f29751cf171bdc67d47f1192de3f49ae76ee6787af58dd160f4b9a0c8421dfc"
+    },
+    {
+      "path": "windows/results-windows/image-command.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/results-windows/image-command.stdout.log",
+      "bytes": 1052,
+      "sha256": "0242493912e81b02848ebec3bede317a9e585c256abb9bbc762c78112a65d007"
+    },
+    {
+      "path": "windows/results-windows/image-invalid-backend.log",
+      "bytes": 85,
+      "sha256": "e9e3aafea068411a681b93a0b81b6249ac4026501118de8f8ec1989b39c3fa3e"
+    },
+    {
+      "path": "windows/results-windows/image-invalid-backend.stderr.log",
+      "bytes": 53,
+      "sha256": "58eb821b7e63c180d5622c5b4f5453f10423bb882fda718b4fb36d6d96b607c9"
+    },
+    {
+      "path": "windows/results-windows/image-invalid-backend.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/results-windows/image-invalid-dimensions.log",
+      "bytes": 69,
+      "sha256": "ee6e6093ae32f701e7ac70b3aeeaedcdfc0629b2975680444016291735c19df9"
+    },
+    {
+      "path": "windows/results-windows/image-invalid-dimensions.stderr.log",
+      "bytes": 37,
+      "sha256": "4baa7fa9e3bf5c95f84be6cc02e0c631035d823cfd01d8632916c313c9653a0a"
+    },
+    {
+      "path": "windows/results-windows/image-invalid-dimensions.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/results-windows/image-unmatched-option.log",
+      "bytes": 85,
+      "sha256": "71969b7bdf6c60760b03e83c3733a970b8633022d30ade8acbc4204fcab368e4"
+    },
+    {
+      "path": "windows/results-windows/image-unmatched-option.stderr.log",
+      "bytes": 53,
+      "sha256": "d5ff5959f2245fa780812d90f703ad080ce3daf323927656cebfdadae910549d"
+    },
+    {
+      "path": "windows/results-windows/image-unmatched-option.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/results-windows/report.json",
+      "bytes": 9500,
+      "sha256": "3a469def9a5bbf9f60cc0e41c4bad3e1fe289c9112df1e34a54a9d5a7bbfeb03"
+    },
+    {
+      "path": "windows/results-windows/self-test.log",
+      "bytes": 42489,
+      "sha256": "e3ace91876b711ce52c1bd66d6a48779017bf798168ddcae3b6e7c5b01143ef0"
+    },
+    {
+      "path": "windows/results-windows/self-test.stderr.log",
+      "bytes": 33735,
+      "sha256": "8fe06ffeb5231e0f1d2e098a3f8e56f62ee36f1f2be49ee0f581feec6c660ed1"
+    },
+    {
+      "path": "windows/results-windows/self-test.stdout.log",
+      "bytes": 8722,
+      "sha256": "e23ccb4ea6c21cc843e6c0e6ff48982c070564881b55ebd2114a3569b838f2d9"
+    },
+    {
+      "path": "windows/results-windows/server.log",
+      "bytes": 3405,
+      "sha256": "b982ecbc651aaa86e36e0e2735639acee013ad5a2697ab101d17e8b7d3a43baf"
+    },
+    {
+      "path": "windows/results-windows/server.stderr.log",
+      "bytes": 355,
+      "sha256": "6990bec07345e3297f09c4ffb2870c90ca1b778d5610817145eb04b0284df462"
+    },
+    {
+      "path": "windows/results-windows/server.stdout.log",
+      "bytes": 3018,
+      "sha256": "915a6bc2812c00511211831f2eaf6ea4ad2af569a9787c39e1a23da76eb6e269"
+    },
+    {
+      "path": "windows/results-windows/training-command.log",
+      "bytes": 924,
+      "sha256": "95aca1b8aba2513f65087f8e83c64126ae2879f6916fa6ac3513a64f2797a697"
+    },
+    {
+      "path": "windows/results-windows/training-command.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "windows/results-windows/training-command.stdout.log",
+      "bytes": 892,
+      "sha256": "5fe32b93da3fa8665fd560bd828e4591b02300173584bfaba36bf06ce750f778"
+    },
+    {
+      "path": "windows/results-windows/training-unmatched-option.log",
+      "bytes": 83,
+      "sha256": "5b448c05bc178c4f963489388ec6dcb916d6dabbcd396a1964256757eb88c467"
+    },
+    {
+      "path": "windows/results-windows/training-unmatched-option.stderr.log",
+      "bytes": 51,
+      "sha256": "6c7788aa48655b36ac9585143cb3276651b6d1e2373ec4d295f405f5fd1b59d2"
+    },
+    {
+      "path": "windows/results-windows/training-unmatched-option.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "scope": {
+    "offline_only": true,
+    "app_or_model_executed_by_inspector": false,
+    "network_used": false,
+    "physical_GPU_verified": false,
+    "native_Linux_driver": "host Mesa CPU/software; actual graphs, llama and HTTP image inference",
+    "native_Windows_driver": "installed Chrome SwiftShader DLL discovery and f16 rejection only",
+    "external_diffusion_checkpoint_bytes_retained": false,
+    "DLL_bytes_retained": false,
+    "historical_logs_without_recorded_hashes": "reparsed and freshly inventoried, not retroactively hash-bound to runner",
+    "job_completion_and_artifact_download_authenticity": "must be verified separately from trusted CI metadata",
+    "not_claimed": [
+      "physical GPU inference",
+      "image quality",
+      "full operation/model parity",
+      "training parity",
+      "browser execution"
+    ]
+  }
+}

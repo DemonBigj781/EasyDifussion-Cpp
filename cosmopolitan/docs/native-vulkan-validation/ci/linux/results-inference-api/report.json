@@ -1,0 +1,4653 @@
+{
+  "status": "passed",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "backend": "cpu",
+  "provider_policy": "embedded",
+  "requested_device": "auto",
+  "require_hardware": false,
+  "scope": "Real pinned SD1.5 native HTTP inference, request lifecycle, and served Generate assets",
+  "filesystem_isolated": false,
+  "fresh_working_directory": true,
+  "browser_execution_tested": false,
+  "model": {
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "expected_sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "bytes": 1747190784,
+    "sha256_before": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "sha256_after": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b"
+  },
+  "http_events": [
+    {
+      "path": "/v1/internal/ping",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0015
+    },
+    {
+      "path": "/v1/sdapi/v1/cosmopolitan-capabilities",
+      "method": "GET",
+      "status": 200,
+      "bytes": 358,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/kiosk",
+      "method": "GET",
+      "status": 200,
+      "bytes": 83,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/kiosk",
+      "method": "POST",
+      "status": 501,
+      "bytes": 94,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/kiosk",
+      "method": "GET",
+      "status": 200,
+      "bytes": 83,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/",
+      "method": "GET",
+      "status": 200,
+      "bytes": 8654,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/cpp-ui/scripts/kiosk.js",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2146,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/cpp-ui/scripts/generate.js",
+      "method": "GET",
+      "status": 200,
+      "bytes": 17617,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/sdapi/v1/checkpoints",
+      "method": "GET",
+      "status": 200,
+      "bytes": 55,
+      "seconds": 0.0065
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/backend-devices",
+      "method": "GET",
+      "status": 200,
+      "bytes": 679,
+      "seconds": 0.0271
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 404,
+      "bytes": 28,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 409,
+      "bytes": 51,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 409,
+      "bytes": 51,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/interrupt",
+      "method": "POST",
+      "status": 409,
+      "bytes": 61,
+      "seconds": 0.0009
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0096
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0014
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0009
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0292
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 200,
+      "bytes": 160517,
+      "seconds": 302.4107
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 124,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/interrupt",
+      "method": "POST",
+      "status": 409,
+      "bytes": 61,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 409,
+      "bytes": 49,
+      "seconds": 0.0025
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0013
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 400,
+      "bytes": 68,
+      "seconds": 0.0014
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0011
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0003
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 400,
+      "bytes": 65,
+      "seconds": 0.0112
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0012
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 400,
+      "bytes": 57,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0011
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 404,
+      "bytes": 28,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0046
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0043
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0027
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0054
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0335
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0057
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.002
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0044
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0048
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0049
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.049
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0048
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0025
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0039
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.002
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0375
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0027
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0049
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0052
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0041
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0211
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0014
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0021
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0018
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0027
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0299
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0024
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0054
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0388
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0053
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0471
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0019
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0028
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0469
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0058
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0059
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0044
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0474
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0022
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0044
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0028
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0052
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0045
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.047
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0053
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0022
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0041
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0052
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0043
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0886
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0045
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.043
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0019
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0053
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0397
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0062
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0417
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.002
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0054
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.002
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0009
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0027
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0459
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0044
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0044
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0407
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0043
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0406
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0019
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0047
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0053
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0057
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0057
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0368
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0049
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.002
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0015
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0446
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0064
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0485
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0051
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0043
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.004
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0027
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0053
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0427
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0057
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0016
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0024
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0465
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0049
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0017
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0058
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0023
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0845
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0051
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0013
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0043
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0058
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0404
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0058
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0045
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0028
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0435
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0064
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0039
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0412
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0027
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.041
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0029
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0036
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0028
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0038
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0406
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0026
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0022
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0031
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.003
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0035
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0034
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0037
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0018
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.002
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0032
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 127,
+      "seconds": 0.0384
+    },
+    {
+      "path": "/v1/sdapi/v1/interrupt",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0021
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 200,
+      "bytes": 307,
+      "seconds": 53.4836
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/interrupt",
+      "method": "POST",
+      "status": 409,
+      "bytes": 61,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0049
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    }
+  ],
+  "model_pin": {
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/PIN.json",
+    "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+    "metadata": {
+      "schema": 1,
+      "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+      "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+      "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+      "bytes": 1747190784,
+      "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+      "url": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/resolve/dcac270609fffc0ce7c7d41a3c0e752721859f7c/stable-diffusion-v1-5-Q4_0.gguf",
+      "model_card": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/blob/dcac270609fffc0ce7c7d41a3c0e752721859f7c/README.md",
+      "license": "creativeml-openrail-m",
+      "architecture": "Stable Diffusion 1.5",
+      "components": {
+        "diffusion": "Q4_0 conversion",
+        "clip_l": "F16",
+        "vae": "F16"
+      },
+      "purpose": "External trained image-inference validation checkpoint; never embedded into the application or committed to Git",
+      "short_run_scope": "Small-resolution, few-step runs test loading, denoising and image decoding; they are not image-quality benchmarks"
+    }
+  },
+  "sha256_before": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "command": [
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+    "sdkit",
+    "--backend",
+    "cpu",
+    "--provider",
+    "embedded",
+    "--device",
+    "auto",
+    "--ckpt-dir",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models",
+    "--port",
+    "37959"
+  ],
+  "launch_mode": "explicit APE ELF loader",
+  "lavapipe_threads": 2,
+  "ui": {
+    "capabilities": {
+      "output_formats": [
+        "png"
+      ],
+      "companion_models_ui": false,
+      "cancel_during_model_load": false,
+      "full_checkpoint_required": true,
+      "mode": "native-single-user",
+      "txt2img": true,
+      "generation_plugins_ui": false,
+      "max_concurrent_generations": 1,
+      "img2img_ui": false,
+      "kiosk_enabled": false,
+      "protocol": 1,
+      "persistent_configuration": true,
+      "kiosk_supported": false,
+      "configuration_schema": 1
+    },
+    "kiosk": {
+      "allowed_models": [],
+      "enabled": false,
+      "supported": false,
+      "mode": "native-single-user"
+    },
+    "scripts": [
+      {
+        "path": "/cpp-ui/scripts/kiosk.js",
+        "bytes": 2146,
+        "sha256": "aa81a4fb833f9948149612d948f18b09df2f9519aa3dc80b6d0524498a81141a"
+      },
+      {
+        "path": "/cpp-ui/scripts/generate.js",
+        "bytes": 17617,
+        "sha256": "b6fc7d415d1a43d14cb10214caef7825563c3cc22939739d55699417864e8f39"
+      }
+    ],
+    "browser_execution_tested": false
+  },
+  "baseline_options": {
+    "show_progress_every_n_steps": 5,
+    "sdxl_clip_l_skip": false,
+    "forge_additional_modules": [],
+    "samples_format": "png",
+    "live_previews_enable": false,
+    "sd_model_checkpoint": "",
+    "CLIP_stop_at_last_layers": -1
+  },
+  "devices": {
+    "provider_policy": "embedded",
+    "default_webgpu_selector": "WebGPU0",
+    "unavailable": [],
+    "devices": [
+      {
+        "selector": "WebGPU0",
+        "description": "WebGPU / embedded / software CPU / llvmpipe (LLVM 19.1.7, 256 bits)",
+        "memory_total": null,
+        "software": true,
+        "stable_id_available": false,
+        "backend": "WebGPU",
+        "selector_scope": "process",
+        "stable_id": "",
+        "type": "software",
+        "memory_known": false,
+        "vendor": "",
+        "provider": "embedded",
+        "memory_free": null
+      },
+      {
+        "memory_free": 16766414848,
+        "provider": "builtin",
+        "memory_known": true,
+        "vendor": "",
+        "type": "cpu",
+        "stable_id": "",
+        "selector_scope": "process",
+        "backend": "CPU",
+        "stable_id_available": false,
+        "memory_total": 16766414848,
+        "software": true,
+        "description": "CPU",
+        "selector": "CPU"
+      }
+    ]
+  },
+  "generation": {
+    "task_id": "cosmo-api-5fcdf7a21dd140398184d950dae22b1c",
+    "parameters": {
+      "force_task_id": "cosmo-api-5fcdf7a21dd140398184d950dae22b1c",
+      "prompt": "a photograph of a red apple on a wooden table, natural light",
+      "negative_prompt": "",
+      "width": 256,
+      "height": 256,
+      "steps": 4,
+      "cfg_scale": 7.0,
+      "seed": 42,
+      "batch_size": 1,
+      "backend": "cpu",
+      "sampler_name": "euler",
+      "scheduler": "discrete",
+      "override_settings": {
+        "sd_model_checkpoint": "stable-diffusion-v1-5-Q4_0.gguf",
+        "forge_additional_modules": [],
+        "live_previews_enable": false
+      }
+    },
+    "observed_active_progress": {
+      "live_preview": "",
+      "total_steps": 0,
+      "current_step": 0,
+      "id_live_preview": 0,
+      "progress": 0.0,
+      "interrupted": false,
+      "completed": false
+    },
+    "final_progress": {
+      "live_preview": "",
+      "total_steps": 4,
+      "current_step": 4,
+      "id_live_preview": 0,
+      "progress": 1.0,
+      "interrupted": false,
+      "completed": true
+    },
+    "png": {
+      "width": 256,
+      "height": 256,
+      "channels": 3,
+      "bytes": 120155,
+      "sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39",
+      "decoded_pixel_sha256": "bd956db40d1b2b5be8448a14da5e008fb27cb81096e4d9b7f44f6dc0e24c6672",
+      "chunk_crc_verified": true,
+      "nonconstant_color_pixels": true,
+      "distinct_colors_capped_at_257": 257,
+      "color_min": 0,
+      "color_max": 255,
+      "color_mean": 82.9641621907552,
+      "color_stddev": 66.81202791268746,
+      "pixel_bytes": 196608,
+      "pixel_min": 0,
+      "pixel_max": 255,
+      "pixel_mean": 82.9641621907552,
+      "quality_assessed": false
+    },
+    "concurrent_generation_status": 409,
+    "concurrent_options_status": 409,
+    "wrong_task_interrupt_status": 409,
+    "finished_task_interrupt_status": 409,
+    "duplicate_task_id_status": 409,
+    "persistent_options_unchanged": true,
+    "active_progress_responsiveness": {
+      "requests": 32,
+      "timeout_seconds": 2,
+      "elapsed_seconds": [
+        0.020139,
+        0.013439,
+        0.013335,
+        0.013321,
+        0.022627,
+        0.013276,
+        0.013086,
+        0.01311,
+        0.01309,
+        0.013108,
+        0.013066,
+        0.017631,
+        0.023113,
+        0.021958,
+        0.047111,
+        0.047,
+        0.026964,
+        0.024401,
+        0.021552,
+        0.023257,
+        0.023087,
+        0.021524,
+        0.022192,
+        0.050452,
+        0.03962,
+        0.04996,
+        0.047931,
+        0.037656,
+        0.022627,
+        0.020378,
+        0.02273,
+        0.021298
+      ],
+      "max_seconds": 0.050452
+    }
+  },
+  "invalid_overrides": [
+    {
+      "override": {
+        "sd_model_checkpoint": 42
+      },
+      "status": 400,
+      "message": "sd_model_checkpoint must be an indexed checkpoint name",
+      "gate_released": true
+    },
+    {
+      "override": {
+        "unknown_native_option": true
+      },
+      "status": 400,
+      "message": "Unsupported request override: unknown_native_option",
+      "gate_released": true
+    },
+    {
+      "override": {
+        "sd_model_checkpoint": "__missing_indexed_checkpoint__.gguf"
+      },
+      "status": 400,
+      "message": "Checkpoint is not in the native model index",
+      "gate_released": true
+    }
+  ],
+  "cancellation": {
+    "task_id": "cosmo-api-5c597d79697d4813a7d3e4c45e47a032",
+    "requested_steps": 8,
+    "sampling_observed": {
+      "live_preview": "",
+      "total_steps": 8,
+      "current_step": 1,
+      "id_live_preview": 0,
+      "progress": 0.125,
+      "interrupted": false,
+      "completed": false
+    },
+    "interrupt_status": 200,
+    "generation_status": 200,
+    "final_progress": {
+      "live_preview": "",
+      "total_steps": 8,
+      "current_step": 1,
+      "id_live_preview": 0,
+      "progress": 0.125,
+      "interrupted": true,
+      "completed": true
+    },
+    "early_cancellation_observed": true,
+    "gate_released": true
+  },
+  "inference_workers": [
+    {
+      "stack_bytes": 8388608,
+      "guard_bytes": 4096,
+      "source": "pthread_getattr_np",
+      "lane": "worker"
+    },
+    {
+      "stack_bytes": 8388608,
+      "guard_bytes": 4096,
+      "source": "pthread_getattr_np",
+      "lane": "worker"
+    }
+  ],
+  "inference_execution": [
+    {
+      "success": true,
+      "selector": "WebGPU0",
+      "provider": "embedded",
+      "software": 1,
+      "adapter_type": 3,
+      "graphs": 0,
+      "submissions": 0,
+      "dispatches": 0,
+      "matmuls": 0,
+      "readbacks": 0,
+      "native_loader_opens": 0
+    },
+    {
+      "success": false,
+      "selector": "WebGPU0",
+      "provider": "embedded",
+      "software": 1,
+      "adapter_type": 3,
+      "graphs": 0,
+      "submissions": 0,
+      "dispatches": 0,
+      "matmuls": 0,
+      "readbacks": 0,
+      "native_loader_opens": 0
+    }
+  ],
+  "server_exit_before_cleanup": null,
+  "server_cleanup_exit_status": 0,
+  "sha256_after": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "app_hash_unchanged": true,
+  "model_hash_unchanged": true,
+  "elapsed_seconds": 359.195,
+  "evidence": [
+    {
+      "path": "server.stdout.log",
+      "bytes": 15914,
+      "sha256": "9cc9fba817043e99479fa62e5550ee357dc653d8ad8b4eec1bce90bf75b637bf"
+    },
+    {
+      "path": "server.stderr.log",
+      "bytes": 1203,
+      "sha256": "a426a37c9567e3ab56a25179f8c79356109efcbdb4a0caa7a93902941bdde8d1"
+    },
+    {
+      "path": "api-image.png",
+      "bytes": 120155,
+      "sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39"
+    }
+  ]
+}

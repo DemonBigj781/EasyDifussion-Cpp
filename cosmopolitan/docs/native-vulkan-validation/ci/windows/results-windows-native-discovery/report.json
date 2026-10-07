@@ -1,0 +1,104 @@
+{
+  "status": "passed",
+  "scope": "native Windows PE and official installed Chrome Vulkan/SwiftShader DLL discovery with ShaderF16 rejection",
+  "gpu_compute_tested": false,
+  "physical_hardware_tested": false,
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "primary_sources": [
+    "https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md",
+    "https://github.com/chromium/chromium/blob/main/chrome/installer/mini_installer/chrome.release",
+    "https://github.com/google/swiftshader/blob/master/src/Vulkan/VkPhysicalDevice.cpp"
+  ],
+  "commands": [
+    {
+      "name": "discovery",
+      "command": [
+        "D:\\a\\EasyDifussion-Cpp\\EasyDifussion-Cpp\\artifact\\results-windows-native-discovery\\chrome-vulkan-_4rmw5pb\\easy-diffusion.exe",
+        "devices",
+        "--provider",
+        "native",
+        "--backend",
+        "cpu"
+      ],
+      "returncode": 0,
+      "expected_native_returncode": 0,
+      "expected_logical_application_code": 0,
+      "elapsed_seconds": 0.782
+    },
+    {
+      "name": "feature-rejection",
+      "command": [
+        "D:\\a\\EasyDifussion-Cpp\\EasyDifussion-Cpp\\artifact\\results-windows-native-discovery\\chrome-vulkan-_4rmw5pb\\easy-diffusion.exe",
+        "webgpu-device-test",
+        "--provider",
+        "native",
+        "--device",
+        "auto"
+      ],
+      "returncode": 256,
+      "expected_native_returncode": 256,
+      "expected_logical_application_code": 1,
+      "elapsed_seconds": 0.125
+    }
+  ],
+  "sha256_before": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "chrome_version_directory": "C:\\Program Files\\Google\\Chrome\\Application\\154.0.8037.98",
+  "chrome_version": "154.0.8037.98",
+  "installed_inputs": [
+    {
+      "path": "C:\\Program Files\\Google\\Chrome\\Application\\154.0.8037.98\\vulkan-1.dll",
+      "bytes": 996504,
+      "sha256_before": "ba50031203643d2beaee54f0f4383f2f9f30ec7badc2caa74643cbd6aa870faf",
+      "sha256_after": "ba50031203643d2beaee54f0f4383f2f9f30ec7badc2caa74643cbd6aa870faf"
+    },
+    {
+      "path": "C:\\Program Files\\Google\\Chrome\\Application\\154.0.8037.98\\vk_swiftshader.dll",
+      "bytes": 5426328,
+      "sha256_before": "b08a7477b6e0f2ce9669cfbb8f13e5dd9ce6156d956e15641534489f80c0b40a",
+      "sha256_after": "b08a7477b6e0f2ce9669cfbb8f13e5dd9ce6156d956e15641534489f80c0b40a"
+    },
+    {
+      "path": "C:\\Program Files\\Google\\Chrome\\Application\\154.0.8037.98\\vk_swiftshader_icd.json",
+      "bytes": 106,
+      "sha256_before": "32d83ff113fef532a9f97e0d2831f8656628ab1c99e9060f0332b1532839afd9",
+      "sha256_after": "32d83ff113fef532a9f97e0d2831f8656628ab1c99e9060f0332b1532839afd9"
+    }
+  ],
+  "effective_icd": {
+    "file_format_version": "1.0.0",
+    "ICD": {
+      "library_path": "C:\\Program Files\\Google\\Chrome\\Application\\154.0.8037.98\\vk_swiftshader.dll",
+      "api_version": "1.0.5"
+    }
+  },
+  "unavailable_adapter": {
+    "provider": "native",
+    "name": "SwiftShader Device (Subzero)",
+    "reason": "ShaderF16 is required by the compiled GGML kernels"
+  },
+  "copied_sha256_after": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "sha256_after": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "elapsed_seconds": 2.406,
+  "evidence": [
+    {
+      "path": "discovery.stderr.log",
+      "bytes": 422,
+      "sha256": "cf41dccd11e72bce891ff849da508cf7569641e41f7caa10a87eaaa34d89e423"
+    },
+    {
+      "path": "discovery.stdout.log",
+      "bytes": 227,
+      "sha256": "10099ee8ecce74bb8454101cc80ee15187a0da7497e1d3bb998af9abe0c5e9d0"
+    },
+    {
+      "path": "feature-rejection.stderr.log",
+      "bytes": 299,
+      "sha256": "623b5572d877ca2e7bea9bc13f4a680533062fb6399b2c844d4920c0bbd17052"
+    },
+    {
+      "path": "feature-rejection.stdout.log",
+      "bytes": 31,
+      "sha256": "0685b364ca7a675bf8ab1a8814445f00f761b72fedbb22c0c9e602d968da73af"
+    }
+  ]
+}

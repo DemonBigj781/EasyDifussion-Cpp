@@ -1,0 +1,4 @@
+WebGPU: Vulkan provider=native; library=vulkan-1.dll
+ggml_webgpu: adapter SwiftShader Device (Subzero) lacks required ShaderF16; skipped
+WebGPU adapter unavailable: provider=native name=SwiftShader Device (Subzero) reason=ShaderF16 is required by the compiled GGML kernels
+WEBGPU_DEVICE_TEST FAIL: 

@@ -1,0 +1,19 @@
+
+--- stdout ---
+Native SD 1.5 LoRA training
+Usage: easy-diffusion.exe train --model CHECKPOINT --dataset DIRECTORY --output DIRECTORY [OPTIONS]
+  --device CPU                 Backend device (default CPU in this build)
+  --resolution 256             Training image resolution
+  --rank 16 --network-alpha 16  LoRA rank and alpha
+  --steps 1000 --epochs 0       Step limit or epoch schedule
+  --dataset-repeats 1           Dataset repetition count
+  --learning-rate 0.0001        UNet learning rate
+  --text-encoder-learning-rate 0  CLIP rate; zero keeps it frozen
+  --lr-scheduler constant       constant or cosine_with_restarts
+  --lr-warmup-steps 0 --lr-scheduler-num-cycles 1
+  --save-every 100 --save-step-zero 0 --seed 42 --threads 10
+  --trigger TEXT               Caption trigger
+This preserves the existing partial trainer; native resume, AdamW8bit,
+and selectable mixed precision are not implemented.
+
+--- stderr ---

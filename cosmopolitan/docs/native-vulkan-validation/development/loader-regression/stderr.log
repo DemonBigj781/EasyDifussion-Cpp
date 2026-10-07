@@ -1,0 +1,4 @@
+NATIVE_HTTP_SERVICE stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np
+NATIVE_INFERENCE_MAIN stack_bytes=8388608 guard_bytes=0 stack_source=pthread_getattr_np
+NATIVE_INFERENCE_MAIN stack_bytes=8388608 guard_bytes=0 stack_source=pthread_getattr_np
+NATIVE_HTTP_SERVICE stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np

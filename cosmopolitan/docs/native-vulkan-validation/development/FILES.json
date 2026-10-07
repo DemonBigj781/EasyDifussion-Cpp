@@ -1,0 +1,268 @@
+{
+  "schema": 1,
+  "scope": "Development evidence only: first native-software CI graph/llama passes, failed native diffusion API, actual same-application local loader crash and focused main-thread loader helper regression; no corrected full-model or physical-GPU pass",
+  "hash_algorithm": "SHA-256",
+  "files": [
+    {
+      "path": "first-ci/application-download-verification.json",
+      "source": "cosmopolitan/out/native-first-ci/application-download-verification.json",
+      "bytes": 339,
+      "sha256": "f27000758b1354fe329cc41eae4474f1c7aa001dfd92693d8495088793f519dc",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/application/BUILD.json",
+      "source": "cosmopolitan/out/native-first-ci/application/BUILD.json",
+      "bytes": 317194,
+      "sha256": "34408e43be35f7c05c2c8aac1003ba062a8c9b97579fc7129ea9045787dd6e3f",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/application/SYMBOLS.json",
+      "source": "cosmopolitan/out/native-first-ci/application/SYMBOLS.json",
+      "bytes": 1852,
+      "sha256": "29826943a1f29615b4e2506e70d11767297d151e63027e1dd6b48180120aad6b",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/diagnostics-download-verification.json",
+      "source": "cosmopolitan/out/native-first-ci/diagnostics-download-verification.json",
+      "bytes": 339,
+      "sha256": "ffb1441cbec8f0d6240fb03c3a912a271cc143b2579a0e1c615494afbd4440c6",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/native-driver-packages.txt",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/native-driver-packages.txt",
+      "bytes": 85,
+      "sha256": "5ec05528e7ed92b444f5b72c8a5d88e03fe30083561f1825f37a0ce1c2307289",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/graph.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/graph.stderr.log",
+      "bytes": 477,
+      "sha256": "c24468c125975c1e66473f321b256cba4a80a249b006de4f8b2561e0ddc16795",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/graph.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/graph.stdout.log",
+      "bytes": 4383,
+      "sha256": "1dcde667240fe5b7c2a6cad9b0ba283b6d613d8cad70ee8a0ccb9b0e9d8866be",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/hardware-rejection-0.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/hardware-rejection-0.stderr.log",
+      "bytes": 574,
+      "sha256": "ec163f466f69de80904704526513699e7ece7cca1151f9a2a0e4d11037e519d7",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/hardware-rejection-0.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/hardware-rejection-0.stdout.log",
+      "bytes": 44,
+      "sha256": "15f41796a5db58f7a9fda86a26ad1b8dd4bb37dc7dd78828a9dbaa5ec4d0e1f2",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/hardware-rejection-1.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/hardware-rejection-1.stderr.log",
+      "bytes": 572,
+      "sha256": "c8ebff9cb9e5cab53199657301886a94b2a89488acdf6303479e38895d7a1ac0",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/hardware-rejection-1.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/hardware-rejection-1.stdout.log",
+      "bytes": 44,
+      "sha256": "15f41796a5db58f7a9fda86a26ad1b8dd4bb37dc7dd78828a9dbaa5ec4d0e1f2",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/llama-0.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/llama-0.stderr.log",
+      "bytes": 18061,
+      "sha256": "fc719fc3edd42e48a32841c77a7ea7fdc46e5b7ce95778a52c13bf8a6534c244",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/llama-0.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/llama-0.stdout.log",
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/llama-1.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/llama-1.stderr.log",
+      "bytes": 18033,
+      "sha256": "6cc720f5206ade3985bc611fddf2bf664c9310ef4f48bda5bd06275a526ba953",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/llama-1.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/llama-1.stdout.log",
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-dual-provider/report.json",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-dual-provider/report.json",
+      "bytes": 14973,
+      "sha256": "67ae617a553ff5a1bdb1815fb255ac790af83cd7b58384076853386b97287def",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-device/graph.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-device/graph.stderr.log",
+      "bytes": 283,
+      "sha256": "4e7de2f26ae1665e604ea6c103ac8032afdde033e08b05636e4f184681e3b608",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-device/graph.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-device/graph.stdout.log",
+      "bytes": 2112,
+      "sha256": "fc84766e3d826dc7130f26ad8e1a7c90a112913d956372ea846b084d85982579",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-device/hardware-rejection-0.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-device/hardware-rejection-0.stderr.log",
+      "bytes": 378,
+      "sha256": "763b20ef6f68608bba06d87b43b9c308dd6233fa27f4ce2c7efb5d2ed3af4bc4",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-device/hardware-rejection-0.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-device/hardware-rejection-0.stdout.log",
+      "bytes": 44,
+      "sha256": "15f41796a5db58f7a9fda86a26ad1b8dd4bb37dc7dd78828a9dbaa5ec4d0e1f2",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-device/llama-0.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-device/llama-0.stderr.log",
+      "bytes": 17761,
+      "sha256": "988b73371e784836d494c57b874cc0eac0d01d071b85fcbe6cabaf1ca3461c3f",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-device/llama-0.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-device/llama-0.stdout.log",
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-device/report.json",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-device/report.json",
+      "bytes": 8331,
+      "sha256": "eed5551db5574d815a6f35f5410b64612bf7e90211d6b4157efc77cd4140ac95",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-inference-api/report.json",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-inference-api/report.json",
+      "bytes": 9011,
+      "sha256": "46b3d2fdb63ce08a73f898c6e6023db4b4324d6939bf404a59c203cad37ec94c",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-inference-api/server.stderr.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-inference-api/server.stderr.log",
+      "bytes": 527,
+      "sha256": "9893df2e3a9a772a618d045636706a8bf3a1d601e70ed3d761b4cef6a7458edf",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "first-ci/linux-native/results-native-inference-api/server.stdout.log",
+      "source": "cosmopolitan/out/native-first-ci/linux-native/results-native-inference-api/server.stdout.log",
+      "bytes": 7025,
+      "sha256": "f967579005d13ce4c1874d7c70eacce07791e2bce7ed09e225e2de4a6b0a8d71",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "loader-regression/legacy-worker.stderr.log",
+      "source": "cosmopolitan/out/native-loader-review/final-regression/legacy-worker.stderr.log",
+      "bytes": 74,
+      "sha256": "bc04369ef5c601a179e265a82e5b1d8511b8aeb194abcb4cac28e37cdca2b0b1",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "loader-regression/legacy-worker.stdout.log",
+      "source": "cosmopolitan/out/native-loader-review/final-regression/legacy-worker.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "loader-regression/report.json",
+      "source": "cosmopolitan/out/native-loader-review/final-regression/report.json",
+      "bytes": 3025,
+      "sha256": "e802e20a2146a5faa8f103bae2555d60dee63e0f1b3c4665261d1ad99206ed5b",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "loader-regression/stderr.log",
+      "source": "cosmopolitan/out/native-loader-review/final-regression/stderr.log",
+      "bytes": 354,
+      "sha256": "07a1e506018f09cac7b58bf156f1dd415a1a58fe94f926cc0f2320bed2de0011",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "loader-regression/stdout.log",
+      "source": "cosmopolitan/out/native-loader-review/final-regression/stdout.log",
+      "bytes": 154,
+      "sha256": "c3c96e872bf9b4a14eb25b145246d79fd8b01e294824478e9ce0150854d18080",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "local-model-crash/direct-report.json",
+      "source": "cosmopolitan/out/native-loader-crash-repro/direct-report.json",
+      "bytes": 1238,
+      "sha256": "3e03bcc3da843eade6a786c8463978f7d6c90bc49e6e1cdf7d58a3fb7eadb5d0",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "local-model-crash/direct.stderr.log",
+      "source": "cosmopolitan/out/native-loader-crash-repro/direct.stderr.log",
+      "bytes": 4017,
+      "sha256": "1215858c8de0b7693ebb1332c6a4d6c80f986432a81333dad5664d3c9a498e72",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "local-model-crash/direct.stdout.log",
+      "source": "cosmopolitan/out/native-loader-crash-repro/direct.stdout.log",
+      "bytes": 408,
+      "sha256": "96f38817fa921d037ff4f237a6676b5ac8a4f07609183de9d084406f4f4ad72b",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "local-model-crash/post-reproduction-hashes.json",
+      "source": "cosmopolitan/out/native-loader-crash-repro/post-reproduction-hashes.json",
+      "bytes": 692,
+      "sha256": "7557671ad3cc18687ac7c486e346ee8b29494520d9c69bc901d7f52f07bdefb6",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "local-model-crash/symbolization.json",
+      "source": "cosmopolitan/out/native-loader-crash-repro/symbolization.json",
+      "bytes": 1583,
+      "sha256": "dde19dc727819ca431afa49560702a4e5efcdb029ff4adb48adbeb99194eb224",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "local-model-crash/symbolization.txt",
+      "source": "cosmopolitan/out/native-loader-crash-repro/symbolization.txt",
+      "bytes": 1846,
+      "sha256": "db709d114db36523166f605f6c17fa4e43588a6ba07348fcf04c6f6189fcb429",
+      "preserved_unchanged": true
+    }
+  ],
+  "file_count": 37,
+  "total_bytes": 436049
+}

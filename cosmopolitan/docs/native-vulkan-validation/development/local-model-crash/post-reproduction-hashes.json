@@ -1,0 +1,16 @@
+{
+  "captured_at": "2026-10-07T03:49:36.615435+00:00",
+  "scope": "Independent hashes after the completed direct native crash reproduction",
+  "files": {
+    "application": {
+      "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-first-ci/application/easy-diffusion.exe",
+      "bytes": 190487399,
+      "sha256": "b5f1ef5e13adf049e8e938d8ab157807c7748fff9a2934080c5d44ae5e5acf6e"
+    },
+    "model": {
+      "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+      "bytes": 1747190784,
+      "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b"
+    }
+  }
+}

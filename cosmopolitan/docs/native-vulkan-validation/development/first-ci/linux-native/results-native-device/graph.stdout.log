@@ -1,0 +1,21 @@
+WEBGPU_UNSUPPORTED op=SILU_BACK supported=0
+WEBGPU_CHECK type=F32 iteration=0 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=F32 iteration=0 stage=bias-rmsnorm-silu values=143 max_error=1.84800599e-07 PASS
+WEBGPU_CHECK type=F32 iteration=0 stage=softmax values=143 max_error=5.11464063e-08 PASS
+WEBGPU_GGML_EXECUTION type=F32 iteration=0 provider=native software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=1 cpu_fallback=0
+WEBGPU_CHECK type=Q4_0 iteration=0 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=Q4_0 iteration=0 stage=bias-rmsnorm-silu values=143 max_error=1.87900205e-07 PASS
+WEBGPU_CHECK type=Q4_0 iteration=0 stage=softmax values=143 max_error=5.79208283e-08 PASS
+WEBGPU_GGML_EXECUTION type=Q4_0 iteration=0 provider=native software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=1 cpu_fallback=0
+WEBGPU_CHECK type=F32 iteration=1 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=F32 iteration=1 stage=bias-rmsnorm-silu values=143 max_error=2.06550482e-07 PASS
+WEBGPU_CHECK type=F32 iteration=1 stage=softmax values=143 max_error=5.16552808e-08 PASS
+WEBGPU_GGML_EXECUTION type=F32 iteration=1 provider=native software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=1 cpu_fallback=0
+WEBGPU_CHECK type=Q4_0 iteration=1 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=Q4_0 iteration=1 stage=bias-rmsnorm-silu values=143 max_error=2.81014707e-07 PASS
+WEBGPU_CHECK type=Q4_0 iteration=1 stage=softmax values=143 max_error=5.09649803e-08 PASS
+WEBGPU_GGML_EXECUTION type=Q4_0 iteration=1 provider=native software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=1 cpu_fallback=0
+WEBGPU_DEVICE_ADAPTER llvmpipe (LLVM 20.1.2, 256 bits)
+WEBGPU_DEVICE_EXECUTION selector=WebGPU0 provider=native software=1 adapter_type=3 device_kind=software-cpu require_hardware=0 graphs=4 submissions=16 dispatches=20 matmuls=4 readbacks=12 native_loader_opens=1 cpu_fallback=0
+WEBGPU_DEVICE_TEST PASS
+WEBGPU_DEVICE_LANE mode=main-thread-service

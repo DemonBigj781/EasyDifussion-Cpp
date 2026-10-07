@@ -1,0 +1,80 @@
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/patches/0001-asio-runtime-platform-constants.patch
+patching file sdkit3-port-source/third_party/asio/detail/cosmo_socket_constants.hpp
+patching file sdkit3-port-source/third_party/asio/detail/impl/signal_set_service.ipp
+patching file sdkit3-port-source/third_party/asio/detail/impl/socket_ops.ipp
+patching file sdkit3-port-source/third_party/asio/detail/socket_option.hpp
+patching file sdkit3-port-source/third_party/asio/detail/socket_types.hpp
+patching file sdkit3-port-source/third_party/asio/error.hpp
+patching file sdkit3-port-source/third_party/asio/ip/detail/socket_option.hpp
+patching file sdkit3-port-source/third_party/asio/ip/multicast.hpp
+patching file sdkit3-port-source/third_party/asio/ip/tcp.hpp
+patching file sdkit3-port-source/third_party/asio/ip/unicast.hpp
+patching file sdkit3-port-source/third_party/asio/ip/v6_only.hpp
+patching file sdkit3-port-source/third_party/asio/signal_set_base.hpp
+patching file sdkit3-port-source/third_party/asio/socket_base.hpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0001-embedded-ui-routes.patch
+patching file src/server.cpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0002-distinct-http-model-index.patch
+patching file include/image_filters.h
+patching file include/image_generator.h
+patching file include/model_manager.h
+patching file include/server.h
+patching file src/image_filters.cpp
+patching file src/image_generator.cpp
+patching file src/main.cpp
+patching file src/model_manager.cpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0003-webgpu-backend-routing.patch
+patching file src/main.cpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0004-native-inference-requests.patch
+patching file include/options_manager.h
+patching file src/options_manager.cpp
+patching file include/server.h
+patching file src/server.cpp
+patching file src/task_state.cpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0005-native-inference-worker-stack.patch
+patching file include/logging.h
+patching file src/logging.cpp
+patching file src/server.cpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0006-crow-async-response-lifetime.patch
+patching file third_party/crow/http_response.h
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0007-native-inference-async-http.patch
+patching file include/server.h
+patching file src/server.cpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0008-native-persistent-configuration.patch
+patching file src/main.cpp
+patching file src/options_manager.cpp
+patching file src/server.cpp
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0010-device-metadata-and-request-selection.patch
+patching file src/server.cpp
+Hunk #2 succeeded at 524 (offset 243 lines).
+Hunk #3 succeeded at 787 (offset 270 lines).
+Hunk #4 succeeded at 949 (offset 273 lines).
+patching file src/main.cpp
+Hunk #2 succeeded at 165 (offset 1 line).
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0011-native-linux-main-executor.patch
+patching file src/server.cpp
+Hunk #3 succeeded at 1378 (offset -1 lines).
++ patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0012-native-model-loader-main-thread.patch
+patching file stable-diffusion.cpp/src/model_loader.cpp
+patching file stable-diffusion.cpp/src/model_loader.h
+patching file stable-diffusion.cpp/src/convert.cpp
++ /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/shared-ggml/prepare.py --output /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
+patching file include/ggml-backend.h
+patching file include/ggml.h
+patching file src/ggml-backend.cpp
+patching file src/ggml-cpu/ggml-cpu.cpp
+patching file src/ggml-cpu/ops.cpp
+patching file src/ggml-vulkan/ggml-vulkan.cpp
+patching file src/ggml.c
+patching file tests/test-backend-ops.cpp
+patching file src/ggml-backend-reg.cpp
+patching file src/ggml.c
+patching file src/ggml-cpu/ops.cpp
+patching file src/ggml-webgpu/CMakeLists.txt
+patching file src/ggml-webgpu/ggml-webgpu.cpp
+patching file src/ggml-backend.cpp
+patching file src/ggml-webgpu/ggml-webgpu.cpp
+/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
++ /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/software-webgpu/prepare.py --out /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu --sdk /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk --jobs 2
+Verified software WebGPU dependency cache: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json
+Prepared static software WebGPU dependencies: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json

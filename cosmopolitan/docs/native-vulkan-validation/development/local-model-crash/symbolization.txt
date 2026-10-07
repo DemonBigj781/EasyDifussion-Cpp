@@ -1,0 +1,40 @@
+??
+??:0
+??
+??:0
+??
+??:0
+??
+??:0
+??
+??:0
+??
+??:0
+??
+??:0
+??
+??:0
+<wgpu_hal::vulkan::Device as wgpu_hal::Device>::create_buffer
+??:?
+<wgpu_hal::vulkan::Device as wgpu_hal::dynamic::device::DynDevice>::create_buffer
+wgpu_core.cc7e17ba7ec32775-cgu.06:?
+<wgpu_core::resource::StagingBuffer>::new
+??:?
+<wgpu_core::device::queue::Queue>::write_buffer
+??:?
+<wgpu_core::global::Global>::queue_write_buffer
+??:?
+wgpuQueueWriteBuffer
+??:?
+ggml_backend_webgpu_buffer_set_tensor(ggml_backend_buffer*, ggml_tensor*, void const*, unsigned long, unsigned long)
+ggml-webgpu.cpp:?
+ModelLoader::load_tensors(std::__1::function<bool (TensorStorage const&, ggml_tensor**)>, bool, std::__1::set<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, std::__1::less<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > >, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > > > const*, bool)::{lambda()#1}::operator()() const
+model_loader.cpp:?
+void* std::__1::__thread_proxy<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct> >, ModelLoader::load_tensors(std::__1::function<bool (TensorStorage const&, ggml_tensor**)>, bool, std::__1::set<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, std::__1::less<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > >, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > > > const*, bool)::{lambda()#1}> >(void*)
+model_loader.cpp:?
+PosixThread
+/home/jart/cosmo/libc/thread/pthread_create.c:184
+AmdLinuxThreadEntry
+/home/jart/cosmo/libc/runtime/clone.c:544
+sys_clone_linux
+/home/jart/cosmo/libc/runtime/clone-linux.S:48

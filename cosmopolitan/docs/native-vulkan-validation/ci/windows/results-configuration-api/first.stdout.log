@@ -1,0 +1,50 @@
+[2026-10-07 03:59:38.286] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 03:59:38.289] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-07 03:59:38.289] [32mINFO   [0m SdkitModelIndex initialized
+[2026-10-07 03:59:38.289] [32mINFO   [0m Checkpoint directory set to: /C/Users/RUNNER~1/AppData/Local/Temp/cosmo-config-api-3_2w6e7q/first-checkpoints
+Scanning model directories...
+[2026-10-07 03:59:38.289] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 03:59:38.289] [32mINFO   [0m Scanned checkpoint directory: found 0 models
+[2026-10-07 03:59:38.289] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 03:59:38.289] [32mINFO   [0m ImageGenerator created
+Starting server on port 53253
+[2026-10-07 03:59:38.290] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:53253 using 4 threads
+[2026-10-07 03:59:38.290] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 03:59:38.911] [32mINFO   [0m [CROW] Request: 127.0.0.1:53257 0x6fffffefb700 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:38.911] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /v1/sdapi/v1/config 200 1
+[2026-10-07 03:59:39.035] [32mINFO   [0m [CROW] Request: 127.0.0.1:53258 0x6fffffe3ad70 HTTP/1.1 GET /get/app_config
+[2026-10-07 03:59:39.035] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /get/app_config 200 1
+[2026-10-07 03:59:39.160] [32mINFO   [0m [CROW] Request: 127.0.0.1:53259 0x6fffffefb700 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:39.161] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /v1/sdapi/v1/config 200 1
+[2026-10-07 03:59:39.286] [32mINFO   [0m [CROW] Request: 127.0.0.1:53260 0x6fffffe3ad70 HTTP/1.1 GET /v1/sdapi/v1/cosmopolitan-capabilities
+[2026-10-07 03:59:39.286] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /v1/sdapi/v1/cosmopolitan-capabilities 200 1
+[2026-10-07 03:59:39.411] [32mINFO   [0m [CROW] Request: 127.0.0.1:53261 0x6fffffefb700 HTTP/1.1 GET /cpp-ui/settings
+[2026-10-07 03:59:39.411] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /cpp-ui/settings 200 1
+[2026-10-07 03:59:39.536] [32mINFO   [0m [CROW] Request: 127.0.0.1:53262 0x6fffffe3ad70 HTTP/1.1 GET /cpp-ui/settings/gpu
+[2026-10-07 03:59:39.536] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /cpp-ui/settings/gpu 200 1
+[2026-10-07 03:59:39.661] [32mINFO   [0m [CROW] Request: 127.0.0.1:53263 0x6fffffefb700 HTTP/1.1 GET /cpp-ui/scripts/backend-platform.js
+[2026-10-07 03:59:39.661] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /cpp-ui/scripts/backend-platform.js 200 1
+[2026-10-07 03:59:39.786] [32mINFO   [0m [CROW] Request: 127.0.0.1:53264 0x6fffffe3ad70 HTTP/1.1 POST /app_config
+[2026-10-07 03:59:39.795] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /app_config 200 1
+[2026-10-07 03:59:39.942] [32mINFO   [0m [CROW] Request: 127.0.0.1:53265 0x6fffffefb700 HTTP/1.1 GET /get/app_config
+[2026-10-07 03:59:39.943] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /get/app_config 200 1
+[2026-10-07 03:59:40.067] [32mINFO   [0m [CROW] Request: 127.0.0.1:53266 0x6fffffe3ad70 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 03:59:40.068] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:59:40.193] [32mINFO   [0m [CROW] Request: 127.0.0.1:53267 0x6fffffefb700 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 03:59:40.198] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:59:40.318] [32mINFO   [0m [CROW] Request: 127.0.0.1:53268 0x6fffffe3ad70 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 03:59:40.318] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:59:40.443] [32mINFO   [0m [CROW] Request: 127.0.0.1:53269 0x6fffffefb700 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:40.443] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /v1/sdapi/v1/config 200 1
+[2026-10-07 03:59:40.568] [32mINFO   [0m [CROW] Request: 127.0.0.1:53270 0x6fffffe3ad70 HTTP/1.1 POST /app_config
+[2026-10-07 03:59:40.573] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /app_config 400 1
+[2026-10-07 03:59:40.724] [32mINFO   [0m [CROW] Request: 127.0.0.1:53271 0x6fffffefb700 HTTP/1.1 POST /v1/sdapi/v1/config
+[2026-10-07 03:59:40.725] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /v1/sdapi/v1/config 400 1
+[2026-10-07 03:59:40.850] [32mINFO   [0m [CROW] Request: 127.0.0.1:53272 0x6fffffe3ad70 HTTP/1.1 POST /v1/sdapi/v1/config
+[2026-10-07 03:59:40.850] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /v1/sdapi/v1/config 400 1
+[2026-10-07 03:59:40.974] [32mINFO   [0m [CROW] Request: 127.0.0.1:53273 0x6fffffefb700 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 03:59:40.975] [32mINFO   [0m [CROW] Response: 0x6fffffefb700 /v1/sdapi/v1/options 400 1
+[2026-10-07 03:59:41.099] [32mINFO   [0m [CROW] Request: 127.0.0.1:53274 0x6fffffe3ad70 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:41.100] [32mINFO   [0m [CROW] Response: 0x6fffffe3ad70 /v1/sdapi/v1/config 200 1

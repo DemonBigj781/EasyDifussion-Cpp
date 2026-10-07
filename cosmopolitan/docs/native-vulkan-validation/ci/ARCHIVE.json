@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "run_id": 37568302821,
+  "run_url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821",
+  "run_attempt": 1,
+  "source_commit": "1730424270e35ff4a06bd978654c9990cfd5777e",
+  "application_sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "application_bytes": 190491826,
+  "publication_gate": "all four jobs and all 22 inspection groups passed",
+  "jobs": [
+    {
+      "id": 112621048339,
+      "name": "Build one application with shared GGML and both Vulkan providers",
+      "url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112621048339"
+    },
+    {
+      "id": 112624037392,
+      "name": "Linux native Vulkan loader and software-driver inference",
+      "url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112624037392"
+    },
+    {
+      "id": 112624037443,
+      "name": "Linux application in an empty filesystem",
+      "url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112624037443"
+    },
+    {
+      "id": 112624037460,
+      "name": "Windows native PE with the identical application",
+      "url": "https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821/job/112624037460"
+    }
+  ],
+  "artifacts": {
+    "application": {
+      "artifact_id": 11459728047,
+      "name": "easy-diffusion-cosmopolitan-x86_64",
+      "sha256": "b223ad62158881434e1d87684282a0b73d99be3987ea46245d88a54386e62157",
+      "bytes": 95784804
+    },
+    "diagnostics": {
+      "artifact_id": 11459593352,
+      "name": "cosmopolitan-build-diagnostics",
+      "sha256": "816f5c9ad58d20167db743e3a4fb8c2d1169ef10bbec677996b935efc2c76d09",
+      "bytes": 65097729
+    },
+    "linux": {
+      "artifact_id": 11461020322,
+      "name": "cosmopolitan-linux-results",
+      "sha256": "9ebd25689c2f089c2a033f36a445dd33c9d722c7a92aaedd1e7eb09063dec5e0",
+      "bytes": 482681
+    },
+    "windows": {
+      "artifact_id": 11460801023,
+      "name": "cosmopolitan-windows-results",
+      "sha256": "ae23947a3b408e766b214429f81d7ce220c69a9a8fa7fc5ac1f4aa17e495c565",
+      "bytes": 479278
+    },
+    "linux-native": {
+      "artifact_id": 11460726835,
+      "name": "cosmopolitan-linux-native-results",
+      "sha256": "9b37f5e8bf01fd09baa7f3672d84b8f11679a105b362c80e812257424fc3c5f5",
+      "bytes": 184442
+    }
+  },
+  "preservation": "Original file bytes; * -text disables Git newline conversion. FILES.json excludes itself.",
+  "excluded": [
+    "executables",
+    "ELF loaders",
+    "debug binaries",
+    "model checkpoints",
+    "static/shared libraries",
+    "download ZIPs"
+  ],
+  "scope": {
+    "physical_GPU_verified": false,
+    "native_Linux": "host software Vulkan driver, actual graph/model/API execution",
+    "native_Windows": "installed Chrome SwiftShader DLL discovery and ShaderF16 rejection; no native compute proof",
+    "software_fallback": "embedded lavapipe; Linux isolation remains a separate gate",
+    "image_quality_or_full_training_parity": false
+  },
+  "inspection_reproduction": "Use archived inspect_results.py with the original five extracted artifacts, --expected-source 1730424270e35ff4a06bd978654c9990cfd5777e --expected-sha256 7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9 --parser-dir /path/to/matching/checkout/cosmopolitan/tests. Executables and download ZIPs are intentionally not archived."
+}

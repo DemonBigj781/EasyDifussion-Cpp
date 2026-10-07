@@ -1,0 +1,5 @@
+Created configuration: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-native-inference-api/native-api-1n3rinz4/easy-diffusion.json
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 20.1.2, 256 bits) | device_desc: Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)
+NATIVE_HTTP_SERVICE stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np
+NATIVE_INFERENCE_MAIN stack_bytes=16777216 guard_bytes=0 stack_source=pthread_getattr_np
+NATIVE_INFERENCE_EXECUTION success=1 selector=WebGPU0 provider=native software=1 adapter_type=3 graphs=287 submissions=1156 dispatches=6061 matmuls=1608 readbacks=855 native_loader_opens=1

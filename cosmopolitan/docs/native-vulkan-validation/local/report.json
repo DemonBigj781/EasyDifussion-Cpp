@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "success": true,
+  "scope": "One exact previously failing direct native image command with corrected CI application; 2-step plumbing, not image quality or physical GPU validation",
+  "captured_at": "2026-10-07T04:06:37.193100+00:00",
+  "prior_report": {
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-crash-repro/direct-report.json",
+    "sha256": "3e03bcc3da843eade6a786c8463978f7d6c90bc49e6e1cdf7d58a3fb7eadb5d0",
+    "returncode": -11,
+    "app_sha256": "b5f1ef5e13adf049e8e938d8ab157807c7748fff9a2934080c5d44ae5e5acf6e"
+  },
+  "source": {
+    "commit": "1730424270e35ff4a06bd978654c9990cfd5777e",
+    "dirty": false,
+    "repository": "DemonBigj781/EasyDifussion-Cpp"
+  },
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-final-ci/application/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-final-ci/application/easy-diffusion.exe",
+    "image",
+    "--model",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "--backend",
+    "webgpu",
+    "--provider",
+    "native",
+    "--device",
+    "WebGPU0",
+    "--prompt",
+    "a red apple on a wooden table",
+    "--output",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-fixed-repro/image.png",
+    "--width",
+    "256",
+    "--height",
+    "256",
+    "--steps",
+    "2",
+    "--threads",
+    "2",
+    "--cfg-scale",
+    "7",
+    "--seed",
+    "42"
+  ],
+  "cwd": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-fixed-repro",
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "TZ": "UTC",
+    "TERM": "dumb",
+    "PATH": "/usr/bin:/bin",
+    "TMPDIR": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-fixed-repro/tmp",
+    "LP_NUM_THREADS": "2",
+    "VK_DRIVER_FILES": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-icd/lvp.json",
+    "VK_ICD_FILENAMES": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-icd/lvp.json"
+  },
+  "timeout_seconds": 1800,
+  "application": {
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-final-ci/application/easy-diffusion.exe",
+    "bytes": 190491826,
+    "sha256_before": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+    "sha256_after": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+    "unchanged": true
+  },
+  "model": {
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "bytes": 1747190784,
+    "sha256_before": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "sha256_after": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "unchanged": true
+  },
+  "software_driver_threads": 2,
+  "traced": false,
+  "verification_helpers": {
+    "verify_inference.py": "65047c714c5f247273e58a102dda90a9261e897bf40f3d9d5ec98830b46b797c",
+    "verify_runtime.py": "b8c69a3e558cecf2f2c3212d25ef33dcf5e059d99bf4ba8f63526de336fca5f4"
+  },
+  "evidence": {
+    "direct.stdout.log": {
+      "bytes": 1208,
+      "sha256": "75db355e2ef278994066214e301cfd7c57727e71b3ac1105cb6c56e00dda0107"
+    },
+    "direct.stderr.log": {
+      "bytes": 456,
+      "sha256": "b17b0193b7bb3372496aaf115167ff3c1398721aa34ab0ddb5f1eed31a5b6ac6"
+    },
+    "image.png": {
+      "bytes": 157138,
+      "sha256": "b8c6991041659e06275a1071d3092d430637f041c8de7101ceb7c63a1c7f21e0"
+    },
+    "run.py": {
+      "bytes": 8036,
+      "sha256": "a9756c432b1f2b6668ce0b39a349ed02ba348039290d530a68b1bf8e59839f99"
+    }
+  },
+  "launcher_pid": 6,
+  "returncode": 0,
+  "seconds": 636.491685,
+  "png": {
+    "width": 256,
+    "height": 256,
+    "channels": 3,
+    "bytes": 157138,
+    "sha256": "b8c6991041659e06275a1071d3092d430637f041c8de7101ceb7c63a1c7f21e0",
+    "decoded_pixel_sha256": "98633de44e2f02c4e1f63207c82e57a4d270cc6e44da671a7a8a0bce596caaa1",
+    "chunk_crc_verified": true,
+    "nonconstant_color_pixels": true,
+    "distinct_colors_capped_at_257": 257,
+    "color_min": 0,
+    "color_max": 255,
+    "color_mean": 100.63913981119792,
+    "color_stddev": 90.32343502711055,
+    "pixel_bytes": 196608,
+    "pixel_min": 0,
+    "pixel_max": 255,
+    "pixel_mean": 100.63913981119792,
+    "quality_assessed": false
+  },
+  "execution": {
+    "model_load": {
+      "seconds": 0.150027,
+      "graphs": 0,
+      "submissions": 0,
+      "dispatches": 0,
+      "matmuls": 0,
+      "readbacks": 0
+    },
+    "generation": {
+      "seconds": 636.004803,
+      "graphs": 287,
+      "submissions": 1156,
+      "dispatches": 6061,
+      "matmuls": 1608,
+      "readbacks": 855
+    },
+    "sampler": "euler_a",
+    "scheduler": "discrete",
+    "generation_scope": "Complete generate_image after model load; CPU fallback allowed, fraction not measured",
+    "sampling": {
+      "first_step": 1,
+      "last_step": 2,
+      "total_steps": 2,
+      "completed_callbacks": 2,
+      "intervals": 1,
+      "monotonic": true,
+      "graphs": 126,
+      "submissions": 498,
+      "dispatches": 2582,
+      "matmuls": 692,
+      "readbacks": 370,
+      "progress": [
+        {
+          "step": 1,
+          "seconds": 201.242691
+        },
+        {
+          "step": 2,
+          "seconds": 199.87738
+        }
+      ],
+      "scope": "Between completed denoising steps, excludes first step, CLIP and VAE; previews disabled"
+    },
+    "provider": "native",
+    "software_adapter": true,
+    "adapter": "llvmpipe (LLVM 20.1.2, 256 bits)",
+    "native_loader_opens": 1,
+    "hardware_verified": false,
+    "cpu_fallback_allowed": true,
+    "cpu_fallback_fraction_measured": false
+  }
+}

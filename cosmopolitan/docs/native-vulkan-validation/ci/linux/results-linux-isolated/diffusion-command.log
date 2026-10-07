@@ -1,0 +1,55 @@
+
+--- stdout ---
+
+--- stderr ---
+Usage: sdkit [options]
+
+Options:
+  --config <path>                    Persistent JSON configuration (default: easy-diffusion.json)
+  --provider auto|native|embedded    WebGPU provider policy; explicit native never substitutes software
+  --port <port>                      Server port (default: 8188)
+  --log-level <level>                Log level: verbose, debug, info, warning, error (default: info)
+  --backend <name>                   Compute backend: cpu or webgpu (default: persisted configuration)
+  --device <selector>                auto, exact registry selector, or available stable device ID
+  --list-devices, --backend-info     List backend devices, memory, and capabilities, then exit
+  --parent-pid <pid>                 Parent process PID
+  --ckpt-dir <path>                  Checkpoint models directory
+  --vae-dir <path>                   VAE models directory
+  --hypernetwork-dir <path>          Hypernetwork models directory
+  --gfpgan-models-path <path>        GFPGAN models directory
+  --realesrgan-models-path <path>    RealESRGAN models directory
+  --lora-dir <path>                  LoRA models directory
+  --codeformer-models-path <path>    Codeformer models directory
+  --embeddings-dir <path>            Embeddings directory
+  --controlnet-dir <path>            ControlNet models directory
+  --control-net-sd1-path <path>      Uni-ControlNet weights for automatic SD1.x routing
+  --control-net-sdxl-path <path>     ControlNet Union weights for automatic SDXL routing
+  --text-encoder-dir <path>          Text encoder models directory
+  --no-half                          Force all model weights to F32 (high memory use)
+  --no-half-vae                      Force VAE weights to F32
+  --vae-tiling                       Enable VAE tiling (default: false)
+  --vae-tile-size <size>             VAE tile size (in pixels), format [X]x[Y] (default: 256x256)
+  --vae-tiles <size>                 VAE latent tile size; 32 means 32x32 (default: 32)
+  --vae-tiled-overlap <pixels>       VAE latent tile overlap in pixels (default: 16)
+  --offload-to-cpu                   Offload parameters to CPU (default: false)
+  --mmap                             Memory-map weights instead of committing a RAM copy
+  --no-mmap                          Disable automatic mmap with --offload-to-cpu
+  --keep-model-loaded                Keep staged compute weights resident until model switch (default: false)
+  --attention <mode>                 Select one attention pipeline: split, flash,
+                                     xformers, or sage (default: split)
+  --opt-split-attention              Legacy alias for --attention split
+  --diffusion-fa                     Legacy alias for --attention flash
+  --flash-attention                  Legacy alias for --attention flash
+  --xformers                         Legacy alias for --attention xformers
+  --sage-attention                   Legacy alias for --attention sage
+  --max-vram <GiB|assignments>       Graph VRAM budget, e.g. 6 or cuda=6,cpu=0
+  --stream-layers                   Stream model layers within the --max-vram budget
+  --cuda-malloc                     Use the flushable legacy cudaMalloc pool instead of CUDA VMM
+  --cuda-unified-memory             Let CUDA spill allocations into system RAM (slow)
+  --video-offload-to-cpu             Offload native-video parameters to CPU (default: false)
+  --video-max-vram <GiB>             Native-video graph VRAM budget
+  --video-stream-layers              Stream native-video diffusion layers within its VRAM budget
+  --chroma-disable-dit-mask          Disable DiT mask for Chroma models (default: false)
+  --convert-model <path>             Convert a checkpoint, safetensors, or Diffusers model and exit
+  --convert-output <path>            GGUF output path used with --convert-model
+  --convert-type <type>              Conversion type (default: f16; e.g. f32, bf16, q8_0, q5_0, q4_0)

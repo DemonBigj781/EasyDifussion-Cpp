@@ -1,0 +1,8 @@
+host: Linux x86_64
+page size: 4096, allocation granularity: 4096
+Cosmopolitan static LLVM: 19.1.7
+JIT target triple: x86_64-unknown-linux-musl
+JIT integer add/multiply + external C callback: PASS (185)
+JIT mixed scalar SysV registers and stack: PASS (306.75)
+JIT execution from 4 Cosmopolitan threads (4000 calls): PASS
+JIT engine disposal completed without a crash: PASS

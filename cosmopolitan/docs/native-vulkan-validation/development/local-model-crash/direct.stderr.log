@@ -1,0 +1,77 @@
+Created configuration: /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-crash-repro/easy-diffusion.json
+WebGPU: Vulkan provider=native; library=libvulkan.so.1
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 20.1.2, 256 bits) | device_desc: Mesa 25.2.8-0ubuntu0.24.04.2 (LLVM 20.1.2)
+
+error: Uncaught SIGSEGV (SEGV_MAPERR) at 0x8 on b478d2704ddf pid 4 tid 18
+  /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-first-ci/application/easy-diffusion.exe
+  No error information
+  Linux Cosmopolitan 4.0.2 MODE=x86_64; #1 SMP Sat Sep 26 20:02:31 UTC 2026 b478d2704ddf 6.18.44
+
+RAX ffffffffffffff78 RBX 0000000000000000 RDI 00007f4f56fe8100
+RCX 0000000000000000 RDX 000000000000000a RSI 00007f4f56fe80f8
+RBP 00007f4f56fe80d0 RSP 00007f4f56fe8080 RIP 00007f4f7221cb7f
+ R8 0000000000000001  R9 0000000000000000 R10 0000000000000000
+R11 0000000000000246 R12 00007f4f56fe8104 R13 0000000000000000
+R14 0000000000000000 R15 00007f4f56fe8818
+TLS 00007f4f64120ec0
+
+XMM0  0000000000000000000000003f000000 XMM8  00000000000000000000000000000000
+XMM1  00000000000000000000000007800000 XMM9  00000000000000003e08c35c7bfa23b2
+XMM2  0000000000000000000000003f800000 XMM10 32b9c4e00f4547c403bd01f9ed2c6e2c
+XMM3  0000000000000000000000003d8d2000 XMM11 3b6343427bea41d68f14bcc76e3bb1dd
+XMM4  00000000000000000000000000000000 XMM12 00000040000000400000004000000040
+XMM5  0000000000000000000000004b000000 XMM13 00000000000000400000000000000000
+XMM6  00000000000000000000000000000000 XMM14 00000000000000400000000000000001
+XMM7  0000000000000000000000003f800000 XMM15 a54ff53a3c6ef372bb67ae856a09e667
+
+cosmoaddr2line /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-first-ci/application/easy-diffusion.exe 7f4f7221cb7f 7f4f722e4a0b 7f4f722e4d74 7f4f7226f452 7f4f72271eb9 7f4f72272776 7f4f7154515e 7f4f715c7e4a 1be4381 1b0d940 1bc33ad 1b8f389 1b7c064 1a9b9cd 192ce2c
+
+0x00007f4f7221cb7f: ?? ??:0
+0x00007f4f722e4a0b: ?? ??:0
+0x00007f4f722e4d74: ?? ??:0
+0x00007f4f7226f452: ?? ??:0
+0x00007f4f72271eb9: ?? ??:0
+0x00007f4f72272776: ?? ??:0
+0x00007f4f7154515e: ?? ??:0
+0x00007f4f715c7e4a: ?? ??:0
+0x0000000001be4381: ?? ??:0
+0x0000000001b0d940: ?? ??:0
+0x0000000001bc33ad: ?? ??:0
+0x0000000001b8f389: ?? ??:0
+0x0000000001b7c064: ?? ??:0
+0x0000000001a9b9cd: ?? ??:0
+0x000000000192ce2c: ?? ??:0
+0x0000000000bc5fd3: ?? ??:0
+0x0000000000bc6b66: ?? ??:0
+0x0000000004cf37c5: ?? ??:0
+0x0000000004cfe09e: ?? ??:0
+0x0000000004d4bf41: ?? ??:0
+
+000000400000-0000090f0138 r-xi- 141mb
+0000090f1000-0000097bc000 rw-i- 6956kb
+0000097bc000-0006fe000000       28gb
+0006fe000000-0006fe001000 rw-pa 4096b
+0006fe001000-7f4efaee0000       127tb
+7f4efaee0000-7f4f04000000 rw-pa 145mb
+7f4f04000000-7f4f36ee0000       815mb
+7f4f36ee0000-7f4f40000000 rw-pa 145mb
+7f4f40000000-7f4f45000000       80mb
+7f4f45000000-7f4f48000000 rw-pa 48mb
+7f4f48000000-7f4f5400e000       192mb
+7f4f5400e000-7f4f5641e000 rw-pa 36mb
+7f4f5641e000-7f4f568be000       4736kb
+7f4f568be000-7f4f56ede000 rw-pa 6272kb
+7f4f56ede000-7f4f56fc4000       920kb
+7f4f56fc4000-7f4f56fd4000 rw-pa 64kb
+7f4f56fd4000-7f4f56fd5000 ---pa 4096b
+7f4f56fd5000-7f4f56fe9000 rw-pa 80kb
+7f4f56fe9000-7f4f56fea000 ---pa 4096b
+7f4f56fea000-7f4f56ffe000 rw-pa 80kb
+7f4f56ffe000-7f4f6400d000       208mb
+7f4f6400d000-7f4f6431f000 rw-pa 3144kb
+7f4f6431f000-7f4f723d9000       225mb
+7f4f723d9000-7f4f723da000 r-xpa 4096b
+# 624'263'168 bytes in 21 mappings
+
+
+/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-first-ci/application/easy-diffusion.exe image --model /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-models/stable-diffusion-v1-5-Q4_0.gguf --backend webgpu --provider native --device WebGPU0 --prompt a red apple on a wooden table --output /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/native-loader-crash-repro/image.png --width 256 --height 256 --steps 2 --threads 2 --cfg-scale 7 --seed 42 

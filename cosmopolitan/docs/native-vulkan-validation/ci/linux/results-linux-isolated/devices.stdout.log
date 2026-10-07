@@ -1,0 +1,3 @@
+index	backend	selector	type	provider	free MiB	total MiB	stable_id	description
+0	WebGPU	WebGPU0	software-cpu	embedded	unknown	unknown	unavailable	WebGPU / embedded / software CPU / llvmpipe (LLVM 19.1.7, 256 bits)
+1	CPU	CPU	cpu	builtin	15989	15989	unavailable	CPU

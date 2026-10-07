@@ -1,0 +1,3 @@
++ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/venv/bin/ninja -C /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/build-glslang -j4 glslang-standalone
+ninja: Entering directory `/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/build-glslang'
+ninja: no work to do.

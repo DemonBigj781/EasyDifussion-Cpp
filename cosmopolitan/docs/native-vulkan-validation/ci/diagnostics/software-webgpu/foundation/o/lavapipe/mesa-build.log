@@ -1,0 +1,3 @@
++ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/venv/bin/ninja -C /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/build-cosmo -j4 src/gallium/targets/lavapipe/libvulkan_lvp.a
+ninja: Entering directory `/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/build-cosmo'
+[1/4] Generating src/git_sha1.h with a custom command

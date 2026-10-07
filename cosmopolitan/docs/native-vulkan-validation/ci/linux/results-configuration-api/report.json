@@ -1,0 +1,441 @@
+{
+  "status": "PASS",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "scope": "real native configuration HTTP and restart; no models, busy generation, browser, or hardware",
+  "requests": [
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1092,
+      "seconds": 0.0015
+    },
+    {
+      "path": "/get/app_config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1092,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1092,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/cosmopolitan-capabilities",
+      "method": "GET",
+      "status": 200,
+      "bytes": 358,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/cpp-ui/settings",
+      "method": "GET",
+      "status": 200,
+      "bytes": 3203,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/cpp-ui/settings/gpu",
+      "method": "GET",
+      "status": 200,
+      "bytes": 7574,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/cpp-ui/scripts/backend-platform.js",
+      "method": "GET",
+      "status": 200,
+      "bytes": 8854,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/app_config",
+      "method": "POST",
+      "status": 200,
+      "bytes": 1099,
+      "seconds": 0.1386
+    },
+    {
+      "path": "/get/app_config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1099,
+      "seconds": 0.0058
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0013
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 194,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1097,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/app_config",
+      "method": "POST",
+      "status": 400,
+      "bytes": 55,
+      "seconds": 0.0033
+    },
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "POST",
+      "status": 400,
+      "bytes": 51,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "POST",
+      "status": 400,
+      "bytes": 41,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 400,
+      "bytes": 87,
+      "seconds": 0.001
+    },
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1097,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1101,
+      "seconds": 0.0003
+    },
+    {
+      "path": "/v1/sdapi/v1/config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1101,
+      "seconds": 0.0004
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 194,
+      "seconds": 0.0003
+    },
+    {
+      "path": "/get/app_config",
+      "method": "GET",
+      "status": 200,
+      "bytes": 1101,
+      "seconds": 0.0004
+    }
+  ],
+  "servers": [
+    {
+      "name": "first",
+      "arguments": [
+        "sdkit",
+        "--backend",
+        "cpu",
+        "--provider",
+        "embedded",
+        "--port",
+        "55041",
+        "--ckpt-dir",
+        "/tmp/cosmo-config-api-dewm9win/first-checkpoints"
+      ],
+      "port": 55041,
+      "status_before_cleanup": null,
+      "exit_status": 0,
+      "cleanup_method": "SIGTERM"
+    },
+    {
+      "name": "restarted",
+      "arguments": [
+        "sdkit",
+        "--config",
+        "/tmp/cosmo-config-api-dewm9win/easy-diffusion.json"
+      ],
+      "port": 41343,
+      "status_before_cleanup": null,
+      "exit_status": 0,
+      "cleanup_method": "SIGTERM"
+    }
+  ],
+  "application_sha256_before": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "initial": {
+    "available_backends": [
+      "cpu",
+      "webgpu"
+    ],
+    "backend_config": {
+      "platform": "cpu"
+    },
+    "config_path": "/tmp/cosmo-config-api-dewm9win/easy-diffusion.json",
+    "device_selection_note": "Exact registry selectors are validated when used; names may change when hardware changes.",
+    "effective": {
+      "compute": {
+        "backend": "cpu",
+        "device": "auto",
+        "provider": "embedded"
+      },
+      "models": {
+        "checkpoint_dir": "/tmp/cosmo-config-api-dewm9win/first-checkpoints"
+      },
+      "options": {
+        "CLIP_stop_at_last_layers": -1,
+        "forge_additional_modules": [],
+        "live_previews_enable": false,
+        "samples_format": "png",
+        "sd_model_checkpoint": "",
+        "sdxl_clip_l_skip": false,
+        "show_progress_every_n_steps": 5
+      },
+      "schema": 1,
+      "server": {
+        "log_level": "info",
+        "port": 55041
+      }
+    },
+    "restart_required": true,
+    "saved": {
+      "compute": {
+        "backend": "cpu",
+        "device": "auto",
+        "provider": "auto"
+      },
+      "models": {
+        "checkpoint_dir": "models/checkpoints"
+      },
+      "options": {
+        "CLIP_stop_at_last_layers": -1,
+        "forge_additional_modules": [],
+        "live_previews_enable": false,
+        "samples_format": "png",
+        "sd_model_checkpoint": "",
+        "sdxl_clip_l_skip": false,
+        "show_progress_every_n_steps": 5
+      },
+      "schema": 1,
+      "server": {
+        "log_level": "info",
+        "port": 8188
+      }
+    },
+    "schema": 1
+  },
+  "ui": {
+    "pages": [
+      {
+        "path": "/cpp-ui/settings",
+        "bytes": 3203,
+        "sha256": "1592b2e9ba635e0faaf263eef07cf1cefc60ada8a16f3b2cd3c57f2062f62850"
+      },
+      {
+        "path": "/cpp-ui/settings/gpu",
+        "bytes": 7574,
+        "sha256": "faaa5f1f1f5aff9b81f2d1d6227aea1c9a81e0a5c34d1cd56d182b023e61412a"
+      }
+    ],
+    "script": {
+      "path": "/cpp-ui/scripts/backend-platform.js",
+      "bytes": 8854,
+      "sha256": "15bdac0c4de46d9fd994e4aa6f94e21074c7904a823862fdb8449e20e3649a45"
+    },
+    "browser_executed": false
+  },
+  "saved_before_restart": {
+    "available_backends": [
+      "cpu",
+      "webgpu"
+    ],
+    "backend_config": {
+      "platform": "cpu"
+    },
+    "config_path": "/tmp/cosmo-config-api-dewm9win/easy-diffusion.json",
+    "device_selection_note": "Exact registry selectors are validated when used; names may change when hardware changes.",
+    "effective": {
+      "compute": {
+        "backend": "cpu",
+        "device": "auto",
+        "provider": "embedded"
+      },
+      "models": {
+        "checkpoint_dir": "/tmp/cosmo-config-api-dewm9win/first-checkpoints"
+      },
+      "options": {
+        "CLIP_stop_at_last_layers": 2,
+        "forge_additional_modules": [],
+        "live_previews_enable": false,
+        "samples_format": "png",
+        "sd_model_checkpoint": "",
+        "sdxl_clip_l_skip": false,
+        "show_progress_every_n_steps": 5
+      },
+      "schema": 1,
+      "server": {
+        "log_level": "info",
+        "port": 55041
+      }
+    },
+    "restart_required": true,
+    "saved": {
+      "compute": {
+        "backend": "cpu",
+        "device": "CPU",
+        "provider": "embedded"
+      },
+      "models": {
+        "checkpoint_dir": "second-checkpoints"
+      },
+      "options": {
+        "CLIP_stop_at_last_layers": 2,
+        "forge_additional_modules": [],
+        "live_previews_enable": false,
+        "samples_format": "png",
+        "sd_model_checkpoint": "",
+        "sdxl_clip_l_skip": false,
+        "show_progress_every_n_steps": 5
+      },
+      "schema": 1,
+      "server": {
+        "log_level": "warning",
+        "port": 41343
+      }
+    },
+    "schema": 1
+  },
+  "after_restart": {
+    "available_backends": [
+      "cpu",
+      "webgpu"
+    ],
+    "backend_config": {
+      "platform": "cpu"
+    },
+    "config_path": "/tmp/cosmo-config-api-dewm9win/easy-diffusion.json",
+    "device_selection_note": "Exact registry selectors are validated when used; names may change when hardware changes.",
+    "effective": {
+      "compute": {
+        "backend": "cpu",
+        "device": "CPU",
+        "provider": "embedded"
+      },
+      "models": {
+        "checkpoint_dir": "/tmp/cosmo-config-api-dewm9win/second-checkpoints"
+      },
+      "options": {
+        "CLIP_stop_at_last_layers": 2,
+        "forge_additional_modules": [],
+        "live_previews_enable": false,
+        "samples_format": "png",
+        "sd_model_checkpoint": "",
+        "sdxl_clip_l_skip": false,
+        "show_progress_every_n_steps": 5
+      },
+      "schema": 1,
+      "server": {
+        "log_level": "warning",
+        "port": 41343
+      }
+    },
+    "restart_required": false,
+    "saved": {
+      "compute": {
+        "backend": "cpu",
+        "device": "CPU",
+        "provider": "embedded"
+      },
+      "models": {
+        "checkpoint_dir": "second-checkpoints"
+      },
+      "options": {
+        "CLIP_stop_at_last_layers": 2,
+        "forge_additional_modules": [],
+        "live_previews_enable": false,
+        "samples_format": "png",
+        "sd_model_checkpoint": "",
+        "sdxl_clip_l_skip": false,
+        "show_progress_every_n_steps": 5
+      },
+      "schema": 1,
+      "server": {
+        "log_level": "warning",
+        "port": 41343
+      }
+    },
+    "schema": 1
+  },
+  "application_sha256_after": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "elapsed_seconds": 0.937,
+  "evidence": [
+    {
+      "path": "first-configuration.json",
+      "bytes": 489,
+      "sha256": "c287262fda66f506d3f6ab7e38ba64c068ac21d1da4bcbadddc6a13483fd7c6b"
+    },
+    {
+      "path": "first.log",
+      "bytes": 6135,
+      "sha256": "ddc38a964777601679c9dad916c75c6ad141422f8e03ad06637126d51dd287a8"
+    },
+    {
+      "path": "first.stderr.log",
+      "bytes": 74,
+      "sha256": "c5f9957e39f9290de4ccb519243af05f2d6dcebcdc3df2f67573d876f6d410e9"
+    },
+    {
+      "path": "first.stdout.log",
+      "bytes": 6029,
+      "sha256": "c09e338dc00c03140f7e14688df6df8be694a7528feda833a6c591f50c13d52a"
+    },
+    {
+      "path": "restarted-configuration.json",
+      "bytes": 489,
+      "sha256": "c287262fda66f506d3f6ab7e38ba64c068ac21d1da4bcbadddc6a13483fd7c6b"
+    },
+    {
+      "path": "restarted.log",
+      "bytes": 134,
+      "sha256": "2c0a9679c1e7279e13e0481bbca368d4a3a8379c02c11c4664c1a658b4bcce22"
+    },
+    {
+      "path": "restarted.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "restarted.stdout.log",
+      "bytes": 102,
+      "sha256": "c36eaa59e4b900fdcba9ea881b03c9fa617efcdd5b0d4183fa28b9d301f79357"
+    }
+  ]
+}

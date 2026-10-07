@@ -1,0 +1,349 @@
+{
+  "status": "PASS",
+  "scope": "production configuration module; no HTTP/model/driver execution",
+  "checks": 38,
+  "observations": [
+    {
+      "arguments": [
+        "config",
+        "defaults"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "webgpu-device-test",
+        "--provider",
+        "native"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "webgpu-device-test",
+        "--device",
+        "WebGPU0",
+        "--all"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "config",
+        "show"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "config",
+        "init",
+        "--config",
+        "config/settings.json"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "config",
+        "init",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "webgpu-device-test",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "config",
+        "validate",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json",
+        "--backend",
+        "webgpu",
+        "--provider",
+        "embedded",
+        "--device",
+        "WebGPU7",
+        "--port",
+        "9001"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "config",
+        "show",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "image",
+        "--config",
+        "first.json",
+        "--provider",
+        "embedded",
+        "--ckpt-dir",
+        "weights",
+        "--prompt",
+        "--device"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "image",
+        "--config",
+        "first.json",
+        "--prompt",
+        "--device"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "invalid-first.json",
+        "--backend",
+        "cuda"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "invalid-first.json",
+        "--provider",
+        "other"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "invalid-first.json",
+        "--device",
+        "../bad"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "invalid-first.json",
+        "--port",
+        "0"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "invalid-first.json",
+        "--port",
+        "65536"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "invalid-first.json",
+        "--port",
+        "1x"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "invalid-first.json",
+        "--backend",
+        "cpu",
+        "--device",
+        "WebGPU0"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json",
+        "--port",
+        "9001",
+        "--port",
+        "9002"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\config\\settings.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "config",
+        "validate",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\invalid.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "config",
+        "validate",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\invalid.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "config",
+        "validate",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\invalid.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "config",
+        "validate",
+        "--config",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\cosmo-config-865i598h\\invalid.json"
+      ],
+      "status": 512
+    },
+    {
+      "arguments": [
+        "webgpu-test"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "--help"
+      ],
+      "status": 0
+    },
+    {
+      "arguments": [
+        "sdkit",
+        "--help"
+      ],
+      "status": 0
+    }
+  ]
+}

@@ -14,8 +14,17 @@ One unchanged executable passed SD 1.5 image generation on CPU and embedded
 software WebGPU, plus CPU native HTTP generation and early cancellation, on
 Windows and Linux. The tested images are 256×256 with four CPU steps or two
 WebGPU steps; they establish pipeline completion, not visual quality or
-support for arbitrary checkpoints. WebGPU HTTP inference and real browser
-automation remain separate, unvalidated paths.
+support for arbitrary checkpoints.
+
+The later [native Vulkan validation record](../../COSMOPOLITAN_NATIVE_VULKAN_VALIDATION.md)
+identifies clean source `1730424270e35ff4a06bd978654c9990cfd5777e` and
+[run 37568302821](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821).
+Its completed Linux native-provider gate passed WebGPU HTTP generation of a
+256×256, two-step SD 1.5 image through the installed Mesa software Vulkan driver,
+with actual graph, dispatch, matrix and readback counters. This establishes
+the native-driver HTTP path on that tested software adapter. Embedded-provider
+WebGPU HTTP inference, native Windows WebGPU image inference, physical GPU
+execution and real browser automation remain separate, unvalidated paths.
 
 ## Model and output
 

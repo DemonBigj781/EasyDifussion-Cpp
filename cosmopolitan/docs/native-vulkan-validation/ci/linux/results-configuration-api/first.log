@@ -1,0 +1,68 @@
+
+--- stdout ---
+[2026-10-07 03:59:35.982] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 03:59:35.983] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-07 03:59:35.983] [32mINFO   [0m SdkitModelIndex initialized
+[2026-10-07 03:59:35.983] [32mINFO   [0m Checkpoint directory set to: /tmp/cosmo-config-api-dewm9win/first-checkpoints
+Scanning model directories...
+[2026-10-07 03:59:35.983] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 03:59:35.983] [32mINFO   [0m Scanned checkpoint directory: found 0 models
+[2026-10-07 03:59:35.983] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 03:59:35.984] [32mINFO   [0m ImageGenerator created
+Starting server on port 55041
+[2026-10-07 03:59:35.984] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:55041 using 4 threads
+[2026-10-07 03:59:35.984] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 03:59:35.988] [32mINFO   [0m [CROW] Request: 127.0.0.1:36662 0x7f513c1764d0 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:35.989] [32mINFO   [0m [CROW] Response: 0x7f513c1764d0 /v1/sdapi/v1/config 200 1
+[2026-10-07 03:59:36.002] [32mINFO   [0m [CROW] Request: 127.0.0.1:36668 0x7f513c1b8de0 HTTP/1.1 GET /get/app_config
+[2026-10-07 03:59:36.002] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /get/app_config 200 1
+[2026-10-07 03:59:36.015] [32mINFO   [0m [CROW] Request: 127.0.0.1:36682 0x7f513c1ba420 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:36.015] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /v1/sdapi/v1/config 200 1
+[2026-10-07 03:59:36.028] [32mINFO   [0m [CROW] Request: 127.0.0.1:36692 0x7f513c1b8de0 HTTP/1.1 GET /v1/sdapi/v1/cosmopolitan-capabilities
+[2026-10-07 03:59:36.028] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /v1/sdapi/v1/cosmopolitan-capabilities 200 1
+[2026-10-07 03:59:36.041] [32mINFO   [0m [CROW] Request: 127.0.0.1:36706 0x7f513c1ba420 HTTP/1.1 GET /cpp-ui/settings
+[2026-10-07 03:59:36.041] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /cpp-ui/settings 200 1
+[2026-10-07 03:59:36.055] [32mINFO   [0m [CROW] Request: 127.0.0.1:36714 0x7f513c1b8de0 HTTP/1.1 GET /cpp-ui/settings/gpu
+[2026-10-07 03:59:36.055] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /cpp-ui/settings/gpu 200 1
+[2026-10-07 03:59:36.068] [32mINFO   [0m [CROW] Request: 127.0.0.1:36720 0x7f513c1ba420 HTTP/1.1 GET /cpp-ui/scripts/backend-platform.js
+[2026-10-07 03:59:36.069] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /cpp-ui/scripts/backend-platform.js 200 1
+[2026-10-07 03:59:36.082] [32mINFO   [0m [CROW] Request: 127.0.0.1:36730 0x7f513c1b8de0 HTTP/1.1 POST /app_config
+[2026-10-07 03:59:36.220] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /app_config 200 1
+[2026-10-07 03:59:36.234] [32mINFO   [0m [CROW] Request: 127.0.0.1:36744 0x7f513c1ba420 HTTP/1.1 GET /get/app_config
+[2026-10-07 03:59:36.234] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /get/app_config 200 1
+[2026-10-07 03:59:36.253] [32mINFO   [0m [CROW] Request: 127.0.0.1:36756 0x7f513c1b8de0 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 03:59:36.253] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:59:36.266] [32mINFO   [0m [CROW] Request: 127.0.0.1:36760 0x7f513c1ba420 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 03:59:36.267] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:59:36.279] [32mINFO   [0m [CROW] Request: 127.0.0.1:36768 0x7f513c1b8de0 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 03:59:36.279] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:59:36.292] [32mINFO   [0m [CROW] Request: 127.0.0.1:36774 0x7f513c1ba420 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:36.292] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /v1/sdapi/v1/config 200 1
+[2026-10-07 03:59:36.305] [32mINFO   [0m [CROW] Request: 127.0.0.1:36784 0x7f513c1b8de0 HTTP/1.1 POST /app_config
+[2026-10-07 03:59:36.308] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /app_config 400 1
+[2026-10-07 03:59:36.321] [32mINFO   [0m [CROW] Request: 127.0.0.1:36800 0x7f513c1ba420 HTTP/1.1 POST /v1/sdapi/v1/config
+[2026-10-07 03:59:36.321] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /v1/sdapi/v1/config 400 1
+[2026-10-07 03:59:36.334] [32mINFO   [0m [CROW] Request: 127.0.0.1:36802 0x7f513c1b8de0 HTTP/1.1 POST /v1/sdapi/v1/config
+[2026-10-07 03:59:36.334] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /v1/sdapi/v1/config 400 1
+[2026-10-07 03:59:36.347] [32mINFO   [0m [CROW] Request: 127.0.0.1:36810 0x7f513c1ba420 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 03:59:36.348] [32mINFO   [0m [CROW] Response: 0x7f513c1ba420 /v1/sdapi/v1/options 400 1
+[2026-10-07 03:59:36.361] [32mINFO   [0m [CROW] Request: 127.0.0.1:36818 0x7f513c1b8de0 HTTP/1.1 GET /v1/sdapi/v1/config
+[2026-10-07 03:59:36.361] [32mINFO   [0m [CROW] Response: 0x7f513c1b8de0 /v1/sdapi/v1/config 200 1
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing IO service 0x7f513bfe1d30
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing IO service 0x7f513bfe1d38
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing IO service 0x7f513bfe1d40
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing main IO service (0x7f513c081858)
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Exiting.
+[2026-10-07 03:59:36.362] [32mINFO   [0m No active generation to interrupt
+[2026-10-07 03:59:36.362] [32mINFO   [0m No active generation to interrupt
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing IO service 0x7f513bfe1d30
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing IO service 0x7f513bfe1d38
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing IO service 0x7f513bfe1d40
+[2026-10-07 03:59:36.362] [32mINFO   [0m [CROW] Closing main IO service (0x7f513c081858)
+[2026-10-07 03:59:36.362] [32mINFO   [0m No active generation to interrupt
+Server stopped.
+
+--- stderr ---
+Created configuration: /tmp/cosmo-config-api-dewm9win/easy-diffusion.json

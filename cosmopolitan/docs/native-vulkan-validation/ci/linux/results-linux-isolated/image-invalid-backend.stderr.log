@@ -1,0 +1,1 @@
+Configuration: compute.backend must be cpu or webgpu

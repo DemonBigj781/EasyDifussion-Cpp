@@ -1,0 +1,63 @@
+[2026-10-07 03:33:35.703] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 03:33:35.705] [32mINFO   [0m Compute backend: webgpu (WebGPU0)
+[2026-10-07 03:33:35.705] [32mINFO   [0m SdkitModelIndex initialized
+[2026-10-07 03:33:35.705] [32mINFO   [0m Checkpoint directory set to: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models
+Scanning model directories...
+[2026-10-07 03:33:35.705] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 03:33:35.705] [32mINFO   [0m Scanned checkpoint directory: found 1 models
+[2026-10-07 03:33:35.705] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 03:33:35.705] [32mINFO   [0m ImageGenerator created
+Starting server on port 46443
+[2026-10-07 03:33:35.706] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:46443 using 4 threads
+[2026-10-07 03:33:35.706] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 03:33:35.781] [32mINFO   [0m [CROW] Request: 127.0.0.1:38978 0x7fb5a1389bd0 HTTP/1.1 GET /v1/sdapi/v1/cosmopolitan-capabilities
+[2026-10-07 03:33:35.781] [32mINFO   [0m [CROW] Response: 0x7fb5a1389bd0 /v1/sdapi/v1/cosmopolitan-capabilities 200 1
+[2026-10-07 03:33:35.799] [32mINFO   [0m [CROW] Request: 127.0.0.1:38994 0x7fb5a138afd0 HTTP/1.1 GET /kiosk
+[2026-10-07 03:33:35.799] [32mINFO   [0m [CROW] Response: 0x7fb5a138afd0 /kiosk 200 1
+[2026-10-07 03:33:35.816] [32mINFO   [0m [CROW] Request: 127.0.0.1:39002 0x7fb5a1389bd0 HTTP/1.1 POST /kiosk
+[2026-10-07 03:33:35.816] [32mINFO   [0m [CROW] Response: 0x7fb5a1389bd0 /kiosk 501 1
+[2026-10-07 03:33:35.833] [32mINFO   [0m [CROW] Request: 127.0.0.1:39010 0x7fb5a138afd0 HTTP/1.1 GET /kiosk
+[2026-10-07 03:33:35.833] [32mINFO   [0m [CROW] Response: 0x7fb5a138afd0 /kiosk 200 1
+[2026-10-07 03:33:35.851] [32mINFO   [0m [CROW] Request: 127.0.0.1:39020 0x7fb5a1389bd0 HTTP/1.1 GET /
+[2026-10-07 03:33:35.851] [32mINFO   [0m [CROW] Response: 0x7fb5a1389bd0 / 200 1
+[2026-10-07 03:33:35.869] [32mINFO   [0m [CROW] Request: 127.0.0.1:39034 0x7fb5a138afd0 HTTP/1.1 GET /cpp-ui/scripts/kiosk.js
+[2026-10-07 03:33:35.869] [32mINFO   [0m [CROW] Response: 0x7fb5a138afd0 /cpp-ui/scripts/kiosk.js 200 1
+[2026-10-07 03:33:35.886] [32mINFO   [0m [CROW] Request: 127.0.0.1:39038 0x7fb5a1389bd0 HTTP/1.1 GET /cpp-ui/scripts/generate.js
+[2026-10-07 03:33:35.886] [32mINFO   [0m [CROW] Response: 0x7fb5a1389bd0 /cpp-ui/scripts/generate.js 200 1
+[2026-10-07 03:33:35.912] [32mINFO   [0m [CROW] Request: 127.0.0.1:39042 0x7fb5a138afd0 HTTP/1.1 GET /v1/sdapi/v1/checkpoints
+[2026-10-07 03:33:35.912] [32mINFO   [0m [CROW] Response: 0x7fb5a138afd0 /v1/sdapi/v1/checkpoints 200 1
+[2026-10-07 03:33:35.928] [32mINFO   [0m [CROW] Request: 127.0.0.1:39056 0x7fb5a1389bd0 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 03:33:35.928] [32mINFO   [0m [CROW] Response: 0x7fb5a1389bd0 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:33:35.945] [32mINFO   [0m [CROW] Request: 127.0.0.1:39070 0x7fb5a138afd0 HTTP/1.1 GET /v1/sdapi/v1/backend-devices
+[2026-10-07 03:33:35.945] [32mINFO   [0m [CROW] Response: 0x7fb5a138afd0 /v1/sdapi/v1/backend-devices 200 1
+[2026-10-07 03:33:35.971] [32mINFO   [0m [CROW] Request: 127.0.0.1:39098 0x7fb5a138afd0 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 03:33:35.971] [32mINFO   [0m Model change detected, loading new model: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf
+[2026-10-07 03:33:35.971] [32mINFO   [0m Initializing SD context with model: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf
+[2026-10-07 03:33:35.972] [32mINFO   [0m stable-diffusion.cpp:745  - loading model from '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf'
+[2026-10-07 03:33:35.972] [32mINFO   [0m model_loader.cpp:176  - load /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf using gguf format
+[2026-10-07 03:33:35.985] [32mINFO   [0m stable-diffusion.cpp:1022 - Version: SD 1.x 
+[2026-10-07 03:33:35.991] [32mINFO   [0m stable-diffusion.cpp:1106 - Weight type stat:                      f16: 839  |    q4_0: 291  
+[2026-10-07 03:33:35.991] [32mINFO   [0m stable-diffusion.cpp:1107 - Conditioner weight type stat:          f16: 196  
+[2026-10-07 03:33:35.991] [32mINFO   [0m stable-diffusion.cpp:1108 - Diffusion model weight type stat:      f16: 395  |    q4_0: 291  
+[2026-10-07 03:33:35.991] [32mINFO   [0m stable-diffusion.cpp:1109 - VAE weight type stat:                  f16: 248  
+[2026-10-07 03:33:36.111] [32mINFO   [0m [CROW] Request: 127.0.0.1:39114 0x7fb59c249200 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 03:33:36.111] [32mINFO   [0m [CROW] Response: 0x7fb59c249200 /v1/sdapi/v1/txt2img 409 1
+[2026-10-07 03:33:36.129] [32mINFO   [0m [CROW] Request: 127.0.0.1:39122 0x7fb577ec38e0 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 03:33:36.129] [32mINFO   [0m [CROW] Response: 0x7fb577ec38e0 /v1/sdapi/v1/options 409 1
+[2026-10-07 03:33:36.146] [32mINFO   [0m [CROW] Request: 127.0.0.1:39132 0x7fb57787a860 HTTP/1.1 POST /v1/sdapi/v1/interrupt
+[2026-10-07 03:33:36.146] [32mINFO   [0m [CROW] Response: 0x7fb57787a860 /v1/sdapi/v1/interrupt 409 1
+[2026-10-07 03:33:36.164] [32mINFO   [0m [CROW] Request: 127.0.0.1:39140 0x7fb5773d36d0 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 03:33:36.164] [32mINFO   [0m [CROW] Response: 0x7fb5773d36d0 /v1/sdapi/v1/options 200 1
+[2026-10-07 03:33:36.168] [32mINFO   [0m stable-diffusion.cpp:1862 - using VAE for encoding / decoding
+[2026-10-07 03:33:36.168] [32mINFO   [0m auto_encoder_kl.hpp:527  - vae decoder: ch = 128
+[2026-10-07 03:33:36.169] [32mINFO   [0m stable-diffusion.cpp:2200 - total params memory size = 1667.59MB (VRAM 1667.59MB, RAM 0.00MB): text_encoders 235.06MB(VRAM), clip_vision 0.00MB(N/A), diffusion_model 1272.85MB(VRAM), ip_adapter_projection 0.00MB(N/A), vae 159.68MB(VRAM), controlnet 0.00MB(N/A), extensions 0.00MB(N/A)
+[2026-10-07 03:33:36.169] [32mINFO   [0m stable-diffusion.cpp:2313 - running in eps-prediction mode
+[2026-10-07 03:33:36.169] [32mINFO   [0m SD context initialized successfully
+[2026-10-07 03:33:36.169] [32mINFO   [0m Generating txt2img: prompt='a photograph of a red apple on a wooden table, natural light', size=256x256, steps=2, seed=42
+[2026-10-07 03:33:36.169] [32mINFO   [0m Automatic VAE fallback configured for 32x32 latent tiles with 16-pixel overlap
+[2026-10-07 03:33:36.169] [32mINFO   [0m stable-diffusion.cpp:6769 - generate_image 256x256
+[2026-10-07 03:33:36.169] [32mINFO   [0m denoiser.hpp:1177 - get_sigmas with discrete scheduler
+[2026-10-07 03:33:36.169] [32mINFO   [0m stable-diffusion.cpp:5428 - sampling using Euler method
+  |#                                                 | 2/196 - 0.00MB/s[K

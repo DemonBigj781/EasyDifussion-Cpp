@@ -1,0 +1,38 @@
+{
+  "sdk_sha256": "85b8c37a406d862e656ad4ec14be9f6ce474c1b436b9615e91a55208aced3f44",
+  "commands": [
+    [
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++",
+      "-std=c++20",
+      "-O1",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-pthread",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/src/config.cpp",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/tests/config_probe.cpp",
+      "-I/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/src",
+      "-I/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty",
+      "-o",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/config-test/config-probe.com.dbg"
+    ],
+    [
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/apelink",
+      "-o",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/config-test/config-probe.exe",
+      "-l",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/config-test/config-probe.com.dbg"
+    ]
+  ],
+  "sources": {
+    "src/config.cpp": "ed9341fb0fcceae508a7d0db754ea5fa0daa0478b45cab338ab835211b54ba75",
+    "tests/config_probe.cpp": "c814423e726575ebeee23bcb0c7313953cd0b85a5b9086ab78352f751d2d5ace"
+  },
+  "artifact": {
+    "file": "config-probe.exe",
+    "bytes": 1858411,
+    "sha256": "cd271c35f5e865af5a0f785d60863977b7a5d39aad05f73fc19e9e7dff6e7f6c"
+  }
+}

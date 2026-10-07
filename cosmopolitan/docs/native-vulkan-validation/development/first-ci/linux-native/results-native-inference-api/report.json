@@ -1,0 +1,319 @@
+{
+  "status": "failed",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "backend": "webgpu",
+  "provider_policy": "native",
+  "requested_device": "WebGPU0",
+  "require_hardware": false,
+  "scope": "Real pinned SD1.5 native HTTP inference, request lifecycle, and served Generate assets",
+  "filesystem_isolated": false,
+  "fresh_working_directory": true,
+  "browser_execution_tested": false,
+  "model": {
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "expected_sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "bytes": 1747190784,
+    "sha256_before": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "sha256_after": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b"
+  },
+  "http_events": [
+    {
+      "path": "/v1/internal/ping",
+      "method": "GET",
+      "error": "<urlopen error [Errno 111] Connection refused>",
+      "seconds": 0.0014
+    },
+    {
+      "path": "/v1/internal/ping",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/sdapi/v1/cosmopolitan-capabilities",
+      "method": "GET",
+      "status": 200,
+      "bytes": 358,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/kiosk",
+      "method": "GET",
+      "status": 200,
+      "bytes": 83,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/kiosk",
+      "method": "POST",
+      "status": 501,
+      "bytes": 94,
+      "seconds": 0.0006
+    },
+    {
+      "path": "/kiosk",
+      "method": "GET",
+      "status": 200,
+      "bytes": 83,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/",
+      "method": "GET",
+      "status": 200,
+      "bytes": 8654,
+      "seconds": 0.001
+    },
+    {
+      "path": "/cpp-ui/scripts/kiosk.js",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2146,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/cpp-ui/scripts/generate.js",
+      "method": "GET",
+      "status": 200,
+      "bytes": 17617,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/sdapi/v1/checkpoints",
+      "method": "GET",
+      "status": 200,
+      "bytes": 55,
+      "seconds": 0.0083
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/backend-devices",
+      "method": "GET",
+      "status": 200,
+      "bytes": 673,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 404,
+      "bytes": 28,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "status": 200,
+      "bytes": 125,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "status": 409,
+      "bytes": 51,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "POST",
+      "status": 409,
+      "bytes": 51,
+      "seconds": 0.0007
+    },
+    {
+      "path": "/v1/sdapi/v1/interrupt",
+      "method": "POST",
+      "status": 409,
+      "bytes": 61,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/sdapi/v1/options",
+      "method": "GET",
+      "status": 200,
+      "bytes": 195,
+      "seconds": 0.0008
+    },
+    {
+      "path": "/v1/internal/progress",
+      "method": "POST",
+      "error": "[Errno 104] Connection reset by peer",
+      "seconds": 1.8358
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "error": "Remote end closed connection without response",
+      "seconds": 2.0462
+    }
+  ],
+  "model_pin": {
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/PIN.json",
+    "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+    "metadata": {
+      "schema": 1,
+      "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+      "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+      "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+      "bytes": 1747190784,
+      "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+      "url": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/resolve/dcac270609fffc0ce7c7d41a3c0e752721859f7c/stable-diffusion-v1-5-Q4_0.gguf",
+      "model_card": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/blob/dcac270609fffc0ce7c7d41a3c0e752721859f7c/README.md",
+      "license": "creativeml-openrail-m",
+      "architecture": "Stable Diffusion 1.5",
+      "components": {
+        "diffusion": "Q4_0 conversion",
+        "clip_l": "F16",
+        "vae": "F16"
+      },
+      "purpose": "External trained image-inference validation checkpoint; never embedded into the application or committed to Git",
+      "short_run_scope": "Small-resolution, few-step runs test loading, denoising and image decoding; they are not image-quality benchmarks"
+    }
+  },
+  "sha256_before": "b5f1ef5e13adf049e8e938d8ab157807c7748fff9a2934080c5d44ae5e5acf6e",
+  "command": [
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+    "sdkit",
+    "--backend",
+    "webgpu",
+    "--provider",
+    "native",
+    "--device",
+    "WebGPU0",
+    "--ckpt-dir",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models",
+    "--port",
+    "46443"
+  ],
+  "launch_mode": "explicit APE ELF loader",
+  "vulkan_icd": "/usr/share/vulkan/icd.d/lvp_icd.json",
+  "lavapipe_threads": 2,
+  "ui": {
+    "capabilities": {
+      "output_formats": [
+        "png"
+      ],
+      "companion_models_ui": false,
+      "cancel_during_model_load": false,
+      "full_checkpoint_required": true,
+      "mode": "native-single-user",
+      "txt2img": true,
+      "generation_plugins_ui": false,
+      "max_concurrent_generations": 1,
+      "img2img_ui": false,
+      "kiosk_enabled": false,
+      "protocol": 1,
+      "persistent_configuration": true,
+      "kiosk_supported": false,
+      "configuration_schema": 1
+    },
+    "kiosk": {
+      "allowed_models": [],
+      "enabled": false,
+      "supported": false,
+      "mode": "native-single-user"
+    },
+    "scripts": [
+      {
+        "path": "/cpp-ui/scripts/kiosk.js",
+        "bytes": 2146,
+        "sha256": "aa81a4fb833f9948149612d948f18b09df2f9519aa3dc80b6d0524498a81141a"
+      },
+      {
+        "path": "/cpp-ui/scripts/generate.js",
+        "bytes": 17617,
+        "sha256": "b6fc7d415d1a43d14cb10214caef7825563c3cc22939739d55699417864e8f39"
+      }
+    ],
+    "browser_execution_tested": false
+  },
+  "baseline_options": {
+    "show_progress_every_n_steps": 5,
+    "sdxl_clip_l_skip": false,
+    "forge_additional_modules": [],
+    "samples_format": "png",
+    "live_previews_enable": false,
+    "sd_model_checkpoint": "",
+    "CLIP_stop_at_last_layers": -1
+  },
+  "devices": {
+    "provider_policy": "native",
+    "default_webgpu_selector": "WebGPU0",
+    "unavailable": [],
+    "devices": [
+      {
+        "selector": "WebGPU0",
+        "description": "WebGPU / native / software CPU / llvmpipe (LLVM 20.1.2, 256 bits)",
+        "memory_total": null,
+        "software": true,
+        "stable_id_available": false,
+        "backend": "WebGPU",
+        "selector_scope": "process",
+        "stable_id": "",
+        "type": "software",
+        "memory_known": false,
+        "vendor": "",
+        "provider": "native",
+        "memory_free": null
+      },
+      {
+        "memory_free": 16766414848,
+        "provider": "builtin",
+        "memory_known": true,
+        "vendor": "",
+        "type": "cpu",
+        "stable_id": "",
+        "selector_scope": "process",
+        "backend": "CPU",
+        "stable_id_available": false,
+        "memory_total": 16766414848,
+        "software": true,
+        "description": "CPU",
+        "selector": "CPU"
+      }
+    ]
+  },
+  "selected_device": {
+    "selector": "WebGPU0",
+    "description": "WebGPU / native / software CPU / llvmpipe (LLVM 20.1.2, 256 bits)",
+    "memory_total": null,
+    "software": true,
+    "stable_id_available": false,
+    "backend": "WebGPU",
+    "selector_scope": "process",
+    "stable_id": "",
+    "type": "software",
+    "memory_known": false,
+    "vendor": "",
+    "provider": "native",
+    "memory_free": null
+  },
+  "server_exit_before_cleanup": null,
+  "server_cleanup_exit_status": -11,
+  "error": "[Errno 104] Connection reset by peer",
+  "sha256_after": "b5f1ef5e13adf049e8e938d8ab157807c7748fff9a2934080c5d44ae5e5acf6e",
+  "app_hash_unchanged": true,
+  "model_hash_unchanged": true,
+  "elapsed_seconds": 5.814,
+  "evidence": [
+    {
+      "path": "server.stdout.log",
+      "bytes": 7025,
+      "sha256": "f967579005d13ce4c1874d7c70eacce07791e2bce7ed09e225e2de4a6b0a8d71"
+    },
+    {
+      "path": "server.stderr.log",
+      "bytes": 527,
+      "sha256": "9893df2e3a9a772a618d045636706a8bf3a1d601e70ed3d761b4cef6a7458edf"
+    }
+  ]
+}

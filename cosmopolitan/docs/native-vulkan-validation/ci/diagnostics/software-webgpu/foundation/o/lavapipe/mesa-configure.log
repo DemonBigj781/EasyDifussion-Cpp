@@ -1,0 +1,303 @@
++ /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/venv/bin/meson setup /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/build-cosmo /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/mesa-25.2.8 --cross-file /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/cosmo-x86_64.ini --wrap-mode=nofallback --force-fallback-for=llvm --buildtype=release -Ddefault_library=static -Dcpp_rtti=false -Dcpp_std=c++20 -Db_lto=false '-Dplatforms=[]' '-Dgallium-drivers=[]' -Dvulkan-drivers=swrast '-Dvulkan-layers=[]' -Dopengl=false -Dgles1=disabled -Dgles2=disabled -Degl=disabled -Dglx=disabled -Dgbm=disabled -Dglvnd=disabled -Dllvm=enabled -Dshared-llvm=disabled -Dllvm-orcjit=false -Dzlib=disabled -Dzstd=disabled -Dexpat=disabled -Dxmlconfig=disabled -Dshader-cache=disabled -Dlibunwind=disabled -Dlmsensors=disabled -Dgallium-rusticl=false '-Dvideo-codecs=[]'
+The Meson build system
+Version: 1.12.1
+Source dir: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/mesa-25.2.8
+Build dir: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/build-cosmo
+Build type: cross build
+Project name: mesa
+Project version: 25.2.8
+C compiler for the host machine: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-cc (gcc 14.1.0 "x86_64-unknown-cosmo-cc (GCC) 14.1.0")
+C linker for the host machine: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-cc ld.bfd 2.42
+C++ compiler for the host machine: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++ (gcc 14.1.0 "x86_64-unknown-cosmo-c++ (GCC) 14.1.0")
+C++ linker for the host machine: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++ ld.bfd 2.42
+C compiler for the build machine: cc (gcc 13.3.0 "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0")
+C linker for the build machine: cc ld.bfd 2.42
+C++ compiler for the build machine: c++ (gcc 13.3.0 "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0")
+C++ linker for the build machine: c++ ld.bfd 2.42
+Build machine cpu family: x86_64
+Build machine cpu: x86_64
+Host machine cpu family: x86_64
+Host machine cpu: x86_64
+Target machine cpu family: x86_64
+Target machine cpu: x86_64
+Checking for size of "void*" : 8 
+Checking if "-mtls-dialect=gnu2" runs: YES
+Checking if "split TLSDESC" links: YES 
+Dependency libglvnd for host machine skipped: feature glvnd disabled
+Dependency vdpau for host machine skipped: feature gallium-vdpau disabled
+Program glslangValidator found: YES (/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/host-bin/glslangValidator)
+Dependency libva for host machine skipped: feature gallium-va disabled
+Program python3 found: YES 3.12.3 3.12.3 (/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/venv/bin/python3)
+Fetching value of define "ETIME" : ETIME 
+Compiler for C supports arguments -gsplit-dwarf: YES 
+Compiler for C supports link arguments -Wl,--gdb-index: NO 
+Checking for function "bswap32" : YES 
+Checking for function "bswap64" : YES 
+Checking for function "clz" : YES 
+Checking for function "clzll" : YES 
+Checking for function "ctz" : YES 
+Checking for function "expect" : YES 
+Checking for function "ffs" : YES 
+Checking for function "ffsll" : YES 
+Checking for function "popcount" : YES 
+Checking for function "popcountll" : YES 
+Checking for function "unreachable" : YES 
+Checking for function "types_compatible_p" : YES 
+Compiler for C supports function attribute const: YES 
+Compiler for C supports function attribute flatten: YES 
+Compiler for C supports function attribute malloc: YES 
+Compiler for C supports function attribute pure: YES 
+Compiler for C supports function attribute unused: YES 
+Compiler for C supports function attribute warn_unused_result: YES 
+Compiler for C supports function attribute weak: YES 
+Compiler for C supports function attribute format: YES 
+Compiler for C supports function attribute packed: YES 
+Compiler for C supports function attribute returns_nonnull: YES 
+Compiler for C supports function attribute alias: YES 
+Compiler for C supports function attribute noreturn: YES 
+Compiler for C supports function attribute optimize: YES 
+Compiler for C supports function attribute visibility:hidden: YES 
+Checking if "__uint128_t" compiles: YES 
+Checking for function "reallocarray" : YES 
+Checking for function "fmemopen" : YES 
+Checking if "gc-sections" links: YES 
+Compiler for C supports arguments -Werror=implicit-function-declaration: YES 
+Compiler for C supports arguments -Werror=missing-prototypes: YES 
+Compiler for C supports arguments -Werror=return-type: YES 
+Compiler for C supports arguments -Werror=empty-body: YES 
+Compiler for C supports arguments -Werror=incompatible-pointer-types: YES 
+Compiler for C supports arguments -Werror=int-conversion: YES 
+Compiler for C supports arguments -Wimplicit-fallthrough: YES 
+Compiler for C supports arguments -Wmisleading-indentation: YES 
+Compiler for C supports arguments -Wno-missing-field-initializers: YES 
+Compiler for C supports arguments -Wno-format-truncation: YES 
+Compiler for C supports arguments -Wno-nonnull-compare: YES 
+Compiler for C supports arguments -fno-math-errno: YES 
+Compiler for C supports arguments -fno-trapping-math: YES 
+Compiler for C supports arguments -Qunused-arguments: NO 
+Compiler for C supports arguments -fno-common: YES 
+Compiler for C supports arguments -Wno-unknown-pragmas: YES 
+Compiler for C supports arguments -Wno-microsoft-enum-value: NO 
+Compiler for C supports arguments -Wno-unused-function: YES 
+Compiler for C supports arguments -Werror=format: YES 
+Compiler for C supports arguments -Wformat-security: YES 
+Compiler for C supports arguments -Werror=thread-safety: NO 
+Compiler for C supports arguments -ffunction-sections: YES 
+Compiler for C supports arguments -fdata-sections: YES 
+Compiler for C supports arguments -Wno-unused-variable: YES 
+Compiler for C supports arguments -Wno-unused-but-set-variable: YES 
+Compiler for C supports arguments /wd4189: NO 
+Compiler for C++ supports arguments -Werror=return-type: YES 
+Compiler for C++ supports arguments -Werror=empty-body: YES 
+Compiler for C++ supports arguments -Wmisleading-indentation: YES 
+Compiler for C++ supports arguments -Wno-non-virtual-dtor: YES 
+Compiler for C++ supports arguments -Wno-missing-field-initializers: YES 
+Compiler for C++ supports arguments -Wno-format-truncation: YES 
+Compiler for C++ supports arguments -fno-math-errno: YES 
+Compiler for C++ supports arguments -fno-trapping-math: YES 
+Compiler for C++ supports arguments -Qunused-arguments: NO 
+Compiler for C++ supports arguments -flifetime-dse=1: YES 
+Compiler for C++ supports arguments -Wno-unknown-pragmas: YES 
+Compiler for C++ supports arguments -Wno-microsoft-enum-value: NO 
+Compiler for C++ supports arguments -Werror=format: YES 
+Compiler for C++ supports arguments -Wformat-security: YES 
+Compiler for C++ supports arguments -ffunction-sections: YES 
+Compiler for C++ supports arguments -fdata-sections: YES 
+Compiler for C++ supports arguments -Wno-unused-variable: YES 
+Compiler for C++ supports arguments -Wno-unused-but-set-variable: YES 
+Compiler for C++ supports arguments /wd4189: NO 
+Compiler for C supports arguments -Wno-override-init: YES 
+Compiler for C supports arguments -Wno-initializer-overrides: NO 
+Compiler for C supports arguments -Werror=pointer-arith: YES 
+Compiler for C supports arguments -Werror=vla: YES 
+Compiler for C supports arguments -Werror=gnu-empty-initializer: NO 
+Compiler for C++ supports arguments -Werror=pointer-arith: YES 
+Compiler for C++ supports arguments -Werror=vla: YES 
+Compiler for C++ supports arguments -Werror=gnu-empty-initializer: NO 
+Checking for function "__builtin_ia32_clflushopt" : YES 
+Checking if "GCC atomic builtins" compiles: YES 
+Checking if "GCC atomic builtins required -latomic" links: YES 
+Checking if "GCC 64bit atomics" with dependency  links: YES 
+Library ws2_32 found: NO
+Header "sys/sysmacros.h" has symbol "major" : YES 
+Header "sys/sysmacros.h" has symbol "minor" : YES 
+Header "sys/sysmacros.h" has symbol "makedev" : YES 
+Header "sys/mkdev.h" has symbol "major" : NO 
+Check usable header "sched.h" : YES 
+Checking for function "sched_getaffinity" : YES 
+Check usable header "sys/sysctl.h" : NO 
+Check usable header "xlocale.h" : NO 
+Check usable header "linux/futex.h" : YES 
+Check usable header "endian.h" : YES 
+Check usable header "dlfcn.h" : YES 
+Check usable header "sys/shm.h" : NO 
+Check usable header "cet.h" : NO 
+Check usable header "pthread_np.h" : NO 
+Check usable header "sys/inotify.h" : NO 
+Check usable header "linux/udmabuf.h" : NO 
+Checking for function "strtof" : YES 
+Checking for function "mkostemp" : YES 
+Checking for function "random_r" : NO 
+Checking for function "flock" : YES 
+Checking for function "strtok_r" : YES 
+Checking for function "getrandom" : YES 
+Checking for function "qsort_s" : NO 
+Checking for function "posix_fallocate" : NO 
+Checking for function "secure_getenv" : YES 
+Checking if "GNU qsort_r" links: YES 
+Header "time.h" has symbol "struct timespec" : YES 
+Checking for function "thrd_create" : YES 
+Header "errno.h" has symbol "program_invocation_name" : YES 
+Header "math.h" has symbol "issignaling" : NO 
+Checking for function "posix_memalign" : YES 
+Checking whether type "struct dirent" has member "d_type" : YES 
+Checking if "strtod has locale support" links: YES 
+Checking if "Bsymbolic" links: YES 
+Checking if "version-script" links: YES 
+Checking if "dynamic-list" links: YES 
+Compiler for C supports link arguments -Wl,--build-id=sha1: NO 
+Checking for function "clock_gettime" : YES 
+Dependency zlib for host machine skipped: feature zlib disabled
+Dependency libzstd for host machine skipped: feature zstd disabled
+Run-time dependency threads found: YES
+Checking for function "pthread_setaffinity_np" with dependency threads: YES 
+Dependency expat for host machine skipped: feature expat disabled
+Library m found: YES
+WARNING: Found pkg-config '/usr/bin/false' but it failed when ran
+Found pkg-config: NO
+Found CMake: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/cmake (3.31.10)
+Run-time dependency libudev found: NO  (tried pkg-config and cmake)
+Looking for a fallback subproject for the dependency llvm (modules: bitwriter, engine, mcdisassembler, mcjit, core, executionengine, scalaropts, transformutils, instcombine, native) because:
+Use of fallback dependencies is forced.
+Building fallback subproject with default_library=static
+
+Executing subproject llvm for machine: host 
+
+llvm| Project name: cosmopolitan-static-llvm
+llvm| Project version: 19.1.7
+llvm| C++ compiler for the host machine: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++ (gcc 14.1.0 "x86_64-unknown-cosmo-c++ (GCC) 14.1.0")
+llvm| C++ linker for the host machine: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++ ld.bfd 2.42
+llvm| C++ compiler for the build machine: c++ (gcc 13.3.0 "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0")
+llvm| C++ linker for the build machine: c++ ld.bfd 2.42
+llvm| Build targets in project: 0
+llvm| Subproject llvm finished.
+
+Dependency llvm (modules: bitwriter, engine, mcdisassembler, mcjit, core, executionengine, scalaropts, transformutils, instcombine, native) for host machine from subproject subprojects/llvm found: YES 19.1.7
+Run-time dependency spirv-tools found: NO  (tried pkg-config and cmake)
+Run-time dependency lua54 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua5.4 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua-5.4 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua53 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua5.3 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua-5.3 found: NO  (tried pkg-config and cmake)
+Run-time dependency lua found: NO  (tried pkg-config)
+Run-time dependency libelf found: NO  (tried pkg-config and cmake)
+Library elf found: NO
+Run-time dependency valgrind found: NO  (tried pkg-config)
+Program bison found: YES (/usr/bin/bison)
+Program bison found: YES 3.8.2 3.8.2 (/usr/bin/bison)
+Program flex found: YES (/usr/bin/flex)
+Dependency libunwind for host machine skipped: feature libunwind disabled
+Library sensors skipped: feature lmsensors disabled
+Program nm found: YES (/usr/bin/nm)
+Program symbols-check.py found: YES (/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/venv/bin/python /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/mesa-25.2.8/bin/symbols-check.py)
+Program install_megadrivers.py found: YES (/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/venv/bin/python /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/mesa-25.2.8/bin/install_megadrivers.py)
+Checking for size of "void *" : 8 
+Compiler for C supports arguments -Wno-misleading-indentation: YES 
+Program decode.py found: YES (/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/mesa-25.2.8/src/compiler/isaspec/decode.py)
+Program encode.py found: YES (/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/mesa-25.2.8/src/compiler/isaspec/encode.py)
+Program sphinx-build skipped: feature html-docs disabled
+Build targets in project: 85
+NOTICE: Future-deprecated features used:
+ * 1.12.0: {'"build_target" keyword argument "name_prefix" of type list'}
+
+mesa 25.2.8
+
+  Directories
+    prefix            : /usr/local
+    libdir            : lib
+    includedir        : include
+
+  Common C and C++ arguments
+    c_cpp_args        : -mtls-dialect=gnu2
+
+  OpenGL
+    OpenGL            : NO
+    ES1               : NO
+    ES2               : NO
+    GLVND             : NO
+
+  DRI
+    Platform          : none
+    Driver dir        : /usr/local/lib/dri
+
+  GLX
+    Enabled           : NO
+    Provider          : None
+
+  EGL
+    Enabled           : NO
+
+  GBM
+    Enabled           : NO
+
+  Vulkan
+    Drivers           : swrast
+    Platforms         :
+    ICD dir           : share/vulkan/icd.d
+    Intel Ray tracing : NO
+
+  Video
+    Codecs            : NO
+    APIs              : vulkan
+
+  LLVM
+    Required          : enabled
+    Version           : 19.1.7
+
+  Gallium
+    Enabled           : NO
+
+  Perfetto
+    Enabled           : NO
+
+  Teflon (TensorFlow Lite delegate)
+    Enabled           : NO
+
+  Subprojects (for host machine)
+    llvm              : YES
+
+  User defined options
+    Cross files       : /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/o/lavapipe/cosmo-x86_64.ini
+    b_lto             : false
+    buildtype         : release
+    cpp_rtti          : false
+    cpp_std           : c++20
+    default_library   : static
+    egl               : disabled
+    expat             : disabled
+    force_fallback_for: llvm
+    gallium-drivers   : []
+    gallium-rusticl   : false
+    gbm               : disabled
+    gles1             : disabled
+    gles2             : disabled
+    glvnd             : disabled
+    glx               : disabled
+    libunwind         : disabled
+    llvm              : enabled
+    llvm-orcjit       : false
+    lmsensors         : disabled
+    opengl            : false
+    platforms         : []
+    shader-cache      : disabled
+    shared-llvm       : disabled
+    video-codecs      : []
+    vulkan-drivers    : swrast
+    vulkan-layers     : []
+    wrap_mode         : nofallback
+    xmlconfig         : disabled
+    zlib              : disabled
+    zstd              : disabled
+
+Found ninja-1.13.0.git.kitware.jobserver-pipe-1 at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja

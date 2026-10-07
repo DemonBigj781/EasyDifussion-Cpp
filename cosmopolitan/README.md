@@ -11,7 +11,7 @@ remain linked in the same process.
 **Status: experimental native integration.** Application API parity,
 full training validation, LibTorch/ONNX tools, remaining Python
 replacements and hardware acceleration have separate completion gates.
-The recorded CI artifact passed direct WebGPU scalar-reference graphs,
+The historical inference artifact passed direct WebGPU scalar-reference graphs,
 sixteen-token trained text inference, and SD 1.5 checkpoint-to-PNG generation
 on CPU and embedded software WebGPU on Windows and Linux, using unchanged
 executable bytes. CPU native HTTP generation, responsive progress and early
@@ -28,9 +28,16 @@ and embedded provider policies. Settings and GPU pages use the same native
 configuration store as the CLI. See [CONFIGURATION.md](CONFIGURATION.md) for
 the generated `easy-diffusion.json`, startup settings, live options and restart
 behavior, and [backend details](backend/README.md) for the driver/threading
-contract. These additions do not turn the earlier software-only validation
-record into physical GPU evidence. The native CI gate identifies its host
-software driver and exercises it separately.
+contract. The [native Vulkan validation record](../COSMOPOLITAN_NATIVE_VULKAN_VALIDATION.md)
+identifies clean source `1730424270e35ff4a06bd978654c9990cfd5777e` and
+[run 37568302821](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37568302821).
+Its Linux native-provider gate passed direct GGML graphs and trained text
+inference through an installed Mesa software Vulkan driver, native and embedded
+graph execution in one process, and native-provider WebGPU HTTP SD 1.5 image
+generation. These results validate the tested native-driver integration;
+the adapter still executes on the CPU. Physical GPU acceleration remains
+unvalidated, and the historical Windows/Linux software results retain their
+original artifact and scope.
 
 The native `image` command now loads a complete diffusion checkpoint and
 writes a PNG through the shared engine. The portable Generate page uses the

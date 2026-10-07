@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "scope": "Local exact-workload native CLI regression on corrected final CI application; software llvmpipe, two-step plumbing only; separate from CI HTTP and physical GPU validation",
+  "hash_algorithm": "SHA-256",
+  "source_commit": "1730424270e35ff4a06bd978654c9990cfd5777e",
+  "application_sha256": "7dd513293f53bc39bd7c92e3aaff0522c89f0d543c3390b4dd95e2f590b507b9",
+  "files": [
+    {
+      "path": "application/BUILD.json",
+      "source": "cosmopolitan/out/native-final-ci/application/BUILD.json",
+      "bytes": 317324,
+      "sha256": "f0f43ab3d85b7fce4ae4bf382041e1866ca6f0c8032c229618ea36db89cfa1d6",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "application/verify_inference.py",
+      "source": "cosmopolitan/out/native-final-ci/application/verify_inference.py",
+      "bytes": 30002,
+      "sha256": "65047c714c5f247273e58a102dda90a9261e897bf40f3d9d5ec98830b46b797c",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "application/verify_runtime.py",
+      "source": "cosmopolitan/out/native-final-ci/application/verify_runtime.py",
+      "bytes": 24724,
+      "sha256": "b8c69a3e558cecf2f2c3212d25ef33dcf5e059d99bf4ba8f63526de336fca5f4",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "direct.stderr.log",
+      "source": "cosmopolitan/out/native-loader-fixed-repro/direct.stderr.log",
+      "bytes": 456,
+      "sha256": "b17b0193b7bb3372496aaf115167ff3c1398721aa34ab0ddb5f1eed31a5b6ac6",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "direct.stdout.log",
+      "source": "cosmopolitan/out/native-loader-fixed-repro/direct.stdout.log",
+      "bytes": 1208,
+      "sha256": "75db355e2ef278994066214e301cfd7c57727e71b3ac1105cb6c56e00dda0107",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "image.png",
+      "source": "cosmopolitan/out/native-loader-fixed-repro/image.png",
+      "bytes": 157138,
+      "sha256": "b8c6991041659e06275a1071d3092d430637f041c8de7101ceb7c63a1c7f21e0",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "prelaunch-permission/report.json",
+      "source": "cosmopolitan/out/native-loader-fixed-repro/prelaunch-permission/report.json",
+      "bytes": 3816,
+      "sha256": "7f784ca6b341d305b6583c70271b9c8b369ce2eec911039c47ae468bfef2c8f1",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "report.json",
+      "source": "cosmopolitan/out/native-loader-fixed-repro/report.json",
+      "bytes": 5829,
+      "sha256": "505b2791d0c37dca9e0eb1241e844c0f849db90352bad66856bbd42a35575105",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "run.py",
+      "source": "cosmopolitan/out/native-loader-fixed-repro/run.py",
+      "bytes": 8036,
+      "sha256": "a9756c432b1f2b6668ce0b39a349ed02ba348039290d530a68b1bf8e59839f99",
+      "preserved_unchanged": true
+    }
+  ],
+  "file_count": 9,
+  "total_bytes": 548533
+}

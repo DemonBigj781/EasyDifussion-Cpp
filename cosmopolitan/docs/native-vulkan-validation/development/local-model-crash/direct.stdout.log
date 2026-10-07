@@ -1,0 +1,4 @@
+IMAGE_DEVICE selector=WebGPU0 provider=native software=1 stable_id=unavailable
+IMAGE_MODEL_LOAD backend=webgpu success=1 seconds=0.143182 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0
+IMAGE_PARAMETERS width=256 height=256 steps=2 seed=42 threads=2 cfg_scale=7 sampler=euler_a scheduler=discrete cpu_fallback_allowed=1
+  |##################################################| 196/196 - 1.15GB/s[K

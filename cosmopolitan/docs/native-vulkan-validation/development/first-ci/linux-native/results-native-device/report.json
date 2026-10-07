@@ -1,0 +1,304 @@
+{
+  "status": "passed",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "provider_policy": "native",
+  "requested_device": "WebGPU0",
+  "all_adapters_same_process": false,
+  "require_hardware": false,
+  "filesystem_isolated": false,
+  "software_driver_workers": 2,
+  "commands": [
+    {
+      "label": "graph",
+      "command": [
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+        "webgpu-device-test",
+        "--config",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-native-device/device-runtime-urln5xry/config.json",
+        "--backend",
+        "webgpu",
+        "--provider",
+        "native",
+        "--device",
+        "WebGPU0"
+      ],
+      "expected_application_exit_code": 0,
+      "expected_host_exit_status": 0,
+      "stdout_log": "graph.stdout.log",
+      "stderr_log": "graph.stderr.log",
+      "exit_code": 0,
+      "elapsed_seconds": 5.927
+    },
+    {
+      "label": "llama-0",
+      "command": [
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+        "llama",
+        "--config",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-native-device/device-runtime-urln5xry/config.json",
+        "--backend",
+        "webgpu",
+        "--provider",
+        "native",
+        "--device",
+        "WebGPU0",
+        "--prompt",
+        "Once upon a time",
+        "--tokens",
+        "16",
+        "--threads",
+        "1",
+        "--report-tokens"
+      ],
+      "expected_application_exit_code": 0,
+      "expected_host_exit_status": 0,
+      "stdout_log": "llama-0.stdout.log",
+      "stderr_log": "llama-0.stderr.log",
+      "exit_code": 0,
+      "elapsed_seconds": 3.02
+    },
+    {
+      "label": "hardware-rejection-0",
+      "command": [
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+        "webgpu-device-test",
+        "--config",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-native-device/device-runtime-urln5xry/config.json",
+        "--backend",
+        "webgpu",
+        "--provider",
+        "native",
+        "--device",
+        "WebGPU0",
+        "--require-hardware"
+      ],
+      "expected_application_exit_code": 1,
+      "expected_host_exit_status": 1,
+      "stdout_log": "hardware-rejection-0.stdout.log",
+      "stderr_log": "hardware-rejection-0.stderr.log",
+      "exit_code": 1,
+      "elapsed_seconds": 0.064
+    }
+  ],
+  "devices": [
+    {
+      "selector": "WebGPU0",
+      "provider": "native",
+      "software": true,
+      "adapter_type": 3,
+      "device_kind": "software-cpu",
+      "hardware_verified": false,
+      "adapter_name": "llvmpipe (LLVM 20.1.2, 256 bits)",
+      "native_loader_opens": 1,
+      "cpu_fallback": false,
+      "execution": {
+        "graphs": 4,
+        "submissions": 16,
+        "dispatches": 20,
+        "matmuls": 4,
+        "readbacks": 12
+      },
+      "graph_cases": [
+        {
+          "type": "F32",
+          "iteration": 0,
+          "graphs": 1,
+          "submissions": 4,
+          "dispatches": 5,
+          "matmuls": 1,
+          "readbacks": 3
+        },
+        {
+          "type": "F32",
+          "iteration": 1,
+          "graphs": 1,
+          "submissions": 4,
+          "dispatches": 5,
+          "matmuls": 1,
+          "readbacks": 3
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 0,
+          "graphs": 1,
+          "submissions": 4,
+          "dispatches": 5,
+          "matmuls": 1,
+          "readbacks": 3
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 1,
+          "graphs": 1,
+          "submissions": 4,
+          "dispatches": 5,
+          "matmuls": 1,
+          "readbacks": 3
+        }
+      ],
+      "scalar_checks": [
+        {
+          "type": "F32",
+          "iteration": 0,
+          "stage": "bias-rmsnorm-silu",
+          "values": 143,
+          "max_error": 1.84800599e-07
+        },
+        {
+          "type": "F32",
+          "iteration": 0,
+          "stage": "matmul",
+          "values": 143,
+          "max_error": 0.0
+        },
+        {
+          "type": "F32",
+          "iteration": 0,
+          "stage": "softmax",
+          "values": 143,
+          "max_error": 5.11464063e-08
+        },
+        {
+          "type": "F32",
+          "iteration": 1,
+          "stage": "bias-rmsnorm-silu",
+          "values": 143,
+          "max_error": 2.06550482e-07
+        },
+        {
+          "type": "F32",
+          "iteration": 1,
+          "stage": "matmul",
+          "values": 143,
+          "max_error": 0.0
+        },
+        {
+          "type": "F32",
+          "iteration": 1,
+          "stage": "softmax",
+          "values": 143,
+          "max_error": 5.16552808e-08
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 0,
+          "stage": "bias-rmsnorm-silu",
+          "values": 143,
+          "max_error": 1.87900205e-07
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 0,
+          "stage": "matmul",
+          "values": 143,
+          "max_error": 0.0
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 0,
+          "stage": "softmax",
+          "values": 143,
+          "max_error": 5.79208283e-08
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 1,
+          "stage": "bias-rmsnorm-silu",
+          "values": 143,
+          "max_error": 2.81014707e-07
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 1,
+          "stage": "matmul",
+          "values": 143,
+          "max_error": 0.0
+        },
+        {
+          "type": "Q4_0",
+          "iteration": 1,
+          "stage": "softmax",
+          "values": 143,
+          "max_error": 5.09649803e-08
+        }
+      ],
+      "llama": {
+        "greedy_ids": [
+          432,
+          383,
+          286,
+          261,
+          376,
+          298,
+          315,
+          421,
+          395,
+          317,
+          426,
+          338,
+          401,
+          396,
+          267,
+          337
+        ],
+        "independent_reference_match": true,
+        "finite_logits": true,
+        "decode_steps": 16,
+        "execution": {
+          "graphs": 17,
+          "submissions": 51,
+          "dispatches": 1785,
+          "matmuls": 782,
+          "readbacks": 17
+        },
+        "decode_execution": {
+          "graphs": 16,
+          "submissions": 48,
+          "dispatches": 1680,
+          "matmuls": 736,
+          "readbacks": 16
+        },
+        "native_loader_opens": 1,
+        "cpu_participation_allowed": true,
+        "generated_text": "Once upon a time, there was a little girl named Lily. She loved to play"
+      },
+      "hardware_required_rejection_verified": true
+    }
+  ],
+  "sha256_before": "b5f1ef5e13adf049e8e938d8ab157807c7748fff9a2934080c5d44ae5e5acf6e",
+  "vulkan_icd": {
+    "path": "/usr/share/vulkan/icd.d/lvp_icd.json",
+    "sha256": "70d49f7fd41a7593a4e283543ed4855c139c700e5c1b31792f56e9576ede2398"
+  },
+  "execution_lane": "main-thread-service",
+  "sha256_after": "b5f1ef5e13adf049e8e938d8ab157807c7748fff9a2934080c5d44ae5e5acf6e",
+  "evidence": {
+    "graph.stderr.log": {
+      "bytes": 283,
+      "sha256": "4e7de2f26ae1665e604ea6c103ac8032afdde033e08b05636e4f184681e3b608"
+    },
+    "graph.stdout.log": {
+      "bytes": 2112,
+      "sha256": "fc84766e3d826dc7130f26ad8e1a7c90a112913d956372ea846b084d85982579"
+    },
+    "hardware-rejection-0.stderr.log": {
+      "bytes": 378,
+      "sha256": "763b20ef6f68608bba06d87b43b9c308dd6233fa27f4ce2c7efb5d2ed3af4bc4"
+    },
+    "hardware-rejection-0.stdout.log": {
+      "bytes": 44,
+      "sha256": "15f41796a5db58f7a9fda86a26ad1b8dd4bb37dc7dd78828a9dbaa5ec4d0e1f2"
+    },
+    "llama-0.stderr.log": {
+      "bytes": 17761,
+      "sha256": "988b73371e784836d494c57b874cc0eac0d01d071b85fcbe6cabaf1ca3461c3f"
+    },
+    "llama-0.stdout.log": {
+      "bytes": 72,
+      "sha256": "59570e03692cacb3d67a8682623c590cbcedeeb1351613913ecae62cb88b13dc"
+    }
+  }
+}

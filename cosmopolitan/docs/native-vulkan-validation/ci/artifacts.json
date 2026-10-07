@@ -1,0 +1,105 @@
+{
+  "total_count": 5,
+  "artifacts": [
+    {
+      "id": 11461020322,
+      "node_id": "MDg6QXJ0aWZhY3QxMTQ2MTAyMDMyMg==",
+      "name": "cosmopolitan-linux-results",
+      "size_in_bytes": 482681,
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11461020322",
+      "archive_download_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11461020322/zip",
+      "expired": false,
+      "digest": "sha256:9ebd25689c2f089c2a033f36a445dd33c9d722c7a92aaedd1e7eb09063dec5e0",
+      "created_at": "2026-10-07T04:21:08Z",
+      "updated_at": "2026-10-07T04:21:08Z",
+      "expires_at": "2026-11-06T04:21:07Z",
+      "workflow_run": {
+        "id": 37568302821,
+        "repository_id": 1350969529,
+        "head_repository_id": 1350969529,
+        "head_branch": "cosmopolitan-test",
+        "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e"
+      }
+    },
+    {
+      "id": 11460801023,
+      "node_id": "MDg6QXJ0aWZhY3QxMTQ2MDgwMTAyMw==",
+      "name": "cosmopolitan-windows-results",
+      "size_in_bytes": 479278,
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11460801023",
+      "archive_download_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11460801023/zip",
+      "expired": false,
+      "digest": "sha256:ae23947a3b408e766b214429f81d7ce220c69a9a8fa7fc5ac1f4aa17e495c565",
+      "created_at": "2026-10-07T04:23:24Z",
+      "updated_at": "2026-10-07T04:23:24Z",
+      "expires_at": "2026-11-06T04:23:23Z",
+      "workflow_run": {
+        "id": 37568302821,
+        "repository_id": 1350969529,
+        "head_repository_id": 1350969529,
+        "head_branch": "cosmopolitan-test",
+        "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e"
+      }
+    },
+    {
+      "id": 11460726835,
+      "node_id": "MDg6QXJ0aWZhY3QxMTQ2MDcyNjgzNQ==",
+      "name": "cosmopolitan-linux-native-results",
+      "size_in_bytes": 184442,
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11460726835",
+      "archive_download_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11460726835/zip",
+      "expired": false,
+      "digest": "sha256:9b37f5e8bf01fd09baa7f3672d84b8f11679a105b362c80e812257424fc3c5f5",
+      "created_at": "2026-10-07T04:19:00Z",
+      "updated_at": "2026-10-07T04:19:00Z",
+      "expires_at": "2026-11-06T04:18:59Z",
+      "workflow_run": {
+        "id": 37568302821,
+        "repository_id": 1350969529,
+        "head_repository_id": 1350969529,
+        "head_branch": "cosmopolitan-test",
+        "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e"
+      }
+    },
+    {
+      "id": 11459728047,
+      "node_id": "MDg6QXJ0aWZhY3QxMTQ1OTcyODA0Nw==",
+      "name": "easy-diffusion-cosmopolitan-x86_64",
+      "size_in_bytes": 95784804,
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11459728047",
+      "archive_download_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11459728047/zip",
+      "expired": false,
+      "digest": "sha256:b223ad62158881434e1d87684282a0b73d99be3987ea46245d88a54386e62157",
+      "created_at": "2026-10-07T03:59:09Z",
+      "updated_at": "2026-10-07T03:59:09Z",
+      "expires_at": "2026-11-06T03:59:04Z",
+      "workflow_run": {
+        "id": 37568302821,
+        "repository_id": 1350969529,
+        "head_repository_id": 1350969529,
+        "head_branch": "cosmopolitan-test",
+        "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e"
+      }
+    },
+    {
+      "id": 11459593352,
+      "node_id": "MDg6QXJ0aWZhY3QxMTQ1OTU5MzM1Mg==",
+      "name": "cosmopolitan-build-diagnostics",
+      "size_in_bytes": 65097729,
+      "url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11459593352",
+      "archive_download_url": "https://api.github.com/repos/DemonBigj781/EasyDifussion-Cpp/actions/artifacts/11459593352/zip",
+      "expired": false,
+      "digest": "sha256:816f5c9ad58d20167db743e3a4fb8c2d1169ef10bbec677996b935efc2c76d09",
+      "created_at": "2026-10-07T03:59:14Z",
+      "updated_at": "2026-10-07T03:59:14Z",
+      "expires_at": "2026-10-21T03:59:09Z",
+      "workflow_run": {
+        "id": 37568302821,
+        "repository_id": 1350969529,
+        "head_repository_id": 1350969529,
+        "head_branch": "cosmopolitan-test",
+        "head_sha": "1730424270e35ff4a06bd978654c9990cfd5777e"
+      }
+    }
+  ]
+}

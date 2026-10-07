@@ -1,0 +1,9 @@
+
+--- stdout ---
+Scanning model directories...
+Model scanning complete.
+
+Starting server on port 41343
+Server stopped.
+
+--- stderr ---

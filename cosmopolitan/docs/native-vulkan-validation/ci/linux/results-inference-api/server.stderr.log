@@ -1,0 +1,9 @@
+Created configuration: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-inference-api/native-api-whj5vfxq/easy-diffusion.json
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)
+NATIVE_INFERENCE_WORKER stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np
+NATIVE_INFERENCE_EXECUTION success=1 selector=WebGPU0 provider=embedded software=1 adapter_type=3 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0 native_loader_opens=0
+NATIVE_INFERENCE_WORKER stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np
+[2026-10-07 04:21:05.696] [31mERROR  [0m stable-diffusion.cpp:3361 - diffusion model compute failed
+[2026-10-07 04:21:05.696] [31mERROR  [0m stable-diffusion.cpp:3491 - Diffusion model sampling failed
+[2026-10-07 04:21:05.697] [31mERROR  [0m stable-diffusion.cpp:6891 - sampling for image 1/1 failed after 47.83s
+NATIVE_INFERENCE_EXECUTION success=0 selector=WebGPU0 provider=embedded software=1 adapter_type=3 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0 native_loader_opens=0

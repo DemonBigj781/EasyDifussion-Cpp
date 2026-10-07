@@ -1,0 +1,41 @@
+{
+  "scope": "policy unit with mocked factory",
+  "sdk_sha256": "85b8c37a406d862e656ad4ec14be9f6ce474c1b436b9615e91a55208aced3f44",
+  "commands": [
+    [
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++",
+      "-std=c++20",
+      "-O1",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-pthread",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/backend/wgpu_devices.cpp",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/tests/device_policy_test.cpp",
+      "-I/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/backend/include",
+      "-I/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/runtime",
+      "-I/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/third_party/lavapipe",
+      "-I/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi",
+      "-I/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi/webgpu-headers",
+      "-o",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/device-policy-test/device-policy-test.com.dbg"
+    ],
+    [
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/apelink",
+      "-o",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/device-policy-test/device-policy-test.exe",
+      "-l",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf",
+      "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/device-policy-test/device-policy-test.com.dbg"
+    ]
+  ],
+  "sources_sha256": {
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/backend/wgpu_devices.cpp": "0ffd5641d211f87943f8fa0979c87180c280d2829509f489103ec51bb3773ea5",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/tests/device_policy_test.cpp": "75c9f26226692c59abce7e755149856fd55d9cc687ffbe27d7eee54df93bd309",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi/wgpu.h": "7bd23656d394f620a804b1f174444ea17082b6d330a2fca0c0e6b1121ec4b284",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi/webgpu-headers/webgpu.h": "a483031c3fed05ea5dd1c74082a71676c46c5b2b820ccca10da515c033efc997",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/backend/include/cosmo-webgpu.h": "3bbc7a0d9d94f89ec3573e87785957c41f8d610299e0dd0696dd5e928bf1a271"
+  },
+  "artifact_sha256": "0a958d63a1880c046de24165e6c94d7f064fa679f13787ca20b90f19d23c036c"
+}

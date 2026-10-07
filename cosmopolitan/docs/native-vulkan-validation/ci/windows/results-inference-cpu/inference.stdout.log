@@ -1,0 +1,9 @@
+IMAGE_MODEL_LOAD backend=cpu success=1 seconds=0.166254 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0
+IMAGE_PARAMETERS width=256 height=256 steps=4 seed=42 threads=2 cfg_scale=7 sampler=euler_a scheduler=discrete cpu_fallback_allowed=0
+  |#####################                             | 82/196 - 331.26MB/s[K  |##################################################| 196/196 - 585.33MB/s[K
+  |################                                  | 212/686 - 517.38MB/s[K  |##################                                | 236/686 - 583.31MB/s[K  |#####################                             | 282/686 - 617.90MB/s[K  |#######################                           | 306/686 - 611.18MB/s[K  |########################                          | 318/686 - 544.59MB/s[K  |#########################                         | 340/686 - 558.26MB/s[K  |###############################                   | 422/686 - 587.03MB/s[K  |################################                  | 434/686 - 571.51MB/s[K  |##################################                | 456/686 - 577.05MB/s[K  |##########################################        | 572/686 - 594.35MB/s[K  |##################################################| 686/686 - 560.54MB/s[K
+  |##################################################| 140/140 - 469.63MB/s[K
+IMAGE_GENERATION backend=cpu success=1 seconds=338.694085 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0
+IMAGE_SAMPLING backend=cpu first_step=1 last_step=4 total_steps=4 completed_callbacks=4 intervals=3 monotonic=1 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0
+IMAGE_OUTPUT width=256 height=256 channels=3 pixel_bytes=196608 png_bytes=156929 pixel_min=0 pixel_max=255 pixel_mean=76.371846517
+IMAGE_INFERENCE PASS

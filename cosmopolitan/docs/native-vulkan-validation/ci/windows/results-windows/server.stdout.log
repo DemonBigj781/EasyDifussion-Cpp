@@ -1,0 +1,31 @@
+[2026-10-07 03:59:35.208] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 03:59:35.211] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-07 03:59:35.211] [32mINFO   [0m SdkitModelIndex initialized
+[2026-10-07 03:59:35.211] [32mINFO   [0m Checkpoint directory set to: /C/Users/RUNNER~1/AppData/Local/Temp/easy-diffusion-runtime-blty5slh/tmp/models/checkpoints
+Scanning model directories...
+[2026-10-07 03:59:35.211] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 03:59:35.211] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 03:59:35.211] [32mINFO   [0m ImageGenerator created
+Starting server on port 53241
+[2026-10-07 03:59:35.212] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:53241 using 4 threads
+[2026-10-07 03:59:35.212] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 03:59:35.689] [32mINFO   [0m [CROW] Request: 127.0.0.1:53243 0x6ffffff76460 HTTP/1.1 GET /
+[2026-10-07 03:59:35.689] [32mINFO   [0m [CROW] Response: 0x6ffffff76460 / 200 1
+[2026-10-07 03:59:35.705] [32mINFO   [0m [CROW] Request: 127.0.0.1:53244 0x6ffffff77aa0 HTTP/1.1 GET /cpp-ui/training
+[2026-10-07 03:59:35.705] [32mINFO   [0m [CROW] Response: 0x6ffffff77aa0 /cpp-ui/training 200 1
+[2026-10-07 03:59:35.720] [32mINFO   [0m [CROW] Request: 127.0.0.1:53245 0x6ffffff76460 HTTP/1.1 GET /cpp-ui/assets/ui.css
+[2026-10-07 03:59:35.720] [32mINFO   [0m [CROW] Response: 0x6ffffff76460 /cpp-ui/assets/ui.css 200 1
+[2026-10-07 03:59:35.736] [32mINFO   [0m [CROW] Request: 127.0.0.1:53246 0x6ffffff77aa0 HTTP/1.1 GET /cpp-ui/scripts/generate.js
+[2026-10-07 03:59:35.736] [32mINFO   [0m [CROW] Response: 0x6ffffff77aa0 /cpp-ui/scripts/generate.js 200 1
+[2026-10-07 03:59:35.752] [32mINFO   [0m [CROW] Request: 127.0.0.1:53247 0x6ffffff76460 HTTP/1.1 GET /cpp-ui/scripts/kiosk.js
+[2026-10-07 03:59:35.752] [32mINFO   [0m [CROW] Response: 0x6ffffff76460 /cpp-ui/scripts/kiosk.js 200 1
+[2026-10-07 03:59:35.767] [32mINFO   [0m [CROW] Request: 127.0.0.1:53248 0x6ffffff77aa0 HTTP/1.1 GET /v1/sdapi/v1/cosmopolitan-capabilities
+[2026-10-07 03:59:35.767] [32mINFO   [0m [CROW] Response: 0x6ffffff77aa0 /v1/sdapi/v1/cosmopolitan-capabilities 200 1
+[2026-10-07 03:59:35.783] [32mINFO   [0m [CROW] Request: 127.0.0.1:53249 0x6ffffff76460 HTTP/1.1 GET /v1/sdapi/v1/checkpoints
+[2026-10-07 03:59:35.783] [32mINFO   [0m [CROW] Response: 0x6ffffff76460 /v1/sdapi/v1/checkpoints 200 1
+[2026-10-07 03:59:35.799] [32mINFO   [0m [CROW] Request: 127.0.0.1:53250 0x6ffffff77aa0 HTTP/1.1 GET /v1/sdapi/v1/backend-devices
+[2026-10-07 03:59:35.831] [32mINFO   [0m [CROW] Response: 0x6ffffff77aa0 /v1/sdapi/v1/backend-devices 200 1
+[2026-10-07 03:59:35.845] [32mINFO   [0m [CROW] Request: 127.0.0.1:53251 0x6ffffff76460 HTTP/1.1 GET /cpp-ui/assets/%2e%2e/LICENSE
+[2026-10-07 03:59:35.845] [32mINFO   [0m [CROW] Response: 0x6ffffff76460 /cpp-ui/assets/%2e%2e/LICENSE 404 1
