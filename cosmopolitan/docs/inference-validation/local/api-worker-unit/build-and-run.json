@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "scope": "Local Linux no-model unit execution of the scoped inference worker; not an HTTP, diffusion, GPU, Windows, or same-artifact application validation",
+  "status": "passed",
+  "observation_provenance": "Compiler exit 0 and runtime exit 0 were observed in the original tool result; this metadata was assembled afterward without rebuilding or rerunning the test.",
+  "compile_link": {
+    "command_kind": "reconstructed_after_execution",
+    "command_was_captured_at_execution": false,
+    "reconstruction": "The executed orchestration selected the image_bridge.cpp row from compile_commands.json, removed -o and its output plus -c and its input, inserted the scratch logging-header include directory, and appended the helper, scratch logging implementation, test source, and output path. This argv reconstructs that procedure using the current unchanged image_bridge flags; it was not printed or separately saved during the original compile.",
+    "argv": [
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/toolchain/cxx",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/api-worker-review/include",
+      "-DASIO_DISABLE_EPOLL",
+      "-DASIO_DISABLE_EVENTFD",
+      "-DASIO_DISABLE_SERIAL_PORT",
+      "-DASIO_DISABLE_TIMERFD",
+      "-DCOSMO_BACKWARD_TEST_SOURCE=\"/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/tests/backward_math_test.cpp\"",
+      "-DCOSMO_OPTIMIZER_TEST_SOURCE=\"/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/tests/text_encoder_optimizer_test.cpp\"",
+      "-DCOSMO_TRAINER_SOURCE=\"/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/tools/sd15_lora_train.cpp\"",
+      "-DCOSMO_WEBGPU_BACKEND=1",
+      "-DGGML_MAX_NAME=160",
+      "-DGGML_USE_CPU",
+      "-DGGML_USE_WEBGPU",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/shared-ggml/src",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/llama.cpp/src/../include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/shared-ggml/src/../include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/third_party",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/.",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/UI.cpp/Shared_Core/include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/UI.cpp/Pages/include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/backend/include",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi/webgpu-headers",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/runtime",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/o/webgpu/generated",
+      "-I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/lavapipe",
+      "-march=x86-64",
+      "-mtune=generic",
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-fno-omit-frame-pointer",
+      "-O2",
+      "-DNDEBUG",
+      "-std=gnu++20",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src/inference_worker.cpp",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/api-worker-review/src/logging.cpp",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/api-worker-review/worker-test.cpp",
+      "-o",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/api-worker-review/worker-test.com.dbg"
+    ],
+    "cwd": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/build",
+    "exit_status_observed": 0,
+    "compiler_wrapper": {
+      "path": "cosmopolitan/out/toolchain/cxx",
+      "bytes": 436,
+      "sha256_at_archive": "99afbdcdd7a59122461b54e28642903d217d5f17f4f52fb7543ece8b81f851c2"
+    },
+    "sdk_compiler": {
+      "path": "cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++",
+      "bytes": 8667,
+      "sha256_at_archive": "76f90c8d0de4d1197a581aaae659998e532720e6c034f5264b9719cc18f8b617"
+    },
+    "compiler_wrapper_contents": "#!/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3\nimport os,sys\nbinary='/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/sdk/bin/x86_64-unknown-cosmo-c++'\nloader='/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf'\nwith open(binary,'rb') as f: magic=f.read(4)\nargv=([loader,binary] if magic[:2]==b'MZ' else [binary])+sys.argv[1:]\nos.execv(argv[0],argv)\n",
+    "sdk_release": "Cosmocc 4.0.2",
+    "sdk_archive_sha256_pin": "85b8c37a406d862e656ad4ec14be9f6ce474c1b436b9615e91a55208aced3f44",
+    "compile_row_recorded_at_archive": {
+      "directory": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/build",
+      "command": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/toolchain/cxx -DASIO_DISABLE_EPOLL -DASIO_DISABLE_EVENTFD -DASIO_DISABLE_SERIAL_PORT -DASIO_DISABLE_TIMERFD -DCOSMO_BACKWARD_TEST_SOURCE=\\\"/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/tests/backward_math_test.cpp\\\" -DCOSMO_OPTIMIZER_TEST_SOURCE=\\\"/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/tests/text_encoder_optimizer_test.cpp\\\" -DCOSMO_TRAINER_SOURCE=\\\"/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/tools/sd15_lora_train.cpp\\\" -DCOSMO_WEBGPU_BACKEND=1 -DGGML_MAX_NAME=160 -DGGML_USE_CPU -DGGML_USE_WEBGPU -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/shared-ggml/src -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/llama.cpp/src/../include -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/shared-ggml/src/../include -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/include -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/third_party -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/. -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/include -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/UI.cpp/Shared_Core/include -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/source/UI.cpp/Pages/include -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/backend/include -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/upstream/ffi/webgpu-headers -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/wgpu_native/runtime -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/o/webgpu/generated -I/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/software-webgpu/foundation/third_party/lavapipe -march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -fno-omit-frame-pointer -O2 -DNDEBUG -std=gnu++20 -o CMakeFiles/easy-diffusion.dir/src/image_bridge.cpp.o -c /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src/image_bridge.cpp",
+      "file": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/src/image_bridge.cpp",
+      "output": "CMakeFiles/easy-diffusion.dir/src/image_bridge.cpp.o"
+    },
+    "captured_build_output": "build.log",
+    "captured_build_output_layout": "stdout followed by stderr; empty because compilation emitted no output"
+  },
+  "runtime": {
+    "argv": [
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/ape-x86_64.elf",
+      "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/api-worker-review/worker-test.com.dbg"
+    ],
+    "cwd": "/workspace/scratch/c71296f6d862/easydiffusion-cpp",
+    "timeout_seconds": 30,
+    "exit_status_observed": 0,
+    "loader": {
+      "path": "cosmopolitan/out/ape-x86_64.elf",
+      "bytes": 9249,
+      "sha256_at_archive": "cc31af13515fcf091768bfbf12da899286b35ff1bf1302f304936db4b03d512e"
+    },
+    "executable": {
+      "path": "cosmopolitan/out/api-worker-review/worker-test.com.dbg",
+      "bytes": 10111916,
+      "sha256_at_archive": "3cb7c1c4d5244ba6f0c6ace9b57a17d28aa598e948883f91f5c1bc47105cbdeb"
+    },
+    "binary_archived": false,
+    "captured_output": "combined.stdout-then-stderr.log",
+    "captured_output_layout": "Complete stdout concatenated with complete stderr by the original Python runner; line order across the two streams is not chronological.",
+    "actual_worker_stacks": [
+      {
+        "stack_bytes": 8388608,
+        "guard_bytes": 4096,
+        "source": "pthread_getattr_np"
+      },
+      {
+        "stack_bytes": 8388608,
+        "guard_bytes": 4096,
+        "source": "pthread_getattr_np"
+      },
+      {
+        "stack_bytes": 8388608,
+        "guard_bytes": 4096,
+        "source": "pthread_getattr_np"
+      },
+      {
+        "stack_bytes": 8388608,
+        "guard_bytes": 4096,
+        "source": "pthread_getattr_np"
+      }
+    ]
+  },
+  "sources": {
+    "worker-test.cpp": {
+      "path": "cosmopolitan/out/api-worker-review/worker-test.cpp",
+      "bytes": 1700,
+      "sha256_at_archive": "fa9d9df85b3782778f801f11e57e3bc41e066a082798ae70853f5edf914f1b15"
+    },
+    "sources/inference_worker.cpp": {
+      "path": "cosmopolitan/src/inference_worker.cpp",
+      "bytes": 3374,
+      "sha256_at_archive": "5ad0973038b4734820306a95721afb7a6896bc732d7872fef647a736ecb03a8b"
+    },
+    "sources/inference_worker.hpp": {
+      "path": "cosmopolitan/src/inference_worker.hpp",
+      "bytes": 496,
+      "sha256_at_archive": "e971dcb6e70702453532e497bdfc943cb8037cfd9720ddf29d979a96d535cdd8"
+    },
+    "sources/logging.cpp": {
+      "path": "cosmopolitan/out/api-worker-review/src/logging.cpp",
+      "bytes": 6066,
+      "sha256_at_archive": "c2dcf3ad8c0a68815f47f8dc58dd4a104519279ff0b5e2145f556dc27248dcde"
+    },
+    "sources/logging.h": {
+      "path": "cosmopolitan/out/api-worker-review/include/logging.h",
+      "bytes": 1131,
+      "sha256_at_archive": "b809ea55f6f07fb6d0cda29728a2ddb0706bf566a57738a148d3f652f971b3ab"
+    }
+  },
+  "source_identity_timing": "Hashes captured after the passing run. These helper/test/scratch logging sources were unchanged between execution and archival; no pre-run source-hash inventory was captured.",
+  "scratch_logging_matches_production_staged_logging_at_archive": true,
+  "production_staged_logging": {
+    "path": "cosmopolitan/out/source/sdkit3-port-source/src/logging.cpp",
+    "bytes": 6066,
+    "sha256_at_archive": "c2dcf3ad8c0a68815f47f8dc58dd4a104519279ff0b5e2145f556dc27248dcde"
+  },
+  "production_patch": {
+    "path": "cosmopolitan/app-patches/0005-native-inference-worker-stack.patch",
+    "bytes": 2580,
+    "sha256_at_archive": "c12c73c3702dbb5991d29b88ef35bc5c6243ecb0dd9a0feef2a846600fbe581d"
+  },
+  "checks": [
+    "work executes on a pthread distinct from the caller",
+    "256 KiB volatile stack payload is written and verified",
+    "result is returned after synchronous join",
+    "invalid_argument and runtime_error preserve type and message",
+    "actual native sd_log_cb marks an intentionally simulated Vulkan OOM and its TLS state returns to the caller",
+    "subsequent request resets the prior worker OOM TLS state"
+  ],
+  "not_tested": [
+    "real checkpoint loading or model inference",
+    "native HTTP request/cancellation lifecycle",
+    "actual allocation failure, pthread_create failure, or pthread_join failure injection",
+    "Windows execution",
+    "GPU execution",
+    "before/after executable hash comparison"
+  ]
+}

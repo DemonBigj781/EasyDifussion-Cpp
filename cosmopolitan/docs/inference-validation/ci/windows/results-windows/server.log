@@ -1,0 +1,35 @@
+
+--- stdout ---
+[2026-10-07 00:37:06.410] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 00:37:06.412] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-07 00:37:06.412] [32mINFO   [0m SdkitModelIndex initialized
+Scanning model directories...
+[2026-10-07 00:37:06.412] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 00:37:06.412] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 00:37:06.412] [32mINFO   [0m ImageGenerator created
+Starting server on port 57834
+[2026-10-07 00:37:06.413] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:57834 using 4 threads
+[2026-10-07 00:37:06.413] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 00:37:07.688] [32mINFO   [0m [CROW] Request: 127.0.0.1:57836 0x6ffff9ec8030 HTTP/1.1 GET /
+[2026-10-07 00:37:07.688] [32mINFO   [0m [CROW] Response: 0x6ffff9ec8030 / 200 1
+[2026-10-07 00:37:07.703] [32mINFO   [0m [CROW] Request: 127.0.0.1:57837 0x6ffff9e8c910 HTTP/1.1 GET /cpp-ui/training
+[2026-10-07 00:37:07.704] [32mINFO   [0m [CROW] Response: 0x6ffff9e8c910 /cpp-ui/training 200 1
+[2026-10-07 00:37:07.719] [32mINFO   [0m [CROW] Request: 127.0.0.1:57838 0x6ffff9ec8030 HTTP/1.1 GET /cpp-ui/assets/ui.css
+[2026-10-07 00:37:07.719] [32mINFO   [0m [CROW] Response: 0x6ffff9ec8030 /cpp-ui/assets/ui.css 200 1
+[2026-10-07 00:37:07.735] [32mINFO   [0m [CROW] Request: 127.0.0.1:57839 0x6ffff9e8c910 HTTP/1.1 GET /cpp-ui/scripts/generate.js
+[2026-10-07 00:37:07.735] [32mINFO   [0m [CROW] Response: 0x6ffff9e8c910 /cpp-ui/scripts/generate.js 200 1
+[2026-10-07 00:37:07.751] [32mINFO   [0m [CROW] Request: 127.0.0.1:57840 0x6ffff9ec8030 HTTP/1.1 GET /cpp-ui/scripts/kiosk.js
+[2026-10-07 00:37:07.751] [32mINFO   [0m [CROW] Response: 0x6ffff9ec8030 /cpp-ui/scripts/kiosk.js 200 1
+[2026-10-07 00:37:07.766] [32mINFO   [0m [CROW] Request: 127.0.0.1:57841 0x6ffff9e8c910 HTTP/1.1 GET /v1/sdapi/v1/cosmopolitan-capabilities
+[2026-10-07 00:37:07.766] [32mINFO   [0m [CROW] Response: 0x6ffff9e8c910 /v1/sdapi/v1/cosmopolitan-capabilities 200 1
+[2026-10-07 00:37:07.782] [32mINFO   [0m [CROW] Request: 127.0.0.1:57842 0x6ffff9ec8030 HTTP/1.1 GET /v1/sdapi/v1/checkpoints
+[2026-10-07 00:37:07.782] [32mINFO   [0m [CROW] Response: 0x6ffff9ec8030 /v1/sdapi/v1/checkpoints 200 1
+[2026-10-07 00:37:07.798] [32mINFO   [0m [CROW] Request: 127.0.0.1:57843 0x6ffff9e8c910 HTTP/1.1 GET /v1/sdapi/v1/backend-devices
+[2026-10-07 00:37:07.799] [32mINFO   [0m [CROW] Response: 0x6ffff9e8c910 /v1/sdapi/v1/backend-devices 200 1
+[2026-10-07 00:37:07.813] [32mINFO   [0m [CROW] Request: 127.0.0.1:57844 0x6ffff9ec8030 HTTP/1.1 GET /cpp-ui/assets/%2e%2e/LICENSE
+[2026-10-07 00:37:07.813] [32mINFO   [0m [CROW] Response: 0x6ffff9ec8030 /cpp-ui/assets/%2e%2e/LICENSE 404 1
+
+--- stderr ---
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)

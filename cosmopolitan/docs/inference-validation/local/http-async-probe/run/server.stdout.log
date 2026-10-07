@@ -1,0 +1,50 @@
+[2026-10-07 00:13:48.586] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 00:13:48.586] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-07 00:13:48.586] [32mINFO   [0m SdkitModelIndex initialized
+[2026-10-07 00:13:48.586] [32mINFO   [0m Checkpoint directory set to: /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-http-probe/run/work-o9zjhe4e
+Scanning model directories...
+[2026-10-07 00:13:48.586] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 00:13:48.586] [32mINFO   [0m Scanned checkpoint directory: found 1 models
+[2026-10-07 00:13:48.586] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 00:13:48.587] [32mINFO   [0m ImageGenerator created
+Starting server on port 40523
+[2026-10-07 00:13:48.587] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:40523 using 9 threads
+[2026-10-07 00:13:48.587] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 00:13:48.603] [32mINFO   [0m [CROW] Request: 127.0.0.1:39428 0x7f0287f92920 HTTP/1.1 GET /v1/sdapi/v1/checkpoints
+[2026-10-07 00:13:48.603] [32mINFO   [0m [CROW] Response: 0x7f0287f92920 /v1/sdapi/v1/checkpoints 200 1
+[2026-10-07 00:13:48.604] [32mINFO   [0m [CROW] Request: 127.0.0.1:39440 0x7f0287f93e60 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 00:13:48.604] [32mINFO   [0m [CROW] Response: 0x7f0287f93e60 /v1/sdapi/v1/options 200 1
+[2026-10-07 00:13:48.607] [32mINFO   [0m [CROW] Request: 127.0.0.1:39460 0x7f0287f93e60 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 00:13:48.646] [32mINFO   [0m [CROW] Request: 127.0.0.1:39774 0x7f0287f92920 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 00:13:48.646] [32mINFO   [0m [CROW] Response: 0x7f0287f92920 /v1/sdapi/v1/txt2img 409 1
+[2026-10-07 00:13:48.647] [32mINFO   [0m [CROW] Request: 127.0.0.1:39788 0x7f0287f96080 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 00:13:48.647] [32mINFO   [0m [CROW] Response: 0x7f0287f96080 /v1/sdapi/v1/options 409 1
+[2026-10-07 00:13:50.617] [32mINFO   [0m [CROW] Response: 0x7f0287f93e60 /v1/sdapi/v1/txt2img 200 1
+[2026-10-07 00:13:50.623] [32mINFO   [0m [CROW] Request: 127.0.0.1:39812 0x7f0287f96080 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 00:13:52.633] [32mINFO   [0m [CROW] Response: 0x7f0287f96080 /v1/sdapi/v1/txt2img 200 1
+[2026-10-07 00:13:52.644] [32mINFO   [0m [CROW] Request: 127.0.0.1:40140 0x7f0287f96080 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6210
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6218
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6220
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6228
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6230
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6238
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6240
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6248
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Closing main IO service (0x7f02820d7128)
+[2026-10-07 00:13:52.645] [32mINFO   [0m [CROW] Exiting.
+[2026-10-07 00:13:52.645] [32mINFO   [0m No active generation to interrupt
+[2026-10-07 00:13:54.654] [32mINFO   [0m No active generation to interrupt
+[2026-10-07 00:13:54.654] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6210
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6218
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6220
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6228
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6230
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6238
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6240
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing IO service 0x7f02820a6248
+[2026-10-07 00:13:54.655] [32mINFO   [0m [CROW] Closing main IO service (0x7f02820d7128)
+[2026-10-07 00:13:54.655] [32mINFO   [0m No active generation to interrupt
+Server stopped.

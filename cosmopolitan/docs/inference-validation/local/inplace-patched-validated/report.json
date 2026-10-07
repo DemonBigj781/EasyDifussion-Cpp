@@ -1,0 +1,76 @@
+{
+  "exit_code": 0,
+  "elapsed_seconds": 0.3689106609999726,
+  "application_sha256": "8205af0327e65b37fb35fb6e3acf38bcacc5f8f1e4694b539f82e6e859463131",
+  "patched_scheduler": true,
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/easy-diffusion.exe",
+    "webgpu-inplace-test"
+  ],
+  "validation": {
+    "cases": [
+      {
+        "owner": "preallocated",
+        "iteration": 0,
+        "cpu_fallback": true,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 1,
+        "matmuls": 1,
+        "readbacks": 3
+      },
+      {
+        "owner": "preallocated",
+        "iteration": 1,
+        "cpu_fallback": true,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 1,
+        "matmuls": 1,
+        "readbacks": 3
+      },
+      {
+        "owner": "preallocated-webgpu",
+        "iteration": 0,
+        "cpu_fallback": false,
+        "graphs": 1,
+        "submissions": 3,
+        "dispatches": 2,
+        "matmuls": 1,
+        "readbacks": 2
+      },
+      {
+        "owner": "preallocated-webgpu",
+        "iteration": 1,
+        "cpu_fallback": false,
+        "graphs": 1,
+        "submissions": 3,
+        "dispatches": 2,
+        "matmuls": 1,
+        "readbacks": 2
+      },
+      {
+        "owner": "scheduler",
+        "iteration": 0,
+        "cpu_fallback": true,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 1,
+        "matmuls": 1,
+        "readbacks": 3
+      },
+      {
+        "owner": "scheduler",
+        "iteration": 1,
+        "cpu_fallback": true,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 1,
+        "matmuls": 1,
+        "readbacks": 3
+      }
+    ],
+    "scalar_readback_checks": 12
+  }
+}

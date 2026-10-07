@@ -84,13 +84,17 @@ Existing operator, shape and type checks remain authoritative, including the
 shared-GGML restrictions for custom RoPE offsets and SSM history. See
 [backend/README.md](backend/README.md) for exact API and capability limits.
 
-The [tested CI artifact](../COSMOPOLITAN_WEBGPU_VALIDATION.md) passed the
-shared-GGML WebGPU tensor and model gates on native Windows and isolated/bootstrap
-Linux, using the same executable bytes. This completes the recorded software
-backend integration milestone. Full diffusion generation, end-to-end training,
-application parity and hardware acceleration remain separate gates. Earlier
-CPU-only application and standalone foundation records retain their original
-scope.
+The [completed inference record](../COSMOPOLITAN_INFERENCE_VALIDATION.md) covers
+[run 37551341258](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37551341258),
+built from clean source `6898a4e564c3363d1692f0aed1a2da0395a17a77`. The same
+executable passed shared-GGML WebGPU tensor/text gates, SD 1.5 image generation
+on CPU and software WebGPU, and CPU native HTTP generation/progress/cancellation
+on native Windows and Linux. Linux isolated/bootstrap checks remain separate
+from the external-model image/API runs, which are not filesystem-isolated.
+The few-step image outputs establish completed inference, not visual quality.
+End-to-end training, other model families, WebGPU HTTP inference, application
+parity and hardware acceleration remain separate gates. Earlier integration
+and standalone foundation records retain their original scope.
 
 ## Full application inventory
 
@@ -163,7 +167,19 @@ One process owns the shared backend registry. Each task has explicit model,
 tensor-buffer and graph lifetimes. User-visible operations must not reset global
 backends while another operation still holds buffers or contexts.
 
-The queue must arbitrate inference, training, tagging and conversion memory use.
+Native generation now has a server-owned coordinator with single-job admission.
+It copies request state, retains the request gate and temporary options, and
+posts completion back to the originating HTTP I/O thread. Model work runs on
+an explicitly requested and measured 8 MiB pthread stack; the coordinator
+joins it and transfers exceptions and allocation-error state before responding.
+This leaves progress and task-specific interruption responsive. Cancellation
+during model loading is not implemented. Shutdown closes admission and joins
+owned work before server dependencies are destroyed, then abandons undelivered
+responses without further I/O. These paths are described in
+[application-api.md](docs/application-api.md).
+
+A broader queue must still arbitrate inference, training, tagging and
+conversion memory use.
 Sharing a library does not imply that two unrelated model checkpoints use the
 same weight allocation. Memory sharing is valid only when representation,
 lifetime and mutability agree. Training must not overwrite inference weights
@@ -208,15 +224,27 @@ The mandatory WebGPU completion gate is execution, not enumeration:
   deltas, an explicitly identified software adapter and zero native Vulkan
   library opens. Counters accompany numerical output and are not sufficient
   evidence by themselves.
+- Six additional alias-placement cases make twelve independent scalar checks
+  across scheduler-allocated storage, preallocated CPU storage and preallocated
+  WebGPU storage. In-place operations must stay with their canonical storage
+  owner on a compatible backend before inputs are copied between backends.
 - `webgpu-test` runs this tensor/model pair. `--self-test` requires both in
-  addition to the existing CPU, shared-GGML, training-math and application
-  regressions. Windows direct-PE and Linux isolated/bootstrap jobs must pass
-  these checks using the same packaged executable hash.
+  addition to the alias cases and existing CPU, shared-GGML, training-math
+  and application regressions. Windows direct-PE and Linux isolated/bootstrap
+  jobs must pass these checks using the same packaged executable hash.
 
 The direct tensor inputs are exactly representable in f16 because the original
 matrix kernels use half-precision staging. Their scalar checks establish the
 tested operations' correctness, not arbitrary-F32 numerical equivalence to
 the CPU backend or coverage of all operators and model architectures.
+
+The completed image gate loads the pinned full SD 1.5 Q4_0 checkpoint and
+independently decodes four-step CPU and two-step software WebGPU PNGs at
+256×256 on both OSes. Generation and denoising-only counters separately prove
+WebGPU dispatch/readback; diffusion CPU fallback is allowed and unmeasured.
+The CPU HTTP gate generates a PNG, observes 32 responsive progress requests,
+checks option/task ownership and cancels a separate eight-step request during
+sampling. It does not validate WebGPU HTTP inference or a real browser session.
 
 Completion requires all of the following:
 
@@ -233,5 +261,5 @@ Completion requires all of the following:
 - Unsupported accelerators or attention forms report an explicit reason and
   use a correct supported fallback where one exists.
 
-The initial build/port tests are intermediate evidence toward these criteria.
+The completed text, image and CPU HTTP gates are evidence toward these criteria.
 They must not be presented as whole-application completion.

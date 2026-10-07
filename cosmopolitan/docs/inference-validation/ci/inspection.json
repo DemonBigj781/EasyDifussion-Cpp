@@ -1,0 +1,160 @@
+{
+  "application": {
+    "actual_binary_and_embedded_resources_rehashed": true,
+    "bytes": 190274689,
+    "filename": "easy-diffusion.exe",
+    "sha256": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516"
+  },
+  "model": {
+    "actual_weights_rehashed_by_this_inspector": false,
+    "bytes": 1747190784,
+    "pin_sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+    "reported_before_after_hashes_verified": true,
+    "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b"
+  },
+  "report_groups_checked": 9,
+  "reports": {
+    "linux/api": {
+      "active_progress_requests": 32,
+      "browser_execution_tested": false,
+      "cancel_generation_status": 200,
+      "cancelled_at_step": 1,
+      "cleanup_exit_status": 0,
+      "elapsed_seconds": 355.026,
+      "max_progress_seconds": 0.045916,
+      "measured_worker_stacks": [
+        8388608,
+        8388608
+      ],
+      "png_sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39",
+      "report_sha256": "ec660f145b27ee77cf1bd32001ee3fbc8629e1ea3da0b45bc74e6ee2da85f485",
+      "server_alive_before_cleanup": true
+    },
+    "linux/bootstrap": {
+      "filesystem_isolated": false,
+      "report_sha256": "ce20fe25d3c7852c65629ae6221e9ec1309f6a417877ba95212201d1a82d61b6",
+      "single_file_bootstrap": true,
+      "transient_loader_extraction": true
+    },
+    "linux/cpu": {
+      "backend": "cpu",
+      "elapsed_seconds": 346.935,
+      "generation": {
+        "dispatches": 0,
+        "graphs": 0,
+        "matmuls": 0,
+        "readbacks": 0,
+        "submissions": 0
+      },
+      "png_sha256": "ff2ae616f92aa8c3b94d0103711b3d6d756df87983a4a59b13f6176f682fc5dd",
+      "quality_assessed": false,
+      "report_sha256": "839ce2e2d68ebda9e6ab941b33ccfae7f6634ca6ba79e883f861d2a6171b6e18",
+      "sampling": {
+        "dispatches": 0,
+        "graphs": 0,
+        "matmuls": 0,
+        "readbacks": 0,
+        "submissions": 0
+      },
+      "steps": 4
+    },
+    "linux/runtime": {
+      "isolated": true,
+      "report_sha256": "41574a40d0a70ee0b3d1eb345dfe299c8d7a2981fa2eb2b6eaa01188d44d23d5",
+      "selftest_logs_reparsed": true,
+      "tests": 10
+    },
+    "linux/webgpu": {
+      "backend": "webgpu",
+      "elapsed_seconds": 557.356,
+      "generation": {
+        "dispatches": 6061,
+        "graphs": 287,
+        "matmuls": 1608,
+        "readbacks": 855,
+        "submissions": 1156
+      },
+      "png_sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca",
+      "quality_assessed": false,
+      "report_sha256": "858026b044f739e0d13809aa6dd8d88f4eedb04a3d3458962bfdb8fc2f7bafa2",
+      "sampling": {
+        "dispatches": 2582,
+        "graphs": 126,
+        "matmuls": 692,
+        "readbacks": 370,
+        "submissions": 498
+      },
+      "steps": 2
+    },
+    "windows/api": {
+      "active_progress_requests": 32,
+      "browser_execution_tested": false,
+      "cancel_generation_status": 200,
+      "cancelled_at_step": 1,
+      "cleanup_exit_status": 1,
+      "elapsed_seconds": 405.781,
+      "max_progress_seconds": 0.172,
+      "measured_worker_stacks": [
+        8388608,
+        8388608
+      ],
+      "png_sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39",
+      "report_sha256": "43068dba16ddfee9ed5480f170c5bcbdcbbe353fc6657c9f8ce45b75ffed6fab",
+      "server_alive_before_cleanup": true
+    },
+    "windows/cpu": {
+      "backend": "cpu",
+      "elapsed_seconds": 406.203,
+      "generation": {
+        "dispatches": 0,
+        "graphs": 0,
+        "matmuls": 0,
+        "readbacks": 0,
+        "submissions": 0
+      },
+      "png_sha256": "ff2ae616f92aa8c3b94d0103711b3d6d756df87983a4a59b13f6176f682fc5dd",
+      "quality_assessed": false,
+      "report_sha256": "c23990c2646d46e9d1eb9429eae1f7081287cc78d6ea6e8e8999996214aaf7b6",
+      "sampling": {
+        "dispatches": 0,
+        "graphs": 0,
+        "matmuls": 0,
+        "readbacks": 0,
+        "submissions": 0
+      },
+      "steps": 4
+    },
+    "windows/runtime": {
+      "isolated": false,
+      "report_sha256": "6ca01cbc47a91b50514800ac371e45a69326cf6840612cc805910a48f2bd895a",
+      "selftest_logs_reparsed": true,
+      "tests": 10
+    },
+    "windows/webgpu": {
+      "backend": "webgpu",
+      "elapsed_seconds": 603.265,
+      "generation": {
+        "dispatches": 6061,
+        "graphs": 287,
+        "matmuls": 1608,
+        "readbacks": 855,
+        "submissions": 1156
+      },
+      "png_sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca",
+      "quality_assessed": false,
+      "report_sha256": "e3431770428d5900b12862dcfdf22d4e59def69373512fd996875bbc5d45ef85",
+      "sampling": {
+        "dispatches": 2582,
+        "graphs": 126,
+        "matmuls": 692,
+        "readbacks": 370,
+        "submissions": 498
+      },
+      "steps": 2
+    }
+  },
+  "scope": "Read-only saved-evidence inspection; no application execution, model loading or visual quality assessment",
+  "source_commit": "6898a4e564c3363d1692f0aed1a2da0395a17a77",
+  "source_dirty": false,
+  "status": "passed"
+}

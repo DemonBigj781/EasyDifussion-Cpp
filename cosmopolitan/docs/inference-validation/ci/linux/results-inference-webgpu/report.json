@@ -1,0 +1,239 @@
+{
+  "status": "passed",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "backend": "webgpu",
+  "scope": "Real trained SD1.5 inference and decoded PNG plumbing; visual quality not assessed",
+  "low_step_plumbing": true,
+  "filesystem_isolated": false,
+  "software_driver_workers": {
+    "environment": "LP_NUM_THREADS",
+    "value": 2
+  },
+  "parameters": {
+    "prompt": "a photograph of a red apple on a wooden table, natural light",
+    "negative_prompt": "",
+    "width": 256,
+    "height": 256,
+    "steps": 2,
+    "seed": 42,
+    "threads": 2,
+    "cfg_scale": 7.0
+  },
+  "output_png": "image.png",
+  "model_pin": {
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/PIN.json",
+    "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+    "metadata": {
+      "schema": 1,
+      "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+      "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+      "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+      "bytes": 1747190784,
+      "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+      "url": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/resolve/dcac270609fffc0ce7c7d41a3c0e752721859f7c/stable-diffusion-v1-5-Q4_0.gguf",
+      "model_card": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/blob/dcac270609fffc0ce7c7d41a3c0e752721859f7c/README.md",
+      "license": "creativeml-openrail-m",
+      "architecture": "Stable Diffusion 1.5",
+      "components": {
+        "diffusion": "Q4_0 conversion",
+        "clip_l": "F16",
+        "vae": "F16"
+      },
+      "purpose": "External trained image-inference validation checkpoint; never embedded into the application or committed to Git",
+      "short_run_scope": "Small-resolution, few-step runs test loading, denoising and image decoding; they are not image-quality benchmarks"
+    }
+  },
+  "model": {
+    "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+    "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+    "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+    "bytes": 1747190784,
+    "expected_sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "path": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "sha256_before": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "sha256_after": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b"
+  },
+  "sha256_before": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+  "launch_mode": "explicit APE ELF loader",
+  "command": [
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+    "image",
+    "--model",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+    "--prompt",
+    "a photograph of a red apple on a wooden table, natural light",
+    "--output",
+    "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-inference-webgpu/image.png",
+    "--backend",
+    "webgpu",
+    "--width",
+    "256",
+    "--height",
+    "256",
+    "--steps",
+    "2",
+    "--seed",
+    "42",
+    "--threads",
+    "2",
+    "--cfg-scale",
+    "7.0",
+    "--negative-prompt",
+    ""
+  ],
+  "stdout_log": "inference.stdout.log",
+  "stderr_log": "inference.stderr.log",
+  "expected_application_exit_code": 0,
+  "expected_host_exit_status": 0,
+  "exit_code": 0,
+  "elapsed_seconds": 557.356,
+  "peak_rss_bytes": 3177713664,
+  "memory_sampling": {
+    "popen_pid": 2491,
+    "scope": "Validated application process; not process-tree sum",
+    "available": true,
+    "reason": null,
+    "harness": {
+      "os_pid": 2489,
+      "proc_pid": 2489,
+      "nspid": [
+        2489
+      ],
+      "pid_namespace": "pid:[4026531836]"
+    },
+    "last_unavailable_sample": "[Errno 2] No such file or directory: '/proc/2491/exe'",
+    "validated_samples": 5532,
+    "process": {
+      "proc_pid": 2491,
+      "nspid": [
+        2491
+      ],
+      "parent_proc_pid": 2489,
+      "pid_namespace": "pid:[4026531836]",
+      "start_time_ticks": 44819,
+      "comm": "easy-diffusion.",
+      "executable": "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+      "command": [
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/ape-x86_64.elf",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe",
+        "image",
+        "--model",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf",
+        "--prompt",
+        "a photograph of a red apple on a wooden table, natural light",
+        "--output",
+        "/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/results-inference-webgpu/image.png",
+        "--backend",
+        "webgpu",
+        "--width",
+        "256",
+        "--height",
+        "256",
+        "--steps",
+        "2",
+        "--seed",
+        "42",
+        "--threads",
+        "2",
+        "--cfg-scale",
+        "7.0",
+        "--negative-prompt",
+        ""
+      ],
+      "application_executable_mapping": "00400000-04d25000 r-xp 00010000 103:01 2422553                           /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/easy-diffusion.exe"
+    }
+  },
+  "peak_rss_measurement": "sampled Linux /proc VmHWM at 100ms; may miss final peak",
+  "sha256_after": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+  "app_hash_unchanged": true,
+  "model_hash_unchanged": true,
+  "png": {
+    "width": 256,
+    "height": 256,
+    "channels": 3,
+    "bytes": 153959,
+    "sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca",
+    "decoded_pixel_sha256": "15c20e3e6a15b6b2c380abe3cd3d8e10dac998d3acdb2ff2aaff329af140bde2",
+    "chunk_crc_verified": true,
+    "nonconstant_color_pixels": true,
+    "distinct_colors_capped_at_257": 257,
+    "color_min": 0,
+    "color_max": 255,
+    "color_mean": 94.54646301269531,
+    "color_stddev": 89.49952415070945,
+    "pixel_bytes": 196608,
+    "pixel_min": 0,
+    "pixel_max": 255,
+    "pixel_mean": 94.54646301269531,
+    "quality_assessed": false
+  },
+  "execution": {
+    "model_load": {
+      "seconds": 0.145203,
+      "graphs": 0,
+      "submissions": 0,
+      "dispatches": 0,
+      "matmuls": 0,
+      "readbacks": 0
+    },
+    "generation": {
+      "seconds": 557.037855,
+      "graphs": 287,
+      "submissions": 1156,
+      "dispatches": 6061,
+      "matmuls": 1608,
+      "readbacks": 855
+    },
+    "sampler": "euler_a",
+    "scheduler": "discrete",
+    "counter_scope": "Complete generate_image call after model/context loading; not UNet-only",
+    "sampling": {
+      "first_step": 1,
+      "last_step": 2,
+      "total_steps": 2,
+      "completed_callbacks": 2,
+      "intervals": 1,
+      "monotonic": true,
+      "graphs": 126,
+      "submissions": 498,
+      "dispatches": 2582,
+      "matmuls": 692,
+      "readbacks": 370,
+      "progress": [
+        {
+          "step": 1,
+          "seconds": 176.63765
+        },
+        {
+          "step": 2,
+          "seconds": 173.950302
+        }
+      ],
+      "scope": "Denoising intervals between completed steps; excludes first step, CLIP and VAE; previews disabled"
+    },
+    "cpu_fallback_allowed": true,
+    "cpu_fallback_fraction_measured": false,
+    "provider": "embedded",
+    "software_adapter": true,
+    "adapter": "llvmpipe (LLVM 19.1.7, 256 bits)",
+    "native_loader_opens": 0
+  },
+  "evidence": [
+    {
+      "path": "inference.stdout.log",
+      "bytes": 1207,
+      "sha256": "3a1b6089373f78431e2cb6f4cf050af7398bd0e9620eba05d16bc463b3110ee3"
+    },
+    {
+      "path": "inference.stderr.log",
+      "bytes": 320,
+      "sha256": "be9551ba5d7e3863efa4af80bbfd774ea5fec0fb2386a446cbdc1c8358a60f70"
+    },
+    {
+      "path": "image.png",
+      "bytes": 153959,
+      "sha256": "484325f78b9190ef0cf4f3de15fd35ef4bdc4cb1bf0fdc3fe75db17a4105c3ca"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+[2026-10-07 00:37:02.584] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 00:37:02.585] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-07 00:37:02.585] [32mINFO   [0m SdkitModelIndex initialized
+Scanning model directories...
+[2026-10-07 00:37:02.585] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 00:37:02.585] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 00:37:02.585] [32mINFO   [0m ImageGenerator created
+Starting server on port 36863
+[2026-10-07 00:37:02.586] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:36863 using 4 threads
+[2026-10-07 00:37:02.586] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 00:37:02.613] [32mINFO   [0m [CROW] Request: 127.0.0.1:48452 0x7f10e50dd920 HTTP/1.1 GET /
+[2026-10-07 00:37:02.614] [32mINFO   [0m [CROW] Response: 0x7f10e50dd920 / 200 1
+[2026-10-07 00:37:02.614] [32mINFO   [0m [CROW] Request: 127.0.0.1:48458 0x7f10e50df4c0 HTTP/1.1 GET /cpp-ui/training
+[2026-10-07 00:37:02.614] [32mINFO   [0m [CROW] Response: 0x7f10e50df4c0 /cpp-ui/training 200 1
+[2026-10-07 00:37:02.615] [32mINFO   [0m [CROW] Request: 127.0.0.1:48460 0x7f10e50dd920 HTTP/1.1 GET /cpp-ui/assets/ui.css
+[2026-10-07 00:37:02.615] [32mINFO   [0m [CROW] Response: 0x7f10e50dd920 /cpp-ui/assets/ui.css 200 1
+[2026-10-07 00:37:02.615] [32mINFO   [0m [CROW] Request: 127.0.0.1:48468 0x7f10e50df4c0 HTTP/1.1 GET /cpp-ui/scripts/generate.js
+[2026-10-07 00:37:02.615] [32mINFO   [0m [CROW] Response: 0x7f10e50df4c0 /cpp-ui/scripts/generate.js 200 1
+[2026-10-07 00:37:02.615] [32mINFO   [0m [CROW] Request: 127.0.0.1:48472 0x7f10e50dd920 HTTP/1.1 GET /cpp-ui/scripts/kiosk.js
+[2026-10-07 00:37:02.615] [32mINFO   [0m [CROW] Response: 0x7f10e50dd920 /cpp-ui/scripts/kiosk.js 200 1
+[2026-10-07 00:37:02.616] [32mINFO   [0m [CROW] Request: 127.0.0.1:48484 0x7f10e50df4c0 HTTP/1.1 GET /v1/sdapi/v1/cosmopolitan-capabilities
+[2026-10-07 00:37:02.616] [32mINFO   [0m [CROW] Response: 0x7f10e50df4c0 /v1/sdapi/v1/cosmopolitan-capabilities 200 1
+[2026-10-07 00:37:02.616] [32mINFO   [0m [CROW] Request: 127.0.0.1:48492 0x7f10e50dd920 HTTP/1.1 GET /v1/sdapi/v1/checkpoints
+[2026-10-07 00:37:02.616] [32mINFO   [0m [CROW] Response: 0x7f10e50dd920 /v1/sdapi/v1/checkpoints 200 1
+[2026-10-07 00:37:02.616] [32mINFO   [0m [CROW] Request: 127.0.0.1:48504 0x7f10e50df4c0 HTTP/1.1 GET /v1/sdapi/v1/backend-devices
+[2026-10-07 00:37:02.616] [32mINFO   [0m [CROW] Response: 0x7f10e50df4c0 /v1/sdapi/v1/backend-devices 200 1
+[2026-10-07 00:37:02.616] [32mINFO   [0m [CROW] Request: 127.0.0.1:48508 0x7f10e50dd920 HTTP/1.1 GET /cpp-ui/assets/%2e%2e/LICENSE
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Response: 0x7f10e50dd920 /cpp-ui/assets/%2e%2e/LICENSE 404 1
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing IO service 0x7f10df0e68f0
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing IO service 0x7f10df0e68f8
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing IO service 0x7f10df0e6900
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing main IO service (0x7f10df0e92e8)
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Exiting.
+[2026-10-07 00:37:02.617] [32mINFO   [0m No active generation to interrupt
+[2026-10-07 00:37:02.617] [32mINFO   [0m No active generation to interrupt
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing IO service 0x7f10df0e68f0
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing IO service 0x7f10df0e68f8
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing IO service 0x7f10df0e6900
+[2026-10-07 00:37:02.617] [32mINFO   [0m [CROW] Closing main IO service (0x7f10df0e92e8)
+[2026-10-07 00:37:02.617] [32mINFO   [0m No active generation to interrupt
+Server stopped.

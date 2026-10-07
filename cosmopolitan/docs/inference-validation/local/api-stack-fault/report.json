@@ -1,0 +1,73 @@
+{
+  "kind": "isolated-api-fault-diagnostic",
+  "app_sha256": "ecee0f02e2671faf4cb718065a0c453fe243a97a959706e18a3fd65029c0d198",
+  "http_events": [
+    {
+      "path": "/v1/internal/ping",
+      "method": "GET",
+      "error": "<urlopen error [Errno 111] Connection refused>",
+      "seconds": 0.0021
+    },
+    {
+      "path": "/v1/internal/ping",
+      "method": "GET",
+      "status": 200,
+      "bytes": 2,
+      "seconds": 0.0024
+    },
+    {
+      "path": "/v1/sdapi/v1/checkpoints",
+      "method": "GET",
+      "status": 200,
+      "bytes": 55,
+      "seconds": 0.0005
+    },
+    {
+      "path": "/v1/sdapi/v1/txt2img",
+      "method": "POST",
+      "error": "Remote end closed connection without response",
+      "seconds": 3.4721
+    }
+  ],
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-api-trace/easy-diffusion-api-trace.com.dbg",
+    "sdkit",
+    "--backend",
+    "cpu",
+    "--ckpt-dir",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models",
+    "--port",
+    "56021"
+  ],
+  "model_listing": {
+    "models": [
+      {
+        "name": "stable-diffusion-v1-5-Q4_0.gguf"
+      }
+    ]
+  },
+  "request": {
+    "force_task_id": "cosmo-api-41dd25e89cee45988ec2ffad3a9d7619",
+    "prompt": "a photograph of a red apple on a wooden table, natural light",
+    "negative_prompt": "",
+    "width": 256,
+    "height": 256,
+    "steps": 4,
+    "cfg_scale": 7.0,
+    "seed": 42,
+    "batch_size": 1,
+    "backend": "cpu",
+    "sampler_name": "euler",
+    "scheduler": "discrete",
+    "override_settings": {
+      "sd_model_checkpoint": "stable-diffusion-v1-5-Q4_0.gguf",
+      "forge_additional_modules": [],
+      "live_previews_enable": false
+    }
+  },
+  "error": "Remote end closed connection without response",
+  "exit_before_cleanup": 139,
+  "exit_status": 139,
+  "elapsed_seconds": 3.770821622998483
+}

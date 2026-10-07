@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+  "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+  "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+  "bytes": 1747190784,
+  "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+  "url": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/resolve/dcac270609fffc0ce7c7d41a3c0e752721859f7c/stable-diffusion-v1-5-Q4_0.gguf",
+  "model_card": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/blob/dcac270609fffc0ce7c7d41a3c0e752721859f7c/README.md",
+  "license": "creativeml-openrail-m",
+  "architecture": "Stable Diffusion 1.5",
+  "components": {"diffusion": "Q4_0 conversion", "clip_l": "F16", "vae": "F16"},
+  "purpose": "External trained image-inference validation checkpoint; never embedded into the application or committed to Git",
+  "short_run_scope": "Small-resolution, few-step runs test loading, denoising and image decoding; they are not image-quality benchmarks"
+}

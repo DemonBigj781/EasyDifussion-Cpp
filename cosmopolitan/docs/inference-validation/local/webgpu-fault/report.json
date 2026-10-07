@@ -1,0 +1,34 @@
+{
+  "exit_code": 139,
+  "elapsed_seconds": 22.178546498002106,
+  "application_sha256": "9adf1c7a76a31ea7fab38e467efcd5c61a363b31ded434054ad91e5006972841",
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/easy-diffusion.exe",
+    "image",
+    "--model",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf",
+    "--prompt",
+    "a photograph of a red apple on a wooden table, natural light",
+    "--output",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-webgpu-fault/image.png",
+    "--backend",
+    "webgpu",
+    "--width",
+    "256",
+    "--height",
+    "256",
+    "--steps",
+    "4",
+    "--seed",
+    "42",
+    "--threads",
+    "2"
+  ],
+  "diagnostic_flags": {
+    "LP_NUM_THREADS": "2",
+    "COSMO_IMAGE_TRACE_FAULT": "1",
+    "GGML_SCHED_DEBUG": "2",
+    "COMDBG": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/easy-diffusion.com.dbg"
+  }
+}

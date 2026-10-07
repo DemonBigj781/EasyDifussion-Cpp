@@ -1,0 +1,8 @@
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)
+WEBGPU_INPLACE alias mul_inplace has inconsistent CPU placement/storage FAIL
+WEBGPU_INPLACE_STORAGE label=group_norm op=GROUP_NORM assigned=CPU(0x7fae4187bd00) expected=CPU(0x7fae4187bd00) buffer=0x7fae4187cf60 buft=CPU(0x90c8100) host=1 buft_device=none(0) expected_device=CPU(0x90bf220) data=0x7fae418acc00 view_src=0 view_offset=0
+WEBGPU_INPLACE_STORAGE label=mul_inplace op=MUL assigned=WebGPU: WebGPU0(0x7fae4187bc00) expected=CPU(0x7fae4187bd00) buffer=0x7fae4187cf60 buft=CPU(0x90c8100) host=1 buft_device=none(0) expected_device=CPU(0x90bf220) data=0x7fae418acc00 view_src=0x7fae418f5270 view_offset=0
+WEBGPU_INPLACE_STORAGE label=add_inplace op=ADD assigned=WebGPU: WebGPU0(0x7fae4187bc00) expected=CPU(0x7fae4187bd00) buffer=0x7fae4187cf60 buft=CPU(0x90c8100) host=1 buft_device=none(0) expected_device=CPU(0x90bf220) data=0x7fae418acc00 view_src=0x7fae418f5270 view_offset=0
+WEBGPU_INPLACE_STORAGE label=silu_inplace op=UNARY assigned=WebGPU: WebGPU0(0x7fae4187bc00) expected=CPU(0x7fae4187bd00) buffer=0x7fae4187cf60 buft=CPU(0x90c8100) host=1 buft_device=none(0) expected_device=CPU(0x90bf220) data=0x7fae418acc00 view_src=0x7fae418f5270 view_offset=0
+WEBGPU_INPLACE_STORAGE label=reshape op=RESHAPE assigned=WebGPU: WebGPU0(0x7fae4187bc00) expected=CPU(0x7fae4187bd00) buffer=0x7fae4187cf60 buft=CPU(0x90c8100) host=1 buft_device=none(0) expected_device=CPU(0x90bf220) data=0x7fae418acc00 view_src=0x7fae418f5270 view_offset=0
+WEBGPU_INPLACE_CASE owner=scheduler iteration=0 FAIL

@@ -11,12 +11,15 @@ remain linked in the same process.
 **Status: experimental native integration.** Application API parity,
 full training validation, LibTorch/ONNX tools, remaining Python
 replacements and hardware acceleration have separate completion gates.
-The recorded CI artifact passed direct WebGPU scalar-reference graphs and
-sixteen-token trained-model inference on Windows and Linux, using unchanged
-executable bytes. Separate decode counters establish matrix dispatch during
-decoding. The [validation record](../COSMOPOLITAN_WEBGPU_VALIDATION.md) identifies
-the exact artifact, launch modes, results and limits. Earlier CPU-only
-application and standalone software-Vulkan records retain their original scope.
+The recorded CI artifact passed direct WebGPU scalar-reference graphs,
+sixteen-token trained text inference, and SD 1.5 checkpoint-to-PNG generation
+on CPU and embedded software WebGPU on Windows and Linux, using unchanged
+executable bytes. CPU native HTTP generation, responsive progress and early
+cancellation also passed on both hosts. The
+[inference validation record](../COSMOPOLITAN_INFERENCE_VALIDATION.md) identifies
+the exact artifact, launch modes, results and limits. Earlier CPU-only,
+WebGPU text/tensor and standalone software-Vulkan records retain their
+original scope.
 The full scope is in [PORTING.md](PORTING.md).
 
 The native `image` command now loads a complete diffusion checkpoint and
@@ -130,6 +133,7 @@ Other commands:
 --version                    Show the integration build
 ggml-test                    Run scalar-reference CPU tensor checks
 webgpu-test                  Run direct WebGPU tensor and trained-model checks
+webgpu-inplace-test          Check mixed-backend and preallocated tensor aliases
 llama --help                 Text generation options
 image --help                 Native checkpoint-to-PNG inference options
 sdkit --help                 Existing native server/tool options
@@ -227,18 +231,22 @@ every x86-64 machine can run this ShaderF16-dependent WebGPU path.
 
 ## Validation and its limits
 
-The software WebGPU application in
-[CI run 37531113555](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37531113555)
-passed the gates below on native Windows and isolated/bootstrap Linux. The
-[recorded artifact and raw evidence](../COSMOPOLITAN_WEBGPU_VALIDATION.md) pin
-the clean application source to `8d22e47b692d8865d703b7227a6288cc078817b6`.
+The application in
+[CI run 37551341258](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37551341258)
+passed the gates below on native Windows and Linux. The
+[recorded artifact and raw evidence](../COSMOPOLITAN_INFERENCE_VALIDATION.md) pin
+the clean application source to `6898a4e564c3363d1692f0aed1a2da0395a17a77`
+and the unchanged executable SHA-256 to
+`ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516`.
 
 The workflow builds the application once, records its SHA-256, and passes
 that artifact to separate Windows and Linux runtime jobs. Windows executes
 the PE directly. Linux checks both the shell bootstrap and operation in a
 fresh filesystem containing only the application, the explicit APE loader
 and a temporary directory. The host Python verifier is not copied into the
-isolated application filesystem.
+isolated application filesystem. Large external-model image and API checks
+are separate: they use the explicit APE loader on Linux and the native PE on
+Windows, and do not claim filesystem isolation.
 
 The separate `Cosmopolitan existing-artifact verification` workflow can run
 the current host verifier against an earlier application artifact without
@@ -272,6 +280,19 @@ The checks cover:
   during the sixteen decode steps, so prefill alone cannot satisfy the test.
 - The repository's existing native backward-math and text-encoder optimizer
   checks, plus diffusion API/device initialization.
+- Six in-place storage cases and twelve scalar readbacks covering scheduler
+  allocation, preallocated CPU storage and preallocated WebGPU storage. The
+  scheduler keeps aliases with their storage owner before copying between
+  backends; ordinary inference may use CPU fallback where required.
+- Real inference with the pinned complete SD 1.5 Q4_0 checkpoint, including
+  F16 CLIP and VAE: four CPU steps and two software WebGPU steps at 256×256
+  on each OS, with independently decoded PNGs. Positive WebGPU execution and
+  readback counters cover generation and a separate denoising-only interval.
+- CPU native HTTP generation and early cancellation, with request-local
+  checkpoint overrides, unchanged persistent options, busy/invalid/task-ID
+  rejection and 32 responsive progress polls. Two requests on each host
+  report actual 8 MiB inference stacks. The asynchronous coordinator keeps
+  model work off the HTTP I/O threads; cancellation retains the actual step.
 - Rendering all 16 C++ UI pages from embedded assets; native server startup
   and HTTP requests; rejection of malformed trainer input.
 - Embedded model/resource integrity and unchanged application hashes after
@@ -286,15 +307,23 @@ python3 cosmopolitan/tests/verify_bootstrap.py --artifact-dir cosmopolitan/out
 sudo python3 cosmopolitan/tests/verify_runtime.py --artifact-dir cosmopolitan/out --isolate
 ```
 
-`--self-test` includes both mandatory WebGPU tests as well as the existing
-CPU/model/training/UI regressions. `webgpu-test` runs only the new tensor and
-model pair. The tensor fixture uses inputs exactly representable in f16 to
-isolate graph correctness from the preserved matrix kernel's input rounding;
+The separate image/API verifiers need the external checkpoint. Their commands,
+request contract and evidence scope are documented in
+[inference/README.md](inference/README.md).
+
+`--self-test` includes the WebGPU tensor/model and in-place storage tests as
+well as the existing CPU/model/training/UI regressions. `webgpu-test` runs
+the tensor/model pair; `webgpu-inplace-test` runs the alias cases. The tensor
+fixture uses inputs exactly representable in f16 to isolate graph correctness
+from the preserved matrix kernel's input rounding;
 it does not claim arbitrary-F32 equivalence to CPU matmul.
 
-These checks do not load a full diffusion checkpoint, complete a training
-recipe, validate every model architecture, establish all UI/API behavior or
-exercise a physical GPU. The trainer still defaults to CPU; WebGPU coverage
+The image and API gates load the complete pinned diffusion checkpoint;
+their few-step outputs do not establish visual quality or arbitrary model
+support. The API gate selects CPU and does not validate WebGPU HTTP generation.
+Served-page checks and Node DOM mocks do not establish real browser automation.
+These checks do not complete a training recipe, establish all UI/API behavior
+or exercise a physical GPU. The trainer still defaults to CPU; WebGPU coverage
 of custom backward, F8 and optimizer operations is not established. Its
 existing no-fallback behavior and documented partial-training limits remain
 applicable. Actual execution reports, rather than a workflow name or a

@@ -1,0 +1,143 @@
+{
+  "status": "passed",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "scope": "Linux /bin/sh bootstrap with host utilities and transient embedded-loader extraction",
+  "filesystem_isolated": false,
+  "explicit_external_loader_supplied": false,
+  "path_utilities": [
+    "uname",
+    "mkdir",
+    "dd",
+    "gzip",
+    "chmod",
+    "mv"
+  ],
+  "log": "self-test.log",
+  "sha256_before": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+  "preinstalled_ape_on_path": false,
+  "initial_runtime_directory_empty": true,
+  "initial_root_entries": [
+    "easy-diffusion.exe",
+    "runtime",
+    "tools"
+  ],
+  "elapsed_seconds": 2.672,
+  "sha256_copy_after": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+  "sha256_after": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+  "hash_unchanged": true,
+  "exit_code": 0,
+  "command": [
+    "/bin/sh",
+    "easy-diffusion.exe",
+    "--self-test"
+  ],
+  "greedy_token_ids": [
+    432,
+    383,
+    286,
+    261,
+    376,
+    298,
+    315,
+    421,
+    395,
+    317,
+    426,
+    338,
+    401,
+    396,
+    267,
+    337
+  ],
+  "webgpu": {
+    "provider": "embedded",
+    "software_adapter": true,
+    "native_loader_opens": 0,
+    "graph_cpu_fallback": false,
+    "graph_cases": [
+      {
+        "type": "F32",
+        "iteration": 0,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 5,
+        "matmuls": 1,
+        "readbacks": 3
+      },
+      {
+        "type": "F32",
+        "iteration": 1,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 5,
+        "matmuls": 1,
+        "readbacks": 3
+      },
+      {
+        "type": "Q4_0",
+        "iteration": 0,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 5,
+        "matmuls": 1,
+        "readbacks": 3
+      },
+      {
+        "type": "Q4_0",
+        "iteration": 1,
+        "graphs": 1,
+        "submissions": 4,
+        "dispatches": 5,
+        "matmuls": 1,
+        "readbacks": 3
+      }
+    ],
+    "scalar_readback_checks": 12,
+    "llama_execution": {
+      "graphs": 17,
+      "submissions": 51,
+      "dispatches": 1768,
+      "matmuls": 782,
+      "readbacks": 17
+    },
+    "llama_decode_execution": {
+      "steps": 16,
+      "graphs": 16,
+      "submissions": 48,
+      "dispatches": 1664,
+      "matmuls": 736,
+      "readbacks": 16
+    },
+    "llama_greedy_token_ids": [
+      432,
+      383,
+      286,
+      261,
+      376,
+      298,
+      315,
+      421,
+      395,
+      317,
+      426,
+      338,
+      401,
+      396,
+      267,
+      337
+    ],
+    "independent_reference_match": true
+  },
+  "independent_reference_match": true,
+  "bundled_loader": {
+    "filename": ".ape-1.10",
+    "bytes": 9249,
+    "sha256": "cc31af13515fcf091768bfbf12da899286b35ff1bf1302f304936db4b03d512e",
+    "format": "x86-64 ELF",
+    "transient_extraction": true
+  },
+  "runtime_entries_after": [
+    ".ape-1.10"
+  ],
+  "temporary_directory_removed": true
+}

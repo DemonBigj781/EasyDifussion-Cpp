@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "scope": "Offline symbolization and stack-bound arithmetic for an isolated diagnostic HTTP CPU-inference crash; not a passing inference run",
+  "recorded_at_utc": "2026-10-06T23:54:12.529331+00:00",
+  "debug_file": {
+    "source": "cosmopolitan/out/inference-api-trace/easy-diffusion-api-trace.com.dbg",
+    "bytes": 182197196,
+    "sha256": "ecee0f02e2671faf4cb718065a0c453fe243a97a959706e18a3fd65029c0d198",
+    "copied_to_archive": false
+  },
+  "unchanged_packaged_application_at_archive_time": {
+    "source": "cosmopolitan/out/easy-diffusion.exe",
+    "sha256": "8205af0327e65b37fb35fb6e3acf38bcacc5f8f1e4694b539f82e6e859463131"
+  },
+  "diagnostic_environment": {
+    "COSMO_API_TRACE_FAULT": "1"
+  },
+  "observations": {
+    "signal": 11,
+    "siginfo_code": 2,
+    "stack_size_bytes": 81920,
+    "guard_size_bytes": 4096,
+    "fault_address": "0x7fa139d1eff8",
+    "stack_low": "0x7fa139d1f000",
+    "stack_high": "0x7fa139d33000",
+    "fault_bytes_below_stack_low": 8,
+    "rsp_equals_stack_low": true,
+    "handler_ran_within_64k_alternate_stack": true,
+    "rip": "0x4c2331a",
+    "captured_frame_count": 32,
+    "all_captured_returns": "0x4c233b3",
+    "frame_pointer_spacing_bytes": [
+      64
+    ]
+  },
+  "tools": {
+    "addr2line": {
+      "path": "/usr/bin/addr2line",
+      "version": "GNU addr2line (GNU Binutils for Ubuntu) 2.42"
+    },
+    "objdump": {
+      "path": "/usr/bin/objdump",
+      "version": "GNU objdump (GNU Binutils for Ubuntu) 2.42"
+    }
+  },
+  "results": [
+    {
+      "command": [
+        "/usr/bin/addr2line",
+        "-a",
+        "-f",
+        "-C",
+        "-i",
+        "-e",
+        "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-api-trace/easy-diffusion-api-trace.com.dbg",
+        "0x4c2331a",
+        "0x4c233b3",
+        "0x4c233b2"
+      ],
+      "exit_code": 0,
+      "stdout": "0x0000000004c2331a\nggml_visit_parents_graph\nggml.c:?\n0x0000000004c233b3\nggml_visit_parents_graph\nggml.c:?\n0x0000000004c233b2\nggml_visit_parents_graph\nggml.c:?\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/usr/bin/objdump",
+        "-d",
+        "-C",
+        "--start-address=0x4c23310",
+        "--stop-address=0x4c233e0",
+        "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-api-trace/easy-diffusion-api-trace.com.dbg"
+      ],
+      "exit_code": 0,
+      "stdout": "\n/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-api-trace/easy-diffusion-api-trace.com.dbg:     file format elf64-x86-64\n\n\nDisassembly of section .text:\n\n0000000004c23310 <ggml_visit_parents_graph>:\n 4c23310:\t66 90                \txchg   %ax,%ax\n 4c23312:\t55                   \tpush   %rbp\n 4c23313:\t48 89 e5             \tmov    %rsp,%rbp\n 4c23316:\t41 57                \tpush   %r15\n 4c23318:\t41 56                \tpush   %r14\n 4c2331a:\t41 55                \tpush   %r13\n 4c2331c:\t41 54                \tpush   %r12\n 4c2331e:\t53                   \tpush   %rbx\n 4c2331f:\t48 83 ec 08          \tsub    $0x8,%rsp\n 4c23323:\t49 89 fe             \tmov    %rdi,%r14\n 4c23326:\t49 89 f7             \tmov    %rsi,%r15\n 4c23329:\t89 d3                \tmov    %edx,%ebx\n 4c2332b:\t41 89 d4             \tmov    %edx,%r12d\n 4c2332e:\t8b 4e 50             \tmov    0x50(%rsi),%ecx\n 4c23331:\t85 c9                \ttest   %ecx,%ecx\n 4c23333:\t74 08                \tje     4c2333d <ggml_visit_parents_graph+0x2d>\n 4c23335:\t84 d2                \ttest   %dl,%dl\n 4c23337:\t0f 85 33 01 00 00    \tjne    4c23470 <ggml_visit_parents_graph+0x160>\n 4c2333d:\t49 8d 7e 38          \tlea    0x38(%r14),%rdi\n 4c23341:\t4c 89 fe             \tmov    %r15,%rsi\n 4c23344:\te8 a7 d6 ff ff       \tcall   4c209f0 <ggml_hash_find>\n 4c23349:\t49 89 c5             \tmov    %rax,%r13\n 4c2334c:\t48 83 f8 ff          \tcmp    $0xffffffffffffffff,%rax\n 4c23350:\t0f 84 a2 01 00 00    \tje     4c234f8 <ggml_visit_parents_graph+0x1e8>\n 4c23356:\t48 89 c2             \tmov    %rax,%rdx\n 4c23359:\t48 c1 ea 05          \tshr    $0x5,%rdx\n 4c2335d:\t49 8b 46 40          \tmov    0x40(%r14),%rax\n 4c23361:\t48 8d 34 90          \tlea    (%rax,%rdx,4),%rsi\n 4c23365:\t8b 16                \tmov    (%rsi),%edx\n 4c23367:\t44 89 e9             \tmov    %r13d,%ecx\n 4c2336a:\tb8 01 00 00 00       \tmov    $0x1,%eax\n 4c2336f:\td3 e0                \tshl    %cl,%eax\n 4c23371:\t85 c2                \ttest   %eax,%edx\n 4c23373:\t0f 85 07 01 00 00    \tjne    4c23480 <ggml_visit_parents_graph+0x170>\n 4c23379:\t49 8b 4e 48          \tmov    0x48(%r14),%rcx\n 4c2337d:\t4e 89 3c e9          \tmov    %r15,(%rcx,%r13,8)\n 4c23381:\t09 c2                \tor     %eax,%edx\n 4c23383:\t89 16                \tmov    %edx,(%rsi)\n 4c23385:\t49 8b 46 30          \tmov    0x30(%r14),%rax\n 4c23389:\t42 c7 04 a8 00 00 00 \tmovl   $0x0,(%rax,%r13,4)\n 4c23390:\t00 \n 4c23391:\t31 db                \txor    %ebx,%ebx\n 4c23393:\teb 31                \tjmp    4c233c6 <ggml_visit_parents_graph+0xb6>\n 4c23395:\t0f 1f 00             \tnopl   (%rax)\n 4c23398:\t48 98                \tcltq\n 4c2339a:\t49 8b b4 c7 98 00 00 \tmov    0x98(%r15,%rax,8),%rsi\n 4c233a1:\t00 \n 4c233a2:\t48 85 f6             \ttest   %rsi,%rsi\n 4c233a5:\t74 17                \tje     4c233be <ggml_visit_parents_graph+0xae>\n 4c233a7:\t41 0f b6 d4          \tmovzbl %r12b,%edx\n 4c233ab:\t4c 89 f7             \tmov    %r14,%rdi\n 4c233ae:\te8 5d ff ff ff       \tcall   4c23310 <ggml_visit_parents_graph>\n 4c233b3:\t48 89 c2             \tmov    %rax,%rdx\n 4c233b6:\t49 8b 46 30          \tmov    0x30(%r14),%rax\n 4c233ba:\t83 04 90 01          \taddl   $0x1,(%rax,%rdx,4)\n 4c233be:\t83 c3 01             \tadd    $0x1,%ebx\n 4c233c1:\t83 fb 0a             \tcmp    $0xa,%ebx\n 4c233c4:\t74 1a                \tje     4c233e0 <ggml_visit_parents_graph+0xd0>\n 4c233c6:\t89 d8                \tmov    %ebx,%eax\n 4c233c8:\t41 83 7e 50 01       \tcmpl   $0x1,0x50(%r14)\n 4c233cd:\t75 c9                \tjne    4c23398 <ggml_visit_parents_graph+0x88>\n 4c233cf:\tb8 09 00 00 00       \tmov    $0x9,%eax\n 4c233d4:\t29 d8                \tsub    %ebx,%eax\n 4c233d6:\teb c0                \tjmp    4c23398 <ggml_visit_parents_graph+0x88>\n 4c233d8:\t0f 1f 84 00 00 00 00 \tnopl   0x0(%rax,%rax,1)\n 4c233df:\t00 \n",
+      "stderr": ""
+    }
+  ],
+  "interpretation": "Confirmed worker stack exhaustion during recursive ggml_visit_parents_graph: the faulting push %r13 writes eight bytes below the actual 80 KiB stack into its guard region. The bounded trace contains 32 repeated recursive returns; it does not establish an infinite recursion or supply a complete call chain."
+}

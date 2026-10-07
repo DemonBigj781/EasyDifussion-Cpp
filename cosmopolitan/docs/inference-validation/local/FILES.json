@@ -1,0 +1,383 @@
+{
+  "schema": 1,
+  "scope": "Local Linux development evidence: completed CPU and software-WebGPU CLI diffusion, passing real CPU HTTP image/progress/cancellation lifecycle, alias regression, diagnosed earlier failures, worker unit and controlled synthetic HTTP lifecycle probe; no final same-artifact Windows/CI inference claim",
+  "hash_algorithm": "SHA-256",
+  "files": [
+    {
+      "path": "inplace-baseline-corrected/build.json",
+      "source": "cosmopolitan/out/inplace-baseline-corrected/build.json",
+      "bytes": 26099,
+      "sha256": "237b2912aba2a19debc55454a7b7ab25b57d1e00a58e404b0550f1cab0841461",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "inplace-baseline-corrected/report.json",
+      "source": "cosmopolitan/out/inplace-baseline-corrected/report.json",
+      "bytes": 2717,
+      "sha256": "e2e4117e3669c40ccbfd733e3bf7acb7106e942e2a8e8f6814f04cc7944c326a",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "inplace-baseline-corrected/stdout.log",
+      "source": "cosmopolitan/out/inplace-baseline-corrected/stdout.log",
+      "bytes": 29,
+      "sha256": "e9a5c9a24761a8483148f4ce35ff7e67749b9d429813284f83be95d8636c5996",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "inplace-baseline-corrected/stderr.log",
+      "source": "cosmopolitan/out/inplace-baseline-corrected/stderr.log",
+      "bytes": 1688,
+      "sha256": "490af47f1777ca1a4a749b84a6537ccbf5f51d5495e76e9352401074cb36b356",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "inplace-patched-validated/report.json",
+      "source": "cosmopolitan/out/inplace-patched-validated/report.json",
+      "bytes": 1824,
+      "sha256": "e0172bc9c2fbca19b4dd8a9ded1e0b61f436baaba14616788f3a7d2da9d194ff",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "inplace-patched-validated/stdout.log",
+      "source": "cosmopolitan/out/inplace-patched-validated/stdout.log",
+      "bytes": 2831,
+      "sha256": "75121dfdffe31d9fb3c56b86a80b77d79c3ea88c1b2d72e438d5fb582a70511f",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "inplace-patched-validated/stderr.log",
+      "source": "cosmopolitan/out/inplace-patched-validated/stderr.log",
+      "bytes": 194,
+      "sha256": "9203e037445b210f6617a942b766b74f4dcd21278b11c3707e7eb5e61bd380f4",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cpu-quality/report.json",
+      "source": "cosmopolitan/out/inference-cpu-quality/report.json",
+      "bytes": 9471,
+      "sha256": "313c6c6536615f9dbf1cec48e8110c600057fdb825ce22bfed2868b7586a46b1",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cpu-quality/inference.stdout.log",
+      "source": "cosmopolitan/out/inference-cpu-quality/inference.stdout.log",
+      "bytes": 1156,
+      "sha256": "4494826751280ad984701ef0493428707cc44d5dc0fa18fc177c5820b4885caa",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cpu-quality/inference.stderr.log",
+      "source": "cosmopolitan/out/inference-cpu-quality/inference.stderr.log",
+      "bytes": 1465,
+      "sha256": "736f2ae2372cf525ca426e31e0f4962586f682c353a9b12ebea485f4fd20880c",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cpu-quality/image.png",
+      "source": "cosmopolitan/out/inference-cpu-quality/image.png",
+      "bytes": 120655,
+      "sha256": "795aed477993d4d9187f40d6eebc2e7344b367ba11bd4a041e31aaf7a4d85e63",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "webgpu-fault/report.json",
+      "source": "cosmopolitan/out/inference-webgpu-fault/report.json",
+      "bytes": 1100,
+      "sha256": "bd1634a95f78bdf5b863aa06b78c8e006b2fc1734ed5cb88867e515645d986bc",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "webgpu-fault/stdout.log",
+      "source": "cosmopolitan/out/inference-webgpu-fault/stdout.log",
+      "bytes": 638,
+      "sha256": "553b00443acc9acdc718346e834b41f5ecbec7da092e81fb18efd20a698071b1",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "webgpu-fault/stderr.log",
+      "source": "cosmopolitan/out/inference-webgpu-fault/stderr.log",
+      "bytes": 754,
+      "sha256": "6ccccca3a6841737f5ced17e06513f1990493e8ca695cf117148c131ecc3721e",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cpu-quality/BUILD.json",
+      "source": "cosmopolitan/out/quality-application/BUILD.json",
+      "bytes": 309979,
+      "sha256": "d6fa991e3eae0d33fa51eab54275fba3f74e02294e00a14c8b9aa996baa78bf1",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "webgpu-fault/symbolization.json",
+      "source": "Derived offline from the saved debug file and archived fault stderr",
+      "bytes": 2910,
+      "sha256": "8cd5cdebb86922aadba990c705eb8a263123b24fee53d210c5d9ffc995ada72a",
+      "preserved_unchanged": false
+    },
+    {
+      "path": "webgpu-fixed/report.json",
+      "source": "cosmopolitan/out/inference-webgpu-fixed/report.json",
+      "bytes": 8353,
+      "sha256": "44fb19a7d7974865a6127efd95d2a197d09f5dcd99a7eb865d3b1b515009b59c",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "webgpu-fixed/inference.stdout.log",
+      "source": "cosmopolitan/out/inference-webgpu-fixed/inference.stdout.log",
+      "bytes": 1444,
+      "sha256": "d57174fc4465f01d85ed30f099e089138dd25ca3a2ee61b3ebc152192b3986a5",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "webgpu-fixed/inference.stderr.log",
+      "source": "cosmopolitan/out/inference-webgpu-fixed/inference.stderr.log",
+      "bytes": 446,
+      "sha256": "1ea2a907dfc56c3b11b130866352eaa76bb773f2088c031b9d4115ac7588efdf",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "webgpu-fixed/image.png",
+      "source": "cosmopolitan/out/inference-webgpu-fixed/image.png",
+      "bytes": 153820,
+      "sha256": "c40765713f2cfa8674bf49721aa956e6407b3f3ad521f32ee9ff4cab2735b3f8",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-stack-fault/report.json",
+      "source": "cosmopolitan/out/inference-api-trace/run/report.json",
+      "bytes": 1985,
+      "sha256": "85f32f31867f253bd8427e5236f35d5b4697afaf7e3542a0b6031181777fd75d",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-stack-fault/server.stdout.log",
+      "source": "cosmopolitan/out/inference-api-trace/run/server.stdout.log",
+      "bytes": 4611,
+      "sha256": "c186a7f7b508b14d5aca0826e3ae1a780718a479d726f383360d9b67adc1d54a",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-stack-fault/server.stderr.log",
+      "source": "cosmopolitan/out/inference-api-trace/run/server.stderr.log",
+      "bytes": 4040,
+      "sha256": "5d658f30b8f6fe03694a84cefa201fcdca8f04c51d90c0a1a5851ef81f87f19f",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-stack-fault/build.json",
+      "source": "cosmopolitan/out/inference-api-trace/build.json",
+      "bytes": 27451,
+      "sha256": "7b43717c40c51b6a7d339203e88534b7413a146630d2fd88eea937e88ab5e7ef",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-stack-fault/inference-api-trace.c",
+      "source": "cosmopolitan/out/inference-api-trace.c",
+      "bytes": 6371,
+      "sha256": "42be7289ef95fb2740580f6dd40c0f44f1a6f0a590471bab5b06300ff674e7b6",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-stack-fault/symbolization.json",
+      "source": "Derived offline from the exact isolated diagnostic debug executable and preserved API fault stderr",
+      "bytes": 6716,
+      "sha256": "6b1dba795b3354704c3f0f096e9881f3fa0a111b85b2f133bbf5776bf7f97f22",
+      "preserved_unchanged": false
+    },
+    {
+      "path": "api-worker-unit/worker-test.cpp",
+      "source": "cosmopolitan/out/api-worker-review/worker-test.cpp",
+      "bytes": 1700,
+      "sha256": "fa9d9df85b3782778f801f11e57e3bc41e066a082798ae70853f5edf914f1b15",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-worker-unit/combined.stdout-then-stderr.log",
+      "source": "cosmopolitan/out/api-worker-review/worker-test.log",
+      "bytes": 549,
+      "sha256": "fd13dcc0457899af2402534a5b4786073d584e9cd8ccec5f39c2aed20a344b6e",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-worker-unit/build.log",
+      "source": "cosmopolitan/out/api-worker-review/worker-test-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-worker-unit/sources/inference_worker.cpp",
+      "source": "cosmopolitan/src/inference_worker.cpp",
+      "bytes": 3374,
+      "sha256": "5ad0973038b4734820306a95721afb7a6896bc732d7872fef647a736ecb03a8b",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-worker-unit/sources/inference_worker.hpp",
+      "source": "cosmopolitan/src/inference_worker.hpp",
+      "bytes": 496,
+      "sha256": "e971dcb6e70702453532e497bdfc943cb8037cfd9720ddf29d979a96d535cdd8",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-worker-unit/sources/logging.cpp",
+      "source": "cosmopolitan/out/api-worker-review/src/logging.cpp",
+      "bytes": 6066,
+      "sha256": "c2dcf3ad8c0a68815f47f8dc58dd4a104519279ff0b5e2145f556dc27248dcde",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-worker-unit/sources/logging.h",
+      "source": "cosmopolitan/out/api-worker-review/include/logging.h",
+      "bytes": 1131,
+      "sha256": "b809ea55f6f07fb6d0cda29728a2ddb0706bf566a57738a148d3f652f971b3ab",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-worker-unit/build-and-run.json",
+      "source": "Derived after the original passing unit run from retained source/log/binary files and the recorded execution procedure; compile/link argv is explicitly reconstructed",
+      "bytes": 13641,
+      "sha256": "d8ece12543b7057c9bc92fb12b5d917cfedc5fdbe6eda2bc68900cbea624099b",
+      "preserved_unchanged": false
+    },
+    {
+      "path": "api-synchronous-worker/report.json",
+      "source": "cosmopolitan/out/inference-api-worker/report.json",
+      "bytes": 13154,
+      "sha256": "f978708f507adab0d5e34d0b6e4bc99d6f7108c9507e40781665cf3f63b6de3c",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-synchronous-worker/server.stdout.log",
+      "source": "cosmopolitan/out/inference-api-worker/server.stdout.log",
+      "bytes": 13852,
+      "sha256": "dcd597188412e587da517c71bafdef1fd4b8d2e9137acd2c9b14e33b07fd0341",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-synchronous-worker/server.stderr.log",
+      "source": "cosmopolitan/out/inference-api-worker/server.stderr.log",
+      "bytes": 380,
+      "sha256": "f824a140720201bed434b98214276777b1e734cac66ffa938f87d53f7fd1af89",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-synchronous-worker/api-image.png",
+      "source": "cosmopolitan/out/inference-api-worker/api-image.png",
+      "bytes": 120155,
+      "sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-synchronous-worker/BUILD.json",
+      "source": "cosmopolitan/out/BUILD.json",
+      "bytes": 310230,
+      "sha256": "762870ef253230cf07ec8437fc0010d2a92f30335b50910924f428a13e74dcf0",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/wrapper.cpp",
+      "source": "cosmopolitan/out/inference-http-probe/wrapper.cpp",
+      "bytes": 973,
+      "sha256": "e4463fb392ec4e56cfd638a11a848bd2b0d104aa92da209b69021b6f3cb7ffbe",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/run_probe.py",
+      "source": "cosmopolitan/out/inference-http-probe/run_probe.py",
+      "bytes": 8684,
+      "sha256": "1e734d1feca2ae4545f8295a2e22f7fc8bff571d791bbff01dbb00a9d96d5f14",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/compile.json",
+      "source": "cosmopolitan/out/inference-http-probe/compile.json",
+      "bytes": 3611,
+      "sha256": "3c4f7d9b419440f5a12de8495404d40a8da1f231e13e40d1b4d2cbce6f33f9ae",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/compile.log",
+      "source": "cosmopolitan/out/inference-http-probe/compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/link.json",
+      "source": "cosmopolitan/out/inference-http-probe/link.json",
+      "bytes": 24617,
+      "sha256": "a4cdc31bd1585822fd43928df82cb307bb40982bce562825443605804a7d8aa9",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/link.log",
+      "source": "cosmopolitan/out/inference-http-probe/link.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/run/report.json",
+      "source": "cosmopolitan/out/inference-http-probe/run/report.json",
+      "bytes": 14534,
+      "sha256": "db6b980a2f1a36d8337a3f62f62c9304ba11aa5a50b0507211bc3092928a3745",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/run/server.stdout.log",
+      "source": "cosmopolitan/out/inference-http-probe/run/server.stdout.log",
+      "bytes": 4355,
+      "sha256": "34d28ab72cb10cea1f1ee1c1df3239c22ed4106003253178ff1f79cfa98602ae",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "http-async-probe/run/server.stderr.log",
+      "source": "cosmopolitan/out/inference-http-probe/run/server.stderr.log",
+      "bytes": 470,
+      "sha256": "28f1826c3cea94aafc5fba31037f97461754fae9bce7fb494dd8c18b4725af50",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-async/report.json",
+      "source": "cosmopolitan/out/inference-api-async/report.json",
+      "bytes": 120473,
+      "sha256": "29bae5892d519c9b17c523d686af1a9d8159ef18a1fed426c75d426af64aa84f",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-async/server.stdout.log",
+      "source": "cosmopolitan/out/inference-api-async/server.stdout.log",
+      "bytes": 16607,
+      "sha256": "aaba99eeaba3852b6b748d8ddb40b846c1208d80be6ab33d30fee58c6e4be955",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-async/server.stderr.log",
+      "source": "cosmopolitan/out/inference-api-async/server.stderr.log",
+      "bytes": 699,
+      "sha256": "8921bff24e112eb2e42fa1f0407f12ec4e9235d10bf571b6b1f66caed5e50e8c",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-async/api-image.png",
+      "source": "cosmopolitan/out/inference-api-async/api-image.png",
+      "bytes": 120155,
+      "sha256": "de9199ded8368659705badde3e529dd593396c5da87d50e6d362d4b8edd47c39",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "api-async/BUILD.json",
+      "source": "cosmopolitan/out/BUILD.json",
+      "bytes": 310483,
+      "sha256": "e6b7c780a110427a7ce5b2d2844de100a6fa387deec2c2406e8b1941d63d9c72",
+      "preserved_unchanged": true
+    }
+  ],
+  "inventory_excludes": [
+    "FILES.json",
+    "README.md",
+    ".gitattributes"
+  ]
+}

@@ -1,0 +1,293 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "scope": "Independent read-only artifact, embedded-resource and committed-source metadata review; no application/model execution",
+  "application": {
+    "path": "cosmopolitan/out/inference-final-ci/application/easy-diffusion.exe",
+    "bytes": 190274689,
+    "sha256": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+    "sha256_rechecked_after_review": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+    "direct_binary_hash_verified": true
+  },
+  "reported_source": {
+    "commit": "6898a4e564c3363d1692f0aed1a2da0395a17a77",
+    "dirty": false,
+    "repository": "DemonBigj781/EasyDifussion-Cpp"
+  },
+  "package_verifier": {
+    "packaged_path": "verify_runtime.py",
+    "committed_path": "cosmopolitan/tests/verify_runtime.py",
+    "commit": "6898a4e564c3363d1692f0aed1a2da0395a17a77",
+    "sha256": "1a15ba2f93237f946edb7ad68b34df5f72758a86e07af8d8a49485a015e5919a",
+    "byte_identical_to_committed_code": true,
+    "function_called": "verify_package(directory, expected_sha256)",
+    "result": "passed",
+    "application_executed": false
+  },
+  "embedded_resources": {
+    "manifest_count": 850,
+    "zip_entry_count": 952,
+    "every_manifest_size_and_sha256_verified": true,
+    "all_zip_members_crc_checked": true,
+    "duplicate_names": false,
+    "pe_machine": "x86_64 (0x8664)",
+    "embedded_stories260K_sha256": "047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b",
+    "dependency_notice_hashes_cross_checked_against_LINK": 176
+  },
+  "packaged_source_files": [
+    {
+      "packaged_path": "verify_runtime.py",
+      "committed_path": "cosmopolitan/tests/verify_runtime.py",
+      "sha256": "1a15ba2f93237f946edb7ad68b34df5f72758a86e07af8d8a49485a015e5919a",
+      "bytes": 24662,
+      "matches_commit": true
+    },
+    {
+      "packaged_path": "verify_bootstrap.py",
+      "committed_path": "cosmopolitan/tests/verify_bootstrap.py",
+      "sha256": "1c98085054022b265da33dd9e9b87942da18ad2f9997111d5ad25a60d1b09fc5",
+      "bytes": 7429,
+      "matches_commit": true
+    },
+    {
+      "packaged_path": "verify_inference.py",
+      "committed_path": "cosmopolitan/tests/verify_inference.py",
+      "sha256": "feb52d0b0835e6cd6e9f8f05db7920d07e80f24e20872874e0020c02159ae036",
+      "bytes": 29864,
+      "matches_commit": true
+    },
+    {
+      "packaged_path": "verify_inference_api.py",
+      "committed_path": "cosmopolitan/tests/verify_inference_api.py",
+      "sha256": "cdb454477d6e90755e2c052c8753c8f7e906099fb9d70f32b64c483aa13d651b",
+      "bytes": 25078,
+      "matches_commit": true
+    },
+    {
+      "packaged_path": "fetch_inference_model.py",
+      "committed_path": "cosmopolitan/inference/fetch_model.py",
+      "sha256": "5a93b3e5232017c8cbe3f119eeae9fddf93fcb747c2551b1ce06b098ec764c3c",
+      "bytes": 1902,
+      "matches_commit": true
+    },
+    {
+      "packaged_path": "PIN.json",
+      "committed_path": "cosmopolitan/inference/PIN.json",
+      "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+      "bytes": 996,
+      "matches_commit": true
+    }
+  ],
+  "metadata_consistency": {
+    "BUILD_software_webgpu_equals_LINK": true,
+    "LINK_file_sha256_matches_BUILD": true,
+    "LINK_sha256": "dde3df9f8caa8a5a7eaa170c5c32deae472bc95aa4935b213973c45b6e571282",
+    "build_recipe_files": [
+      {
+        "path": "cosmopolitan/CMakeLists.txt",
+        "sha256": "6b614a08caccb5ae3b68cd6bb78bfceb35b49c3139214b2ba983bf6245f656c5"
+      },
+      {
+        "path": "cosmopolitan/app-patches/0001-embedded-ui-routes.patch",
+        "sha256": "d04b1079477dfcef32bbebf3d63dce49487f7c6ede3e665ef2e1cedce728cf72"
+      },
+      {
+        "path": "cosmopolitan/app-patches/0002-distinct-http-model-index.patch",
+        "sha256": "e8d299ece85c3a4c6f520d8272a025291fe83c2e4e0debf492b87b2990c9ceba"
+      },
+      {
+        "path": "cosmopolitan/app-patches/0003-webgpu-backend-routing.patch",
+        "sha256": "4005052bb5a82a9ed7a3b5d656a238875dd29f30bebdee4d8a95135c9e2bef2d"
+      },
+      {
+        "path": "cosmopolitan/app-patches/0004-native-inference-requests.patch",
+        "sha256": "7c2f7835cb1fc1f6602c33ada6be4e9a4d7669225e2d04bd1f6a275c087cc6fb"
+      },
+      {
+        "path": "cosmopolitan/app-patches/0005-native-inference-worker-stack.patch",
+        "sha256": "c12c73c3702dbb5991d29b88ef35bc5c6243ecb0dd9a0feef2a846600fbe581d"
+      },
+      {
+        "path": "cosmopolitan/app-patches/0006-crow-async-response-lifetime.patch",
+        "sha256": "8b587738aa4dc0225eb3b5badac581360bef2f43982e8693b9cb539bef006a22"
+      },
+      {
+        "path": "cosmopolitan/app-patches/0007-native-inference-async-http.patch",
+        "sha256": "da404273407cb5dd1918eb588fe413af5aa02dec049582a86217d16ba2944d29"
+      },
+      {
+        "path": "cosmopolitan/backend/CMakeLists.txt",
+        "sha256": "86a5f268aadeeba1bb1414e4f17fb8b559ecd22bd3d0835b5baf881bc4ef89a7"
+      },
+      {
+        "path": "cosmopolitan/backend/README.md",
+        "sha256": "fab179614886931327a073f6f4e4da901e7d8deb67f75bace9db219743c6d85c"
+      },
+      {
+        "path": "cosmopolitan/backend/include/cosmo-webgpu.h",
+        "sha256": "5276f2ecaf49d5de1d3bf095445b90a661e951a7b6caff32ffbcb135af776e4f"
+      },
+      {
+        "path": "cosmopolitan/backend/include/webgpu/webgpu_cpp.h",
+        "sha256": "26c89d4bdab7401a2c3045e02629faeada667603009d7796a6f871b3779a1e8a"
+      },
+      {
+        "path": "cosmopolitan/backend/wgpu_adapter.cpp",
+        "sha256": "1b2af569d94902237c98ae6bbc00889299ca8d89f494161df71e900ff4cb3e66"
+      },
+      {
+        "path": "cosmopolitan/build.py",
+        "sha256": "1d2536d5524f73f904fa2a99a521cca176174282c1fa4dc2a07bf532b98d8792"
+      },
+      {
+        "path": "cosmopolitan/build.sh",
+        "sha256": "1545044d15e7812af316ac94f845014e4ecda42b8c334bfe2f871c1a564a62bf"
+      },
+      {
+        "path": "cosmopolitan/cmake/cosmocc.cmake",
+        "sha256": "7969042e4c617a492a904d74c9cce9f1f234a8742660d0a8661166cb6d24393c"
+      },
+      {
+        "path": "cosmopolitan/cmake/software-webgpu.cmake",
+        "sha256": "9402582ef9b03d988a4fc8a9c4d5741bd63034aa01670da8f524f83432670709"
+      },
+      {
+        "path": "cosmopolitan/cmake/split-vocabulary.cmake",
+        "sha256": "e894cd6886449d1116dc340d91ea6cd417bc6e5d447e38fb70e8dbc992ddeff4"
+      },
+      {
+        "path": "cosmopolitan/patches/0001-asio-runtime-platform-constants.patch",
+        "sha256": "7b1117daa7442f331d27427e905230bd328756ba1ac5b20b3c3c11ec13058ec9"
+      },
+      {
+        "path": "cosmopolitan/software-webgpu/PIN.json",
+        "sha256": "27251b0beee312929c08dd09a0de39ee74b2a353b92124d828a0de05e27ac912"
+      },
+      {
+        "path": "cosmopolitan/software-webgpu/prepare.py",
+        "sha256": "b59e89d2f6c821968d81957298cb1ac5329c88e82ea251d5b7ab987f9f8fa07e"
+      }
+    ],
+    "recipe_files_match_current_workspace_and_commit": true,
+    "source_tree_file_count": 6928,
+    "source_fingerprint_recomputed_from_commit": "9e9378fcb0c509bf579c3cb81d60ff69c3fcc1251a4f3a2371fa2f30dc09cf57",
+    "source_fingerprint_matches_BUILD": true,
+    "shared_ggml_authoritative_file_count": 2209,
+    "shared_ggml_authoritative_tree_sha256": "697ec352f8a5c8bff7bd2ea962f442a868fc89b864611260b582ed68336577d1",
+    "shared_ggml_patch_count": 5,
+    "shared_ggml_fingerprint_matches": true,
+    "llama_donor_files_verified": 5,
+    "foundation_repository": "/workspace/scratch/c71296f6d862/cosmopolitan",
+    "foundation_revision": "c2a7b3f8c871e44ae1e3fc8db36759c7b1829326",
+    "foundation_committed_files_verified": 313,
+    "foundation_versions": {
+      "archive_sha256": "e7a9f22763e6d7b5777dd200ad00ab31a6d9c8afa877fec0b145ff8bb8d730be",
+      "cosmocc_version": "4.0.2",
+      "format": 1,
+      "llvm_version": "19.1.7",
+      "mesa_version": "25.2.8",
+      "paths": [
+        "third_party/llvm_cosmo",
+        "third_party/lavapipe",
+        "third_party/wgpu_native",
+        "third_party/rust_ape",
+        "LICENSE"
+      ],
+      "repository": "https://github.com/DemonBigj781/cosmopolitan-lua.git",
+      "revision": "c2a7b3f8c871e44ae1e3fc8db36759c7b1829326",
+      "rust_toolchain": "nightly-2026-07-28",
+      "wgpu_native_version": "29.0.1.1"
+    },
+    "mesa_llvm_source_and_patch_metadata_matches_foundation_commit": true,
+    "dependency_static_and_no_external_vulkan_loader_declared": true
+  },
+  "build_log_evidence": {
+    "path": "cosmopolitan/docs/inference-validation/ci/build-job.log",
+    "sha256": "5d8337abb3f4adf3be709b5dd7678c48f9b978d366c00f4178fa8d0c33158769",
+    "ui_mock": [
+      {
+        "line": 273,
+        "text": "2026-10-07T00:20:06.1313857Z UI_DOM_MOCK PASS: capability failure, CPU default, WebGPU selection, native request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict"
+      }
+    ],
+    "packaged_SYMBOLS_equals_logged_report": true,
+    "symbol_report_status": "passed",
+    "required_symbols_reported_once": 27,
+    "legacy_versioned_ggml_symbols_reported": 0,
+    "source_scope": "Published build-host nm/source audit, independently compared with exact committed audit requirements; no fresh symbol disassembly"
+  },
+  "archived_files": [
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/BUILD.json",
+      "source": "cosmopolitan/out/inference-final-ci/application/BUILD.json",
+      "bytes": 312372,
+      "sha256": "48b0f64dfc54f1f57048f97d2d2feb80f82195f62eaf32761774aaa51b6f5367",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/SYMBOLS.json",
+      "source": "cosmopolitan/out/inference-final-ci/application/SYMBOLS.json",
+      "bytes": 1852,
+      "sha256": "29826943a1f29615b4e2506e70d11767297d151e63027e1dd6b48180120aad6b",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/software-webgpu/LINK.json",
+      "source": "cosmopolitan/out/inference-final-ci/application/software-webgpu/LINK.json",
+      "bytes": 152146,
+      "sha256": "dde3df9f8caa8a5a7eaa170c5c32deae472bc95aa4935b213973c45b6e571282",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/verify_runtime.py",
+      "source": "cosmopolitan/out/inference-final-ci/application/verify_runtime.py",
+      "bytes": 24662,
+      "sha256": "1a15ba2f93237f946edb7ad68b34df5f72758a86e07af8d8a49485a015e5919a",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/verify_bootstrap.py",
+      "source": "cosmopolitan/out/inference-final-ci/application/verify_bootstrap.py",
+      "bytes": 7429,
+      "sha256": "1c98085054022b265da33dd9e9b87942da18ad2f9997111d5ad25a60d1b09fc5",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/verify_inference.py",
+      "source": "cosmopolitan/out/inference-final-ci/application/verify_inference.py",
+      "bytes": 29864,
+      "sha256": "feb52d0b0835e6cd6e9f8f05db7920d07e80f24e20872874e0020c02159ae036",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/verify_inference_api.py",
+      "source": "cosmopolitan/out/inference-final-ci/application/verify_inference_api.py",
+      "bytes": 25078,
+      "sha256": "cdb454477d6e90755e2c052c8753c8f7e906099fb9d70f32b64c483aa13d651b",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/fetch_inference_model.py",
+      "source": "cosmopolitan/out/inference-final-ci/application/fetch_inference_model.py",
+      "bytes": 1902,
+      "sha256": "5a93b3e5232017c8cbe3f119eeae9fddf93fcb747c2551b1ce06b098ec764c3c",
+      "preserved_unchanged": true
+    },
+    {
+      "path": "cosmopolitan/docs/inference-validation/ci/application/PIN.json",
+      "source": "cosmopolitan/out/inference-final-ci/application/PIN.json",
+      "bytes": 996,
+      "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+      "preserved_unchanged": true
+    }
+  ],
+  "limitations": [
+    "No application, model, runtime test, compiler or JIT execution was performed in this review",
+    "Build-host static archives/objects and debug ELF were not downloaded or independently rehashed; their values remain build metadata, not direct local binary proof",
+    "No fresh nm/disassembly or compile-command audit was run; SYMBOLS.json is corroborated by the completed build log and committed audit requirements",
+    "Reported clean source state is BUILD provenance; source/recipe/pin fingerprints were independently matched to committed objects",
+    "No foundation source archives were downloaded again; local Git objects at the exact pinned foundation revision were used",
+    "No operating-system runtime or numerical success is inferred from this package review",
+    "Application transport ZIP identity/CRC was verified separately by the coordinator, not repeated here"
+  ]
+}

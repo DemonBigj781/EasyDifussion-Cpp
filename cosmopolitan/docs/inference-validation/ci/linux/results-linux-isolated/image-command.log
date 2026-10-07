@@ -1,0 +1,19 @@
+
+--- stdout ---
+Usage: image --model PATH --prompt TEXT --output PATH [OPTIONS]
+  --backend cpu|webgpu   Compute backend (default: cpu)
+  --width N --height N   Multiples of 64, 64..4096 (default: 512)
+  --steps N             Sampling steps, 1..1000 (default: 20)
+  --seed N              Reproducible seed, 0..INT64_MAX (default: 42)
+  --threads N           CPU threads, 1..256 (default: native core count)
+  --cfg-scale F         Finite guidance scale, 0..100 (default: 7)
+  --negative-prompt TEXT  Negative conditioning (default: empty)
+  --sampler NAME        Native sampler (default: model default)
+  --scheduler NAME      Native scheduler (default: model default)
+  --vae PATH            Optional separate VAE weights
+Saves one PNG. Model and output paths must be explicit.
+WebGPU uses embedded software Vulkan and permits GGML CPU fallback
+for unsupported operators; execution counters measure WebGPU work.
+Flash attention and SageAttention are disabled by default.
+
+--- stderr ---

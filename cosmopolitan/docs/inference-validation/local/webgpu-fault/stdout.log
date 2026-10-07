@@ -1,0 +1,4 @@
+IMAGE_MODEL_LOAD backend=webgpu success=1 seconds=0.144993 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0
+IMAGE_PARAMETERS width=256 height=256 steps=4 seed=42 threads=2 cfg_scale=7 sampler=euler_a scheduler=discrete cpu_fallback_allowed=1
+  |##################################################| 196/196 - 1.14GB/s[K
+  |#####################                             | 282/686 - 1.80GB/s[K  |#########################                         | 331/686 - 1.71GB/s[K  |#################################                 | 447/686 - 1.74GB/s[K  |##################################################| 686/686 - 1.55GB/s[K

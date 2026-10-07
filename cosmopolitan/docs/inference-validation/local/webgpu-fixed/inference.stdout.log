@@ -1,0 +1,11 @@
+IMAGE_MODEL_LOAD backend=webgpu success=1 seconds=0.158573 graphs=0 submissions=0 dispatches=0 matmuls=0 readbacks=0
+IMAGE_PARAMETERS width=256 height=256 steps=4 seed=42 threads=2 cfg_scale=7 sampler=euler_a scheduler=discrete cpu_fallback_allowed=1
+  |##################################################| 196/196 - 1.15GB/s[K
+  |##################                                | 244/686 - 1.28GB/s[K  |########################                          | 316/686 - 1.28GB/s[K  |###############################                   | 412/686 - 1.38GB/s[K  |#######################################           | 526/686 - 1.39GB/s[K  |##################################################| 686/686 - 1.24GB/s[K
+  |##################################################| 140/140 - 469.63MB/s[K
+IMAGE_GENERATION backend=webgpu success=1 seconds=1014.720626 graphs=539 submissions=2152 dispatches=11225 matmuls=2992 readbacks=1595
+IMAGE_SAMPLING backend=webgpu first_step=1 last_step=4 total_steps=4 completed_callbacks=4 intervals=3 monotonic=1 graphs=378 submissions=1494 dispatches=7746 matmuls=2076 readbacks=1110
+IMAGE_WEBGPU_EXECUTION provider=embedded software=1 native_loader_opens=0 cpu_fallback_allowed=1 cpu_fallback_measured=0
+IMAGE_WEBGPU_ADAPTER llvmpipe (LLVM 19.1.7, 256 bits)
+IMAGE_OUTPUT width=256 height=256 channels=3 pixel_bytes=196608 png_bytes=153820 pixel_min=0 pixel_max=255 pixel_mean=77.983637492
+IMAGE_INFERENCE PASS

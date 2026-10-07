@@ -1,0 +1,362 @@
+{
+  "status": "passed",
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "isolated": false,
+  "tests": [
+    {
+      "name": "self-test",
+      "arguments": [
+        "--self-test"
+      ],
+      "exit_code": 0,
+      "expected_application_exit_code": 0,
+      "expected_host_exit_status": 0,
+      "elapsed_seconds": 4.062,
+      "log": "self-test.log",
+      "stdout_log": "self-test.stdout.log",
+      "stderr_log": "self-test.stderr.log",
+      "greedy_token_ids": [
+        432,
+        383,
+        286,
+        261,
+        376,
+        298,
+        315,
+        421,
+        395,
+        317,
+        426,
+        338,
+        401,
+        396,
+        267,
+        337
+      ],
+      "independent_reference_match": true,
+      "webgpu": {
+        "provider": "embedded",
+        "software_adapter": true,
+        "native_loader_opens": 0,
+        "graph_cpu_fallback": false,
+        "graph_cases": [
+          {
+            "type": "F32",
+            "iteration": 0,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 5,
+            "matmuls": 1,
+            "readbacks": 3
+          },
+          {
+            "type": "F32",
+            "iteration": 1,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 5,
+            "matmuls": 1,
+            "readbacks": 3
+          },
+          {
+            "type": "Q4_0",
+            "iteration": 0,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 5,
+            "matmuls": 1,
+            "readbacks": 3
+          },
+          {
+            "type": "Q4_0",
+            "iteration": 1,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 5,
+            "matmuls": 1,
+            "readbacks": 3
+          }
+        ],
+        "scalar_readback_checks": 12,
+        "llama_execution": {
+          "graphs": 17,
+          "submissions": 51,
+          "dispatches": 1768,
+          "matmuls": 782,
+          "readbacks": 17
+        },
+        "llama_decode_execution": {
+          "steps": 16,
+          "graphs": 16,
+          "submissions": 48,
+          "dispatches": 1664,
+          "matmuls": 736,
+          "readbacks": 16
+        },
+        "llama_greedy_token_ids": [
+          432,
+          383,
+          286,
+          261,
+          376,
+          298,
+          315,
+          421,
+          395,
+          317,
+          426,
+          338,
+          401,
+          396,
+          267,
+          337
+        ],
+        "independent_reference_match": true
+      },
+      "inplace_storage": {
+        "cases": [
+          {
+            "owner": "preallocated",
+            "iteration": 0,
+            "cpu_fallback": true,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 1,
+            "matmuls": 1,
+            "readbacks": 3
+          },
+          {
+            "owner": "preallocated",
+            "iteration": 1,
+            "cpu_fallback": true,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 1,
+            "matmuls": 1,
+            "readbacks": 3
+          },
+          {
+            "owner": "preallocated-webgpu",
+            "iteration": 0,
+            "cpu_fallback": false,
+            "graphs": 1,
+            "submissions": 3,
+            "dispatches": 2,
+            "matmuls": 1,
+            "readbacks": 2
+          },
+          {
+            "owner": "preallocated-webgpu",
+            "iteration": 1,
+            "cpu_fallback": false,
+            "graphs": 1,
+            "submissions": 3,
+            "dispatches": 2,
+            "matmuls": 1,
+            "readbacks": 2
+          },
+          {
+            "owner": "scheduler",
+            "iteration": 0,
+            "cpu_fallback": true,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 1,
+            "matmuls": 1,
+            "readbacks": 3
+          },
+          {
+            "owner": "scheduler",
+            "iteration": 1,
+            "cpu_fallback": true,
+            "graphs": 1,
+            "submissions": 4,
+            "dispatches": 1,
+            "matmuls": 1,
+            "readbacks": 3
+          }
+        ],
+        "scalar_readback_checks": 12
+      }
+    },
+    {
+      "name": "devices",
+      "arguments": [
+        "sdkit",
+        "--list-devices"
+      ],
+      "exit_code": 0,
+      "expected_application_exit_code": 0,
+      "expected_host_exit_status": 0,
+      "elapsed_seconds": 0.125,
+      "log": "devices.log",
+      "stdout_log": "devices.stdout.log",
+      "stderr_log": "devices.stderr.log"
+    },
+    {
+      "name": "diffusion-command",
+      "arguments": [
+        "sdkit",
+        "--help"
+      ],
+      "exit_code": 0,
+      "expected_application_exit_code": 0,
+      "expected_host_exit_status": 0,
+      "elapsed_seconds": 0.109,
+      "log": "diffusion-command.log",
+      "stdout_log": "diffusion-command.stdout.log",
+      "stderr_log": "diffusion-command.stderr.log"
+    },
+    {
+      "name": "image-command",
+      "arguments": [
+        "image",
+        "--help"
+      ],
+      "exit_code": 0,
+      "expected_application_exit_code": 0,
+      "expected_host_exit_status": 0,
+      "elapsed_seconds": 0.125,
+      "log": "image-command.log",
+      "stdout_log": "image-command.stdout.log",
+      "stderr_log": "image-command.stderr.log"
+    },
+    {
+      "name": "training-command",
+      "arguments": [
+        "train",
+        "--help"
+      ],
+      "exit_code": 0,
+      "expected_application_exit_code": 0,
+      "expected_host_exit_status": 0,
+      "elapsed_seconds": 0.094,
+      "log": "training-command.log",
+      "stdout_log": "training-command.stdout.log",
+      "stderr_log": "training-command.stderr.log"
+    },
+    {
+      "name": "training-unmatched-option",
+      "arguments": [
+        "train",
+        "--model",
+        "unused",
+        "--dataset",
+        "unused",
+        "--output",
+        "unused",
+        "--device",
+        "CPU",
+        "--threads"
+      ],
+      "exit_code": 512,
+      "expected_application_exit_code": 2,
+      "expected_host_exit_status": 512,
+      "elapsed_seconds": 0.094,
+      "log": "training-unmatched-option.log",
+      "stdout_log": "training-unmatched-option.stdout.log",
+      "stderr_log": "training-unmatched-option.stderr.log"
+    },
+    {
+      "name": "image-unmatched-option",
+      "arguments": [
+        "image",
+        "--model"
+      ],
+      "exit_code": 512,
+      "expected_application_exit_code": 2,
+      "expected_host_exit_status": 512,
+      "elapsed_seconds": 0.125,
+      "log": "image-unmatched-option.log",
+      "stdout_log": "image-unmatched-option.stdout.log",
+      "stderr_log": "image-unmatched-option.stderr.log"
+    },
+    {
+      "name": "image-invalid-dimensions",
+      "arguments": [
+        "image",
+        "--width",
+        "65"
+      ],
+      "exit_code": 512,
+      "expected_application_exit_code": 2,
+      "expected_host_exit_status": 512,
+      "elapsed_seconds": 0.141,
+      "log": "image-invalid-dimensions.log",
+      "stdout_log": "image-invalid-dimensions.stdout.log",
+      "stderr_log": "image-invalid-dimensions.stderr.log"
+    },
+    {
+      "name": "image-invalid-backend",
+      "arguments": [
+        "image",
+        "--backend",
+        "missing"
+      ],
+      "exit_code": 512,
+      "expected_application_exit_code": 2,
+      "expected_host_exit_status": 512,
+      "elapsed_seconds": 0.125,
+      "log": "image-invalid-backend.log",
+      "stdout_log": "image-invalid-backend.stdout.log",
+      "stderr_log": "image-invalid-backend.stderr.log"
+    },
+    {
+      "name": "native-server-and-embedded-ui",
+      "ping_status": 200,
+      "checks": [
+        {
+          "path": "/",
+          "status": 200,
+          "bytes": 8654
+        },
+        {
+          "path": "/cpp-ui/training",
+          "status": 200,
+          "bytes": 9212
+        },
+        {
+          "path": "/cpp-ui/assets/ui.css",
+          "status": 200,
+          "bytes": 13357
+        },
+        {
+          "path": "/cpp-ui/scripts/generate.js",
+          "status": 200,
+          "bytes": 14712
+        },
+        {
+          "path": "/cpp-ui/scripts/kiosk.js",
+          "status": 200,
+          "bytes": 2146
+        },
+        {
+          "path": "/v1/sdapi/v1/cosmopolitan-capabilities",
+          "status": 200,
+          "bytes": 301
+        },
+        {
+          "path": "/v1/sdapi/v1/checkpoints",
+          "status": 200,
+          "bytes": 13
+        },
+        {
+          "path": "/v1/sdapi/v1/backend-devices",
+          "status": 200,
+          "bytes": 349
+        }
+      ],
+      "parent_traversal_status": 404,
+      "log": "server.log",
+      "stdout_log": "server.stdout.log",
+      "stderr_log": "server.stderr.log"
+    }
+  ],
+  "scope": "Native integration checks; not full application, image or training parity",
+  "sha256_before": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+  "initial_root_entries": [
+    "easy-diffusion.exe",
+    "tmp"
+  ],
+  "sha256_after": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516"
+}

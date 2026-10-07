@@ -1,0 +1,6 @@
+INFERENCE_WORKER_CHECK return=pass stack_256k=pass exception_type=pass oom_tls=pass tls_reset=pass PASS
+NATIVE_INFERENCE_WORKER stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np
+NATIVE_INFERENCE_WORKER stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np
+NATIVE_INFERENCE_WORKER stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np
+[2026-10-06 19:58:11.045] [31mERROR  [0m Vulkan ErrorOutOfDeviceMemory
+NATIVE_INFERENCE_WORKER stack_bytes=8388608 guard_bytes=4096 stack_source=pthread_getattr_np

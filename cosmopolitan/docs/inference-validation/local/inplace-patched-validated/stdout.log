@@ -1,0 +1,19 @@
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=0 stage=cpu-alias-activation values=128 max_error=5.96046448e-08 PASS
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=0 stage=webgpu-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=scheduler iteration=0 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=1 stage=cpu-alias-activation values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=1 stage=webgpu-projection-f16 values=24 max_error=4.47034836e-08 PASS
+WEBGPU_INPLACE_EXECUTION owner=scheduler iteration=1 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=cpu-alias-activation values=128 max_error=5.96046448e-08 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=webgpu-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated iteration=0 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=cpu-alias-activation values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=webgpu-projection-f16 values=24 max_error=4.47034836e-08 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated iteration=1 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=webgpu-owner-silu values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=webgpu-owner-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated-webgpu iteration=0 alias_nodes=2 alias_backend=WebGPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=0 graphs=1 submissions=3 dispatches=2 matmuls=1 readbacks=2 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=webgpu-owner-silu values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=webgpu-owner-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated-webgpu iteration=1 alias_nodes=2 alias_backend=WebGPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=0 graphs=1 submissions=3 dispatches=2 matmuls=1 readbacks=2 native_loader_opens=0 PASS
+WEBGPU_INPLACE_SELFTEST PASS

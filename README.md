@@ -6,19 +6,29 @@ The `cosmopolitan-test` branch builds one experimental x86-64 executable with
 one shared GGML, llama.cpp, the custom diffusion engine, the partial native
 SD 1.5 trainer, an HTTP server and embedded C++ UI resources. The same
 CI-produced file passed native Windows execution and Linux isolated/bootstrap
-checks, including actual GGML WebGPU graphs and trained-model decoding through
-embedded wgpu-native, Mesa lavapipe and LLVM. This WebGPU path performs software
-compute on the CPU.
+checks, trained text inference, and SD 1.5 checkpoint-to-PNG inference on both
+the ordinary CPU and embedded software WebGPU backends. CPU native HTTP image
+generation, responsive progress and task-specific cancellation also passed on
+both operating systems. The WebGPU path uses embedded wgpu-native, Mesa
+lavapipe and LLVM to perform software compute on the CPU.
+
+[Run 37551341258](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37551341258)
+built source `6898a4e564c3363d1692f0aed1a2da0395a17a77` once and verified the
+same unchanged executable on both hosts. Its few-step 256×256 images establish
+completed inference, not image quality or coverage of arbitrary checkpoints.
 
 - [Build and run the Cosmopolitan application](cosmopolitan/README.md).
-- [Exact WebGPU artifact, execution results and limitations](COSMOPOLITAN_WEBGPU_VALIDATION.md).
+- [Native image commands and Generate page](cosmopolitan/inference/README.md).
+- [Completed image, text and native API inference record](COSMOPOLITAN_INFERENCE_VALIDATION.md).
+- [Earlier WebGPU tensor and text-inference milestone](COSMOPOLITAN_WEBGPU_VALIDATION.md).
 - [Historical CPU-only integration record](COSMOPOLITAN_VALIDATION.md).
 - [Whole-application scope and remaining work](cosmopolitan/PORTING.md).
 - [Audit of the earlier llama, diffusion and GGML updates](cosmopolitan/docs/source-audit.md).
 
-The ordinary GGML CPU backend is also available. Full application API behavior,
-end-to-end image generation and training, remaining Python replacements,
-LibTorch/ONNX and hardware acceleration have separate gates.
+Full application API behavior, end-to-end training, other model families,
+remaining Python replacements, LibTorch/ONNX and hardware acceleration have
+separate gates. The completed HTTP inference gate selects CPU; WebGPU HTTP
+generation and real browser automation remain unvalidated.
 
 ## Existing Easy Diffusion application
 

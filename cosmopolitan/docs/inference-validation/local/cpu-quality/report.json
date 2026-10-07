@@ -1,0 +1,309 @@
+{
+  "status": "passed",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+  "backend": "cpu",
+  "scope": "Real trained SD1.5 inference and decoded PNG plumbing; visual quality not assessed",
+  "low_step_plumbing": false,
+  "filesystem_isolated": false,
+  "software_driver_workers": {
+    "environment": "LP_NUM_THREADS",
+    "value": 2
+  },
+  "parameters": {
+    "prompt": "a photograph of a red apple on a wooden table, natural light",
+    "negative_prompt": "",
+    "width": 256,
+    "height": 256,
+    "steps": 20,
+    "seed": 42,
+    "threads": 8,
+    "cfg_scale": 7.0
+  },
+  "output_png": "image.png",
+  "model_pin": {
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/inference/PIN.json",
+    "sha256": "2c9870678a913bab2edc949c5acb9b4d69025a2cfaa6678ce3e8a89c321de0ca",
+    "metadata": {
+      "schema": 1,
+      "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+      "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+      "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+      "bytes": 1747190784,
+      "sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+      "url": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/resolve/dcac270609fffc0ce7c7d41a3c0e752721859f7c/stable-diffusion-v1-5-Q4_0.gguf",
+      "model_card": "https://huggingface.co/gpustack/stable-diffusion-v1-5-GGUF/blob/dcac270609fffc0ce7c7d41a3c0e752721859f7c/README.md",
+      "license": "creativeml-openrail-m",
+      "architecture": "Stable Diffusion 1.5",
+      "components": {
+        "diffusion": "Q4_0 conversion",
+        "clip_l": "F16",
+        "vae": "F16"
+      },
+      "purpose": "External trained image-inference validation checkpoint; never embedded into the application or committed to Git",
+      "short_run_scope": "Small-resolution, few-step runs test loading, denoising and image decoding; they are not image-quality benchmarks"
+    }
+  },
+  "model": {
+    "repository": "gpustack/stable-diffusion-v1-5-GGUF",
+    "revision": "dcac270609fffc0ce7c7d41a3c0e752721859f7c",
+    "filename": "stable-diffusion-v1-5-Q4_0.gguf",
+    "bytes": 1747190784,
+    "expected_sha256": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "path": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf",
+    "sha256_before": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b",
+    "sha256_after": "c2f6e92f9d08d69cc673a1003528ac8199274b3c0eaec88d5fbefe5af67bd42b"
+  },
+  "sha256_before": "9adf1c7a76a31ea7fab38e467efcd5c61a363b31ded434054ad91e5006972841",
+  "launch_mode": "explicit APE ELF loader",
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/quality-application/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/quality-application/easy-diffusion.exe",
+    "image",
+    "--model",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf",
+    "--prompt",
+    "a photograph of a red apple on a wooden table, natural light",
+    "--output",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-cpu-quality/image.png",
+    "--backend",
+    "cpu",
+    "--width",
+    "256",
+    "--height",
+    "256",
+    "--steps",
+    "20",
+    "--seed",
+    "42",
+    "--threads",
+    "8",
+    "--cfg-scale",
+    "7.0",
+    "--negative-prompt",
+    ""
+  ],
+  "stdout_log": "inference.stdout.log",
+  "stderr_log": "inference.stderr.log",
+  "expected_application_exit_code": 0,
+  "expected_host_exit_status": 0,
+  "exit_code": 0,
+  "elapsed_seconds": 394.635,
+  "peak_rss_bytes": 2292277248,
+  "memory_sampling": {
+    "popen_pid": 8,
+    "scope": "Validated application process; not process-tree sum",
+    "available": true,
+    "reason": null,
+    "harness": {
+      "os_pid": 6,
+      "proc_pid": 69364,
+      "nspid": [
+        69364,
+        6
+      ],
+      "pid_namespace": "pid:[4026532277]"
+    },
+    "last_unavailable_sample": "[Errno 2] No such file or directory: '/proc/69366/exe'",
+    "validated_samples": 3901,
+    "process": {
+      "proc_pid": 69366,
+      "nspid": [
+        69366,
+        8
+      ],
+      "parent_proc_pid": 69364,
+      "pid_namespace": "pid:[4026532277]",
+      "start_time_ticks": 2604168,
+      "comm": "easy-diffusion.",
+      "executable": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/quality-application/ape-x86_64.elf",
+      "command": [
+        "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/quality-application/ape-x86_64.elf",
+        "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/quality-application/easy-diffusion.exe",
+        "image",
+        "--model",
+        "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf",
+        "--prompt",
+        "a photograph of a red apple on a wooden table, natural light",
+        "--output",
+        "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference-cpu-quality/image.png",
+        "--backend",
+        "cpu",
+        "--width",
+        "256",
+        "--height",
+        "256",
+        "--steps",
+        "20",
+        "--seed",
+        "42",
+        "--threads",
+        "8",
+        "--cfg-scale",
+        "7.0",
+        "--negative-prompt",
+        ""
+      ],
+      "application_executable_mapping": "00400000-04d1c000 r-xp 00010000 00:1b 1836926                            /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/quality-application/easy-diffusion.exe"
+    }
+  },
+  "peak_rss_measurement": "sampled Linux /proc VmHWM at 100ms; may miss final peak",
+  "sha256_after": "9adf1c7a76a31ea7fab38e467efcd5c61a363b31ded434054ad91e5006972841",
+  "app_hash_unchanged": true,
+  "model_hash_unchanged": true,
+  "png": {
+    "width": 256,
+    "height": 256,
+    "channels": 3,
+    "bytes": 120655,
+    "sha256": "795aed477993d4d9187f40d6eebc2e7344b367ba11bd4a041e31aaf7a4d85e63",
+    "decoded_pixel_sha256": "10441a044085d29677bd234425329ed49d62e17e437214bd2a4a65bf5813480c",
+    "chunk_crc_verified": true,
+    "nonconstant_color_pixels": true,
+    "distinct_colors_capped_at_257": 257,
+    "color_min": 0,
+    "color_max": 255,
+    "color_mean": 91.13412984212239,
+    "color_stddev": 81.0036279269939,
+    "pixel_bytes": 196608,
+    "pixel_min": 0,
+    "pixel_max": 255,
+    "pixel_mean": 91.13412984212239,
+    "quality_assessed": false
+  },
+  "execution": {
+    "model_load": {
+      "seconds": 0.153203,
+      "graphs": 0,
+      "submissions": 0,
+      "dispatches": 0,
+      "matmuls": 0,
+      "readbacks": 0
+    },
+    "generation": {
+      "seconds": 394.29335,
+      "graphs": 0,
+      "submissions": 0,
+      "dispatches": 0,
+      "matmuls": 0,
+      "readbacks": 0
+    },
+    "sampler": "euler_a",
+    "scheduler": "discrete",
+    "counter_scope": "Complete generate_image call after model/context loading; not UNet-only",
+    "sampling": {
+      "first_step": 1,
+      "last_step": 20,
+      "total_steps": 20,
+      "completed_callbacks": 20,
+      "intervals": 19,
+      "monotonic": true,
+      "graphs": 0,
+      "submissions": 0,
+      "dispatches": 0,
+      "matmuls": 0,
+      "readbacks": 0,
+      "progress": [
+        {
+          "step": 1,
+          "seconds": 16.12225
+        },
+        {
+          "step": 2,
+          "seconds": 16.139484
+        },
+        {
+          "step": 3,
+          "seconds": 17.800068
+        },
+        {
+          "step": 4,
+          "seconds": 17.029327
+        },
+        {
+          "step": 5,
+          "seconds": 17.34548
+        },
+        {
+          "step": 6,
+          "seconds": 17.842445
+        },
+        {
+          "step": 7,
+          "seconds": 16.855072
+        },
+        {
+          "step": 8,
+          "seconds": 15.849113
+        },
+        {
+          "step": 9,
+          "seconds": 16.07618
+        },
+        {
+          "step": 10,
+          "seconds": 17.232916
+        },
+        {
+          "step": 11,
+          "seconds": 16.202744
+        },
+        {
+          "step": 12,
+          "seconds": 16.921017
+        },
+        {
+          "step": 13,
+          "seconds": 16.258673
+        },
+        {
+          "step": 14,
+          "seconds": 17.175968
+        },
+        {
+          "step": 15,
+          "seconds": 16.654837
+        },
+        {
+          "step": 16,
+          "seconds": 19.576828
+        },
+        {
+          "step": 17,
+          "seconds": 19.052923
+        },
+        {
+          "step": 18,
+          "seconds": 19.483053
+        },
+        {
+          "step": 19,
+          "seconds": 18.980881
+        },
+        {
+          "step": 20,
+          "seconds": 18.550924
+        }
+      ],
+      "scope": "Denoising intervals between completed steps; excludes first step, CLIP and VAE; previews disabled"
+    },
+    "cpu_fallback_allowed": false,
+    "cpu_fallback_fraction_measured": false
+  },
+  "evidence": [
+    {
+      "path": "inference.stdout.log",
+      "bytes": 1156,
+      "sha256": "4494826751280ad984701ef0493428707cc44d5dc0fa18fc177c5820b4885caa"
+    },
+    {
+      "path": "inference.stderr.log",
+      "bytes": 1465,
+      "sha256": "736f2ae2372cf525ca426e31e0f4962586f682c353a9b12ebea485f4fd20880c"
+    },
+    {
+      "path": "image.png",
+      "bytes": 120655,
+      "sha256": "795aed477993d4d9187f40d6eebc2e7344b367ba11bd4a041e31aaf7a4d85e63"
+    }
+  ]
+}

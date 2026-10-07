@@ -1,0 +1,40 @@
+[2026-10-06 23:52:15.139] [32mINFO   [0m Attention pipeline: split
+[2026-10-06 23:52:15.139] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-06 23:52:15.139] [32mINFO   [0m SdkitModelIndex initialized
+[2026-10-06 23:52:15.139] [32mINFO   [0m Checkpoint directory set to: /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models
+Scanning model directories...
+[2026-10-06 23:52:15.139] [32mINFO   [0m Scanning all model directories...
+[2026-10-06 23:52:15.139] [32mINFO   [0m Scanned checkpoint directory: found 1 models
+[2026-10-06 23:52:15.139] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-06 23:52:15.139] [32mINFO   [0m ImageGenerator created
+Starting server on port 56021
+[2026-10-06 23:52:15.140] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:56021 using 9 threads
+[2026-10-06 23:52:15.140] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-06 23:52:15.209] [32mINFO   [0m [CROW] Request: 127.0.0.1:34754 0x7fa14112c8c0 HTTP/1.1 GET /v1/sdapi/v1/checkpoints
+[2026-10-06 23:52:15.209] [32mINFO   [0m [CROW] Response: 0x7fa14112c8c0 /v1/sdapi/v1/checkpoints 200 1
+[2026-10-06 23:52:15.210] [32mINFO   [0m [CROW] Request: 127.0.0.1:34768 0x7fa14112de00 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-06 23:52:15.210] [32mINFO   [0m Model change detected, loading new model: /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf
+[2026-10-06 23:52:15.210] [32mINFO   [0m Initializing SD context with model: /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf
+[2026-10-06 23:52:15.210] [32mINFO   [0m stable-diffusion.cpp:745  - loading model from '/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf'
+[2026-10-06 23:52:15.210] [32mINFO   [0m model_loader.cpp:176  - load /workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inference/models/stable-diffusion-v1-5-Q4_0.gguf using gguf format
+[2026-10-06 23:52:15.222] [32mINFO   [0m stable-diffusion.cpp:1022 - Version: SD 1.x 
+[2026-10-06 23:52:15.227] [32mINFO   [0m stable-diffusion.cpp:1106 - Weight type stat:                      f16: 839  |    q4_0: 291  
+[2026-10-06 23:52:15.227] [32mINFO   [0m stable-diffusion.cpp:1107 - Conditioner weight type stat:          f16: 196  
+[2026-10-06 23:52:15.227] [32mINFO   [0m stable-diffusion.cpp:1108 - Diffusion model weight type stat:      f16: 395  |    q4_0: 291  
+[2026-10-06 23:52:15.227] [32mINFO   [0m stable-diffusion.cpp:1109 - VAE weight type stat:                  f16: 248  
+[2026-10-06 23:52:15.365] [32mINFO   [0m stable-diffusion.cpp:1862 - using VAE for encoding / decoding
+[2026-10-06 23:52:15.365] [32mINFO   [0m auto_encoder_kl.hpp:527  - vae decoder: ch = 128
+[2026-10-06 23:52:15.365] [32mINFO   [0m stable-diffusion.cpp:2200 - total params memory size = 1667.59MB (VRAM 0.00MB, RAM 1667.59MB): text_encoders 235.06MB(RAM), clip_vision 0.00MB(N/A), diffusion_model 1272.85MB(RAM), ip_adapter_projection 0.00MB(N/A), vae 159.68MB(RAM), controlnet 0.00MB(N/A), extensions 0.00MB(N/A)
+[2026-10-06 23:52:15.365] [32mINFO   [0m stable-diffusion.cpp:2313 - running in eps-prediction mode
+[2026-10-06 23:52:15.365] [32mINFO   [0m SD context initialized successfully
+[2026-10-06 23:52:15.365] [32mINFO   [0m Generating txt2img: prompt='a photograph of a red apple on a wooden table, natural light', size=256x256, steps=4, seed=42
+[2026-10-06 23:52:15.365] [32mINFO   [0m Automatic VAE fallback configured for 32x32 latent tiles with 16-pixel overlap
+[2026-10-06 23:52:15.365] [32mINFO   [0m stable-diffusion.cpp:6769 - generate_image 256x256
+[2026-10-06 23:52:15.365] [32mINFO   [0m denoiser.hpp:1177 - get_sigmas with discrete scheduler
+[2026-10-06 23:52:15.365] [32mINFO   [0m stable-diffusion.cpp:5428 - sampling using Euler method
+  |#                                                 | 2/196 - 0.00MB/s[K  |##################################################| 196/196 - 1.14GB/s[K
+[2026-10-06 23:52:15.568] [32mINFO   [0m model_loader.cpp:1266 - loading tensors completed, taking 0.20s (read: 0.05s, memcpy: 0.00s, convert: 0.00s, copy_to_backend: 0.00s)
+[2026-10-06 23:52:18.662] [32mINFO   [0m stable-diffusion.cpp:6431 - get_learned_condition completed, taking 3.30s
+[2026-10-06 23:52:18.663] [32mINFO   [0m stable-diffusion.cpp:6832 - generating image: 1/1 - seed 42

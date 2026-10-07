@@ -1,0 +1,100 @@
+GGML_CASE backend=CPU threads=1 type=F32
+GGML_CHECK matmul values=143 max_error=0 PASS
+GGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS
+GGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS
+GGML_CASE backend=CPU threads=4 type=F32
+GGML_CHECK matmul values=143 max_error=0 PASS
+GGML_CHECK bias-rmsnorm-silu values=143 max_error=1.80003365e-07 PASS
+GGML_CHECK softmax values=143 max_error=5.62552064e-08 PASS
+GGML_CASE backend=CPU threads=1 type=Q4_0
+GGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS
+GGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS
+GGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS
+GGML_CASE backend=CPU threads=4 type=Q4_0
+GGML_CHECK matmul values=143 max_error=1.1920929e-07 PASS
+GGML_CHECK bias-rmsnorm-silu values=143 max_error=1.72294659e-07 PASS
+GGML_CHECK softmax values=143 max_error=3.20616569e-08 PASS
+GGML_SELFTEST PASS
+SHARED_GGML_CASE threads=1
+SHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS
+SHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS
+SHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS
+SHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS
+SHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS
+SHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS
+SHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS
+SHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS
+SHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS
+SHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS
+SHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS
+SHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS
+SHARED_GGML_CASE threads=4
+SHARED_GGML_CHECK clamp-out-of-place values=8 max_error=0 PASS
+SHARED_GGML_CHECK clamp-in-place values=8 max_error=0 PASS
+SHARED_GGML_CHECK rope-offset-normal values=60 max_error=9.49923484e-08 PASS
+SHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS
+SHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS
+SHARED_GGML_CHECK rope-offset-gradient values=60 max_error=6.26561563e-08 PASS
+SHARED_GGML_CHECK rope-offset-neox values=60 max_error=6.11195496e-08 PASS
+SHARED_GGML_CHECK rope-offset-inverse values=60 max_error=1.1920929e-07 PASS
+SHARED_GGML_CHECK rope-zero-dims values=60 max_error=0 PASS
+SHARED_GGML_CHECK rope-offset-gradient values=60 max_error=4.42485986e-08 PASS
+SHARED_GGML_CHECK ssm-k1 values=96 max_error=5.48801963e-08 PASS
+SHARED_GGML_CHECK ssm-k3-history values=192 max_error=5.48801963e-08 PASS
+SHARED_GGML_SELFTEST PASS
+LLAMA_GREEDY_IDS 432,383,286,261,376,298,315,421,395,317,426,338,401,396,267,337
+LLAMA_SELFTEST prompt_tokens=5 decode_steps=16 vocab=512 finite_logits=1 threads=1
+LLAMA_SELFTEST PASS
+WEBGPU_ADAPTER name=llvmpipe (LLVM 19.1.7, 256 bits) provider=embedded software=1 native_loader_opens=0
+WEBGPU_UNSUPPORTED op=SILU_BACK supported=0
+WEBGPU_CHECK type=F32 iteration=0 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=F32 iteration=0 stage=bias-rmsnorm-silu values=143 max_error=1.84800599e-07 PASS
+WEBGPU_CHECK type=F32 iteration=0 stage=softmax values=143 max_error=5.11464063e-08 PASS
+WEBGPU_GGML_EXECUTION type=F32 iteration=0 provider=embedded software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=0 cpu_fallback=0
+WEBGPU_CHECK type=Q4_0 iteration=0 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=Q4_0 iteration=0 stage=bias-rmsnorm-silu values=143 max_error=1.87900205e-07 PASS
+WEBGPU_CHECK type=Q4_0 iteration=0 stage=softmax values=143 max_error=5.79208283e-08 PASS
+WEBGPU_GGML_EXECUTION type=Q4_0 iteration=0 provider=embedded software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=0 cpu_fallback=0
+WEBGPU_CHECK type=F32 iteration=1 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=F32 iteration=1 stage=bias-rmsnorm-silu values=143 max_error=2.06550482e-07 PASS
+WEBGPU_CHECK type=F32 iteration=1 stage=softmax values=143 max_error=5.16552808e-08 PASS
+WEBGPU_GGML_EXECUTION type=F32 iteration=1 provider=embedded software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=0 cpu_fallback=0
+WEBGPU_CHECK type=Q4_0 iteration=1 stage=matmul values=143 max_error=0 PASS
+WEBGPU_CHECK type=Q4_0 iteration=1 stage=bias-rmsnorm-silu values=143 max_error=2.81014707e-07 PASS
+WEBGPU_CHECK type=Q4_0 iteration=1 stage=softmax values=143 max_error=5.09649803e-08 PASS
+WEBGPU_GGML_EXECUTION type=Q4_0 iteration=1 provider=embedded software=1 graphs=1 submissions=4 dispatches=5 matmuls=1 readbacks=3 native_loader_opens=0 cpu_fallback=0
+WEBGPU_GGML_SELFTEST PASS
+WEBGPU_LLAMA_GREEDY_IDS 432,383,286,261,376,298,315,421,395,317,426,338,401,396,267,337
+WEBGPU_LLAMA_SELFTEST prompt_tokens=5 decode_steps=16 vocab=512 finite_logits=1 threads=1
+WEBGPU_LLAMA_EXECUTION provider=embedded software=1 graphs=17 submissions=51 dispatches=1768 matmuls=782 readbacks=17 native_loader_opens=0
+WEBGPU_LLAMA_DECODE_EXECUTION steps=16 graphs=16 submissions=48 dispatches=1664 matmuls=736 readbacks=16
+WEBGPU_LLAMA_SELFTEST PASS
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=0 stage=cpu-alias-activation values=128 max_error=5.96046448e-08 PASS
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=0 stage=webgpu-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=scheduler iteration=0 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=1 stage=cpu-alias-activation values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=scheduler iteration=1 stage=webgpu-projection-f16 values=24 max_error=4.47034836e-08 PASS
+WEBGPU_INPLACE_EXECUTION owner=scheduler iteration=1 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=cpu-alias-activation values=128 max_error=5.96046448e-08 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=webgpu-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated iteration=0 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=cpu-alias-activation values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=webgpu-projection-f16 values=24 max_error=4.47034836e-08 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated iteration=1 alias_nodes=5 alias_backend=CPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=1 graphs=1 submissions=4 dispatches=1 matmuls=1 readbacks=3 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=webgpu-owner-silu values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=0 stage=webgpu-owner-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated-webgpu iteration=0 alias_nodes=2 alias_backend=WebGPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=0 graphs=1 submissions=3 dispatches=2 matmuls=1 readbacks=2 native_loader_opens=0 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=webgpu-owner-silu values=128 max_error=1.1920929e-07 PASS
+WEBGPU_INPLACE_CHECK owner=preallocated iteration=1 stage=webgpu-owner-projection-f16 values=24 max_error=0 PASS
+WEBGPU_INPLACE_EXECUTION owner=preallocated-webgpu iteration=1 alias_nodes=2 alias_backend=WebGPU consumer_backend=WebGPU consumer_host_buffer=0 cpu_fallback=0 graphs=1 submissions=3 dispatches=2 matmuls=1 readbacks=2 native_loader_opens=0 PASS
+WEBGPU_INPLACE_SELFTEST PASS
+DIFFUSION_BACKEND backend=WebGPU selector=WebGPU0 shared_registry=yes PASS
+DIFFUSION_API version=snapshot backend=CPU tensor_name_size=160 PASS
+ACTIVATION backend=CPU kind=gelu max_gradient=0.000229097 max_error=1.10051e-10 nonfinite=0 result=PASS
+ACTIVATION backend=CPU kind=gelu_quick max_gradient=0.000223182 max_error=1.45519e-10 nonfinite=0 result=PASS
+ACTIVATION backend=CPU kind=silu max_gradient=0.000223182 max_error=7.27596e-11 nonfinite=0 result=PASS
+PASS: separate AdamW rates; sampling leaves weights and subsequent updates unchanged
+TRAINING_MATH_SELFTEST PASS
+DIFFUSION_SELFTEST PASS
+UI_SELFTEST pages=16 embedded_assets=yes PASS
+COSMOPOLITAN_SELFTEST PASS

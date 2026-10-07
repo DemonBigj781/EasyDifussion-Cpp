@@ -1,0 +1,8 @@
+
+--- stdout ---
+index	backend	selector	type	free MiB	total MiB	vendor	capabilities	description
+0	WebGPU	WebGPU0	gpu	2047	2047		async=no,host-buffer=no,host-pointer=no,events=no	WebGPU / embedded software Vulkan / llvmpipe (LLVM 19.1.7, 256 bits)
+1	CPU	CPU	cpu	15989	15989		async=no,host-buffer=no,host-pointer=yes,events=no	CPU
+
+--- stderr ---
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)

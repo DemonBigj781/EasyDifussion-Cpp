@@ -1,0 +1,41 @@
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)
+
+IMAGE_SAMPLE_PROGRESS step=1 total_steps=20 seconds=16.122250
+
+IMAGE_SAMPLE_PROGRESS step=2 total_steps=20 seconds=16.139484
+
+IMAGE_SAMPLE_PROGRESS step=3 total_steps=20 seconds=17.800068
+
+IMAGE_SAMPLE_PROGRESS step=4 total_steps=20 seconds=17.029327
+
+IMAGE_SAMPLE_PROGRESS step=5 total_steps=20 seconds=17.345480
+
+IMAGE_SAMPLE_PROGRESS step=6 total_steps=20 seconds=17.842445
+
+IMAGE_SAMPLE_PROGRESS step=7 total_steps=20 seconds=16.855072
+
+IMAGE_SAMPLE_PROGRESS step=8 total_steps=20 seconds=15.849113
+
+IMAGE_SAMPLE_PROGRESS step=9 total_steps=20 seconds=16.076180
+
+IMAGE_SAMPLE_PROGRESS step=10 total_steps=20 seconds=17.232916
+
+IMAGE_SAMPLE_PROGRESS step=11 total_steps=20 seconds=16.202744
+
+IMAGE_SAMPLE_PROGRESS step=12 total_steps=20 seconds=16.921017
+
+IMAGE_SAMPLE_PROGRESS step=13 total_steps=20 seconds=16.258673
+
+IMAGE_SAMPLE_PROGRESS step=14 total_steps=20 seconds=17.175968
+
+IMAGE_SAMPLE_PROGRESS step=15 total_steps=20 seconds=16.654837
+
+IMAGE_SAMPLE_PROGRESS step=16 total_steps=20 seconds=19.576828
+
+IMAGE_SAMPLE_PROGRESS step=17 total_steps=20 seconds=19.052923
+
+IMAGE_SAMPLE_PROGRESS step=18 total_steps=20 seconds=19.483053
+
+IMAGE_SAMPLE_PROGRESS step=19 total_steps=20 seconds=18.980881
+
+IMAGE_SAMPLE_PROGRESS step=20 total_steps=20 seconds=18.550924

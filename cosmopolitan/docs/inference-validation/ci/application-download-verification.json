@@ -1,0 +1,10 @@
+{
+  "artifact_id": 11453436083,
+  "run_id": 37551341258,
+  "archive_bytes": 94505922,
+  "archive_sha256": "728373aaab3ca3208813c5bd0832a95cafe319f336ababf4d47e95732d890e50",
+  "application_bytes": 190274689,
+  "application_sha256": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516",
+  "archive_matches_github_digest": true,
+  "zip_crc_checked": true
+}

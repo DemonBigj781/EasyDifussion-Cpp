@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "scope": "Offline symbolization of the saved intermediate diagnostic build; no application execution",
+  "application_sha256": "9adf1c7a76a31ea7fab38e467efcd5c61a363b31ded434054ad91e5006972841",
+  "debug_file": {
+    "source": "cosmopolitan/out/quality-application/easy-diffusion.com.dbg",
+    "bytes": 182162892,
+    "sha256": "4be41d568ead3ac72c308919d59b27120cf78653338eee54c0dedfb395cf274d",
+    "copied_to_archive": false
+  },
+  "fault_rip": "0x18fcd69",
+  "reported_rcx": "0xbe3c80f5bd554e8c",
+  "tools": {
+    "addr2line": {
+      "path": "/usr/bin/addr2line",
+      "version": "GNU addr2line (GNU Binutils for Ubuntu) 2.42"
+    },
+    "objdump": {
+      "path": "/usr/bin/objdump",
+      "version": "GNU objdump (GNU Binutils for Ubuntu) 2.42"
+    }
+  },
+  "results": [
+    {
+      "command": [
+        "addr2line",
+        "-a",
+        "-f",
+        "-C",
+        "-i",
+        "-e",
+        "cosmopolitan/out/quality-application/easy-diffusion.com.dbg",
+        "0x18fcd69"
+      ],
+      "exit_code": 0,
+      "stdout": "0x00000000018fcd69\nggml_webgpu_make_tensor_bind_group_entry(std::__1::shared_ptr<webgpu_context_struct>&, unsigned int, ggml_tensor*)\nggml-webgpu.cpp:?\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "objdump",
+        "-d",
+        "--start-address=0x18fcd50",
+        "--stop-address=0x18fcd80",
+        "cosmopolitan/out/quality-application/easy-diffusion.com.dbg"
+      ],
+      "exit_code": 0,
+      "stdout": "\ncosmopolitan/out/quality-application/easy-diffusion.com.dbg:     file format elf64-x86-64\n\n\nDisassembly of section .text:\n\n00000000018fcd50 <_ZL40ggml_webgpu_make_tensor_bind_group_entryRNSt3__110shared_ptrI21webgpu_context_structEEjP11ggml_tensor+0x80>:\n 18fcd50:\t8b 4c 24 08          \tmov    0x8(%rsp),%ecx\n 18fcd54:\t48 8b 49 60          \tmov    0x60(%rcx),%rcx\n 18fcd58:\tf3 0f 6f 01          \tmovdqu (%rcx),%xmm0\n 18fcd5c:\t0f 12 c8             \tmovhlps %xmm0,%xmm1\n 18fcd5f:\t66 48 0f 7e c9       \tmovq   %xmm1,%rcx\n 18fcd64:\t48 85 c9             \ttest   %rcx,%rcx\n 18fcd67:\t74 06                \tje     18fcd6f <_ZL40ggml_webgpu_make_tensor_bind_group_entryRNSt3__110shared_ptrI21webgpu_context_structEEjP11ggml_tensor+0x9f>\n 18fcd69:\tf0 48 83 41 08 01    \tlock addq $0x1,0x8(%rcx)\n 18fcd6f:\t44 89 3b             \tmov    %r15d,(%rbx)\n 18fcd72:\t0f 11 43 08          \tmovups %xmm0,0x8(%rbx)\n 18fcd76:\t48 89 43 18          \tmov    %rax,0x18(%rbx)\n 18fcd7a:\t48 89 53 20          \tmov    %rdx,0x20(%rbx)\n 18fcd7e:\t48                   \trex.W\n 18fcd7f:\t89                   \t.byte 0x89\n",
+      "stderr": ""
+    }
+  ],
+  "interpretation": "The recorded fault instruction increments a shared_ptr reference count in ggml_webgpu_make_tensor_bind_group_entry. The corrected negative scheduler regression independently demonstrates CPU-backed in-place aliases assigned to WebGPU."
+}

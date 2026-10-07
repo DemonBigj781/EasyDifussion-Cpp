@@ -1,0 +1,7 @@
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)
+HTTP_PROBE_WORK_STARTED call=1 delay_ms=2000 model_called=0
+HTTP_PROBE_WORK_FINISHED call=1
+HTTP_PROBE_WORK_STARTED call=2 delay_ms=2000 model_called=0
+HTTP_PROBE_WORK_FINISHED call=2
+HTTP_PROBE_WORK_STARTED call=3 delay_ms=2000 model_called=0
+HTTP_PROBE_WORK_FINISHED call=3

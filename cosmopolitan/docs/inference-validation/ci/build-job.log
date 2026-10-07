@@ -1,0 +1,1360 @@
+﻿2026-10-07T00:19:39.6652673Z Current runner version: '2.337.0'
+2026-10-07T00:19:39.6676714Z ##[group]Runner Image Provisioner
+2026-10-07T00:19:39.6677652Z Hosted Compute Agent
+2026-10-07T00:19:39.6678307Z Version: 20261002.596
+2026-10-07T00:19:39.6679012Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+2026-10-07T00:19:39.6679844Z Build Date: 2026-10-02T22:28:27Z
+2026-10-07T00:19:39.6680538Z Worker ID: {0b1d0451-f173-4090-be98-7b632d0fac2a}
+2026-10-07T00:19:39.6681246Z Region: westus
+2026-10-07T00:19:39.6681902Z Cloud: Azure
+2026-10-07T00:19:39.6682444Z ##[endgroup]
+2026-10-07T00:19:39.6684061Z ##[group]Operating System
+2026-10-07T00:19:39.6684763Z Ubuntu
+2026-10-07T00:19:39.6685282Z 24.04.5
+2026-10-07T00:19:39.6685917Z LTS
+2026-10-07T00:19:39.6686722Z ##[endgroup]
+2026-10-07T00:19:39.6687367Z ##[group]Runner Image
+2026-10-07T00:19:39.6688005Z Image: ubuntu-24.04
+2026-10-07T00:19:39.6688617Z Version: 20261004.327.1
+2026-10-07T00:19:39.6689974Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261004.327/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-07T00:19:39.6691600Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261004.327
+2026-10-07T00:19:39.6692598Z ##[endgroup]
+2026-10-07T00:19:39.6693793Z ##[group]GITHUB_TOKEN Permissions
+2026-10-07T00:19:39.6695935Z Contents: read
+2026-10-07T00:19:39.6696814Z Metadata: read
+2026-10-07T00:19:39.6697521Z ##[endgroup]
+2026-10-07T00:19:39.6699525Z Secret source: Actions
+2026-10-07T00:19:39.6700574Z Cache mode: write
+2026-10-07T00:19:39.6701635Z Prepare workflow directory
+2026-10-07T00:19:39.7090522Z Prepare all required actions
+2026-10-07T00:19:39.7140131Z Getting action download info
+2026-10-07T00:19:40.0598805Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-10-07T00:19:40.1751906Z Download action repository 'actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-07T00:19:40.2663868Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-10-07T00:19:40.4552057Z Complete job name: Build one application with shared GGML and embedded WebGPU
+2026-10-07T00:19:40.5333052Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-10-07T00:19:40.5334203Z with:
+2026-10-07T00:19:40.5334691Z   persist-credentials: false
+2026-10-07T00:19:40.5335285Z   repository: DemonBigj781/EasyDifussion-Cpp
+2026-10-07T00:19:40.5339367Z   token: ***
+2026-10-07T00:19:40.5339832Z   ssh-strict: true
+2026-10-07T00:19:40.5340283Z   ssh-user: git
+2026-10-07T00:19:40.5340721Z   clean: true
+2026-10-07T00:19:40.5341223Z   sparse-checkout-cone-mode: true
+2026-10-07T00:19:40.5341769Z   fetch-depth: 1
+2026-10-07T00:19:40.5342215Z   fetch-tags: false
+2026-10-07T00:19:40.5342723Z   show-progress: true
+2026-10-07T00:19:40.5343201Z   lfs: false
+2026-10-07T00:19:40.5343632Z   submodules: false
+2026-10-07T00:19:40.5344105Z   set-safe-directory: true
+2026-10-07T00:19:40.5344665Z   allow-unsafe-pr-checkout: false
+2026-10-07T00:19:40.5345797Z env:
+2026-10-07T00:19:40.5346442Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:19:40.5346939Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:19:40.5347447Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:19:40.5347908Z ##[endgroup]
+2026-10-07T00:19:40.6281545Z Syncing repository: DemonBigj781/EasyDifussion-Cpp
+2026-10-07T00:19:40.6284130Z ##[group]Getting Git version info
+2026-10-07T00:19:40.6285123Z Working directory is '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp'
+2026-10-07T00:19:40.6286665Z [command]/usr/bin/git version
+2026-10-07T00:19:40.6363101Z git version 2.55.0
+2026-10-07T00:19:40.6416280Z ##[endgroup]
+2026-10-07T00:19:40.6430462Z Temporarily overriding HOME='/home/runner/work/_temp/1a27e670-d6c1-41dd-a08d-0a39ae8ff664' before making global git config changes
+2026-10-07T00:19:40.6433209Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-07T00:19:40.6435868Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp
+2026-10-07T00:19:40.6488385Z Deleting the contents of '/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp'
+2026-10-07T00:19:40.6492186Z ##[group]Determining repository object format
+2026-10-07T00:19:40.6493936Z ##[endgroup]
+2026-10-07T00:19:40.6495270Z ##[group]Initializing the repository
+2026-10-07T00:19:40.6499372Z [command]/usr/bin/git init /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp
+2026-10-07T00:19:40.6622468Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-07T00:19:40.6623717Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-07T00:19:40.6624908Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-07T00:19:40.6625776Z hint: call:
+2026-10-07T00:19:40.6626715Z hint:
+2026-10-07T00:19:40.6627635Z hint: 	git config --global init.defaultBranch <name>
+2026-10-07T00:19:40.6628467Z hint:
+2026-10-07T00:19:40.6629102Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-07T00:19:40.6630449Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-07T00:19:40.6631717Z hint:
+2026-10-07T00:19:40.6632444Z hint: 	git branch -m <name>
+2026-10-07T00:19:40.6633259Z hint:
+2026-10-07T00:19:40.6633978Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-07T00:19:40.6635590Z Initialized empty Git repository in /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git/
+2026-10-07T00:19:40.6639714Z [command]/usr/bin/git remote add origin https://github.com/DemonBigj781/EasyDifussion-Cpp
+2026-10-07T00:19:40.6692987Z ##[endgroup]
+2026-10-07T00:19:40.6693955Z ##[group]Disabling automatic garbage collection
+2026-10-07T00:19:40.6697786Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-07T00:19:40.6728674Z ##[endgroup]
+2026-10-07T00:19:40.6730291Z ##[group]Setting up auth
+2026-10-07T00:19:40.6731278Z Removing SSH command configuration
+2026-10-07T00:19:40.6735404Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-07T00:19:40.6766564Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-07T00:19:40.7140201Z Removing HTTP extra header
+2026-10-07T00:19:40.7145385Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-07T00:19:40.7175688Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-07T00:19:40.7392240Z Removing includeIf entries pointing to credentials config files
+2026-10-07T00:19:40.7399306Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-07T00:19:40.7434296Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-07T00:19:40.7685495Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-07T00:19:40.7790680Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git.path /home/runner/work/_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:40.7795471Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:40.7800818Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:40.7825279Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:40.7854555Z ##[endgroup]
+2026-10-07T00:19:40.7855369Z ##[group]Fetching the repository
+2026-10-07T00:19:40.7864415Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +6898a4e564c3363d1692f0aed1a2da0395a17a77:refs/remotes/origin/cosmopolitan-test
+2026-10-07T00:19:48.0309242Z From https://github.com/DemonBigj781/EasyDifussion-Cpp
+2026-10-07T00:19:48.0311472Z  * [new ref]         6898a4e564c3363d1692f0aed1a2da0395a17a77 -> origin/cosmopolitan-test
+2026-10-07T00:19:48.0321362Z [command]/usr/bin/git branch --list --remote origin/cosmopolitan-test
+2026-10-07T00:19:48.0347123Z   origin/cosmopolitan-test
+2026-10-07T00:19:48.0358537Z [command]/usr/bin/git rev-parse refs/remotes/origin/cosmopolitan-test
+2026-10-07T00:19:48.0381702Z 6898a4e564c3363d1692f0aed1a2da0395a17a77
+2026-10-07T00:19:48.0394072Z ##[endgroup]
+2026-10-07T00:19:48.0395616Z ##[group]Determining the checkout info
+2026-10-07T00:19:48.0397556Z ##[endgroup]
+2026-10-07T00:19:48.0407788Z [command]/usr/bin/git sparse-checkout disable
+2026-10-07T00:19:48.0454355Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-07T00:19:48.0483070Z ##[group]Checking out the ref
+2026-10-07T00:19:48.0487635Z [command]/usr/bin/git checkout --progress --force -B cosmopolitan-test refs/remotes/origin/cosmopolitan-test
+2026-10-07T00:19:49.0743716Z Updating files:  51% (4120/8065)
+2026-10-07T00:19:49.0802004Z Updating files:  52% (4194/8065)
+2026-10-07T00:19:49.0848460Z Updating files:  53% (4275/8065)
+2026-10-07T00:19:49.0879837Z Updating files:  54% (4356/8065)
+2026-10-07T00:19:49.0918021Z Updating files:  55% (4436/8065)
+2026-10-07T00:19:49.0951706Z Updating files:  56% (4517/8065)
+2026-10-07T00:19:49.0987086Z Updating files:  57% (4598/8065)
+2026-10-07T00:19:49.1025555Z Updating files:  58% (4678/8065)
+2026-10-07T00:19:49.1060944Z Updating files:  59% (4759/8065)
+2026-10-07T00:19:49.1096410Z Updating files:  60% (4839/8065)
+2026-10-07T00:19:49.1133231Z Updating files:  61% (4920/8065)
+2026-10-07T00:19:49.1171851Z Updating files:  62% (5001/8065)
+2026-10-07T00:19:49.1281412Z Updating files:  63% (5081/8065)
+2026-10-07T00:19:49.1344398Z Updating files:  64% (5162/8065)
+2026-10-07T00:19:49.1400144Z Updating files:  65% (5243/8065)
+2026-10-07T00:19:49.1430329Z Updating files:  66% (5323/8065)
+2026-10-07T00:19:49.1465818Z Updating files:  67% (5404/8065)
+2026-10-07T00:19:49.1527043Z Updating files:  68% (5485/8065)
+2026-10-07T00:19:49.1588447Z Updating files:  69% (5565/8065)
+2026-10-07T00:19:49.1669559Z Updating files:  70% (5646/8065)
+2026-10-07T00:19:49.1709167Z Updating files:  71% (5727/8065)
+2026-10-07T00:19:49.1757202Z Updating files:  72% (5807/8065)
+2026-10-07T00:19:49.1820528Z Updating files:  73% (5888/8065)
+2026-10-07T00:19:49.1867170Z Updating files:  74% (5969/8065)
+2026-10-07T00:19:49.1932951Z Updating files:  75% (6049/8065)
+2026-10-07T00:19:49.1969314Z Updating files:  76% (6130/8065)
+2026-10-07T00:19:49.2010007Z Updating files:  77% (6211/8065)
+2026-10-07T00:19:49.2063051Z Updating files:  78% (6291/8065)
+2026-10-07T00:19:49.2154495Z Updating files:  79% (6372/8065)
+2026-10-07T00:19:49.2252729Z Updating files:  80% (6452/8065)
+2026-10-07T00:19:49.9124050Z Updating files:  81% (6533/8065)
+2026-10-07T00:19:49.9183145Z Updating files:  82% (6614/8065)
+2026-10-07T00:19:49.9234660Z Updating files:  83% (6694/8065)
+2026-10-07T00:19:49.9276650Z Updating files:  84% (6775/8065)
+2026-10-07T00:19:49.9323942Z Updating files:  85% (6856/8065)
+2026-10-07T00:19:49.9372151Z Updating files:  86% (6936/8065)
+2026-10-07T00:19:49.9422214Z Updating files:  87% (7017/8065)
+2026-10-07T00:19:49.9469049Z Updating files:  88% (7098/8065)
+2026-10-07T00:19:49.9515488Z Updating files:  89% (7178/8065)
+2026-10-07T00:19:49.9593296Z Updating files:  90% (7259/8065)
+2026-10-07T00:19:50.0150186Z Updating files:  91% (7340/8065)
+2026-10-07T00:19:50.0291050Z Updating files:  92% (7420/8065)
+2026-10-07T00:19:50.0470931Z Updating files:  93% (7501/8065)
+2026-10-07T00:19:50.0591921Z Updating files:  94% (7582/8065)
+2026-10-07T00:19:50.0639063Z Updating files:  94% (7640/8065)
+2026-10-07T00:19:50.0795800Z Updating files:  95% (7662/8065)
+2026-10-07T00:19:50.0949807Z Updating files:  96% (7743/8065)
+2026-10-07T00:19:50.1073620Z Updating files:  97% (7824/8065)
+2026-10-07T00:19:50.1569973Z Updating files:  98% (7904/8065)
+2026-10-07T00:19:50.2591957Z Updating files:  99% (7985/8065)
+2026-10-07T00:19:50.2593004Z Updating files: 100% (8065/8065)
+2026-10-07T00:19:50.2593729Z Updating files: 100% (8065/8065), done.
+2026-10-07T00:19:50.2685615Z Switched to a new branch 'cosmopolitan-test'
+2026-10-07T00:19:50.2692749Z branch 'cosmopolitan-test' set up to track 'origin/cosmopolitan-test'.
+2026-10-07T00:19:50.2761960Z ##[endgroup]
+2026-10-07T00:19:50.2808500Z [command]/usr/bin/git log -1 --format=%H
+2026-10-07T00:19:50.2835141Z 6898a4e564c3363d1692f0aed1a2da0395a17a77
+2026-10-07T00:19:50.2846279Z ##[group]Removing auth
+2026-10-07T00:19:50.2846850Z Removing SSH command configuration
+2026-10-07T00:19:50.2851836Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-07T00:19:50.2886255Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-07T00:19:50.3137156Z Removing HTTP extra header
+2026-10-07T00:19:50.3143557Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-07T00:19:50.3179614Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-07T00:19:50.3402408Z Removing includeIf entries pointing to credentials config files
+2026-10-07T00:19:50.3405504Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-07T00:19:50.3432870Z includeif.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git.path
+2026-10-07T00:19:50.3434289Z includeif.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git/worktrees/*.path
+2026-10-07T00:19:50.3435177Z includeif.gitdir:/github/workspace/.git.path
+2026-10-07T00:19:50.3435797Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-07T00:19:50.3441437Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git.path
+2026-10-07T00:19:50.3462742Z /home/runner/work/_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:50.3480571Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-6bdfcfef\-d8ad\-4ee2\-9f29\-14587d1259c5\.config
+2026-10-07T00:19:50.3515460Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git/worktrees/*.path
+2026-10-07T00:19:50.3539818Z /home/runner/work/_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:50.3549376Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-6bdfcfef\-d8ad\-4ee2\-9f29\-14587d1259c5\.config
+2026-10-07T00:19:50.3579149Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-10-07T00:19:50.3601155Z /github/runner_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:50.3608372Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-6bdfcfef\-d8ad\-4ee2\-9f29\-14587d1259c5\.config
+2026-10-07T00:19:50.3638850Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-07T00:19:50.3659067Z /github/runner_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config
+2026-10-07T00:19:50.3665745Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-6bdfcfef\-d8ad\-4ee2\-9f29\-14587d1259c5\.config
+2026-10-07T00:19:50.3696834Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-07T00:19:50.3917034Z Removing credentials config '/home/runner/work/_temp/git-credentials-6bdfcfef-d8ad-4ee2-9f29-14587d1259c5.config'
+2026-10-07T00:19:50.3925387Z ##[endgroup]
+2026-10-07T00:19:50.4119917Z ##[group]Run set -euo pipefail
+2026-10-07T00:19:50.4120288Z [36;1mset -euo pipefail[0m
+2026-10-07T00:19:50.4120545Z [36;1mpython3 - <<'PY'[0m
+2026-10-07T00:19:50.4120847Z [36;1mimport shutil, subprocess, sys, tempfile, venv[0m
+2026-10-07T00:19:50.4121196Z [36;1mfrom pathlib import Path[0m
+2026-10-07T00:19:50.4121570Z [36;1mcommands = ('cc', 'c++', 'make', 'git', 'curl', 'tar', 'xz', 'gzip',[0m
+2026-10-07T00:19:50.4122020Z [36;1m            'unzip', 'patch', 'sha256sum', 'nm', 'ar', 'file', 'false')[0m
+2026-10-07T00:19:50.4122476Z [36;1mmissing = [name for name in commands if shutil.which(name) is None][0m
+2026-10-07T00:19:50.4122845Z [36;1mif missing:[0m
+2026-10-07T00:19:50.4123225Z [36;1m    raise RuntimeError('Runner is missing required host tools: ' + ', '.join(missing))[0m
+2026-10-07T00:19:50.4123669Z [36;1mif sys.version_info < (3, 12):[0m
+2026-10-07T00:19:50.4124112Z [36;1m    raise RuntimeError('The Ubuntu 24.04 build requires Python 3.12 or later')[0m
+2026-10-07T00:19:50.4124668Z [36;1mwith tempfile.TemporaryDirectory(prefix='cosmo-host-check-') as temporary:[0m
+2026-10-07T00:19:50.4125098Z [36;1m    root = Path(temporary)[0m
+2026-10-07T00:19:50.4125423Z [36;1m    venv.EnvBuilder(with_pip=True).create(root / 'venv')[0m
+2026-10-07T00:19:50.4125785Z [36;1m    source = root / 'compiler.cpp'[0m
+2026-10-07T00:19:50.4126454Z [36;1m    source.write_text('#include <string>\nint main() { return std::string("ok").size() != 2; }\n')[0m
+2026-10-07T00:19:50.4127103Z [36;1m    subprocess.run(['c++', '-std=c++20', str(source), '-o', str(root / 'compiler')], check=True)[0m
+2026-10-07T00:19:50.4127613Z [36;1m    subprocess.run([str(root / 'compiler')], check=True)[0m
+2026-10-07T00:19:50.4128087Z [36;1mprint('Host C++20 compiler, archive tools and Python venv are available')[0m
+2026-10-07T00:19:50.4128470Z [36;1mPY[0m
+2026-10-07T00:19:50.4406520Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-07T00:19:50.4406918Z env:
+2026-10-07T00:19:50.4407144Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:19:50.4407384Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:19:50.4407617Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:19:50.4407847Z ##[endgroup]
+2026-10-07T00:19:54.0782707Z Host C++20 compiler, archive tools and Python venv are available
+2026-10-07T00:19:54.0930074Z ##[group]Run actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+2026-10-07T00:19:54.0930481Z with:
+2026-10-07T00:19:54.0930830Z   path: cosmopolitan/out/downloads
+cosmopolitan/out/sdk
+cosmopolitan/out/tools
+
+2026-10-07T00:19:54.0931303Z   key: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
+2026-10-07T00:19:54.0931649Z   enableCrossOsArchive: false
+2026-10-07T00:19:54.0931915Z   fail-on-cache-miss: false
+2026-10-07T00:19:54.0932157Z   lookup-only: false
+2026-10-07T00:19:54.0932377Z   save-always: false
+2026-10-07T00:19:54.0932580Z env:
+2026-10-07T00:19:54.0932767Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:19:54.0932978Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:19:54.0933186Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:19:54.0933386Z ##[endgroup]
+2026-10-07T00:19:54.1995107Z (node:2442) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-07T00:19:54.1996250Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-07T00:19:54.4490951Z Cache hit for: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
+2026-10-07T00:19:54.4592725Z (node:2442) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-07T00:19:55.7139506Z Received 4194304 of 884826326 (0.5%), 4.0 MBs/sec
+2026-10-07T00:19:56.7385949Z Received 134217728 of 884826326 (15.2%), 63.2 MBs/sec
+2026-10-07T00:19:57.7383605Z Received 268435456 of 884826326 (30.3%), 84.6 MBs/sec
+2026-10-07T00:19:58.7394044Z Received 411041792 of 884826326 (46.5%), 97.4 MBs/sec
+2026-10-07T00:19:59.7393716Z Received 553648128 of 884826326 (62.6%), 105.1 MBs/sec
+2026-10-07T00:20:00.7402145Z Received 675282944 of 884826326 (76.3%), 106.9 MBs/sec
+2026-10-07T00:20:01.7407587Z Received 805306368 of 884826326 (91.0%), 109.3 MBs/sec
+2026-10-07T00:20:02.2767513Z Received 884826326 of 884826326 (100.0%), 111.6 MBs/sec
+2026-10-07T00:20:02.2778091Z Cache Size: ~844 MB (884826326 B)
+2026-10-07T00:20:02.2851798Z [command]/usr/bin/tar -xf /home/runner/work/_temp/a7b57ddf-09f6-4dae-8a19-83cf78bac761/cache.tzst -P -C /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp --use-compress-program unzstd
+2026-10-07T00:20:05.2354305Z Cache restored successfully
+2026-10-07T00:20:05.7314976Z Cache restored from key: cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1
+2026-10-07T00:20:05.8777782Z ##[group]Run node cosmopolitan/tests/verify_inference_ui.js
+2026-10-07T00:20:05.8778549Z [36;1mnode cosmopolitan/tests/verify_inference_ui.js[0m
+2026-10-07T00:20:05.8842719Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-07T00:20:05.8843077Z env:
+2026-10-07T00:20:05.8843273Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:20:05.8843491Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:20:05.8843709Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:20:05.8843917Z ##[endgroup]
+2026-10-07T00:20:06.1313857Z UI_DOM_MOCK PASS: capability failure, CPU default, WebGPU selection, native request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict
+2026-10-07T00:20:06.2030305Z ##[group]Run actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+2026-10-07T00:20:06.2030723Z with:
+2026-10-07T00:20:06.2030952Z   path: cosmopolitan/out/software-webgpu
+2026-10-07T00:20:06.2031549Z   key: cosmo-easydiffusion-webgpu-ubuntu24-v1-7b402e1578681c0a11ab06b090addbad24bf5fc584efc439cf6d2ad913b3f4a1
+2026-10-07T00:20:06.2032148Z   enableCrossOsArchive: false
+2026-10-07T00:20:06.2032420Z   fail-on-cache-miss: false
+2026-10-07T00:20:06.2032668Z   lookup-only: false
+2026-10-07T00:20:06.2032879Z env:
+2026-10-07T00:20:06.2033067Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:20:06.2033288Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:20:06.2033497Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:20:06.2033703Z ##[endgroup]
+2026-10-07T00:20:06.3088607Z (node:2487) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-07T00:20:06.3089400Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-07T00:20:06.5598237Z Cache hit for: cosmo-easydiffusion-webgpu-ubuntu24-v1-7b402e1578681c0a11ab06b090addbad24bf5fc584efc439cf6d2ad913b3f4a1
+2026-10-07T00:20:06.5682961Z (node:2487) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-07T00:20:07.8253006Z Received 0 of 1888808616 (0.0%), 0.0 MBs/sec
+2026-10-07T00:20:08.8261116Z Received 134217728 of 1888808616 (7.1%), 64.0 MBs/sec
+2026-10-07T00:20:09.8267000Z Received 285212672 of 1888808616 (15.1%), 90.6 MBs/sec
+2026-10-07T00:20:10.8297040Z Received 486539264 of 1888808616 (25.8%), 115.9 MBs/sec
+2026-10-07T00:20:11.8280493Z Received 671088640 of 1888808616 (35.5%), 127.9 MBs/sec
+2026-10-07T00:20:12.8275095Z Received 834666496 of 1888808616 (44.2%), 132.6 MBs/sec
+2026-10-07T00:20:13.8330467Z Received 1006632960 of 1888808616 (53.3%), 137.0 MBs/sec
+2026-10-07T00:20:14.8338012Z Received 1186988032 of 1888808616 (62.8%), 141.3 MBs/sec
+2026-10-07T00:20:15.8348043Z Received 1342177280 of 1888808616 (71.1%), 142.1 MBs/sec
+2026-10-07T00:20:16.8354528Z Received 1505755136 of 1888808616 (79.7%), 143.4 MBs/sec
+2026-10-07T00:20:17.8354341Z Received 1681915904 of 1888808616 (89.0%), 145.7 MBs/sec
+2026-10-07T00:20:18.8357555Z Received 1824522240 of 1888808616 (96.6%), 144.9 MBs/sec
+2026-10-07T00:20:19.2952105Z Received 1888808616 of 1888808616 (100.0%), 144.4 MBs/sec
+2026-10-07T00:20:19.2954750Z Cache Size: ~1801 MB (1888808616 B)
+2026-10-07T00:20:19.3062116Z [command]/usr/bin/tar -xf /home/runner/work/_temp/a17140bc-7f27-4046-b845-9fbc80e2f102/cache.tzst -P -C /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp --use-compress-program unzstd
+2026-10-07T00:20:34.5531555Z Cache restored successfully
+2026-10-07T00:20:34.8852002Z Cache restored from key: cosmo-easydiffusion-webgpu-ubuntu24-v1-7b402e1578681c0a11ab06b090addbad24bf5fc584efc439cf6d2ad913b3f4a1
+2026-10-07T00:20:34.9688116Z ##[group]Run set -euo pipefail
+2026-10-07T00:20:34.9688496Z [36;1mset -euo pipefail[0m
+2026-10-07T00:20:34.9688792Z [36;1mmkdir -p cosmopolitan/out[0m
+2026-10-07T00:20:34.9689100Z [36;1m{[0m
+2026-10-07T00:20:34.9689338Z [36;1m  if [ 'true' != 'true' ]; then[0m
+2026-10-07T00:20:34.9689730Z [36;1m    python3 cosmopolitan/build.py --prepare-only[0m
+2026-10-07T00:20:34.9690266Z [36;1m    python3 cosmopolitan/software-webgpu/prepare.py --stage rust --jobs 2[0m
+2026-10-07T00:20:34.9690895Z [36;1m    python3 cosmopolitan/software-webgpu/prepare.py --stage llvm --jobs 4[0m
+2026-10-07T00:20:34.9691519Z [36;1m    python3 cosmopolitan/software-webgpu/prepare.py --stage mesa --jobs 4[0m
+2026-10-07T00:20:34.9692152Z [36;1m    python3 cosmopolitan/software-webgpu/prepare.py --stage manifest --jobs 2[0m
+2026-10-07T00:20:34.9692638Z [36;1m  fi[0m
+2026-10-07T00:20:34.9692979Z [36;1m  python3 cosmopolitan/build.py --dependencies-only --jobs 2[0m
+2026-10-07T00:20:34.9693537Z [36;1m} 2>&1 | tee cosmopolitan/out/software-dependencies.log[0m
+2026-10-07T00:20:34.9754730Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-07T00:20:34.9755089Z env:
+2026-10-07T00:20:34.9755291Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:20:34.9755519Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:20:34.9755754Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:20:34.9755969Z ##[endgroup]
+2026-10-07T00:20:37.5574104Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/patches/0001-asio-runtime-platform-constants.patch
+2026-10-07T00:20:37.5594457Z patching file sdkit3-port-source/third_party/asio/detail/cosmo_socket_constants.hpp
+2026-10-07T00:20:37.5596694Z patching file sdkit3-port-source/third_party/asio/detail/impl/signal_set_service.ipp
+2026-10-07T00:20:37.5600540Z patching file sdkit3-port-source/third_party/asio/detail/impl/socket_ops.ipp
+2026-10-07T00:20:37.5605584Z patching file sdkit3-port-source/third_party/asio/detail/socket_option.hpp
+2026-10-07T00:20:37.5607743Z patching file sdkit3-port-source/third_party/asio/detail/socket_types.hpp
+2026-10-07T00:20:37.5609935Z patching file sdkit3-port-source/third_party/asio/error.hpp
+2026-10-07T00:20:37.5612577Z patching file sdkit3-port-source/third_party/asio/ip/detail/socket_option.hpp
+2026-10-07T00:20:37.5615094Z patching file sdkit3-port-source/third_party/asio/ip/multicast.hpp
+2026-10-07T00:20:37.5617199Z patching file sdkit3-port-source/third_party/asio/ip/tcp.hpp
+2026-10-07T00:20:37.5618805Z patching file sdkit3-port-source/third_party/asio/ip/unicast.hpp
+2026-10-07T00:20:37.5620309Z patching file sdkit3-port-source/third_party/asio/ip/v6_only.hpp
+2026-10-07T00:20:37.5621981Z patching file sdkit3-port-source/third_party/asio/signal_set_base.hpp
+2026-10-07T00:20:37.5623922Z patching file sdkit3-port-source/third_party/asio/socket_base.hpp
+2026-10-07T00:20:37.5629125Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0001-embedded-ui-routes.patch
+2026-10-07T00:20:37.5637416Z patching file src/server.cpp
+2026-10-07T00:20:37.5641546Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0002-distinct-http-model-index.patch
+2026-10-07T00:20:37.5649093Z patching file include/image_filters.h
+2026-10-07T00:20:37.5650366Z patching file include/image_generator.h
+2026-10-07T00:20:37.5652501Z patching file include/model_manager.h
+2026-10-07T00:20:37.5653581Z patching file include/server.h
+2026-10-07T00:20:37.5655371Z patching file src/image_filters.cpp
+2026-10-07T00:20:37.5658059Z patching file src/image_generator.cpp
+2026-10-07T00:20:37.5661113Z patching file src/main.cpp
+2026-10-07T00:20:37.5663867Z patching file src/model_manager.cpp
+2026-10-07T00:20:37.5668490Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0003-webgpu-backend-routing.patch
+2026-10-07T00:20:37.5675052Z patching file src/main.cpp
+2026-10-07T00:20:37.5680402Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0004-native-inference-requests.patch
+2026-10-07T00:20:37.5686280Z patching file include/options_manager.h
+2026-10-07T00:20:37.5688220Z patching file src/options_manager.cpp
+2026-10-07T00:20:37.5689504Z patching file include/server.h
+2026-10-07T00:20:37.5692260Z patching file src/server.cpp
+2026-10-07T00:20:37.5696891Z patching file src/task_state.cpp
+2026-10-07T00:20:37.5699789Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0005-native-inference-worker-stack.patch
+2026-10-07T00:20:37.5706777Z patching file include/logging.h
+2026-10-07T00:20:37.5708788Z patching file src/logging.cpp
+2026-10-07T00:20:37.5710531Z patching file src/server.cpp
+2026-10-07T00:20:37.5715368Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0006-crow-async-response-lifetime.patch
+2026-10-07T00:20:37.5722506Z patching file third_party/crow/http_response.h
+2026-10-07T00:20:37.5725618Z + patch --batch --forward --fuzz=0 -p1 -i /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/app-patches/0007-native-inference-async-http.patch
+2026-10-07T00:20:37.5732549Z patching file include/server.h
+2026-10-07T00:20:37.5735620Z patching file src/server.cpp
+2026-10-07T00:20:37.5745749Z + /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/shared-ggml/prepare.py --output /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
+2026-10-07T00:20:38.0354715Z patching file include/ggml-backend.h
+2026-10-07T00:20:38.0358263Z patching file include/ggml.h
+2026-10-07T00:20:38.0362771Z patching file src/ggml-backend.cpp
+2026-10-07T00:20:38.0365970Z patching file src/ggml-cpu/ggml-cpu.cpp
+2026-10-07T00:20:38.0374246Z patching file src/ggml-cpu/ops.cpp
+2026-10-07T00:20:38.0396714Z patching file src/ggml-vulkan/ggml-vulkan.cpp
+2026-10-07T00:20:38.0415866Z patching file src/ggml.c
+2026-10-07T00:20:38.0425393Z patching file tests/test-backend-ops.cpp
+2026-10-07T00:20:38.0441625Z patching file src/ggml-backend-reg.cpp
+2026-10-07T00:20:38.0454901Z patching file src/ggml.c
+2026-10-07T00:20:38.0468753Z patching file src/ggml-cpu/ops.cpp
+2026-10-07T00:20:38.0486362Z patching file src/ggml-webgpu/CMakeLists.txt
+2026-10-07T00:20:38.0491078Z patching file src/ggml-webgpu/ggml-webgpu.cpp
+2026-10-07T00:20:38.0505249Z patching file src/ggml-backend.cpp
+2026-10-07T00:20:38.1462702Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
+2026-10-07T00:20:38.1533930Z + /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/software-webgpu/prepare.py --out /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu --sdk /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk --jobs 2
+2026-10-07T00:20:38.5478226Z Verified software WebGPU dependency cache: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json
+2026-10-07T00:20:38.5543002Z Prepared static software WebGPU dependencies: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json
+2026-10-07T00:20:38.5706034Z ##[group]Run set -euo pipefail
+2026-10-07T00:20:38.5706647Z [36;1mset -euo pipefail[0m
+2026-10-07T00:20:38.5706926Z [36;1mmkdir -p cosmopolitan/out[0m
+2026-10-07T00:20:38.5707372Z [36;1mpython3 cosmopolitan/build.py --jobs 2 2>&1 | tee cosmopolitan/out/build.log[0m
+2026-10-07T00:20:38.5770262Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-07T00:20:38.5770645Z env:
+2026-10-07T00:20:38.5770862Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:20:38.5771108Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:20:38.5771348Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:20:38.5771579Z ##[endgroup]
+2026-10-07T00:20:39.4438563Z + /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/shared-ggml/prepare.py --output /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
+2026-10-07T00:20:39.6726580Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml
+2026-10-07T00:20:39.6791286Z + /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/software-webgpu/prepare.py --out /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu --sdk /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk --jobs 2
+2026-10-07T00:20:40.0714762Z Verified software WebGPU dependency cache: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json
+2026-10-07T00:20:40.0785872Z + /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/cmake -S /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan -B /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build -G Ninja -DCMAKE_TOOLCHAIN_FILE=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/cmake/cosmocc.cmake -DCMAKE_MAKE_PROGRAM=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/ninja -DCMAKE_BUILD_TYPE=Release -DCOSMO_SOURCE_ROOT=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source -DCOSMO_SHARED_GGML=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml -DCOSMO_SOFTWARE_WEBGPU_METADATA=/home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/software-webgpu/LINK.json -DCOSMO_BUILD_APP=ON
+2026-10-07T00:20:40.3851331Z -- The C compiler identification is GNU 14.1.0
+2026-10-07T00:20:40.5914240Z -- The CXX compiler identification is GNU 14.1.0
+2026-10-07T00:20:40.6411966Z -- The ASM compiler identification is GNU
+2026-10-07T00:20:40.6429281Z -- Found assembler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc
+2026-10-07T00:20:40.6500799Z -- Detecting C compiler ABI info
+2026-10-07T00:20:40.7291981Z -- Detecting C compiler ABI info - done
+2026-10-07T00:20:40.7364744Z -- Check for working C compiler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cc - skipped
+2026-10-07T00:20:40.7368557Z -- Detecting C compile features
+2026-10-07T00:20:40.7373088Z -- Detecting C compile features - done
+2026-10-07T00:20:40.7445450Z -- Detecting CXX compiler ABI info
+2026-10-07T00:20:40.8253972Z -- Detecting CXX compiler ABI info - done
+2026-10-07T00:20:40.8330117Z -- Check for working CXX compiler: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/toolchain/cxx - skipped
+2026-10-07T00:20:40.8333758Z -- Detecting CXX compile features
+2026-10-07T00:20:40.8344175Z -- Detecting CXX compile features - done
+2026-10-07T00:20:40.9842487Z -- Setting GGML_NATIVE_DEFAULT to OFF
+2026-10-07T00:20:40.9853924Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+2026-10-07T00:20:41.0654831Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+2026-10-07T00:20:41.0664248Z -- Found Threads: TRUE
+2026-10-07T00:20:41.0849373Z -- CMAKE_SYSTEM_PROCESSOR: x86_64
+2026-10-07T00:20:41.0877335Z -- GGML_SYSTEM_ARCH: x86
+2026-10-07T00:20:41.0877825Z -- Including CPU backend
+2026-10-07T00:20:41.0878268Z -- x86 detected
+2026-10-07T00:20:41.0879054Z -- Adding CPU backend variant ggml-cpu:  
+2026-10-07T00:20:41.7114799Z -- Found Python3: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/python3.12 (found version "3.12.3") found components: Interpreter
+2026-10-07T00:20:41.7123686Z -- Shader output dir: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/shared-ggml/src/ggml-webgpu/generated
+2026-10-07T00:20:41.7129678Z -- Including WebGPU backend
+2026-10-07T00:20:41.7182696Z -- ggml version: 0.19.0
+2026-10-07T00:20:41.7183127Z -- ggml commit:  e20c3a1
+2026-10-07T00:20:41.7194151Z -- llama.cpp version: 0.3.0-dev
+2026-10-07T00:20:41.7194659Z CMAKE_BUILD_TYPE=Release
+2026-10-07T00:20:41.7226904Z -- Found Git: /usr/bin/git (found version "2.55.0")
+2026-10-07T00:20:41.7321476Z -- stable-diffusion.cpp version snapshot
+2026-10-07T00:20:41.7322086Z -- stable-diffusion.cpp commit 6b3edaa
+2026-10-07T00:20:41.7322508Z -- Build static library
+2026-10-07T00:20:41.7413953Z -- Configuring done (1.5s)
+2026-10-07T00:20:41.8288055Z -- Generating done (0.1s)
+2026-10-07T00:20:41.8293998Z -- Build files have been written to: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build
+2026-10-07T00:20:41.8370124Z + /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/tools/bin/cmake --build /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build --parallel 2 --target easy-diffusion
+2026-10-07T00:20:41.9675751Z [0/2] Re-checking globbed directories...
+2026-10-07T00:20:42.0663633Z [1/515] Building C object CMakeFiles/cosmo-software-webgpu.dir/out/software-webgpu/foundation/third_party/wgpu_native/runtime/win64_bridge.c.o
+2026-10-07T00:20:42.0797504Z [2/515] Building C object CMakeFiles/cosmo-software-webgpu.dir/out/software-webgpu/foundation/third_party/wgpu_native/runtime/vulkan_loader.c.o
+2026-10-07T00:20:42.1122949Z [3/515] Linking C static library lib/libcosmo-software-webgpu.a
+2026-10-07T00:20:42.5495900Z [4/515] Building CXX object backend/CMakeFiles/cosmo-ggml-webgpu-adapter.dir/wgpu_adapter.cpp.o
+2026-10-07T00:20:42.9331317Z [5/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+2026-10-07T00:20:43.2792972Z [6/515] Building C object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+2026-10-07T00:20:44.2465555Z [7/515] Building C object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+2026-10-07T00:20:44.2466362Z cc1: note: rewrote 1 switch statements
+2026-10-07T00:20:45.3737330Z [8/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+2026-10-07T00:20:46.8496887Z [9/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+2026-10-07T00:20:47.1614995Z [10/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+2026-10-07T00:20:47.6142348Z [11/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+2026-10-07T00:20:47.6143937Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-backend-meta.cpp: In function 'void ggml_backend_meta_device_get_props(ggml_backend_dev_t, ggml_backend_dev_props*)':
+2026-10-07T00:20:47.6152078Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-backend-meta.cpp:135:5: warning: missing initializer for member 'ggml_backend_dev_caps::mmap_support' [-Wmissing-field-initializers]
+2026-10-07T00:20:47.6153996Z   135 |     };
+2026-10-07T00:20:47.6154351Z       |     ^
+2026-10-07T00:20:50.6873216Z [12/515] Building C object shared-ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+2026-10-07T00:20:50.7342980Z [13/515] Generating generated/ggml-wgsl-shaders.hpp
+2026-10-07T00:20:50.7343628Z Embedding WGSL shaders to ggml-wgsl-shaders.hpp
+2026-10-07T00:20:50.7667370Z [14/515] Linking CXX static library lib/libcosmo-ggml-webgpu-adapter.a
+2026-10-07T00:20:51.9117321Z [15/515] Building C object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+2026-10-07T00:20:52.4032657Z [16/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+2026-10-07T00:20:52.4455981Z [17/515] Linking CXX static library lib/libggml-base.a
+2026-10-07T00:20:53.4409114Z [18/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+2026-10-07T00:20:53.4693639Z [19/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+2026-10-07T00:20:54.5634830Z [20/515] Building C object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+2026-10-07T00:20:55.6596558Z [21/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+2026-10-07T00:20:56.9441582Z [22/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+2026-10-07T00:20:57.6916871Z [23/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+2026-10-07T00:20:58.2202372Z [24/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+2026-10-07T00:20:59.7613293Z [25/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+2026-10-07T00:21:00.9162888Z [26/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+2026-10-07T00:21:01.6556806Z [27/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+2026-10-07T00:21:02.2033440Z [28/515] Building C object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/quants.c.o
+2026-10-07T00:21:03.3150671Z [29/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/repack.cpp.o
+2026-10-07T00:21:09.2277613Z [30/515] Building CXX object shared-ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+2026-10-07T00:21:09.2281337Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-cpu/ops.cpp: In function 'void ggml_compute_forward_clamp(const ggml_compute_params*, ggml_tensor*)':
+2026-10-07T00:21:09.2284201Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-cpu/ops.cpp:5889:12: warning: enumeration value 'GGML_TYPE_F8_E4M3' not handled in switch [-Wswitch]
+2026-10-07T00:21:09.2285974Z  5889 |     switch (src0->type) {
+2026-10-07T00:21:09.2287027Z       |            ^
+2026-10-07T00:21:09.2288640Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-cpu/ops.cpp:5889:12: warning: enumeration value 'GGML_TYPE_F8_E5M2' not handled in switch [-Wswitch]
+2026-10-07T00:21:09.9819722Z [31/515] Building CXX object shared-ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+2026-10-07T00:21:10.9295174Z [32/515] Building CXX object shared-ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+2026-10-07T00:21:10.9713577Z [33/515] Linking CXX static library lib/libggml-cpu.a
+2026-10-07T00:21:11.1253885Z [34/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama.cpp for CXX dependencies
+2026-10-07T00:21:11.2684117Z [35/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-adapter.cpp for CXX dependencies
+2026-10-07T00:21:11.3748705Z [36/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-arch.cpp for CXX dependencies
+2026-10-07T00:21:11.5408532Z [37/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-batch.cpp for CXX dependencies
+2026-10-07T00:21:11.6904084Z [38/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-chat.cpp for CXX dependencies
+2026-10-07T00:21:11.8221851Z [39/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-context.cpp for CXX dependencies
+2026-10-07T00:21:11.9202877Z [40/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-cparams.cpp for CXX dependencies
+2026-10-07T00:21:12.0668132Z [41/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-grammar.cpp for CXX dependencies
+2026-10-07T00:21:12.2157589Z [42/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-graph.cpp for CXX dependencies
+2026-10-07T00:21:12.3281033Z [43/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-hparams.cpp for CXX dependencies
+2026-10-07T00:21:12.4442844Z [44/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-impl.cpp for CXX dependencies
+2026-10-07T00:21:12.5375437Z [45/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-io.cpp for CXX dependencies
+2026-10-07T00:21:12.6921720Z [46/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache.cpp for CXX dependencies
+2026-10-07T00:21:12.8436502Z [47/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-iswa.cpp for CXX dependencies
+2026-10-07T00:21:12.9942970Z [48/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-dsa.cpp for CXX dependencies
+2026-10-07T00:21:13.1463091Z [49/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-dsa-iswa.cpp for CXX dependencies
+2026-10-07T00:21:13.2976633Z [50/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-msa.cpp for CXX dependencies
+2026-10-07T00:21:13.4669507Z [51/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-kv-cache-dsv4.cpp for CXX dependencies
+2026-10-07T00:21:13.5892819Z [52/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory.cpp for CXX dependencies
+2026-10-07T00:21:13.7159441Z [53/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-hybrid.cpp for CXX dependencies
+2026-10-07T00:21:13.8427592Z [54/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-hybrid-iswa.cpp for CXX dependencies
+2026-10-07T00:21:13.9988078Z [55/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-hybrid-idx.cpp for CXX dependencies
+2026-10-07T00:21:14.1520681Z [56/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-memory-recurrent.cpp for CXX dependencies
+2026-10-07T00:21:14.2824373Z [57/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-mmap.cpp for CXX dependencies
+2026-10-07T00:21:14.4573622Z [58/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-model-loader.cpp for CXX dependencies
+2026-10-07T00:21:14.5811163Z [59/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-model-saver.cpp for CXX dependencies
+2026-10-07T00:21:14.7648879Z [60/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-model.cpp for CXX dependencies
+2026-10-07T00:21:14.9509321Z [61/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-quant.cpp for CXX dependencies
+2026-10-07T00:21:15.1385224Z [62/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-sampler.cpp for CXX dependencies
+2026-10-07T00:21:15.2918610Z [63/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/llama-vocab.cpp for CXX dependencies
+2026-10-07T00:21:15.4000761Z [64/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/unicode-data.cpp for CXX dependencies
+2026-10-07T00:21:15.5441730Z [65/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/unicode.cpp for CXX dependencies
+2026-10-07T00:21:15.6724117Z [66/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/afmoe.cpp for CXX dependencies
+2026-10-07T00:21:15.8006844Z [67/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/apertus.cpp for CXX dependencies
+2026-10-07T00:21:15.9288500Z [68/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/arcee.cpp for CXX dependencies
+2026-10-07T00:21:16.0577330Z [69/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/arctic.cpp for CXX dependencies
+2026-10-07T00:21:16.1857781Z [70/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/arwkv7.cpp for CXX dependencies
+2026-10-07T00:21:16.3140622Z [71/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/baichuan.cpp for CXX dependencies
+2026-10-07T00:21:16.4419092Z [72/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bailingmoe.cpp for CXX dependencies
+2026-10-07T00:21:16.5707686Z [73/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bailingmoe2.cpp for CXX dependencies
+2026-10-07T00:21:16.7254082Z [74/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bailingmoe3.cpp for CXX dependencies
+2026-10-07T00:21:16.8543440Z [75/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bert.cpp for CXX dependencies
+2026-10-07T00:21:16.9827613Z [76/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bitnet.cpp for CXX dependencies
+2026-10-07T00:21:17.1103771Z [77/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/bloom.cpp for CXX dependencies
+2026-10-07T00:21:17.2381393Z [78/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/chameleon.cpp for CXX dependencies
+2026-10-07T00:21:17.3659612Z [79/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/chatglm.cpp for CXX dependencies
+2026-10-07T00:21:17.4933658Z [80/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/clip.cpp for CXX dependencies
+2026-10-07T00:21:17.6203097Z [81/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/codeshell.cpp for CXX dependencies
+2026-10-07T00:21:17.7492416Z [82/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/cogvlm.cpp for CXX dependencies
+2026-10-07T00:21:17.8775032Z [83/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/cohere2.cpp for CXX dependencies
+2026-10-07T00:21:18.0058964Z [84/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/cohere2moe.cpp for CXX dependencies
+2026-10-07T00:21:18.1340092Z [85/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/command-r.cpp for CXX dependencies
+2026-10-07T00:21:18.2636949Z [86/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dbrx.cpp for CXX dependencies
+2026-10-07T00:21:18.3928962Z [87/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deci.cpp for CXX dependencies
+2026-10-07T00:21:18.5208869Z [88/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek.cpp for CXX dependencies
+2026-10-07T00:21:18.6512445Z [89/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek2.cpp for CXX dependencies
+2026-10-07T00:21:18.7789491Z [90/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek2ocr.cpp for CXX dependencies
+2026-10-07T00:21:18.9076814Z [91/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek32.cpp for CXX dependencies
+2026-10-07T00:21:19.0642410Z [92/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/deepseek4.cpp for CXX dependencies
+2026-10-07T00:21:19.1963212Z [93/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/delta-net-base.cpp for CXX dependencies
+2026-10-07T00:21:19.3266741Z [94/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dflash.cpp for CXX dependencies
+2026-10-07T00:21:19.4562921Z [95/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dots1.cpp for CXX dependencies
+2026-10-07T00:21:19.5856362Z [96/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dots3note.cpp for CXX dependencies
+2026-10-07T00:21:19.7142149Z [97/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/dream.cpp for CXX dependencies
+2026-10-07T00:21:19.8433915Z [98/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/eagle3.cpp for CXX dependencies
+2026-10-07T00:21:19.9716047Z [99/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/ernie4-5-moe.cpp for CXX dependencies
+2026-10-07T00:21:20.1002965Z [100/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/ernie4-5.cpp for CXX dependencies
+2026-10-07T00:21:20.2279492Z [101/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/eurobert.cpp for CXX dependencies
+2026-10-07T00:21:20.3561984Z [102/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/exaone-moe.cpp for CXX dependencies
+2026-10-07T00:21:20.4852403Z [103/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/exaone.cpp for CXX dependencies
+2026-10-07T00:21:20.6129051Z [104/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/exaone4.cpp for CXX dependencies
+2026-10-07T00:21:20.7402326Z [105/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/falcon-h1.cpp for CXX dependencies
+2026-10-07T00:21:20.8682341Z [106/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/falcon.cpp for CXX dependencies
+2026-10-07T00:21:20.9951075Z [107/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma-embedding.cpp for CXX dependencies
+2026-10-07T00:21:21.1237231Z [108/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma.cpp for CXX dependencies
+2026-10-07T00:21:21.2518073Z [109/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma2.cpp for CXX dependencies
+2026-10-07T00:21:21.3806529Z [110/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma3.cpp for CXX dependencies
+2026-10-07T00:21:21.5086548Z [111/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma3n.cpp for CXX dependencies
+2026-10-07T00:21:21.6361392Z [112/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma4-assistant.cpp for CXX dependencies
+2026-10-07T00:21:21.7644184Z [113/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gemma4.cpp for CXX dependencies
+2026-10-07T00:21:21.8929443Z [114/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/glm-dsa.cpp for CXX dependencies
+2026-10-07T00:21:22.0216745Z [115/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/glm4-moe.cpp for CXX dependencies
+2026-10-07T00:21:22.1501677Z [116/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/glm4.cpp for CXX dependencies
+2026-10-07T00:21:22.2788259Z [117/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gpt2.cpp for CXX dependencies
+2026-10-07T00:21:22.4072009Z [118/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/gptneox.cpp for CXX dependencies
+2026-10-07T00:21:22.5356582Z [119/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-hybrid.cpp for CXX dependencies
+2026-10-07T00:21:22.6632186Z [120/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-moe.cpp for CXX dependencies
+2026-10-07T00:21:22.8059804Z [121/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-swa.cpp for CXX dependencies
+2026-10-07T00:21:22.9331765Z [122/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite-switch.cpp for CXX dependencies
+2026-10-07T00:21:23.0765748Z [123/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/granite.cpp for CXX dependencies
+2026-10-07T00:21:23.2039506Z [124/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/grok.cpp for CXX dependencies
+2026-10-07T00:21:23.3312517Z [125/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/grovemoe.cpp for CXX dependencies
+2026-10-07T00:21:23.4581429Z [126/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hunyuan-dense.cpp for CXX dependencies
+2026-10-07T00:21:23.5855601Z [127/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hunyuan-moe.cpp for CXX dependencies
+2026-10-07T00:21:23.7129583Z [128/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hunyuan-vl.cpp for CXX dependencies
+2026-10-07T00:21:23.8404846Z [129/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/hy-v3.cpp for CXX dependencies
+2026-10-07T00:21:23.9684165Z [130/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/internlm2.cpp for CXX dependencies
+2026-10-07T00:21:24.0967049Z [131/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jais.cpp for CXX dependencies
+2026-10-07T00:21:24.2243857Z [132/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jais2.cpp for CXX dependencies
+2026-10-07T00:21:24.3523011Z [133/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jamba.cpp for CXX dependencies
+2026-10-07T00:21:24.4797889Z [134/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jina-bert-v2.cpp for CXX dependencies
+2026-10-07T00:21:24.6070937Z [135/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/jina-bert-v3.cpp for CXX dependencies
+2026-10-07T00:21:24.7360596Z [136/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/kimi-k3.cpp for CXX dependencies
+2026-10-07T00:21:24.8636684Z [137/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/kimi-linear.cpp for CXX dependencies
+2026-10-07T00:21:24.9920654Z [138/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/laguna.cpp for CXX dependencies
+2026-10-07T00:21:25.1474628Z [139/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/lfm2.cpp for CXX dependencies
+2026-10-07T00:21:25.2769784Z [140/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/lfm2moe.cpp for CXX dependencies
+2026-10-07T00:21:25.4041584Z [141/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llada-moe.cpp for CXX dependencies
+2026-10-07T00:21:25.5325046Z [142/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llada.cpp for CXX dependencies
+2026-10-07T00:21:25.6598319Z [143/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llama-embed.cpp for CXX dependencies
+2026-10-07T00:21:25.7876979Z [144/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llama.cpp for CXX dependencies
+2026-10-07T00:21:25.9151765Z [145/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/llama4.cpp for CXX dependencies
+2026-10-07T00:21:26.0420814Z [146/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/maincoder.cpp for CXX dependencies
+2026-10-07T00:21:26.1943501Z [147/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mamba-base.cpp for CXX dependencies
+2026-10-07T00:21:26.3229392Z [148/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mamba.cpp for CXX dependencies
+2026-10-07T00:21:26.4517748Z [149/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mamba2.cpp for CXX dependencies
+2026-10-07T00:21:26.5805568Z [150/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mellum.cpp for CXX dependencies
+2026-10-07T00:21:26.7087679Z [151/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mimo2.cpp for CXX dependencies
+2026-10-07T00:21:26.8360211Z [152/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minicpm.cpp for CXX dependencies
+2026-10-07T00:21:26.9647788Z [153/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minicpm3.cpp for CXX dependencies
+2026-10-07T00:21:27.0928516Z [154/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minimax-01.cpp for CXX dependencies
+2026-10-07T00:21:27.2205719Z [155/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minimax-m2.cpp for CXX dependencies
+2026-10-07T00:21:27.3494610Z [156/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/minimax-m3.cpp for CXX dependencies
+2026-10-07T00:21:27.4779887Z [157/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mistral3.cpp for CXX dependencies
+2026-10-07T00:21:27.6057034Z [158/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mistral4.cpp for CXX dependencies
+2026-10-07T00:21:27.7333815Z [159/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/modern-bert.cpp for CXX dependencies
+2026-10-07T00:21:27.8611426Z [160/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/mpt.cpp for CXX dependencies
+2026-10-07T00:21:27.9899778Z [161/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/muse-glimmer.cpp for CXX dependencies
+2026-10-07T00:21:28.1185776Z [162/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nanbeige.cpp for CXX dependencies
+2026-10-07T00:21:28.2468132Z [163/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nemotron-h-moe.cpp for CXX dependencies
+2026-10-07T00:21:28.3755477Z [164/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nemotron-h.cpp for CXX dependencies
+2026-10-07T00:21:28.5043060Z [165/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nemotron.cpp for CXX dependencies
+2026-10-07T00:21:28.6330724Z [166/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/neo-bert.cpp for CXX dependencies
+2026-10-07T00:21:28.7598490Z [167/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nomic-bert-moe.cpp for CXX dependencies
+2026-10-07T00:21:28.8876707Z [168/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/nomic-bert.cpp for CXX dependencies
+2026-10-07T00:21:29.0166857Z [169/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/olmo.cpp for CXX dependencies
+2026-10-07T00:21:29.1453773Z [170/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/olmo2.cpp for CXX dependencies
+2026-10-07T00:21:29.2766440Z [171/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/olmoe.cpp for CXX dependencies
+2026-10-07T00:21:29.4040202Z [172/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/openai-moe.cpp for CXX dependencies
+2026-10-07T00:21:29.5321435Z [173/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/openelm.cpp for CXX dependencies
+2026-10-07T00:21:29.6599494Z [174/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/orion.cpp for CXX dependencies
+2026-10-07T00:21:29.7873564Z [175/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/paddleocr.cpp for CXX dependencies
+2026-10-07T00:21:29.9148895Z [176/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/pangu-embed.cpp for CXX dependencies
+2026-10-07T00:21:30.0429743Z [177/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/phi2.cpp for CXX dependencies
+2026-10-07T00:21:30.1712276Z [178/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/phi3.cpp for CXX dependencies
+2026-10-07T00:21:30.2998164Z [179/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/phimoe.cpp for CXX dependencies
+2026-10-07T00:21:30.4278041Z [180/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plamo.cpp for CXX dependencies
+2026-10-07T00:21:30.5573431Z [181/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plamo2.cpp for CXX dependencies
+2026-10-07T00:21:30.6851714Z [182/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plamo3.cpp for CXX dependencies
+2026-10-07T00:21:30.8133838Z [183/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/plm.cpp for CXX dependencies
+2026-10-07T00:21:30.9407809Z [184/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/pockettts.cpp for CXX dependencies
+2026-10-07T00:21:31.0691443Z [185/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen.cpp for CXX dependencies
+2026-10-07T00:21:31.1968045Z [186/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen2.cpp for CXX dependencies
+2026-10-07T00:21:31.3244092Z [187/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen2moe.cpp for CXX dependencies
+2026-10-07T00:21:31.4518330Z [188/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen2vl.cpp for CXX dependencies
+2026-10-07T00:21:31.5798731Z [189/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3.cpp for CXX dependencies
+2026-10-07T00:21:31.7088723Z [190/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen35.cpp for CXX dependencies
+2026-10-07T00:21:31.8368659Z [191/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen35moe.cpp for CXX dependencies
+2026-10-07T00:21:31.9651998Z [192/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3moe.cpp for CXX dependencies
+2026-10-07T00:21:32.0934864Z [193/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3next.cpp for CXX dependencies
+2026-10-07T00:21:32.2204058Z [194/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3tts.cpp for CXX dependencies
+2026-10-07T00:21:32.2945971Z [195/515] Building CXX object shared-ggml/src/ggml-webgpu/CMakeFiles/ggml-webgpu.dir/ggml-webgpu.cpp.o
+2026-10-07T00:21:32.2948624Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp: In function 'void ggml_backend_webgpu_device_get_props(ggml_backend_dev_t, ggml_backend_dev_props*)':
+2026-10-07T00:21:32.2951660Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:3963:5: warning: missing initializer for member 'ggml_backend_dev_caps::mmap_support' [-Wmissing-field-initializers]
+2026-10-07T00:21:32.2953702Z  3963 |     };
+2026-10-07T00:21:32.2954052Z       |     ^
+2026-10-07T00:21:32.2955139Z In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/construct_at.h:23,
+2026-10-07T00:21:32.2957531Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__string/constexpr_c_functions.h:14,
+2026-10-07T00:21:32.2959388Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__algorithm/equal.h:20,
+2026-10-07T00:21:32.2961070Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/array:114,
+2026-10-07T00:21:32.2962744Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/../ggml-impl.h:749,
+2026-10-07T00:21:32.2964524Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:9:
+2026-10-07T00:21:32.2966258Z In function 'void std::__1::__libcpp_operator_delete(_Args ...) [with _Args = {void*, long unsigned int}]',
+2026-10-07T00:21:32.2968227Z     inlined from 'void std::__1::__do_deallocate_handle_size(void*, size_t, _Args ...) [with _Args = {}]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:301:39,
+2026-10-07T00:21:32.2970742Z     inlined from 'void std::__1::__libcpp_deallocate(void*, size_t, size_t)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:314:39,
+2026-10-07T00:21:32.2973479Z     inlined from 'void std::__1::allocator<_Tp>::deallocate(_Tp*, size_t) [with _Tp = wgpu::BindGroupEntry]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:132:31,
+2026-10-07T00:21:32.2977072Z     inlined from 'static void std::__1::allocator_traits<_Alloc>::deallocate(allocator_type&, pointer, size_type) [with _Alloc = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator_traits.h:312:19,
+2026-10-07T00:21:32.2980720Z     inlined from 'std::__1::__split_buffer<_Tp, _Allocator>::~__split_buffer() [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>&]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__split_buffer:365:31,
+2026-10-07T00:21:32.2984502Z     inlined from 'std::__1::vector<_Tp, _Alloc>::pointer std::__1::vector<_Tp, _Alloc>::__push_back_slow_path(_Up&&) [with _Up = wgpu::BindGroupEntry; _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1469:1,
+2026-10-07T00:21:32.2988458Z     inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1491:34,
+2026-10-07T00:21:32.2991657Z     inlined from 'webgpu_encoded_op ggml_webgpu_set(webgpu_context&, ggml_tensor*, ggml_tensor*, ggml_tensor*)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:843:22:
+2026-10-07T00:21:32.2994733Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:279:20: warning: 'void operator delete(void*, size_t)' called on pointer '<unknown>' with nonzero offset [40, 9223372036854775807] [-Wfree-nonheap-object]
+2026-10-07T00:21:32.2996787Z   279 |   ::operator delete(__args...);
+2026-10-07T00:21:32.2997271Z       |   ~~~~~~~~~~~~~~~~~^~~~~~~~~~~
+2026-10-07T00:21:32.2998207Z In function 'void* std::__1::__libcpp_operator_new(_Args ...) [with _Args = {long unsigned int}]',
+2026-10-07T00:21:32.3000018Z     inlined from 'void* std::__1::__libcpp_allocate(size_t, size_t)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:292:31,
+2026-10-07T00:21:32.3002554Z     inlined from '_Tp* std::__1::allocator<_Tp>::allocate(size_t) [with _Tp = wgpu::BindGroupEntry]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:118:54,
+2026-10-07T00:21:32.3006023Z     inlined from 'constexpr std::__1::__allocation_result<typename std::__1::allocator_traits<_Alloc>::pointer> std::__1::__allocate_at_least(_Alloc&, size_t) [with _Alloc = allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocate_at_least.h:41:27,
+2026-10-07T00:21:32.3010237Z     inlined from 'std::__1::__split_buffer<_Tp, _Allocator>::__split_buffer(size_type, size_type, __alloc_rr&) [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>&]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__split_buffer:353:49,
+2026-10-07T00:21:32.3014357Z     inlined from 'std::__1::vector<_Tp, _Alloc>::pointer std::__1::vector<_Tp, _Alloc>::__push_back_slow_path(_Up&&) [with _Up = wgpu::BindGroupEntry; _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1463:47,
+2026-10-07T00:21:32.3018484Z     inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = wgpu::BindGroupEntry; _Allocator = std::__1::allocator<wgpu::BindGroupEntry>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1491:34,
+2026-10-07T00:21:32.3021702Z     inlined from 'webgpu_encoded_op ggml_webgpu_set(webgpu_context&, ggml_tensor*, ggml_tensor*, ggml_tensor*)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/shared-ggml/src/ggml-webgpu/ggml-webgpu.cpp:842:22:
+2026-10-07T00:21:32.3024237Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:270:24: note: returned from 'void* operator new(size_t)'
+2026-10-07T00:21:32.3025560Z   270 |   return ::operator new(__args...);
+2026-10-07T00:21:32.3026275Z       |          ~~~~~~~~~~~~~~^~~~~~~~~~~
+2026-10-07T00:21:32.3412817Z [196/515] Linking CXX static library lib/libggml-webgpu.a
+2026-10-07T00:21:32.3542547Z [197/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3vl.cpp for CXX dependencies
+2026-10-07T00:21:32.4692665Z [198/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen3vlmoe.cpp for CXX dependencies
+2026-10-07T00:21:32.5093487Z [199/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/qwen4exp.cpp for CXX dependencies
+2026-10-07T00:21:32.5980337Z [200/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/refact.cpp for CXX dependencies
+2026-10-07T00:21:32.6455269Z [201/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rnd1.cpp for CXX dependencies
+2026-10-07T00:21:32.7312187Z [202/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv6-base.cpp for CXX dependencies
+2026-10-07T00:21:32.7742716Z [203/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv6.cpp for CXX dependencies
+2026-10-07T00:21:32.8587687Z [204/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv6qwen2.cpp for CXX dependencies
+2026-10-07T00:21:32.9017706Z [205/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv7-base.cpp for CXX dependencies
+2026-10-07T00:21:32.9869477Z [206/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/rwkv7.cpp for CXX dependencies
+2026-10-07T00:21:33.0300540Z [207/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/seed-oss.cpp for CXX dependencies
+2026-10-07T00:21:33.1145430Z [208/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/smallthinker.cpp for CXX dependencies
+2026-10-07T00:21:33.1575501Z [209/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/smollm3.cpp for CXX dependencies
+2026-10-07T00:21:33.2427431Z [210/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/stablelm.cpp for CXX dependencies
+2026-10-07T00:21:33.2851894Z [211/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/starcoder.cpp for CXX dependencies
+2026-10-07T00:21:33.3705228Z [212/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/starcoder2.cpp for CXX dependencies
+2026-10-07T00:21:33.4124858Z [213/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/step35.cpp for CXX dependencies
+2026-10-07T00:21:33.4986462Z [214/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/t5.cpp for CXX dependencies
+2026-10-07T00:21:33.5390774Z [215/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/t5encoder.cpp for CXX dependencies
+2026-10-07T00:21:33.6269125Z [216/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/talkie.cpp for CXX dependencies
+2026-10-07T00:21:33.6667533Z [217/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/wavtokenizer-dec.cpp for CXX dependencies
+2026-10-07T00:21:33.6674796Z [218/515] 
+2026-10-07T00:21:33.6683726Z [219/515] 
+2026-10-07T00:21:33.6691952Z [220/515] 
+2026-10-07T00:21:33.6700691Z [221/515] 
+2026-10-07T00:21:33.6709100Z [222/515] 
+2026-10-07T00:21:33.6717496Z [223/515] 
+2026-10-07T00:21:33.6724107Z [224/515] 
+2026-10-07T00:21:33.6731775Z [225/515] 
+2026-10-07T00:21:33.6739462Z [226/515] 
+2026-10-07T00:21:33.6747066Z [227/515] 
+2026-10-07T00:21:33.6754344Z [228/515] 
+2026-10-07T00:21:33.6761807Z [229/515] 
+2026-10-07T00:21:33.7082753Z [230/515] Linking CXX static library lib/libggml.a
+2026-10-07T00:21:33.7583010Z [231/515] Scanning /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/llama.cpp/src/models/xverse.cpp for CXX dependencies
+2026-10-07T00:21:33.7815617Z [232/515] Generating CXX dyndep file llama/src/CMakeFiles/llama.dir/CXX.dd
+2026-10-07T00:21:35.7287862Z [233/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/src/ui.cpp.o
+2026-10-07T00:21:36.1805015Z [234/515] Building C object stable-diffusion/thirdparty/CMakeFiles/zip.dir/zip.c.o
+2026-10-07T00:21:36.1806590Z In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/zip.c:40:
+2026-10-07T00:21:36.1809333Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/miniz.h:4988:9: note: '#pragma message: Using fopen, ftello, fseeko, stat() etc. path for file I/O - this path may not support large files.'
+2026-10-07T00:21:36.1810876Z  4988 | #pragma message(                                                               \
+2026-10-07T00:21:36.1811509Z       |         ^~~~~~~
+2026-10-07T00:21:37.3812491Z [235/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Image_Gallery.cpp.o
+2026-10-07T00:21:38.5490222Z [236/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Window.cpp.o
+2026-10-07T00:21:39.7909522Z [237/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Options.cpp.o
+2026-10-07T00:21:40.8328469Z [238/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Navigate.cpp.o
+2026-10-07T00:21:41.9738054Z [239/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Gallery/Load.cpp.o
+2026-10-07T00:21:43.5678150Z [240/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Settings/native_device_routing.cpp.o
+2026-10-07T00:21:44.5905214Z [241/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/plugin_tab_inject.cpp.o
+2026-10-07T00:21:45.7241414Z [242/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/pages.cpp.o
+2026-10-07T00:21:47.3773676Z [243/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/display.cpp.o
+2026-10-07T00:21:47.4335835Z [244/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/controlnet.cpp.o
+2026-10-07T00:21:48.5498385Z [245/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/image_options.cpp.o
+2026-10-07T00:21:48.5611823Z [246/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/image_view.cpp.o
+2026-10-07T00:21:49.6170602Z [247/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/lora.cpp.o
+2026-10-07T00:21:50.1801631Z [248/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/options.cpp.o
+2026-10-07T00:21:50.8029232Z [249/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/output_options.cpp.o
+2026-10-07T00:21:51.2604527Z [250/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/Main.cpp.o
+2026-10-07T00:21:51.9557852Z [251/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/prompts.cpp.o
+2026-10-07T00:21:52.3766863Z [252/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/queue.cpp.o
+2026-10-07T00:21:53.3646446Z [253/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/image_filters.cpp.o
+2026-10-07T00:21:53.3784824Z [254/515] Building CXX object ui/CMakeFiles/easy-diffusion-ui.dir/__/Pages/src/Generate/render_options.cpp.o
+2026-10-07T00:21:55.2662590Z [255/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama.cpp.o
+2026-10-07T00:21:57.8258557Z [256/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/convert.cpp.o
+2026-10-07T00:21:58.3592196Z [257/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+2026-10-07T00:21:59.6628806Z [258/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-arch.cpp.o
+2026-10-07T00:22:00.3680938Z [259/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/backend_fit.cpp.o
+2026-10-07T00:22:00.3682500Z In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/string:609,
+2026-10-07T00:22:00.3684571Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.h:4,
+2026-10-07T00:22:00.3686892Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.cpp:1:
+2026-10-07T00:22:00.3688717Z In member function 'void std::__1::allocator<_Tp>::construct(_Up*, _Args&& ...) [with _Up = sd::backend_fit::{anonymous}::Component; _Args = {sd::backend_fit::{anonymous}::Component}; _Tp = sd::backend_fit::{anonymous}::Component]',
+2026-10-07T00:22:00.3691672Z     inlined from 'static void std::__1::allocator_traits<_Alloc>::construct(allocator_type&, _Tp*, _Args&& ...) [with _Tp = sd::backend_fit::{anonymous}::Component; _Args = {sd::backend_fit::{anonymous}::Component}; typename std::__1::enable_if<std::__1::__has_construct<_Alloc, _Tp*, _Args ...>::value, int>::type <anonymous> = 0; _Alloc = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator_traits.h:319:18,
+2026-10-07T00:22:00.3698169Z     inlined from 'void std::__1::vector<_Tp, _Alloc>::__construct_one_at_end(_Args&& ...) [with _Args = {sd::backend_fit::{anonymous}::Component}; _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:926:30,
+2026-10-07T00:22:00.3702165Z     inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1488:27,
+2026-10-07T00:22:00.3705873Z     inlined from 'std::__1::vector<sd::backend_fit::{anonymous}::Component> sd::backend_fit::{anonymous}::estimate_components(ModelLoader&, ggml_type)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.cpp:103:26:
+2026-10-07T00:22:00.3709212Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:165:5: warning: writing 1 byte into a region of size 0 [-Wstringop-overflow=]
+2026-10-07T00:22:00.3710813Z   165 |     ::new ((void*)__p) _Up(std::forward<_Args>(__args)...);
+2026-10-07T00:22:00.3711461Z       |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:22:00.3712621Z In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/construct_at.h:23,
+2026-10-07T00:22:00.3713708Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__string/constexpr_c_functions.h:14,
+2026-10-07T00:22:00.3714725Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__algorithm/find.h:23,
+2026-10-07T00:22:00.3715683Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__algorithm/remove.h:12,
+2026-10-07T00:22:00.3717322Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/string:593:
+2026-10-07T00:22:00.3718103Z In function 'void* std::__1::__libcpp_operator_new(_Args ...) [with _Args = {long unsigned int}]',
+2026-10-07T00:22:00.3719035Z     inlined from 'void* std::__1::__libcpp_allocate(size_t, size_t)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:292:31,
+2026-10-07T00:22:00.3720457Z     inlined from '_Tp* std::__1::allocator<_Tp>::allocate(size_t) [with _Tp = sd::backend_fit::{anonymous}::Component]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocator.h:118:54,
+2026-10-07T00:22:00.3722471Z     inlined from 'constexpr std::__1::__allocation_result<typename std::__1::allocator_traits<_Alloc>::pointer> std::__1::__allocate_at_least(_Alloc&, size_t) [with _Alloc = allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__memory/allocate_at_least.h:41:27,
+2026-10-07T00:22:00.3724974Z     inlined from 'std::__1::__split_buffer<_Tp, _Allocator>::__split_buffer(size_type, size_type, __alloc_rr&) [with _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>&]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/__split_buffer:353:49,
+2026-10-07T00:22:00.3729015Z     inlined from 'std::__1::vector<_Tp, _Alloc>::pointer std::__1::vector<_Tp, _Alloc>::__push_back_slow_path(_Up&&) [with _Up = sd::backend_fit::{anonymous}::Component; _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1463:47,
+2026-10-07T00:22:00.3732268Z     inlined from 'void std::__1::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = sd::backend_fit::{anonymous}::Component; _Allocator = std::__1::allocator<sd::backend_fit::{anonymous}::Component>]' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/vector:1491:34,
+2026-10-07T00:22:00.3734361Z     inlined from 'std::__1::vector<sd::backend_fit::{anonymous}::Component> sd::backend_fit::{anonymous}::estimate_components(ModelLoader&, ggml_type)' at /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/core/backend_fit.cpp:102:26:
+2026-10-07T00:22:00.3736310Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/include/third_party/libcxx/new:270:24: note: at offset 72 into destination object of size 40 allocated by 'operator new'
+2026-10-07T00:22:00.3737176Z   270 |   return ::operator new(__args...);
+2026-10-07T00:22:00.3737470Z       |          ~~~~~~~~~~~~~~^~~~~~~~~~~
+2026-10-07T00:22:03.1778517Z [260/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/ggml_extend_backend.cpp.o
+2026-10-07T00:22:03.4312479Z [261/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-batch.cpp.o
+2026-10-07T00:22:10.8412934Z [262/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/ggml_graph_cut.cpp.o
+2026-10-07T00:22:12.7676950Z [263/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/layer_split_partition.cpp.o
+2026-10-07T00:22:21.0588772Z [264/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/core/util.cpp.o
+2026-10-07T00:22:23.3622198Z [265/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-chat.cpp.o
+2026-10-07T00:22:29.0993341Z [266/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-context.cpp.o
+2026-10-07T00:22:29.6248876Z [267/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+2026-10-07T00:22:36.1162917Z [268/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+2026-10-07T00:22:40.3922344Z [269/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/detailer.cpp.o
+2026-10-07T00:22:41.1766498Z [270/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-graph.cpp.o
+2026-10-07T00:22:41.7902494Z [271/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+2026-10-07T00:22:43.0232389Z [272/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-impl.cpp.o
+2026-10-07T00:22:43.5948518Z [273/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-io.cpp.o
+2026-10-07T00:22:56.5959835Z [274/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+2026-10-07T00:22:58.5498143Z [275/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+2026-10-07T00:23:00.2889716Z [276/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+2026-10-07T00:23:02.3064761Z [277/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-dsa-iswa.cpp.o
+2026-10-07T00:23:04.1736677Z [278/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-msa.cpp.o
+2026-10-07T00:23:10.2291732Z [279/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/extensions/photomaker_extension.cpp.o
+2026-10-07T00:23:10.6997149Z [280/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-kv-cache-dsv4.cpp.o
+2026-10-07T00:23:11.5334420Z [281/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory.cpp.o
+2026-10-07T00:23:13.4500494Z [282/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+2026-10-07T00:23:15.3871373Z [283/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+2026-10-07T00:23:16.7883494Z [284/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/extensions/pulid_extension.cpp.o
+2026-10-07T00:23:17.6051869Z [285/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-hybrid-idx.cpp.o
+2026-10-07T00:23:18.5592359Z [286/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/gguf_io.cpp.o
+2026-10-07T00:23:20.4818255Z [287/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+2026-10-07T00:23:21.9756570Z [288/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+2026-10-07T00:23:25.2638083Z [289/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/pickle_io.cpp.o
+2026-10-07T00:23:29.5047847Z [290/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+2026-10-07T00:23:31.0232179Z [291/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+2026-10-07T00:23:33.9941149Z [292/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/safetensors_io.cpp.o
+2026-10-07T00:23:36.6512868Z [293/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/torch_legacy_io.cpp.o
+2026-10-07T00:23:37.6449938Z [294/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_io/torch_zip_io.cpp.o
+2026-10-07T00:23:44.8134426Z [295/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-model.cpp.o
+2026-10-07T00:23:45.1818315Z [296/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_loader.cpp.o
+2026-10-07T00:23:52.0277576Z [297/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-quant.cpp.o
+2026-10-07T00:23:58.6997563Z [298/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/model_manager.cpp.o
+2026-10-07T00:24:01.5609945Z [299/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+2026-10-07T00:24:13.7907817Z [300/515] Building CXX object llama/src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+2026-10-07T00:24:14.7914574Z [301/515] Building CXX object llama/src/CMakeFiles/llama.dir/unicode-data.cpp.o
+2026-10-07T00:24:25.3070638Z [302/515] Building CXX object llama/src/CMakeFiles/llama.dir/unicode.cpp.o
+2026-10-07T00:24:26.4751486Z [303/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/afmoe.cpp.o
+2026-10-07T00:24:27.6243737Z [304/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/apertus.cpp.o
+2026-10-07T00:24:28.7526351Z [305/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/arcee.cpp.o
+2026-10-07T00:24:29.8774074Z [306/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/arctic.cpp.o
+2026-10-07T00:24:31.0345926Z [307/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/arwkv7.cpp.o
+2026-10-07T00:24:32.1580156Z [308/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/baichuan.cpp.o
+2026-10-07T00:24:33.3040519Z [309/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/bailingmoe.cpp.o
+2026-10-07T00:24:34.4727966Z [310/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/bailingmoe2.cpp.o
+2026-10-07T00:24:36.0990099Z [311/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/bailingmoe3.cpp.o
+2026-10-07T00:24:37.2840176Z [312/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/bert.cpp.o
+2026-10-07T00:24:38.4229195Z [313/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/bitnet.cpp.o
+2026-10-07T00:24:39.5860432Z [314/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/bloom.cpp.o
+2026-10-07T00:24:40.7373222Z [315/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/chameleon.cpp.o
+2026-10-07T00:24:41.8323632Z [316/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/chatglm.cpp.o
+2026-10-07T00:24:42.8538169Z [317/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/clip.cpp.o
+2026-10-07T00:24:44.0124611Z [318/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/codeshell.cpp.o
+2026-10-07T00:24:45.1599662Z [319/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/cogvlm.cpp.o
+2026-10-07T00:24:46.3051936Z [320/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/cohere2.cpp.o
+2026-10-07T00:24:47.6560009Z [321/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/cohere2moe.cpp.o
+2026-10-07T00:24:48.7977017Z [322/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/command-r.cpp.o
+2026-10-07T00:24:49.9416359Z [323/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/dbrx.cpp.o
+2026-10-07T00:24:51.0968500Z [324/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/deci.cpp.o
+2026-10-07T00:24:52.2578696Z [325/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek.cpp.o
+2026-10-07T00:24:53.6799734Z [326/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek2.cpp.o
+2026-10-07T00:24:54.7641110Z [327/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek2ocr.cpp.o
+2026-10-07T00:24:56.4032098Z [328/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek32.cpp.o
+2026-10-07T00:24:58.3909501Z [329/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/deepseek4.cpp.o
+2026-10-07T00:24:59.6853011Z [330/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/delta-net-base.cpp.o
+2026-10-07T00:25:01.5463481Z [331/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/dflash.cpp.o
+2026-10-07T00:25:02.7036661Z [332/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/dots1.cpp.o
+2026-10-07T00:25:04.1473937Z [333/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/dots3note.cpp.o
+2026-10-07T00:25:05.2506860Z [334/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/dream.cpp.o
+2026-10-07T00:25:06.4421116Z [335/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/eagle3.cpp.o
+2026-10-07T00:25:07.5450646Z [336/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/ernie4-5-moe.cpp.o
+2026-10-07T00:25:08.6994709Z [337/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/ernie4-5.cpp.o
+2026-10-07T00:25:09.8339013Z [338/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/eurobert.cpp.o
+2026-10-07T00:25:11.0190926Z [339/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/exaone-moe.cpp.o
+2026-10-07T00:25:12.1431057Z [340/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/exaone.cpp.o
+2026-10-07T00:25:12.3310687Z [341/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/name_conversion.cpp.o
+2026-10-07T00:25:12.9315971Z [342/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/flex_attention.cpp.o
+2026-10-07T00:25:13.3306572Z [343/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/exaone4.cpp.o
+2026-10-07T00:25:14.4611125Z [344/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/falcon-h1.cpp.o
+2026-10-07T00:25:15.3360621Z [345/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/guidance.cpp.o
+2026-10-07T00:25:15.5667499Z [346/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/falcon.cpp.o
+2026-10-07T00:25:16.6908581Z [347/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma-embedding.cpp.o
+2026-10-07T00:25:17.6088185Z [348/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/imatrix.cpp.o
+2026-10-07T00:25:17.7903495Z [349/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma.cpp.o
+2026-10-07T00:25:18.9039314Z [350/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma2.cpp.o
+2026-10-07T00:25:20.0991901Z [351/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma3.cpp.o
+2026-10-07T00:25:21.3549424Z [352/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma3n.cpp.o
+2026-10-07T00:25:22.5134686Z [353/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma4-assistant.cpp.o
+2026-10-07T00:25:23.1645328Z [354/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/runtime/sample-cache.cpp.o
+2026-10-07T00:25:23.7731333Z [355/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gemma4.cpp.o
+2026-10-07T00:25:25.3942624Z [356/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/glm-dsa.cpp.o
+2026-10-07T00:25:26.7179076Z [357/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/glm4-moe.cpp.o
+2026-10-07T00:25:27.8604471Z [358/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/glm4.cpp.o
+2026-10-07T00:25:28.9717322Z [359/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gpt2.cpp.o
+2026-10-07T00:25:30.1063058Z [360/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/gptneox.cpp.o
+2026-10-07T00:25:31.2899678Z [361/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-hybrid.cpp.o
+2026-10-07T00:25:32.3652435Z [362/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-moe.cpp.o
+2026-10-07T00:25:34.0511382Z [363/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-swa.cpp.o
+2026-10-07T00:25:35.6385487Z [364/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite-switch.cpp.o
+2026-10-07T00:25:37.3379350Z [365/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/granite.cpp.o
+2026-10-07T00:25:38.5354211Z [366/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/grok.cpp.o
+2026-10-07T00:25:39.7732379Z [367/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/grovemoe.cpp.o
+2026-10-07T00:25:40.9077027Z [368/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/hunyuan-dense.cpp.o
+2026-10-07T00:25:42.1281645Z [369/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/hunyuan-moe.cpp.o
+2026-10-07T00:25:43.3648142Z [370/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/hunyuan-vl.cpp.o
+2026-10-07T00:25:44.7706726Z [371/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/hy-v3.cpp.o
+2026-10-07T00:25:45.8923849Z [372/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/internlm2.cpp.o
+2026-10-07T00:25:47.0162023Z [373/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/jais.cpp.o
+2026-10-07T00:25:48.1888729Z [374/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/jais2.cpp.o
+2026-10-07T00:25:49.3954585Z [375/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/jamba.cpp.o
+2026-10-07T00:25:50.5544586Z [376/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/jina-bert-v2.cpp.o
+2026-10-07T00:25:51.7213563Z [377/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/jina-bert-v3.cpp.o
+2026-10-07T00:25:53.0947950Z [378/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/kimi-k3.cpp.o
+2026-10-07T00:25:54.4272152Z [379/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/kimi-linear.cpp.o
+2026-10-07T00:25:55.6132691Z [380/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/laguna.cpp.o
+2026-10-07T00:25:57.3503090Z [381/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/lfm2.cpp.o
+2026-10-07T00:25:58.6824777Z [382/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/lfm2moe.cpp.o
+2026-10-07T00:25:59.8222596Z [383/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/llada-moe.cpp.o
+2026-10-07T00:26:00.9724076Z [384/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/llada.cpp.o
+2026-10-07T00:26:02.0248288Z [385/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/llama-embed.cpp.o
+2026-10-07T00:26:03.2529749Z [386/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/llama.cpp.o
+2026-10-07T00:26:04.5579967Z [387/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/llama4.cpp.o
+2026-10-07T00:26:05.7518271Z [388/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/maincoder.cpp.o
+2026-10-07T00:26:07.2609193Z [389/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mamba-base.cpp.o
+2026-10-07T00:26:08.3594917Z [390/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mamba.cpp.o
+2026-10-07T00:26:09.4140370Z [391/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mamba2.cpp.o
+2026-10-07T00:26:10.6063263Z [392/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mellum.cpp.o
+2026-10-07T00:26:11.9127778Z [393/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mimo2.cpp.o
+2026-10-07T00:26:13.0009223Z [394/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/minicpm.cpp.o
+2026-10-07T00:26:14.1790597Z [395/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/minicpm3.cpp.o
+2026-10-07T00:26:15.6415243Z [396/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/minimax-01.cpp.o
+2026-10-07T00:26:16.7655672Z [397/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/minimax-m2.cpp.o
+2026-10-07T00:26:18.3493876Z [398/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/minimax-m3.cpp.o
+2026-10-07T00:26:19.4888224Z [399/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mistral3.cpp.o
+2026-10-07T00:26:20.5349104Z [400/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mistral4.cpp.o
+2026-10-07T00:26:21.6825487Z [401/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/modern-bert.cpp.o
+2026-10-07T00:26:22.8424798Z [402/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/mpt.cpp.o
+2026-10-07T00:26:23.9727840Z [403/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/muse-glimmer.cpp.o
+2026-10-07T00:26:25.1035171Z [404/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/nanbeige.cpp.o
+2026-10-07T00:26:26.2488952Z [405/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/nemotron-h-moe.cpp.o
+2026-10-07T00:26:27.4708861Z [406/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/nemotron-h.cpp.o
+2026-10-07T00:26:28.5925106Z [407/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/nemotron.cpp.o
+2026-10-07T00:26:29.7450588Z [408/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/neo-bert.cpp.o
+2026-10-07T00:26:30.8776700Z [409/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/nomic-bert-moe.cpp.o
+2026-10-07T00:26:32.0050907Z [410/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/nomic-bert.cpp.o
+2026-10-07T00:26:33.1272535Z [411/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/olmo.cpp.o
+2026-10-07T00:26:34.3409756Z [412/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/olmo2.cpp.o
+2026-10-07T00:26:35.4657113Z [413/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/olmoe.cpp.o
+2026-10-07T00:26:36.5776956Z [414/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/openai-moe.cpp.o
+2026-10-07T00:26:37.6972269Z [415/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/openelm.cpp.o
+2026-10-07T00:26:38.8036615Z [416/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/orion.cpp.o
+2026-10-07T00:26:39.9118896Z [417/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/paddleocr.cpp.o
+2026-10-07T00:26:41.0535366Z [418/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/pangu-embed.cpp.o
+2026-10-07T00:26:42.1526420Z [419/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/phi2.cpp.o
+2026-10-07T00:26:43.3229407Z [420/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/phi3.cpp.o
+2026-10-07T00:26:44.4028527Z [421/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/phimoe.cpp.o
+2026-10-07T00:26:45.5196868Z [422/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/plamo.cpp.o
+2026-10-07T00:26:46.9333790Z [423/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/plamo2.cpp.o
+2026-10-07T00:26:48.1181864Z [424/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/plamo3.cpp.o
+2026-10-07T00:26:49.2444820Z [425/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/plm.cpp.o
+2026-10-07T00:26:50.3634410Z [426/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/pockettts.cpp.o
+2026-10-07T00:26:51.4823067Z [427/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen.cpp.o
+2026-10-07T00:26:52.5950907Z [428/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen2.cpp.o
+2026-10-07T00:26:53.7145831Z [429/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen2moe.cpp.o
+2026-10-07T00:26:54.8257154Z [430/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen2vl.cpp.o
+2026-10-07T00:26:55.9468734Z [431/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3.cpp.o
+2026-10-07T00:26:57.3760249Z [432/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen35.cpp.o
+2026-10-07T00:26:58.8410758Z [433/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen35moe.cpp.o
+2026-10-07T00:26:59.9621317Z [434/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3moe.cpp.o
+2026-10-07T00:27:01.4272737Z [435/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3next.cpp.o
+2026-10-07T00:27:02.4191203Z [436/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3tts.cpp.o
+2026-10-07T00:27:03.5595687Z [437/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3vl.cpp.o
+2026-10-07T00:27:04.6975633Z [438/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen3vlmoe.cpp.o
+2026-10-07T00:27:06.9310720Z [439/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/qwen4exp.cpp.o
+2026-10-07T00:27:08.0500039Z [440/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/refact.cpp.o
+2026-10-07T00:27:09.1657086Z [441/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/rnd1.cpp.o
+2026-10-07T00:27:10.3445473Z [442/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv6-base.cpp.o
+2026-10-07T00:27:11.4905701Z [443/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv6.cpp.o
+2026-10-07T00:27:12.6188707Z [444/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv6qwen2.cpp.o
+2026-10-07T00:27:13.7823247Z [445/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv7-base.cpp.o
+2026-10-07T00:27:14.9592484Z [446/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/rwkv7.cpp.o
+2026-10-07T00:27:16.0900839Z [447/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/seed-oss.cpp.o
+2026-10-07T00:27:17.2864536Z [448/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/smallthinker.cpp.o
+2026-10-07T00:27:18.4185735Z [449/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/smollm3.cpp.o
+2026-10-07T00:27:19.5765018Z [450/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/stablelm.cpp.o
+2026-10-07T00:27:20.7029724Z [451/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/starcoder.cpp.o
+2026-10-07T00:27:21.8367048Z [452/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/starcoder2.cpp.o
+2026-10-07T00:27:23.2281632Z [453/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/step35.cpp.o
+2026-10-07T00:27:24.5841362Z [454/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/t5.cpp.o
+2026-10-07T00:27:25.6512374Z [455/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/t5encoder.cpp.o
+2026-10-07T00:27:26.7789546Z [456/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/talkie.cpp.o
+2026-10-07T00:27:27.9364639Z [457/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/wavtokenizer-dec.cpp.o
+2026-10-07T00:27:29.0604576Z [458/515] Building CXX object llama/src/CMakeFiles/llama.dir/models/xverse.cpp.o
+2026-10-07T00:27:29.1010220Z [459/515] Linking CXX static library lib/libeasy-diffusion-ui.a
+2026-10-07T00:27:29.2340368Z [460/515] Linking CXX static library lib/libllama.a
+2026-10-07T00:31:52.8994622Z [461/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/stable-diffusion.cpp.o
+2026-10-07T00:31:55.5505957Z [462/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/bpe_tokenizer.cpp.o
+2026-10-07T00:31:59.9506670Z [463/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/clip_tokenizer.cpp.o
+2026-10-07T00:32:05.1756435Z [464/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/gemma_tokenizer.cpp.o
+2026-10-07T00:32:09.5763205Z [465/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/gpt_oss_tokenizer.cpp.o
+2026-10-07T00:32:13.9500415Z [466/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/mistral_tokenizer.cpp.o
+2026-10-07T00:32:15.6668132Z [467/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/qwen2_tokenizer.cpp.o
+2026-10-07T00:32:25.2188053Z [468/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/t5_unigram_tokenizer.cpp.o
+2026-10-07T00:32:26.2054844Z [469/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/tokenize_util.cpp.o
+2026-10-07T00:32:30.2013458Z [470/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/tokenizers/tokenizer.cpp.o
+2026-10-07T00:32:40.3622216Z [471/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/upscaler.cpp.o
+2026-10-07T00:32:40.4022766Z [472/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/src/version.cpp.o
+2026-10-07T00:32:41.2613958Z [473/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_clip_merges.cpp.o
+2026-10-07T00:32:43.7406399Z [474/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_qwen2_merges.cpp.o
+2026-10-07T00:32:48.3215613Z [475/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_mistral_merges.cpp.o
+2026-10-07T00:32:52.3139012Z [476/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_mistral_vocab_json.cpp.o
+2026-10-07T00:32:54.3574588Z [477/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_t5_tokenizer_json.cpp.o
+2026-10-07T00:33:08.5001954Z [478/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_umt5_tokenizer_json.cpp.o
+2026-10-07T00:33:17.1291435Z [479/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma_merges.cpp.o
+2026-10-07T00:33:24.4167231Z [480/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma_vocab_json.cpp.o
+2026-10-07T00:33:33.2037556Z [481/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma2_merges.cpp.o
+2026-10-07T00:33:39.8061999Z [482/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gemma2_vocab_json.cpp.o
+2026-10-07T00:33:48.0438741Z [483/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gpt_oss_merges.cpp.o
+2026-10-07T00:33:53.9313556Z [484/515] Building CXX object stable-diffusion/CMakeFiles/stable-diffusion.dir/__/generated/vocab/load_gpt_oss_vocab_json.cpp.o
+2026-10-07T00:33:54.3089052Z [485/515] Linking CXX static library lib/libstable-diffusion.a
+2026-10-07T00:34:03.2401655Z [486/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/image_generator.cpp.o
+2026-10-07T00:34:07.7563293Z [487/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/image_utils.cpp.o
+2026-10-07T00:34:07.7565308Z In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/image_utils.cpp:13:
+2026-10-07T00:34:07.7568087Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h: In function 'void stbir__decode_scanline(stbir__info*, int)':
+2026-10-07T00:34:07.7570903Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7573658Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7574567Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7576486Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1272:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7578178Z  1272 |     case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7578828Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7580890Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7583375Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7584300Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7585895Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1282:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7587842Z  1282 |     case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7588470Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7590563Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7593029Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7593886Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7595486Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1295:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7597400Z  1295 |     case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7598041Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7600145Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7602719Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7603589Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7605231Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1305:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7607402Z  1305 |     case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7608053Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7610367Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7612878Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7613750Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7615400Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1318:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7617420Z  1318 |     case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7618094Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7620281Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7622856Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7623758Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7625409Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1328:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7627548Z  1328 |     case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7628213Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7630388Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7632994Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7633890Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7635578Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1341:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7637563Z  1341 |     case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7638229Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7640437Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7643046Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7643943Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7645597Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1351:10: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7647603Z  1351 |     case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7648489Z       |          ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7650447Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h: In function 'void stbir__encode_scanline(stbir__info*, int, void*, float*, int, int, int)':
+2026-10-07T00:34:07.7654115Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7657007Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7657914Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7659608Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1740:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7661428Z  1740 |         case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7662104Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7664343Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7667150Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7668050Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7669725Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1753:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7671531Z  1753 |         case STBIR__DECODE(STBIR_TYPE_UINT8, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7672196Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7674416Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7677317Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7678218Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7679849Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1769:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7681641Z  1769 |         case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7682319Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7684583Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7687368Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7688260Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7689941Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1782:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7691980Z  1782 |         case STBIR__DECODE(STBIR_TYPE_UINT16, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7692659Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7695115Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7698020Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7698930Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7700599Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1799:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7702577Z  1799 |         case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7703270Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7705537Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7708396Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7709265Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7710962Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1812:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7712735Z  1812 |         case STBIR__DECODE(STBIR_TYPE_UINT32, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7713413Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7715642Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7718411Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7719297Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7720970Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1828:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7722786Z  1828 |         case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_LINEAR):
+2026-10-07T00:34:07.7723487Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:07.7725724Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1239:49: warning: arithmetic between different enumeration types 'stbir_datatype' and 'stbir_colorspace' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:34:07.7728566Z  1239 | #define STBIR__DECODE(type, colorspace) ((type) * (STBIR_MAX_COLORSPACES) + (colorspace))
+2026-10-07T00:34:07.7729478Z       |                                          ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+2026-10-07T00:34:07.7731170Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/src/../stable-diffusion.cpp/thirdparty/stb_image_resize.h:1841:14: note: in expansion of macro 'STBIR__DECODE'
+2026-10-07T00:34:07.7732962Z  1841 |         case STBIR__DECODE(STBIR_TYPE_FLOAT, STBIR_COLORSPACE_SRGB):
+2026-10-07T00:34:07.7733608Z       |              ^~~~~~~~~~~~~
+2026-10-07T00:34:08.9942819Z [488/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/logging.cpp.o
+2026-10-07T00:34:14.2151474Z [489/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/model_detection.cpp.o
+2026-10-07T00:34:16.8097346Z [490/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/model_manager.cpp.o
+2026-10-07T00:34:24.6480231Z [491/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/options_manager.cpp.o
+2026-10-07T00:34:48.0127778Z [492/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/server.cpp.o
+2026-10-07T00:34:49.0845228Z [493/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/string_utils.cpp.o
+2026-10-07T00:34:50.2589139Z [494/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/out/source/sdkit3-port-source/src/task_state.cpp.o
+2026-10-07T00:34:58.7449439Z [495/515] Building CXX object CMakeFiles/cosmo-sdkit.dir/src/sdkit_entry.cpp.o
+2026-10-07T00:34:58.8062121Z [496/515] Linking CXX static library lib/libcosmo-sdkit.a
+2026-10-07T00:35:00.0006001Z [497/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/backward_test.cpp.o
+2026-10-07T00:35:00.0591758Z [498/515] Building C object CMakeFiles/easy-diffusion.dir/src/diffusion_test.c.o
+2026-10-07T00:35:00.1793222Z [499/515] Building C object CMakeFiles/easy-diffusion.dir/src/ggml_test.c.o
+2026-10-07T00:35:00.3661327Z [500/515] Building C object CMakeFiles/easy-diffusion.dir/src/image_app.c.o
+2026-10-07T00:35:00.4415627Z [501/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/image_bridge.cpp.o
+2026-10-07T00:35:01.3610069Z [502/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/inference_dispatcher.cpp.o
+2026-10-07T00:35:02.1650561Z [503/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/inference_worker.cpp.o
+2026-10-07T00:35:02.3893418Z [504/515] Building C object CMakeFiles/easy-diffusion.dir/src/inplace_test.c.o
+2026-10-07T00:35:02.5614365Z [505/515] Building C object CMakeFiles/easy-diffusion.dir/src/llama_app.c.o
+2026-10-07T00:35:02.6141431Z [506/515] Building C object CMakeFiles/easy-diffusion.dir/src/main.c.o
+2026-10-07T00:35:02.6518093Z [507/515] Building C object CMakeFiles/easy-diffusion.dir/src/math_compat.c.o
+2026-10-07T00:35:03.3267266Z [508/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/optimizer_test.cpp.o
+2026-10-07T00:36:12.7698959Z [509/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/train_entry.cpp.o
+2026-10-07T00:36:12.7700716Z In file included from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/tokenizers/t5_unigram_tokenizer.h:10,
+2026-10-07T00:36:12.7703106Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/model/te/t5.hpp:16,
+2026-10-07T00:36:12.7705227Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/src/conditioning/conditioner.hpp:16,
+2026-10-07T00:36:12.7707554Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/tools/sd15_lora_train.cpp:26,
+2026-10-07T00:36:12.7708609Z                  from /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/src/train_entry.cpp:8:
+2026-10-07T00:36:12.7710420Z /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/darts.h:1465:34: warning: arithmetic between different enumeration types 'Darts::Details::DoubleArrayBuilder::<unnamed enum>' and 'Darts::Details::DoubleArrayBuilder::<unnamed enum>' is deprecated [-Wdeprecated-enum-enum-conversion]
+2026-10-07T00:36:12.7712038Z  1465 |   enum { NUM_EXTRAS = BLOCK_SIZE * NUM_EXTRA_BLOCKS };
+2026-10-07T00:36:12.7712403Z       |                       ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+2026-10-07T00:36:13.5907776Z [510/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/ui_entry.cpp.o
+2026-10-07T00:36:22.0501871Z [511/515] Building CXX object CMakeFiles/easy-diffusion.dir/src/ui_routes.cpp.o
+2026-10-07T00:36:22.1877740Z [512/515] Building C object CMakeFiles/easy-diffusion.dir/src/webgpu_test.c.o
+2026-10-07T00:36:22.3787731Z [513/515] Building C object CMakeFiles/easy-diffusion.dir/shared-ggml/compat_test.c.o
+2026-10-07T00:36:26.6219839Z [514/515] Linking CXX executable bin/easy-diffusion.com.dbg
+2026-10-07T00:36:26.6238233Z + /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/apelink -o /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.unpacked.exe -l /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/sdk/bin/ape-x86_64.elf /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/build/bin/easy-diffusion.com.dbg
+2026-10-07T00:36:27.4337278Z + /usr/bin/python3 /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/package.py --input /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.unpacked.exe --output /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.exe --metadata /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/LINK.json
+2026-10-07T00:36:27.4848257Z Fetching pinned inference fixture: ggml-org/tiny-llamas
+2026-10-07T00:36:30.7651666Z {
+2026-10-07T00:36:30.7652296Z   "filename": "easy-diffusion.exe",
+2026-10-07T00:36:30.7652951Z   "bytes": 190274689,
+2026-10-07T00:36:30.7653959Z   "sha256": "ad40cdabb2658bd064473012c32ac8f79bb2ad65557528707930529a888a9516"
+2026-10-07T00:36:30.7655106Z }
+2026-10-07T00:36:30.7756963Z Linked application: /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out/easy-diffusion.unpacked.exe
+2026-10-07T00:36:30.7877865Z ##[group]Run set -euo pipefail
+2026-10-07T00:36:30.7878251Z [36;1mset -euo pipefail[0m
+2026-10-07T00:36:30.7878633Z [36;1mpython3 cosmopolitan/tests/audit_symbols.py --out cosmopolitan/out[0m
+2026-10-07T00:36:30.7879193Z [36;1mcp cosmopolitan/tests/verify_runtime.py cosmopolitan/out/verify_runtime.py[0m
+2026-10-07T00:36:30.7879777Z [36;1mcp cosmopolitan/tests/verify_bootstrap.py cosmopolitan/out/verify_bootstrap.py[0m
+2026-10-07T00:36:30.7880364Z [36;1mcp cosmopolitan/tests/verify_inference.py cosmopolitan/out/verify_inference.py[0m
+2026-10-07T00:36:30.7880997Z [36;1mcp cosmopolitan/tests/verify_inference_api.py cosmopolitan/out/verify_inference_api.py[0m
+2026-10-07T00:36:30.7881667Z [36;1mcp cosmopolitan/inference/fetch_model.py cosmopolitan/out/fetch_inference_model.py[0m
+2026-10-07T00:36:30.7882262Z [36;1mcp cosmopolitan/inference/PIN.json cosmopolitan/out/PIN.json[0m
+2026-10-07T00:36:30.7882666Z [36;1mpython3 - <<'PY'[0m
+2026-10-07T00:36:30.7882962Z [36;1mimport hashlib, json, os, sys[0m
+2026-10-07T00:36:30.7883259Z [36;1mfrom pathlib import Path[0m
+2026-10-07T00:36:30.7883572Z [36;1msys.path.insert(0, 'cosmopolitan/tests')[0m
+2026-10-07T00:36:30.7883927Z [36;1mfrom verify_runtime import verify_package[0m
+2026-10-07T00:36:30.7884265Z [36;1mdirectory = Path('cosmopolitan/out')[0m
+2026-10-07T00:36:30.7884607Z [36;1mdigest = verify_package(directory, None)[0m
+2026-10-07T00:36:30.7885001Z [36;1mmodel_pin = json.loads((directory / 'PIN.json').read_text())[0m
+2026-10-07T00:36:30.7885456Z [36;1mwith open(os.environ['GITHUB_OUTPUT'], 'a') as output:[0m
+2026-10-07T00:36:30.7885861Z [36;1m    output.write(f'executable_sha256={digest}\n')[0m
+2026-10-07T00:36:30.7886557Z [36;1m    output.write(f'model_sha256={model_pin["sha256"]}\n')[0m
+2026-10-07T00:36:30.7887009Z [36;1mwith open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:[0m
+2026-10-07T00:36:30.7887445Z [36;1m    summary.write('### One application artifact\n\n')[0m
+2026-10-07T00:36:30.7887838Z [36;1m    summary.write(f'SHA-256: `{digest}`\n\n')[0m
+2026-10-07T00:36:30.7888478Z [36;1m    summary.write('Windows and Linux execute this file without rebuilding it. ')[0m
+2026-10-07T00:36:30.7889867Z [36;1m    summary.write('The executable contains wgpu-native, Mesa lavapipe and LLVM. Runtime jobs require trained text and image inference, WebGPU dispatch during denoising, and native generation API lifecycle checks, alongside the existing CPU, training-math and UI checks. The pinned SD 1.5 weights are external test data.\n')[0m
+2026-10-07T00:36:30.7891098Z [36;1mPY[0m
+2026-10-07T00:36:30.8020683Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-07T00:36:30.8021079Z env:
+2026-10-07T00:36:30.8021298Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:36:30.8021551Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:36:30.8021793Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:36:30.8022035Z ##[endgroup]
+2026-10-07T00:36:31.9372530Z {
+2026-10-07T00:36:31.9372963Z   "status": "passed",
+2026-10-07T00:36:31.9373399Z   "shared_ggml_sources": [
+2026-10-07T00:36:31.9373814Z     "ggml-alloc.c",
+2026-10-07T00:36:31.9374160Z     "ggml-backend-dl.cpp",
+2026-10-07T00:36:31.9374549Z     "ggml-backend-meta.cpp",
+2026-10-07T00:36:31.9374969Z     "ggml-backend-reg.cpp",
+2026-10-07T00:36:31.9375348Z     "ggml-backend.cpp",
+2026-10-07T00:36:31.9375726Z     "ggml-cpu/amx/amx.cpp",
+2026-10-07T00:36:31.9376379Z     "ggml-cpu/amx/mmq.cpp",
+2026-10-07T00:36:31.9376781Z     "ggml-cpu/arch/x86/quants.c",
+2026-10-07T00:36:31.9377215Z     "ggml-cpu/arch/x86/repack.cpp",
+2026-10-07T00:36:31.9377651Z     "ggml-cpu/binary-ops.cpp",
+2026-10-07T00:36:31.9378054Z     "ggml-cpu/ggml-cpu.c",
+2026-10-07T00:36:31.9378434Z     "ggml-cpu/ggml-cpu.cpp",
+2026-10-07T00:36:31.9378822Z     "ggml-cpu/hbm.cpp",
+2026-10-07T00:36:31.9379171Z     "ggml-cpu/ops.cpp",
+2026-10-07T00:36:31.9379525Z     "ggml-cpu/quants.c",
+2026-10-07T00:36:31.9379894Z     "ggml-cpu/repack.cpp",
+2026-10-07T00:36:31.9380270Z     "ggml-cpu/traits.cpp",
+2026-10-07T00:36:31.9380949Z     "ggml-cpu/unary-ops.cpp",
+2026-10-07T00:36:31.9396606Z     "ggml-cpu/vec.cpp",
+2026-10-07T00:36:31.9396997Z     "ggml-opt.cpp",
+2026-10-07T00:36:31.9397359Z     "ggml-quants.c",
+2026-10-07T00:36:31.9397769Z     "ggml-threading.cpp",
+2026-10-07T00:36:31.9398234Z     "ggml-webgpu/ggml-webgpu.cpp",
+2026-10-07T00:36:31.9398710Z     "ggml.c",
+2026-10-07T00:36:31.9399040Z     "ggml.cpp",
+2026-10-07T00:36:31.9399374Z     "gguf.cpp"
+2026-10-07T00:36:31.9399680Z   ],
+2026-10-07T00:36:31.9399973Z   "shared_ggml_webgpu_sources": [
+2026-10-07T00:36:31.9400422Z     "ggml-webgpu/ggml-webgpu.cpp"
+2026-10-07T00:36:31.9400879Z   ],
+2026-10-07T00:36:31.9401192Z   "required_symbol_counts": {
+2026-10-07T00:36:31.9401603Z     "ggml_init": 1,
+2026-10-07T00:36:31.9401980Z     "ggml_new_tensor": 1,
+2026-10-07T00:36:31.9402407Z     "ggml_backend_cpu_init": 1,
+2026-10-07T00:36:31.9402875Z     "ggml_backend_dev_count": 1,
+2026-10-07T00:36:31.9403324Z     "llama_model_load_from_file": 1,
+2026-10-07T00:36:31.9403732Z     "new_sd_ctx": 1,
+2026-10-07T00:36:31.9404075Z     "cosmo_train_main": 1,
+2026-10-07T00:36:31.9404486Z     "cosmo_sdkit_main": 1,
+2026-10-07T00:36:31.9404887Z     "cosmo_image_generate": 1,
+2026-10-07T00:36:31.9405309Z     "cosmo_image_create_context": 1,
+2026-10-07T00:36:31.9405780Z     "cosmo_image_generate_pixels": 1,
+2026-10-07T00:36:31.9406459Z     "generate_image": 1,
+2026-10-07T00:36:31.9406839Z     "free_sd_images": 1,
+2026-10-07T00:36:31.9407266Z     "sd_set_sample_progress_callback": 1,
+2026-10-07T00:36:31.9407749Z     "ggml_backend_webgpu_init": 1,
+2026-10-07T00:36:31.9408198Z     "ggml_backend_webgpu_reg": 1,
+2026-10-07T00:36:31.9408646Z     "cosmo_webgpu_initialize": 1,
+2026-10-07T00:36:31.9409095Z     "cosmo_webgpu_selftest": 1,
+2026-10-07T00:36:31.9409540Z     "cosmo_llama_webgpu_selftest": 1,
+2026-10-07T00:36:31.9410042Z     "cosmo_webgpu_inplace_selftest": 1,
+2026-10-07T00:36:31.9410518Z     "wgpuCreateInstance": 1,
+2026-10-07T00:36:31.9410943Z     "wgpuQueueSubmit": 1,
+2026-10-07T00:36:31.9411477Z     "wgpuComputePassEncoderDispatchWorkgroups": 1,
+2026-10-07T00:36:31.9412361Z     "wgpuBufferGetConstMappedRange": 1,
+2026-10-07T00:36:31.9412881Z     "cosmo_wgpu_lavapipe_register": 1,
+2026-10-07T00:36:31.9413363Z     "lvp_GetInstanceProcAddr": 1,
+2026-10-07T00:36:31.9413849Z     "LLVMCreateMCJITCompilerForModule": 1
+2026-10-07T00:36:31.9414339Z   },
+2026-10-07T00:36:31.9414676Z   "legacy_versioned_ggml_symbols": 0,
+2026-10-07T00:36:31.9415361Z   "scope": "Source and symbol identity; numerical correctness is tested separately"
+2026-10-07T00:36:31.9416282Z }
+2026-10-07T00:36:32.4634418Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-10-07T00:36:32.4634863Z with:
+2026-10-07T00:36:32.4635107Z   name: easy-diffusion-cosmopolitan-x86_64
+2026-10-07T00:36:32.4636935Z   path: cosmopolitan/out/easy-diffusion.exe
+cosmopolitan/out/ape-x86_64.elf
+cosmopolitan/out/BUILD.json
+cosmopolitan/out/SYMBOLS.json
+cosmopolitan/out/software-webgpu/LINK.json
+cosmopolitan/out/verify_runtime.py
+cosmopolitan/out/verify_bootstrap.py
+cosmopolitan/out/verify_inference.py
+cosmopolitan/out/verify_inference_api.py
+cosmopolitan/out/fetch_inference_model.py
+cosmopolitan/out/PIN.json
+
+2026-10-07T00:36:32.4638477Z   if-no-files-found: error
+2026-10-07T00:36:32.4638734Z   retention-days: 30
+2026-10-07T00:36:32.4638958Z   compression-level: 6
+2026-10-07T00:36:32.4639186Z   overwrite: false
+2026-10-07T00:36:32.4639408Z   include-hidden-files: false
+2026-10-07T00:36:32.4639659Z   archive: true
+2026-10-07T00:36:32.4639865Z env:
+2026-10-07T00:36:32.4640091Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:36:32.4640312Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:36:32.4640527Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:36:32.4640739Z ##[endgroup]
+2026-10-07T00:36:32.6127149Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-07T00:36:32.6132226Z The least common ancestor is /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out. This will be the root directory of the artifact
+2026-10-07T00:36:32.6133612Z With the provided path, there will be 11 files uploaded
+2026-10-07T00:36:32.6137648Z Artifact name is valid!
+2026-10-07T00:36:32.6138491Z Root directory input is valid!
+2026-10-07T00:36:32.9850902Z Uploading artifact: easy-diffusion-cosmopolitan-x86_64.zip
+2026-10-07T00:36:32.9892569Z Beginning upload of artifact content to blob storage
+2026-10-07T00:36:34.5889317Z Uploaded bytes 8388608
+2026-10-07T00:36:35.2236509Z Uploaded bytes 16777216
+2026-10-07T00:36:35.2948368Z Uploaded bytes 25165824
+2026-10-07T00:36:36.0177074Z Uploaded bytes 33554432
+2026-10-07T00:36:36.9874751Z Uploaded bytes 41943040
+2026-10-07T00:36:37.7830204Z Uploaded bytes 50331648
+2026-10-07T00:36:38.4335693Z Uploaded bytes 58720256
+2026-10-07T00:36:38.8898055Z Uploaded bytes 67108864
+2026-10-07T00:36:39.0604105Z Uploaded bytes 75497472
+2026-10-07T00:36:39.1431807Z Uploaded bytes 83886080
+2026-10-07T00:36:39.4083743Z Uploaded bytes 92274688
+2026-10-07T00:36:39.5713947Z Uploaded bytes 94505922
+2026-10-07T00:36:39.6397210Z Finished uploading artifact content to blob storage!
+2026-10-07T00:36:39.6400840Z SHA256 digest of uploaded artifact is 728373aaab3ca3208813c5bd0832a95cafe319f336ababf4d47e95732d890e50
+2026-10-07T00:36:39.6402430Z Finalizing artifact upload
+2026-10-07T00:36:40.0404868Z Artifact easy-diffusion-cosmopolitan-x86_64 successfully finalized. Artifact ID 11453436083
+2026-10-07T00:36:40.0406999Z Artifact easy-diffusion-cosmopolitan-x86_64 has been successfully uploaded! Final size is 94505922 bytes. Artifact ID is 11453436083
+2026-10-07T00:36:40.0411458Z Artifact download URL: https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37551341258/artifacts/11453436083
+2026-10-07T00:36:40.0560056Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-10-07T00:36:40.0560492Z with:
+2026-10-07T00:36:40.0560735Z   name: cosmopolitan-build-diagnostics
+2026-10-07T00:36:40.0562123Z   path: cosmopolitan/out/build.log
+cosmopolitan/out/software-dependencies.log
+cosmopolitan/out/easy-diffusion.com.dbg
+cosmopolitan/out/build/CMakeFiles/CMakeConfigureLog.yaml
+cosmopolitan/out/software-webgpu/*.log
+cosmopolitan/out/software-webgpu/foundation/o/llvm-cosmo/*.log
+cosmopolitan/out/software-webgpu/foundation/o/lavapipe/*.log
+
+2026-10-07T00:36:40.0563648Z   if-no-files-found: ignore
+2026-10-07T00:36:40.0563906Z   retention-days: 14
+2026-10-07T00:36:40.0564138Z   compression-level: 6
+2026-10-07T00:36:40.0564370Z   overwrite: false
+2026-10-07T00:36:40.0564599Z   include-hidden-files: false
+2026-10-07T00:36:40.0564856Z   archive: true
+2026-10-07T00:36:40.0565061Z env:
+2026-10-07T00:36:40.0565260Z   CARGO_BUILD_JOBS: 2
+2026-10-07T00:36:40.0565481Z   LLVM_COSMO_JOBS: 2
+2026-10-07T00:36:40.0565733Z   LAVAPIPE_JOBS: 2
+2026-10-07T00:36:40.0565947Z ##[endgroup]
+2026-10-07T00:36:40.2095880Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-07T00:36:40.2099319Z The least common ancestor is /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp/cosmopolitan/out. This will be the root directory of the artifact
+2026-10-07T00:36:40.2100583Z With the provided path, there will be 12 files uploaded
+2026-10-07T00:36:40.2103602Z Artifact name is valid!
+2026-10-07T00:36:40.2104148Z Root directory input is valid!
+2026-10-07T00:36:40.5684007Z Uploading artifact: cosmopolitan-build-diagnostics.zip
+2026-10-07T00:36:40.5723056Z Beginning upload of artifact content to blob storage
+2026-10-07T00:36:42.1903396Z Uploaded bytes 8388608
+2026-10-07T00:36:42.8061199Z Uploaded bytes 16777216
+2026-10-07T00:36:42.8746623Z Uploaded bytes 25165824
+2026-10-07T00:36:43.6070785Z Uploaded bytes 33554432
+2026-10-07T00:36:44.4220645Z Uploaded bytes 41943040
+2026-10-07T00:36:45.3167170Z Uploaded bytes 50331648
+2026-10-07T00:36:46.1645725Z Uploaded bytes 58720256
+2026-10-07T00:36:46.8349255Z Uploaded bytes 65000336
+2026-10-07T00:36:46.9041060Z Finished uploading artifact content to blob storage!
+2026-10-07T00:36:46.9045202Z SHA256 digest of uploaded artifact is cffedaf342d4b7cf9f8d0983561562b6fa6ebfdd350b92a882bdafbb06481121
+2026-10-07T00:36:46.9047207Z Finalizing artifact upload
+2026-10-07T00:36:47.2999171Z Artifact cosmopolitan-build-diagnostics successfully finalized. Artifact ID 11453271291
+2026-10-07T00:36:47.3000380Z Artifact cosmopolitan-build-diagnostics has been successfully uploaded! Final size is 65000336 bytes. Artifact ID is 11453271291
+2026-10-07T00:36:47.3005314Z Artifact download URL: https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37551341258/artifacts/11453271291
+2026-10-07T00:36:47.3184284Z Post job cleanup.
+2026-10-07T00:36:47.4308847Z Cache hit occurred on the primary key cosmo-easydiffusion-ubuntu24-sdk4.0.2-tools-v1, not saving cache.
+2026-10-07T00:36:47.4310711Z (node:6349) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-07T00:36:47.4312137Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-07T00:36:47.4458148Z Post job cleanup.
+2026-10-07T00:36:47.5431069Z [command]/usr/bin/git version
+2026-10-07T00:36:47.5487549Z git version 2.55.0
+2026-10-07T00:36:47.5548326Z Temporarily overriding HOME='/home/runner/work/_temp/233f9d01-57b6-4c72-9146-2f90a53cc525' before making global git config changes
+2026-10-07T00:36:47.5550047Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-07T00:36:47.5555602Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/EasyDifussion-Cpp/EasyDifussion-Cpp
+2026-10-07T00:36:47.5589047Z Removing SSH command configuration
+2026-10-07T00:36:47.5597877Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-07T00:36:47.5636820Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-07T00:36:47.5891223Z Removing HTTP extra header
+2026-10-07T00:36:47.5895464Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-07T00:36:47.5926982Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-07T00:36:47.6149949Z Removing includeIf entries pointing to credentials config files
+2026-10-07T00:36:47.6155788Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-07T00:36:47.6186409Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-07T00:36:47.6550570Z Evaluate and set job outputs
+2026-10-07T00:36:47.6556374Z Set output 'executable_sha256'
+2026-10-07T00:36:47.6558265Z Set output 'model_sha256'
+2026-10-07T00:36:47.6559265Z Cleaning up orphan processes
+2026-10-07T00:36:47.6765569Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

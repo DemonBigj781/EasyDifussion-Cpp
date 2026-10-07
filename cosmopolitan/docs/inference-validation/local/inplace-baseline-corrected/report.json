@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "command": [
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/ape-x86_64.elf",
+    "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inplace-baseline-corrected/easy-diffusion-baseline.com.dbg",
+    "webgpu-inplace-test"
+  ],
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "TZ": "UTC",
+    "LP_NUM_THREADS": "2",
+    "TMPDIR": "/workspace/scratch/c71296f6d862/easydiffusion-cpp/cosmopolitan/out/inplace-baseline-corrected/tmp"
+  },
+  "exit_code": 1,
+  "elapsed_seconds": 0.06411668199871201,
+  "timed_out": false,
+  "application_sha256_before": "5638d6f0d34866612d11293df6d4379761a14abd5a34991843201940b9c9f99a",
+  "application_sha256_after": "5638d6f0d34866612d11293df6d4379761a14abd5a34991843201940b9c9f99a",
+  "patched_scheduler": false,
+  "corrected_test_object_sha256": "b55fc3332b6e73ccd7b46fe7afa06309434d85d9defd631507be994f0375b2fa",
+  "reversed_patch_sha256": "b9a996cf03a5ffff91d6a6d5ac8708f7d73a7fccbb41898ff396d818bd2b2f8d",
+  "original_inputs_unchanged": true,
+  "expected": "Nonzero caused by unsafe alias placement, not the former CPU buffer device=NULL test predicate.",
+  "validation": {
+    "expected_negative_result_observed": true,
+    "failure_kind": "in-place alias assigned to WebGPU while sharing canonical owner CPU buffer",
+    "case_owner": "scheduler",
+    "iteration": 0,
+    "canonical_owner_and_aliases": {
+      "group_norm": {
+        "assigned": "CPU(0x7fae4187bd00)",
+        "buffer": "0x7fae4187cf60",
+        "host": 1,
+        "data": "0x7fae418acc00",
+        "view_src": "0",
+        "view_offset": 0
+      },
+      "mul_inplace": {
+        "assigned": "WebGPU: WebGPU0(0x7fae4187bc00)",
+        "buffer": "0x7fae4187cf60",
+        "host": 1,
+        "data": "0x7fae418acc00",
+        "view_src": "0x7fae418f5270",
+        "view_offset": 0
+      },
+      "add_inplace": {
+        "assigned": "WebGPU: WebGPU0(0x7fae4187bc00)",
+        "buffer": "0x7fae4187cf60",
+        "host": 1,
+        "data": "0x7fae418acc00",
+        "view_src": "0x7fae418f5270",
+        "view_offset": 0
+      },
+      "silu_inplace": {
+        "assigned": "WebGPU: WebGPU0(0x7fae4187bc00)",
+        "buffer": "0x7fae4187cf60",
+        "host": 1,
+        "data": "0x7fae418acc00",
+        "view_src": "0x7fae418f5270",
+        "view_offset": 0
+      },
+      "reshape": {
+        "assigned": "WebGPU: WebGPU0(0x7fae4187bc00)",
+        "buffer": "0x7fae4187cf60",
+        "host": 1,
+        "data": "0x7fae418acc00",
+        "view_src": "0x7fae418f5270",
+        "view_offset": 0
+      }
+    },
+    "rejected_before_unsafe_graph_dispatch": true,
+    "not_cpu_buffer_null_device_predicate": true
+  }
+}

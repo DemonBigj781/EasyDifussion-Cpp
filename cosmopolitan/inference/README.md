@@ -7,6 +7,16 @@ a small C++ boundary catches exceptions from model creation and generation.
 The existing engine, HTTP server, UI renderer and WebGPU implementation retain
 their implementation languages. No Python process runs the model.
 
+The [completed inference record](../../COSMOPOLITAN_INFERENCE_VALIDATION.md)
+documents [run 37551341258](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37551341258),
+built from clean source `6898a4e564c3363d1692f0aed1a2da0395a17a77`.
+One unchanged executable passed SD 1.5 image generation on CPU and embedded
+software WebGPU, plus CPU native HTTP generation and early cancellation, on
+Windows and Linux. The tested images are 256×256 with four CPU steps or two
+WebGPU steps; they establish pipeline completion, not visual quality or
+support for arbitrary checkpoints. WebGPU HTTP inference and real browser
+automation remain separate, unvalidated paths.
+
 ## Model and output
 
 Supply a supported, complete diffusion checkpoint as an external data file.
@@ -181,6 +191,14 @@ Repeat with `--backend webgpu` and a fresh output directory. The helper
 sets `LP_NUM_THREADS=2` for the software driver's workers, independently of
 the GGML `--threads` option; `--software-threads` changes that host test limit.
 
+The final CI run passed both image backends on both OSes. Its API gate also
+passed a real four-step CPU request, 32 progress polls while that request was
+active, and a separate eight-step request cancelled after sampling began.
+Each host reported two actual 8,388,608-byte inference stacks with measured
+guards. Raw commands, timings, PNG/log hashes and per-stage counters are in
+the completed record; local quality and diagnostic runs retain separate
+artifact identities.
+
 `IMAGE_MODEL_LOAD` and `IMAGE_GENERATION` counters have separate windows.
 `IMAGE_SAMPLING` records the intervals between completed sampling callbacks,
 excluding the first denoising step, text encoding and final VAE decoding.
@@ -194,7 +212,11 @@ progress, cancellation, model override persistence and request contention.
 These model-backed tests are run sequentially. Linux image tests use an
 explicit APE loader; Windows runs the identical file as a native PE. The
 existing empty-filesystem Linux and clean-directory Windows runtime tests
-remain separate from these model-backed image tests.
+remain separate from these model-backed image tests. The server is required
+to remain alive before harness cleanup. Linux exits 0 after SIGTERM; Windows
+cleanup exits 1 because CPython calls `TerminateProcess(handle, 1)`. That
+Windows result is forced test cleanup, not an inference failure or proof of
+graceful signal shutdown.
 
 ## In-place storage across CPU and WebGPU
 
@@ -213,9 +235,15 @@ over conflicting placement hints, and retains the caller's CPU fallback
 policy. A later out-of-place operation can return to WebGPU through an ordinary
 copy. Impossible placements fail with a named diagnostic.
 
-`webgpu-inplace-test`, also included in `--self-test`, checks six small graphs
-with independent scalar references: repeated scheduler-allocated and
-preallocated CPU owners followed by a WebGPU matrix multiply, and preallocated
-WebGPU owners with CPU fallback disabled. It checks actual buffers and
+`webgpu-inplace-test`, also included in `--self-test`, passed six small graph
+cases and twelve independent scalar readbacks on both final CI hosts:
+repeated scheduler-allocated and preallocated CPU owners followed by a WebGPU
+matrix multiply, and preallocated WebGPU owners with CPU fallback disabled.
+It checks actual buffers and
 assignments as well as numerical results and dispatch/readback counts. The
 original tests requiring entirely WebGPU graph execution remain separate.
+
+These inference results do not validate an end-to-end training recipe,
+additional model families, physical GPU execution, LibTorch/ONNX-dependent
+tools or full application parity. The partial native trainer retains its
+documented restrictions and strict rejection of unsupported no-fallback graphs.

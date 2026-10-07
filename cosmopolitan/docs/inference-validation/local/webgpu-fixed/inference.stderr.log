@@ -1,0 +1,9 @@
+ggml_webgpu: adapter_info: vendor_id: 65541 | vendor: llvmpipe | architecture:  | device_id: 0 | name: llvmpipe (LLVM 19.1.7, 256 bits) | device_desc: Mesa 25.2.8 (git-c2ecdc20ef) (LLVM 19.1.7)
+
+IMAGE_SAMPLE_PROGRESS step=1 total_steps=4 seconds=202.063309
+
+IMAGE_SAMPLE_PROGRESS step=2 total_steps=4 seconds=198.948029
+
+IMAGE_SAMPLE_PROGRESS step=3 total_steps=4 seconds=189.279831
+
+IMAGE_SAMPLE_PROGRESS step=4 total_steps=4 seconds=190.535553

@@ -1,0 +1,127 @@
+[2026-10-07 00:54:57.842] [32mINFO   [0m Attention pipeline: split
+[2026-10-07 00:54:57.844] [32mINFO   [0m Compute backend: cpu (cpu)
+[2026-10-07 00:54:57.844] [32mINFO   [0m SdkitModelIndex initialized
+[2026-10-07 00:54:57.844] [32mINFO   [0m Checkpoint directory set to: /D/a/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models
+Scanning model directories...
+[2026-10-07 00:54:57.844] [32mINFO   [0m Scanning all model directories...
+[2026-10-07 00:54:57.845] [32mINFO   [0m Scanned checkpoint directory: found 1 models
+[2026-10-07 00:54:57.845] [32mINFO   [0m Finished scanning all model directories
+Model scanning complete.
+
+[2026-10-07 00:54:57.845] [32mINFO   [0m ImageGenerator created
+Starting server on port 58348
+[2026-10-07 00:54:57.846] [32mINFO   [0m [CROW] Crow/master server is running at http://127.0.0.1:58348 using 4 threads
+[2026-10-07 00:54:57.846] [32mINFO   [0m [CROW] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+[2026-10-07 00:54:57.958] [32mINFO   [0m [CROW] Request: 127.0.0.1:58350 0x6ffff9fadfb0 HTTP/1.1 GET /v1/sdapi/v1/cosmopolitan-capabilities
+[2026-10-07 00:54:57.958] [32mINFO   [0m [CROW] Response: 0x6ffff9fadfb0 /v1/sdapi/v1/cosmopolitan-capabilities 200 1
+[2026-10-07 00:54:58.067] [32mINFO   [0m [CROW] Request: 127.0.0.1:58351 0x6ffff9fddce0 HTTP/1.1 GET /kiosk
+[2026-10-07 00:54:58.067] [32mINFO   [0m [CROW] Response: 0x6ffff9fddce0 /kiosk 200 1
+[2026-10-07 00:54:58.177] [32mINFO   [0m [CROW] Request: 127.0.0.1:58352 0x6ffff9fadfb0 HTTP/1.1 POST /kiosk
+[2026-10-07 00:54:58.177] [32mINFO   [0m [CROW] Response: 0x6ffff9fadfb0 /kiosk 501 1
+[2026-10-07 00:54:58.286] [32mINFO   [0m [CROW] Request: 127.0.0.1:58353 0x6ffff9fddce0 HTTP/1.1 GET /kiosk
+[2026-10-07 00:54:58.286] [32mINFO   [0m [CROW] Response: 0x6ffff9fddce0 /kiosk 200 1
+[2026-10-07 00:54:58.396] [32mINFO   [0m [CROW] Request: 127.0.0.1:58354 0x6ffff9fadfb0 HTTP/1.1 GET /
+[2026-10-07 00:54:58.396] [32mINFO   [0m [CROW] Response: 0x6ffff9fadfb0 / 200 1
+[2026-10-07 00:54:58.505] [32mINFO   [0m [CROW] Request: 127.0.0.1:58355 0x6ffff9fddce0 HTTP/1.1 GET /cpp-ui/scripts/kiosk.js
+[2026-10-07 00:54:58.505] [32mINFO   [0m [CROW] Response: 0x6ffff9fddce0 /cpp-ui/scripts/kiosk.js 200 1
+[2026-10-07 00:54:58.614] [32mINFO   [0m [CROW] Request: 127.0.0.1:58356 0x6ffff9fadfb0 HTTP/1.1 GET /cpp-ui/scripts/generate.js
+[2026-10-07 00:54:58.614] [32mINFO   [0m [CROW] Response: 0x6ffff9fadfb0 /cpp-ui/scripts/generate.js 200 1
+[2026-10-07 00:54:58.724] [32mINFO   [0m [CROW] Request: 127.0.0.1:58357 0x6ffff9fddce0 HTTP/1.1 GET /v1/sdapi/v1/checkpoints
+[2026-10-07 00:54:58.724] [32mINFO   [0m [CROW] Response: 0x6ffff9fddce0 /v1/sdapi/v1/checkpoints 200 1
+[2026-10-07 00:54:58.849] [32mINFO   [0m [CROW] Request: 127.0.0.1:58358 0x6ffff9fadfb0 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 00:54:58.849] [32mINFO   [0m [CROW] Response: 0x6ffff9fadfb0 /v1/sdapi/v1/options 200 1
+[2026-10-07 00:54:59.052] [32mINFO   [0m [CROW] Request: 127.0.0.1:58360 0x6ffff9fadfb0 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 00:54:59.052] [32mINFO   [0m Model change detected, loading new model: /D/a/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf
+[2026-10-07 00:54:59.052] [32mINFO   [0m Initializing SD context with model: /D/a/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf
+[2026-10-07 00:54:59.052] [32mINFO   [0m stable-diffusion.cpp:745  - loading model from '/D/a/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf'
+[2026-10-07 00:54:59.053] [32mINFO   [0m model_loader.cpp:176  - load /D/a/EasyDifussion-Cpp/EasyDifussion-Cpp/artifact/inference-models/stable-diffusion-v1-5-Q4_0.gguf using gguf format
+[2026-10-07 00:54:59.064] [32mINFO   [0m stable-diffusion.cpp:1022 - Version: SD 1.x 
+[2026-10-07 00:54:59.068] [32mINFO   [0m stable-diffusion.cpp:1106 - Weight type stat:                      f16: 839  |    q4_0: 291  
+[2026-10-07 00:54:59.068] [32mINFO   [0m stable-diffusion.cpp:1107 - Conditioner weight type stat:          f16: 196  
+[2026-10-07 00:54:59.068] [32mINFO   [0m stable-diffusion.cpp:1108 - Diffusion model weight type stat:      f16: 395  |    q4_0: 291  
+[2026-10-07 00:54:59.068] [32mINFO   [0m stable-diffusion.cpp:1109 - VAE weight type stat:                  f16: 248  
+[2026-10-07 00:54:59.194] [32mINFO   [0m stable-diffusion.cpp:1862 - using VAE for encoding / decoding
+[2026-10-07 00:54:59.194] [32mINFO   [0m auto_encoder_kl.hpp:527  - vae decoder: ch = 128
+[2026-10-07 00:54:59.194] [32mINFO   [0m stable-diffusion.cpp:2200 - total params memory size = 1667.59MB (VRAM 0.00MB, RAM 1667.59MB): text_encoders 235.06MB(RAM), clip_vision 0.00MB(N/A), diffusion_model 1272.85MB(RAM), ip_adapter_projection 0.00MB(N/A), vae 159.68MB(RAM), controlnet 0.00MB(N/A), extensions 0.00MB(N/A)
+[2026-10-07 00:54:59.194] [32mINFO   [0m stable-diffusion.cpp:2313 - running in eps-prediction mode
+[2026-10-07 00:54:59.194] [32mINFO   [0m SD context initialized successfully
+[2026-10-07 00:54:59.194] [32mINFO   [0m Generating txt2img: prompt='a photograph of a red apple on a wooden table, natural light', size=256x256, steps=4, seed=42
+[2026-10-07 00:54:59.194] [32mINFO   [0m Automatic VAE fallback configured for 32x32 latent tiles with 16-pixel overlap
+[2026-10-07 00:54:59.194] [32mINFO   [0m stable-diffusion.cpp:6769 - generate_image 256x256
+[2026-10-07 00:54:59.194] [32mINFO   [0m denoiser.hpp:1177 - get_sigmas with discrete scheduler
+[2026-10-07 00:54:59.194] [32mINFO   [0m stable-diffusion.cpp:5428 - sampling using Euler method
+  |#####################################             | 145/196 - 572.30MB/s[K[2026-10-07 00:54:59.479] [32mINFO   [0m [CROW] Request: 127.0.0.1:58362 0x6ffff9f73d80 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 00:54:59.479] [32mINFO   [0m [CROW] Response: 0x6ffff9f73d80 /v1/sdapi/v1/txt2img 409 1
+[2026-10-07 00:54:59.593] [32mINFO   [0m [CROW] Request: 127.0.0.1:58363 0x6ffff9f28030 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 00:54:59.593] [32mINFO   [0m [CROW] Response: 0x6ffff9f28030 /v1/sdapi/v1/options 409 1
+  |##################################################| 196/196 - 585.33MB/s[K
+[2026-10-07 00:54:59.597] [32mINFO   [0m model_loader.cpp:1266 - loading tensors completed, taking 0.40s (read: 0.27s, memcpy: 0.00s, convert: 0.00s, copy_to_backend: 0.00s)
+[2026-10-07 00:54:59.738] [32mINFO   [0m [CROW] Request: 127.0.0.1:58364 0x6fffed140010 HTTP/1.1 POST /v1/sdapi/v1/interrupt
+[2026-10-07 00:54:59.738] [32mINFO   [0m [CROW] Response: 0x6fffed140010 /v1/sdapi/v1/interrupt 409 1
+[2026-10-07 00:54:59.878] [32mINFO   [0m [CROW] Request: 127.0.0.1:58365 0x6ffff9f28030 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 00:54:59.878] [32mINFO   [0m [CROW] Response: 0x6ffff9f28030 /v1/sdapi/v1/options 200 1
+[2026-10-07 00:55:09.032] [32mINFO   [0m stable-diffusion.cpp:6431 - get_learned_condition completed, taking 9.84s
+[2026-10-07 00:55:09.033] [32mINFO   [0m stable-diffusion.cpp:6832 - generating image: 1/1 - seed 42
+  |#################                                 | 226/686 - 599.57MB/s[K  |######################                            | 292/686 - 923.70MB/s[K  |#########################                         | 330/686 - 924.26MB/s[K  |###############################                   | 422/686 - 1.03GB/s[K  |##################################                | 454/686 - 985.37MB/s[K  |##################################################| 686/686 - 1.03GB/s[K
+[2026-10-07 00:55:10.246] [32mINFO   [0m model_loader.cpp:1266 - loading tensors completed, taking 1.21s (read: 1.18s, memcpy: 0.00s, convert: 0.00s, copy_to_backend: 0.00s)
+[2026-10-07 00:58:15.117] [32mINFO   [0m stable-diffusion.cpp:3483 - sampling profile: total 186.083s, positive 92.920s, negative 93.163s, image-uncond 0.000s, preview 0.000s, other 0.001s
+[2026-10-07 00:58:15.120] [32mINFO   [0m stable-diffusion.cpp:6886 - sampling completed, taking 186.09s
+[2026-10-07 00:58:15.120] [32mINFO   [0m stable-diffusion.cpp:6898 - generating 1 latent images completed, taking 186.09s
+[2026-10-07 00:58:15.120] [32mINFO   [0m stable-diffusion.cpp:6456 - decoding 1 latents
+  |##################################################| 140/140 - 467.30MB/s[K
+[2026-10-07 00:58:15.321] [32mINFO   [0m model_loader.cpp:1266 - loading tensors completed, taking 0.20s (read: 0.10s, memcpy: 0.00s, convert: 0.00s, copy_to_backend: 0.00s)
+[2026-10-07 01:00:17.162] [32mINFO   [0m stable-diffusion.cpp:6522 - latent 1 decoded, taking 122.04s
+[2026-10-07 01:00:17.162] [32mINFO   [0m stable-diffusion.cpp:6526 - decode_first_stage completed, taking 122.04s
+[2026-10-07 01:00:17.162] [32mINFO   [0m stable-diffusion.cpp:7066 - generate_image completed in 317.97s
+[2026-10-07 01:00:17.162] [32mINFO   [0m Native image request completed in 318.113s (4 requested steps, previews disabled every 5 steps)
+[2026-10-07 01:00:17.175] [32mINFO   [0m Generated 1 images successfully
+[2026-10-07 01:00:17.178] [32mINFO   [0m [CROW] Response: 0x6ffff9fadfb0 /v1/sdapi/v1/txt2img 200 1
+[2026-10-07 01:00:17.553] [32mINFO   [0m [CROW] Request: 127.0.0.1:58542 0x6fffed4dbc50 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 01:00:17.553] [32mINFO   [0m [CROW] Response: 0x6fffed4dbc50 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:17.663] [32mINFO   [0m [CROW] Request: 127.0.0.1:58543 0x6fffed4d8b80 HTTP/1.1 POST /v1/sdapi/v1/interrupt
+[2026-10-07 01:00:17.663] [32mINFO   [0m [CROW] Response: 0x6fffed4d8b80 /v1/sdapi/v1/interrupt 409 1
+[2026-10-07 01:00:17.772] [32mINFO   [0m [CROW] Request: 127.0.0.1:58544 0x6fffed4dbc50 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 01:00:17.787] [32mINFO   [0m [CROW] Response: 0x6fffed4dbc50 /v1/sdapi/v1/txt2img 409 1
+[2026-10-07 01:00:17.897] [32mINFO   [0m [CROW] Request: 127.0.0.1:58545 0x6fffed4d8b80 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 01:00:17.898] [32mINFO   [0m [CROW] Response: 0x6fffed4d8b80 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:18.022] [32mINFO   [0m [CROW] Request: 127.0.0.1:58546 0x6fffed4dbc50 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 01:00:18.038] [32mINFO   [0m [CROW] Response: 0x6fffed4dbc50 /v1/sdapi/v1/txt2img 400 1
+[2026-10-07 01:00:18.147] [32mINFO   [0m [CROW] Request: 127.0.0.1:58547 0x6fffed4d8b80 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 01:00:18.147] [32mINFO   [0m [CROW] Response: 0x6fffed4d8b80 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:18.256] [32mINFO   [0m [CROW] Request: 127.0.0.1:58548 0x6fffed4dbc50 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 01:00:18.257] [32mINFO   [0m [CROW] Response: 0x6fffed4dbc50 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:18.366] [32mINFO   [0m [CROW] Request: 127.0.0.1:58549 0x6fffed4d8b80 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 01:00:18.381] [32mINFO   [0m [CROW] Response: 0x6fffed4d8b80 /v1/sdapi/v1/txt2img 400 1
+[2026-10-07 01:00:18.491] [32mINFO   [0m [CROW] Request: 127.0.0.1:58550 0x6fffed4dbc50 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 01:00:18.491] [32mINFO   [0m [CROW] Response: 0x6fffed4dbc50 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:18.600] [32mINFO   [0m [CROW] Request: 127.0.0.1:58551 0x6fffed4d8b80 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 01:00:18.600] [32mINFO   [0m [CROW] Response: 0x6fffed4d8b80 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:18.710] [32mINFO   [0m [CROW] Request: 127.0.0.1:58552 0x6fffed4dbc50 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 01:00:18.725] [32mINFO   [0m [CROW] Response: 0x6fffed4dbc50 /v1/sdapi/v1/txt2img 400 1
+[2026-10-07 01:00:18.835] [32mINFO   [0m [CROW] Request: 127.0.0.1:58553 0x6fffed4d8b80 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 01:00:18.835] [32mINFO   [0m [CROW] Response: 0x6fffed4d8b80 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:18.944] [32mINFO   [0m [CROW] Request: 127.0.0.1:58554 0x6fffed4dbc50 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 01:00:18.944] [32mINFO   [0m [CROW] Response: 0x6fffed4dbc50 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:00:19.147] [32mINFO   [0m [CROW] Request: 127.0.0.1:58555 0x6fffed4d8b80 HTTP/1.1 POST /v1/sdapi/v1/txt2img
+[2026-10-07 01:00:19.148] [32mINFO   [0m Generating txt2img: prompt='a photograph of a red apple on a wooden table, natural light', size=256x256, steps=8, seed=42
+[2026-10-07 01:00:19.148] [32mINFO   [0m Automatic VAE fallback configured for 32x32 latent tiles with 16-pixel overlap
+[2026-10-07 01:00:19.148] [32mINFO   [0m stable-diffusion.cpp:6769 - generate_image 256x256
+[2026-10-07 01:00:19.148] [32mINFO   [0m denoiser.hpp:1177 - get_sigmas with discrete scheduler
+[2026-10-07 01:00:19.148] [32mINFO   [0m stable-diffusion.cpp:5428 - sampling using Euler method
+[2026-10-07 01:00:31.559] [32mINFO   [0m stable-diffusion.cpp:6431 - get_learned_condition completed, taking 12.41s
+[2026-10-07 01:00:31.559] [32mINFO   [0m stable-diffusion.cpp:6832 - generating image: 1/1 - seed 42
+[2026-10-07 01:01:39.510] [32mINFO   [0m [CROW] Request: 127.0.0.1:58877 0x6ffff9f28030 HTTP/1.1 POST /v1/sdapi/v1/interrupt
+[2026-10-07 01:01:39.510] [32mINFO   [0m Generation interrupt requested
+[2026-10-07 01:01:39.510] [32mINFO   [0m Matched image or video generation interrupt forwarded
+[2026-10-07 01:01:39.510] [32mINFO   [0m [CROW] Response: 0x6ffff9f28030 /v1/sdapi/v1/interrupt 200 1
+[2026-10-07 01:01:39.554] [32mINFO   [0m ggml_extend.hpp:2923 - unet graph execution cancelled
+[2026-10-07 01:01:39.555] [32mINFO   [0m stable-diffusion.cpp:3483 - sampling profile: total 67.994s, positive 34.619s, negative 33.374s, image-uncond 0.000s, preview 0.000s, other 0.000s
+[2026-10-07 01:01:39.558] [32mINFO   [0m Native image request completed in 80.411s (8 requested steps, previews disabled every 5 steps)
+[2026-10-07 01:01:39.558] [32mINFO   [0m Image generation cancelled
+[2026-10-07 01:01:39.572] [32mINFO   [0m [CROW] Response: 0x6fffed4d8b80 /v1/sdapi/v1/txt2img 200 1
+[2026-10-07 01:01:39.791] [32mINFO   [0m [CROW] Request: 127.0.0.1:58879 0x6ffff9f28030 HTTP/1.1 POST /v1/sdapi/v1/interrupt
+[2026-10-07 01:01:39.791] [32mINFO   [0m [CROW] Response: 0x6ffff9f28030 /v1/sdapi/v1/interrupt 409 1
+[2026-10-07 01:01:39.900] [32mINFO   [0m [CROW] Request: 127.0.0.1:58880 0x6ffff9fadfb0 HTTP/1.1 POST /v1/sdapi/v1/options
+[2026-10-07 01:01:39.901] [32mINFO   [0m [CROW] Response: 0x6ffff9fadfb0 /v1/sdapi/v1/options 200 1
+[2026-10-07 01:01:40.010] [32mINFO   [0m [CROW] Request: 127.0.0.1:58881 0x6ffff9f28030 HTTP/1.1 GET /v1/sdapi/v1/options
+[2026-10-07 01:01:40.010] [32mINFO   [0m [CROW] Response: 0x6ffff9f28030 /v1/sdapi/v1/options 200 1
