@@ -314,6 +314,14 @@ jobs:
           set -euo pipefail
           python3 artifact/verify_configuration_api.py --artifact-dir artifact \
             --output-dir artifact/results-configuration-api
+      - name: Verify product WebGPU startup and shared shell HTTP services before large models
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 artifact/verify_application.py --artifact-dir artifact \
+            --expected-sha256 "$EXPECTED_SHA256" --timeout 240 \
+            --output-dir artifact/results-application-startup
       - name: Restore the external pinned diffusion checkpoint
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -361,6 +369,7 @@ jobs:
             artifact/results-inference-api
             artifact/results-configuration-api
             artifact/results-shell
+            artifact/results-application-startup
             artifact/results-application
           if-no-files-found: ignore
           retention-days: 30
@@ -397,6 +406,15 @@ jobs:
           python artifact/verify_shell.py --probe artifact/shell-probe.exe `
             --output-dir artifact/results-shell
           if ($LASTEXITCODE -ne 0) { throw 'Windows portable shell verification failed' }
+      - name: Verify product WebGPU startup and shared shell HTTP services before large models
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python artifact/verify_application.py --artifact-dir artifact `
+            --expected-sha256 $env:EXPECTED_SHA256 --timeout 240 `
+            --output-dir artifact/results-application-startup
+          if ($LASTEXITCODE -ne 0) { throw 'Windows product startup and shared services verification failed' }
       - name: Verify the native Windows Vulkan DLL path and unsupported-device rejection
         shell: pwsh
         run: |
@@ -447,6 +465,7 @@ jobs:
             artifact/results-inference-api
             artifact/results-configuration-api
             artifact/results-shell
+            artifact/results-application-startup
             artifact/results-application
             artifact/config-report.json
             artifact/device-policy-report.json

@@ -94,8 +94,17 @@ extern "C" cosmo_app *cosmo_app_create(char *error, size_t error_size) {
         ServerParams parameters;
         parameters.port = static_cast<int>(effective["server"]["port"].i());
         parameters.model_manager = index;
+        // Provider registration does not enumerate adapters. Resolve WebGPU
+        // selectors only after the static GGML registry has published device
+        // metadata, here on the original main thread before frontends start.
+        if (std::strcmp(cosmo_config_backend(), "cpu"))
+            (void)sd_get_backend_device_count();
         const char *device = cosmo_config_sdkit_device();
-        if (!device) throw std::runtime_error("Configured inference device is unavailable");
+        if (!device) {
+            const char *reason = cosmo_webgpu_last_error();
+            throw std::runtime_error(std::string("Configured inference device is unavailable") +
+                                     (reason && *reason ? std::string(": ") + reason : ""));
+        }
         parameters.compute_backend = device;
         app->services = std::make_shared<ApplicationServices>(parameters);
         return app.release();

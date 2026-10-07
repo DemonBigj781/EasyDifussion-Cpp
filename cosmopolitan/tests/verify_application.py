@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Same-process portable application acceptance: shell, HTTP and shared state.
 
-Default: logical shell cwd, shared config/index, tiny trained text inference,
-and EOF-driven graceful shutdown. --model adds two bounded real SD1.5 jobs:
+Default: embedded-WebGPU product startup, logical shell cwd, shared config/index,
+tiny trained text inference, and EOF-driven graceful shutdown. --model adds two bounded real SD1.5 jobs:
 shell generation observed over HTTP, then HTTP generation canceled from shell.
 No host command shell, fake model, download or compilation is used by this test.
 """
@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import platform
 import queue
+import re
 import signal
 import shutil
 import socket
@@ -212,6 +213,86 @@ def check_text(value):
     return value
 
 
+def validate_webgpu_startup(stdout, stderr):
+    """Reject CPU-only success or prefill-only evidence from the product route."""
+    documents=[]
+    for line in stdout.splitlines():
+        try: value=json.loads(line)
+        except json.JSONDecodeError: continue
+        if isinstance(value,dict) and 'token_ids' in value: documents.append(value)
+    require(len(documents)==1, 'Expected one structured WebGPU product text result')
+    value=documents[0]
+    require(value.get('token_ids')==EXPECTED_GREEDY_IDS and value.get('prompt_tokens')==5 and value.get('completion_tokens')==16,
+            'WebGPU product startup differs from the independent sixteen-token reference')
+    require(value.get('cancelled') is False and value.get('backend')=='webgpu' and value.get('provider')=='embedded' and value.get('software') is True,
+            'Product text startup did not use the requested embedded WebGPU backend')
+    require(isinstance(value.get('device'),str) and re.fullmatch(r'WebGPU\d+',value['device']) and value.get('text') and value.get('task_id'),
+            'Product text startup did not identify its actual device/task/text')
+    counters=r'graphs=(\d+) submissions=(\d+) dispatches=(\d+) matmuls=(\d+) readbacks=(\d+)'
+    observed={}
+    for name,prefix,pattern in (
+        ('execution','WEBGPU_LLAMA_EXECUTION',r'WEBGPU_LLAMA_EXECUTION provider=embedded software=1 '+counters+r' native_loader_opens=0'),
+        ('decode_execution','WEBGPU_LLAMA_DECODE_EXECUTION',r'WEBGPU_LLAMA_DECODE_EXECUTION steps=16 '+counters),
+    ):
+        lines=[line for line in stderr.splitlines() if line.startswith(prefix)]
+        require(len(lines)==1, 'Missing or duplicate '+prefix+' product evidence')
+        match=re.fullmatch(pattern,lines[0])
+        require(match is not None, 'Malformed or wrong-provider '+prefix+' product evidence')
+        observed[name]=dict(zip(('graphs','submissions','dispatches','matmuls','readbacks'),map(int,match.groups())))
+        require(all(number>0 for number in observed[name].values()) and observed[name]['matmuls']<=observed[name]['dispatches'],
+                'Product WebGPU execution lacks actual graph/dispatch/matmul/readback evidence')
+    require(all(observed['decode_execution'][key]<=observed['execution'][key] for key in observed['execution']),
+            'Product WebGPU decode counters exceed the whole generation window')
+    return {'result':value,**observed,'native_loader_opens':0,'independent_reference_match':True}
+
+
+def check_webgpu_startup(artifact, work, output, deadline, record, expected_sha256):
+    """Bounded separate product process, before shared CPU services/model jobs."""
+    directory=work/'webgpu-startup';directory.mkdir()
+    app=artifact/APPLICATION
+    command=([str(app)] if os.name=='nt' else [str(artifact/LOADER),str(app)])
+    command+=['infer','text','--config',str(directory/'settings.json'),'--backend','webgpu','--provider','embedded',
+              '--device','auto','--prompt','Once upon a time','--tokens','16','--threads','1']
+    record.update(status='failed',scope='Actual unified top-level infer text; separate fresh application process',command=command,
+                  provider='embedded',software=True,physical_hardware_tested=False,cpu_fallback_fraction_measured=False,
+                  process_reaped=True,forced_termination=False,software_driver_threads=2)
+    process=None;started=time.monotonic()
+    stdout=output/'webgpu-startup.stdout.log';stderr=output/'webgpu-startup.stderr.log'
+    try:
+        record['application_sha256_before']=sha256(app)
+        require(record['application_sha256_before']==expected_sha256,'Application changed before product WebGPU startup')
+        environment=runtime_environment(directory);environment['LP_NUM_THREADS']='2'
+        with stdout.open('xb') as out,stderr.open('xb') as err:
+            process=subprocess.Popen(command,cwd=directory,env=environment,stdin=subprocess.DEVNULL,
+                                     stdout=out,stderr=err,start_new_session=os.name!='nt')
+            record['process_reaped']=False
+            try: record['exit_code']=process.wait(timeout=remaining(deadline,180))
+            except subprocess.TimeoutExpired:
+                raise TimeoutError('Product WebGPU startup exceeded its bounded deadline')
+        record['process_reaped']=True
+        require(record['exit_code']==0,'Unified product WebGPU text startup failed with exit '+str(record['exit_code']))
+        record.update(validate_webgpu_startup(stdout.read_text(errors='replace'),stderr.read_text(errors='replace')))
+    except Exception as error:
+        record['error']=str(error)
+    finally:
+        if process is not None:
+            try:
+                if process.poll() is None:
+                    record['forced_termination']=True
+                    if os.name=='nt':process.kill()
+                    else:os.killpg(process.pid,signal.SIGKILL)
+                record['cleanup_exit_status']=process.wait(timeout=5)
+                record['process_reaped']=True
+            except Exception as error:record['cleanup_error']=str(error)
+        record['application_sha256_after']=sha256(app)
+        if record['application_sha256_after']!=expected_sha256:record.setdefault('error','Application changed during product WebGPU startup')
+        record['elapsed_seconds']=round(time.monotonic()-started,6)
+        record['logs']=[{'path':p.name,'bytes':p.stat().st_size,'sha256':sha256(p)} for p in (stdout,stderr) if p.is_file()]
+    require(record['process_reaped'] and 'error' not in record and 'cleanup_error' not in record,
+            record.get('error') or record.get('cleanup_error') or 'Product WebGPU process was not reaped')
+    record['status']='passed'
+
+
 def task_progress(http, task):
     code, value = http.call('/v1/internal/progress', {'id_task':task,'live_preview':False}, expected=None, timeout=2)
     if code==404: return None
@@ -317,6 +398,8 @@ def verify(args):
         report['application_sha256_before']=verify_package(artifact,args.expected_sha256)
         report['build_source']=json.loads((artifact/'BUILD.json').read_text()).get('source')
         work=Path(tempfile.mkdtemp(prefix='cosmo-application-'))
+        report['webgpu_product_startup']={}
+        check_webgpu_startup(artifact,work,output,deadline,report['webgpu_product_startup'],report['application_sha256_before'])
         (work/'outputs with spaces').mkdir();(work/'models').mkdir()
         config=work/'settings with spaces.json';port=free_port()
         models=args.model.resolve().parent if args.model else work/'models'
@@ -398,7 +481,8 @@ def verify(args):
         # with a secondary cleanup error. No automatic context-manager cleanup
         # runs while the failure is unwinding.
         if work is not None:
-            if shell is not None and shell.process.poll() is None:
+            if ((shell is not None and shell.process.poll() is None) or
+                report.get('webgpu_product_startup',{}).get('process_reaped') is False):
                 report['workspace_cleanup']={'removed':False,'path':str(work),'reason':'Application is still running'}
                 report['status']='failed'
                 report.setdefault('error','Application could not be stopped before workspace cleanup')
