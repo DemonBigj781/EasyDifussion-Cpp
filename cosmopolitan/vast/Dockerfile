@@ -11,7 +11,6 @@ ARG UBUNTU_IMAGE
 LABEL org.opencontainers.image.title="Easy Diffusion Cosmopolitan native Vulkan validation"
 ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics \
-    TMPDIR=/opt/edcpp-test/build/native-tmp \
     PYTHONDONTWRITEBYTECODE=1
 RUN test "$(uname -m)" = x86_64 && \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -30,6 +29,7 @@ RUN /usr/bin/python3 /opt/edcpp-test/prepare_helper.py \
 FROM runtime-base AS runtime-image
 COPY --from=helper-builder /opt/edcpp-test/build/ /opt/edcpp-test/build/
 COPY run_test.py /opt/edcpp-test/run_test.py
+ENV TMPDIR=/opt/edcpp-test/build/native-tmp
 WORKDIR /opt/edcpp-test
 
 # This free CI-only target tests the exact payload/cache against host Mesa.
