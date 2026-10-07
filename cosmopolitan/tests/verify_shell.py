@@ -28,9 +28,13 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def portable(path):
-    value = str(path.resolve()).replace('\\', '/') if os.name == 'nt' else str(path.resolve())
-    return '/' + value[0] + value[2:] if os.name == 'nt' and len(value) > 2 and value[1] == ':' else value
+def host_path(value):
+    # Cosmopolitan reports /C/... on Windows. Python may expand RUNNER~1 to
+    # its long spelling while Cosmo retains it, so compare filesystem identity
+    # below rather than assuming that two correct spellings are equal.
+    if os.name == 'nt' and len(value) >= 3 and value[0] == '/' and value[1].isalpha() and value[2] == '/':
+        value = value[1] + ':' + value[2:]
+    return Path(value)
 
 
 def build_probe(sdk, output):
@@ -105,7 +109,8 @@ capture next'''))
             require([x['argv'] for x in tokens] == [['capture-mutate-input','first'],['capture','still owned']], 'Parsed argv aliases modified input')
             run('directory-state', 'mkdir -p "space dir/nested"; cd "space dir"; capture location; cd nested; pwd')
             records = captures((output/'directory-state.stdout.log').read_bytes())
-            require(records[0]['process_directory'] == portable(work) and records[0]['directory'] == portable(work/'space dir'), 'cd leaked into process cwd or lost shell directory')
+            require(os.path.samefile(host_path(records[0]['process_directory']), work), 'cd changed the actual process cwd')
+            require(os.path.samefile(host_path(records[0]['directory']), work/'space dir'), 'cd selected a different actual shell directory')
             source = work/'binary.dat'; source.write_bytes(bytes(range(256))*513+b'\0last\xff')
             before = digest(source)
             data = run('copy-move-binary', 'cp binary.dat "space dir"; mv "space dir/binary.dat" "space dir/copied.dat"; test -f "space dir/copied.dat"; cat "space dir/copied.dat"')

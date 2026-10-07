@@ -219,9 +219,15 @@ static int make_directory(char *path, bool parents) {
     for (size_t i = 1; i <= length; ++i) {
         if (path[i] && path[i] != '/') continue;
         const char c = path[i]; path[i] = 0;
-        if (mkdir(path, 0777) && errno != EEXIST) return failure("mkdir", path);
         struct stat info;
-        if (stat(path, &info)) return failure("mkdir", path);
+        /* Windows drive roots such as /C already exist, but mkdir() on the
+           root can fail with EACCES rather than EEXIST. Inspect each existing
+           prefix before creating it, then verify an EEXIST creation race. */
+        if (stat(path, &info)) {
+            if (errno != ENOENT) return failure("mkdir", path);
+            if (mkdir(path, 0777) && errno != EEXIST) return failure("mkdir", path);
+            if (stat(path, &info)) return failure("mkdir", path);
+        }
         if (!S_ISDIR(info.st_mode)) { errno = ENOTDIR; return failure("mkdir", path); }
         path[i] = c;
     }
