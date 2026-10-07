@@ -68,6 +68,14 @@ bool cosmo_native_main_required() {
     return IsLinux() && std::strcmp(cosmo_webgpu_requested_provider(), "embedded") != 0;
 }
 
+bool cosmo_native_model_load_on_main(const std::function<void()> &work) {
+    if (!cosmo_native_main_required()) return false;
+    if (gettid() != getpid())
+        throw std::runtime_error("Native Vulkan model loading requires the original main thread");
+    work();
+    return true;
+}
+
 void cosmo_native_main_invoke(std::function<void()> work) {
     std::shared_ptr<Lane> lane;
     {

@@ -1,0 +1,120 @@
+--- a/stable-diffusion.cpp/src/model_loader.cpp
++++ b/stable-diffusion.cpp/src/model_loader.cpp
+@@ -30,6 +30,9 @@
+ #include "zip.h"
+ 
+ #include "name_conversion.h"
++#ifdef __COSMOPOLITAN__
++#include "native_main_executor.hpp"
++#endif
+ 
+ /*================================================= Preprocess ==================================================*/
+ 
+@@ -946,7 +949,8 @@
+ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
+                                bool enable_mmap,
+                                const std::set<std::string>* target_tensor_names,
+-                               bool log_progress) {
++                               bool log_progress,
++                               bool host_only) {
+     process_model_files(enable_mmap, false);
+ 
+     std::atomic<int64_t> read_time_ms(0);
+@@ -1025,8 +1029,7 @@
+         std::vector<std::thread> workers;
+         std::mutex backend_tensor_set_mutex;
+ 
+-        for (int i = 0; i < n_threads; ++i) {
+-            workers.emplace_back([&, file_path, is_zip]() {
++        auto load_worker = [&, file_path, is_zip]() {
+                 std::ifstream file;
+                 zip_t* zip = nullptr;
+                 if (is_zip) {
+@@ -1071,6 +1074,13 @@
+                         t1 = ggml_time_ms();
+                         read_time_ms.fetch_add(t1 - t0);
+                         continue;
++                    }
++
++                    if (host_only && dst_tensor->buffer != nullptr &&
++                        !ggml_backend_buffer_is_host(dst_tensor->buffer)) {
++                        LOG_ERROR("host-only load rejected a device tensor: '%s'", tensor_storage.name.c_str());
++                        failed = true;
++                        break;
+                     }
+ 
+                     if (dst_tensor->data == nullptr) {
+@@ -1222,7 +1232,21 @@
+                 if (zip != nullptr) {
+                     zip_close(zip);
+                 }
+-            });
++        };
++
++        bool loaded_on_main = false;
++#ifdef __COSMOPOLITAN__
++        // Even a single std::thread lacks host libc TLS for native Vulkan.
++        if (!host_only) {
++            loaded_on_main = cosmo_native_model_load_on_main(load_worker);
++        }
++#endif
++        if (loaded_on_main) {
++            last_n_threads = 1;
++        } else {
++            for (int i = 0; i < n_threads; ++i) {
++                workers.emplace_back(load_worker);
++            }
+         }
+ 
+         while (true) {
+@@ -1273,7 +1297,7 @@
+     return success;
+ }
+ 
+-bool ModelLoader::load_tensor(const TensorStorage& tensor_storage, ggml_tensor* dst_tensor) {
++bool ModelLoader::load_tensor(const TensorStorage& tensor_storage, ggml_tensor* dst_tensor, bool host_only) {
+     if (dst_tensor == nullptr || dst_tensor->data == nullptr) {
+         LOG_ERROR("load tensor failed: null destination for '%s'", tensor_storage.name.c_str());
+         return false;
+@@ -1312,7 +1336,7 @@
+         return true;
+     };
+ 
+-    if (!load_tensors(on_new_tensor_cb, false, &target_tensor_names, false)) {
++    if (!load_tensors(on_new_tensor_cb, false, &target_tensor_names, false, host_only)) {
+         LOG_ERROR("load tensor failed: '%s'", tensor_storage.name.c_str());
+         return false;
+     }
+--- a/stable-diffusion.cpp/src/model_loader.h
++++ b/stable-diffusion.cpp/src/model_loader.h
+@@ -75,7 +75,8 @@
+     bool load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
+                       bool use_mmap                                    = false,
+                       const std::set<std::string>* target_tensor_names = nullptr,
+-                      bool log_progress                                = true);
++                      bool log_progress                                = true,
++                      bool host_only                                   = false);
+     bool load_tensors(std::map<std::string, ggml_tensor*>& tensors,
+                       std::set<std::string> ignore_tensors = {},
+                       bool use_mmap                        = false);
+@@ -83,7 +84,8 @@
+                            std::vector<float>& data,
+                            int n_threads = 0,
+                            bool use_mmap = false);
+-    bool load_tensor(const TensorStorage& tensor_storage, ggml_tensor* dst_tensor);
++    bool load_tensor(const TensorStorage& tensor_storage, ggml_tensor* dst_tensor,
++                     bool host_only = false);
+ 
+     std::vector<std::string> get_tensor_names() const {
+         std::vector<std::string> names;
+--- a/stable-diffusion.cpp/src/convert.cpp
++++ b/stable-diffusion.cpp/src/convert.cpp
+@@ -144,7 +144,7 @@
+     ggml_set_name(tensor, job.info.storage.name.c_str());
+ 
+     const size_t tensor_nbytes = ggml_nbytes(tensor);
+-    if (tensor_nbytes > 0 && !model_loader.load_tensor(job.info.storage, tensor)) {
++    if (tensor_nbytes > 0 && !model_loader.load_tensor(job.info.storage, tensor, /*host_only=*/true)) {
+         ggml_free(ggml_ctx);
+         job.error = "failed to load tensor '" + job.info.storage.name + "'";
+         return false;

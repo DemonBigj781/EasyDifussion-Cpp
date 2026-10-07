@@ -63,12 +63,19 @@ On Windows, with the same executable and model copied to the current folder:
   --backend cpu --width 512 --height 512 --steps 20 --seed 42 --threads 4
 ```
 
-Use `--backend webgpu` to select the bundled software Vulkan/WebGPU path.
-This runs on the CPU through lavapipe and LLVM. Unsupported GGML operations
-may use the ordinary CPU backend. It is not hardware GPU acceleration, and
-the program does not claim that every operation ran through WebGPU.
+Use `--backend webgpu --provider embedded --device auto` to select the bundled
+software Vulkan/WebGPU path, which runs on the CPU through lavapipe and LLVM.
+`--backend webgpu` alone uses the saved provider/device policy: `auto` prefers
+a compatible physical GPU, while `native` uses the installed system Vulkan
+driver. Enumerate and check an exact native selector with `webgpu-device-test
+--provider native --device NAME --require-hardware` before using it for inference;
+see [configuration and platform commands](../CONFIGURATION.md). Physical GPU
+validation remains separate from the completed software-only record above.
+Unsupported GGML operations may use the ordinary CPU backend on either path;
+selecting WebGPU does not claim that every operation ran through it.
 
-Model, prompt and output arguments are required. Defaults are CPU, 512×512,
+Model, prompt and output arguments are required. The backend and device follow
+the persisted configuration (initially CPU/auto). Image defaults are 512×512,
 20 steps, seed 42, guidance 7, and the loaded model's default sampler and
 scheduler. Optional arguments include `--negative-prompt`, `--cfg-scale`,
 `--sampler`, `--scheduler` and `--vae`. `image --help` lists accepted bounds.
@@ -94,7 +101,9 @@ Start the native server with a checkpoint directory:
 Open `http://127.0.0.1:8188/`, select an indexed complete checkpoint and the
 compute backend, enter a prompt, and choose Generate. The page displays
 sampling progress, followed by the returned PNG and its download link.
-CPU is the default; embedded software WebGPU is selectable when registered.
+CPU is the initial default; registered native and embedded WebGPU devices are
+selectable with their actual hardware/software classification. Changing the
+saved provider policy requires a server restart before those devices appear.
 
 This form supports one text-to-image request at a time. Separate companion
 models, LoRA, ControlNet, image-to-image, generation plugins and non-PNG output

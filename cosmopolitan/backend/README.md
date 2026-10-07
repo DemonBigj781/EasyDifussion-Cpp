@@ -74,6 +74,15 @@ Cosmopolitan pthread does not receive host glibc TLS. Registry/device creation
 is completed there before serving requests. The native main executor keeps the
 whole model-load, inference and PNG closure there while Crow runs on a service
 thread. Shutdown drains that work before destroying cached models on main.
+SD's deferred checkpoint loader also runs its complete read/convert/upload task
+on that original thread under Linux `auto` or `native` policy. Its former
+`std::thread` workers could enter the native driver through a tensor upload,
+even when configured for one worker. This serialization also applies to CPU
+requests under those policies, so mixed native and embedded buffers never rely
+on the last selected adapter. Explicit `embedded` policy and Windows retain
+parallel loading. The existing host-only conversion/export caller retains its
+workers through an explicit internal flag that rejects non-host destination
+buffers before upload.
 Native callbacks and validation/debug layers remain disabled because the
 supported ABI bridge does not provide reverse callbacks into Cosmopolitan.
 The auxiliary HTTP upscaling route returns 501 for Linux native/auto until it

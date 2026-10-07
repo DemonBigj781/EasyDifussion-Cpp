@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -59,8 +60,22 @@ def main():
     after = sha(executable)
     text = result.stdout.decode(errors="replace")
     stderr = result.stderr.decode(errors="replace")
+    legacy = subprocess.run(command + ["--legacy-loader-worker"], capture_output=True, timeout=30, env=env)
+    (output / "legacy-worker.stdout.log").write_bytes(legacy.stdout)
+    (output / "legacy-worker.stderr.log").write_bytes(legacy.stderr)
+    legacy_text = legacy.stderr.decode(errors="replace")
+    marker = re.search(r"^NATIVE_MODEL_LOADER_LEGACY worker_tid=(\d+) main_tid=(\d+) before_host_tls_call$", legacy_text, re.M)
+    legacy_reproduced = (legacy.returncode == -11 and marker is not None and
+                         marker.group(1) != marker.group(2) and
+                         "Unexpected legacy worker host TLS return" not in legacy_text)
+    after = sha(executable)
+    loader_success = (result.returncode == 0 and "NATIVE_MODEL_LOADER checks=9 PASS\n" in text
+                      and "NATIVE_MODEL_LOADER_HOST extensions=" in text)
     success = (result.returncode == 0 and before == after
                and "NATIVE_MAIN_EXECUTOR checks=14 PASS\n" in text
+               and "NATIVE_MODEL_LOADER checks=9 PASS\n" in text
+               and "NATIVE_MODEL_LOADER_HOST extensions=" in text
+               and legacy_reproduced
                and "NATIVE_LANE_VULKAN extensions=" in text
                and stderr.count("NATIVE_INFERENCE_MAIN stack_bytes=") == 2
                and stderr.count("NATIVE_HTTP_SERVICE stack_bytes=") == 2
@@ -69,7 +84,16 @@ def main():
               "command": command, "returncode": result.returncode,
               "sha256_before": before, "sha256_after": after,
               "fixture_sha256": sha(fixture), "build_commands": commands,
-              "stdout_sha256": sha(output / "stdout.log"), "stderr_sha256": sha(output / "stderr.log")}
+              "stdout_sha256": sha(output / "stdout.log"), "stderr_sha256": sha(output / "stderr.log"),
+              "model_loader": {"checks": 9, "native_host_tls_and_vulkan_enumeration": loader_success,
+                               "native_policy_runs_inline": loader_success, "embedded_policy_preserved": loader_success,
+                               "wrong_thread_rejected_before_work": loader_success,
+                               "scope": "actual host TLS and Vulkan loader; not checkpoint upload or shader proof"},
+              "legacy_loader_worker": {"returncode": legacy.returncode,
+                                       "expected_returncode": -11,
+                                       "fault_reproduced": legacy_reproduced,
+                                       "stdout_sha256": sha(output / "legacy-worker.stdout.log"),
+                                       "stderr_sha256": sha(output / "legacy-worker.stderr.log")}}
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
     return 0 if success else 1

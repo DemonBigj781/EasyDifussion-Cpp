@@ -42,16 +42,16 @@ The [application services and API audit](docs/application-api.md) records the
 existing route declarations, UI dependencies and remaining native service
 work, including LibTorch/ONNX ownership and removal of deployed Python.
 
-## Implemented software WebGPU integration
+## Implemented WebGPU integration and provider selection
 
 The build now links the existing WebGPU backend from the authoritative shared
 GGML, a narrow C++ adapter over the native C API, wgpu-native, Mesa lavapipe
 and LLVM into the application. Both model engines use this same GGML registry
 and allocator contract. Original WGSL kernels remain responsible for WebGPU
 computations; the adapter does not emulate them with the CPU tensor backend.
-The application selects the embedded Vulkan provider before backend discovery
-and fails initialization if that provider is unavailable. It does not load an
-OS-native Vulkan library on this software path.
+The application configures the native, embedded or automatic Vulkan provider
+policy before backend discovery. Explicit embedded selection fails if that
+provider is unavailable and does not load an OS-native Vulkan library.
 
 [software-webgpu/PIN.json](software-webgpu/PIN.json) records the exact foundation
 commit and archive hash: wgpu-native 29.0.1.1, Mesa 25.2.8, LLVM 19.1.7,
@@ -64,14 +64,18 @@ requires this dependency set and cannot silently emit a CPU-only application
 if it fails. The [build instructions](README.md#build) describe supported
 staging, dependency-cache and compilation options.
 
-This path performs software compute on the CPU. It supplies a real WebGPU
+The embedded path performs software compute on the CPU. It supplies a real WebGPU
 command and shader implementation without requiring a GPU driver or display
 server; it is not hardware acceleration. The ordinary GGML CPU backend is
-also linked. `llama --backend cpu|webgpu` explicitly chooses between them,
-and `sdkit --backend webgpu` routes the server through the shared WebGPU
-device. The routing change is not proof of every diffusion graph's support.
-Hardware Vulkan and the CUDA, Metal, SYCL and other accelerator paths remain
-separate integration work.
+also linked. `llama --backend cpu|webgpu` chooses the tensor backend, and
+`sdkit --backend webgpu` uses the shared WebGPU device selected by the saved or
+explicit `--provider` and `--device` settings. Native Vulkan discovery and
+per-adapter selection are implemented for Windows and Linux. Automatic native
+selection requires a compatible discrete/integrated GPU; explicitly selected
+native software adapters remain labeled software. Physical GPU execution has
+not been established by the available software-only validation. The routing
+change is not proof of every diffusion graph's support. CUDA, Metal, SYCL and
+other accelerator paths remain separate integration work.
 
 The original WebGPU matrix kernels require `ShaderF16`, including when their
 input tensors are F32. An adapter without that capability is not registered
@@ -202,8 +206,10 @@ supported native features. Windows invokes the PE directly. Linux's `/bin/sh`
 entry point extracts the bundled APE loader temporarily using ordinary host
 utilities; the separate isolated test uses an explicit APE loader. The
 application's bytes remain unchanged in both launch modes. The embedded
-software path has no external Mesa/Vulkan dependency; a future hardware path
-would still require suitable system GPU drivers.
+software path has no external Mesa/Vulkan dependency. The implemented native
+provider requires suitable system GPU drivers; on Linux the pinned SDK also
+needs a host C compiler for its first-use native library helper. See
+[configuration](CONFIGURATION.md) for platform commands and prerequisites.
 
 The mandatory WebGPU completion gate is execution, not enumeration:
 

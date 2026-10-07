@@ -2,14 +2,25 @@
 
 The portable executable reads `easy-diffusion.json` in the launcher's working directory. Its first ordinary `image`, `llama`, `sdkit`, or `devices` command creates this file if it is missing, using CPU, automatic provider policy, and automatic device selection. An invalid existing file stops startup with a configuration error; it is never silently replaced.
 
-Use an explicit path when launching from different directories. These examples use the same executable on Windows and Linux; on a Linux system without APE support, prefix the executable command with the supplied `ape-x86_64.elf` loader.
+Use an explicit path when launching from different directories. From the folder containing the executable, Windows PowerShell commands are:
 
-```text
-easy-diffusion.exe config init --config settings/easy-diffusion.json
-easy-diffusion.exe config show --config settings/easy-diffusion.json
-easy-diffusion.exe config validate --config settings/easy-diffusion.json
-easy-diffusion.exe sdkit --config settings/easy-diffusion.json
+```powershell
+.\easy-diffusion.exe config init --config .\settings\easy-diffusion.json
+.\easy-diffusion.exe config show --config .\settings\easy-diffusion.json
+.\easy-diffusion.exe config validate --config .\settings\easy-diffusion.json
+.\easy-diffusion.exe sdkit --config .\settings\easy-diffusion.json
 ```
+
+On Linux, run the same executable through its shell bootstrap:
+
+```sh
+/bin/sh ./easy-diffusion.exe config init --config ./settings/easy-diffusion.json
+/bin/sh ./easy-diffusion.exe config show --config ./settings/easy-diffusion.json
+/bin/sh ./easy-diffusion.exe config validate --config ./settings/easy-diffusion.json
+/bin/sh ./easy-diffusion.exe sdkit --config ./settings/easy-diffusion.json
+```
+
+The Linux shell bootstrap temporarily extracts the bundled APE loader. Alternatively, replace `/bin/sh ./easy-diffusion.exe` with `./ape-x86_64.elf ./easy-diffusion.exe` using the supplied executable loader. Both methods leave the application bytes unchanged.
 
 `config init` refuses to overwrite an existing file. `config defaults` prints the complete schema without reading or creating any file. Help, version, and the embedded numerical self-tests do not create a configuration file. `webgpu-device-test` reads an existing config, or uses defaults without creating a file. The native trainer retains its separate command-line contract; inference configuration flags do not apply to `train`.
 
@@ -45,15 +56,35 @@ The supported compute fields are:
 | `provider` | `auto`, `native`, `embedded` | Automatic selection prefers physical hardware; native uses the operating system Vulkan path; embedded uses the included Mesa software driver. |
 | `device` | `auto`, exact registry selector, available stable ID | A concrete WebGPU selector such as `WebGPU0` or a driver-provided stable ID; CPU accepts `auto` or `CPU`. Unknown explicit selections fail. |
 
-Listing devices shows what this process can actually enumerate:
+## Select and verify a native GPU
 
-```text
-easy-diffusion.exe devices --provider auto
-easy-diffusion.exe webgpu-device-test --backend webgpu --provider native --device auto --require-hardware
-easy-diffusion.exe image --backend webgpu --provider embedded --device auto [image options]
+Windows native operation requires an installed compatible Vulkan graphics driver providing `vulkan-1.dll`. Linux requires `libvulkan.so.1` and a compatible driver; Cosmopolitan 4.0.2 also builds a native library helper on first use, so a working host C compiler must be on `PATH`. No display server is needed. The backend requires `ShaderF16`, including for its F32 matrix kernels; detected adapters missing required features are reported with an unavailable reason.
+
+The following sequence creates a **new** `gpu.json` with native WebGPU defaults, lists compatible devices, and requires actual hardware before running the trained text fixture. On Windows PowerShell:
+
+```powershell
+.\easy-diffusion.exe config init --config .\gpu.json --backend webgpu --provider native --device auto
+.\easy-diffusion.exe devices --config .\gpu.json
+.\easy-diffusion.exe webgpu-device-test --config .\gpu.json --device WebGPU0 --require-hardware
+.\easy-diffusion.exe llama --config .\gpu.json --device WebGPU0 --prompt "Once upon a time" --tokens 16 --report-tokens
 ```
 
-`llvmpipe`/lavapipe is software computation on the CPU. Its presence does not demonstrate a physical GPU. Native hardware requires a usable system Vulkan driver and an adapter satisfying the backend's required features. Native automatic selection fails if compatible physical hardware is absent; an explicitly selected native software adapter is useful for loader diagnostics but still counts as software. `--require-hardware` rejects software adapters when testing the native path. Device enumeration or a selected device name alone does not prove inference correctness or support for every GPU model. Registry selectors can change when hardware changes. The UI persists a stable ID only when the driver actually supplies one; otherwise it uses the exact registry selector.
+On Linux:
+
+```sh
+/bin/sh ./easy-diffusion.exe config init --config ./gpu.json --backend webgpu --provider native --device auto
+/bin/sh ./easy-diffusion.exe devices --config ./gpu.json
+/bin/sh ./easy-diffusion.exe webgpu-device-test --config ./gpu.json --device WebGPU0 --require-hardware
+/bin/sh ./easy-diffusion.exe llama --config ./gpu.json --device WebGPU0 --prompt "Once upon a time" --tokens 16 --report-tokens
+```
+
+Replace `WebGPU0` with the desired selector printed by `devices`; it is an example, not a promise about a particular GPU. Keep the same provider policy when enumerating and using a selector. Use `--device auto --require-hardware` in the diagnostic if any compatible physical GPU is acceptable. The diagnostic runs four real tensor graphs and twelve scalar comparisons; adapter enumeration alone is insufficient. `--require-hardware` belongs to `webgpu-device-test`, not the `image`, `llama` or server commands.
+
+If `gpu.json` already exists, skip `config init`. Inspect it with `config show`; edit `compute.backend`, `compute.provider` and `compute.device` or save them through Settings, then run `config validate`. The `--device` overrides above affect only those invocations. To persist an exact selection, save it in `compute.device`; provider/device startup changes require restarting a running server. For explicit bundled software operation, use `--backend webgpu --provider embedded --device auto` with `image`, `llama` or `sdkit`.
+
+`llvmpipe`/lavapipe is software computation on the CPU. Its presence does not demonstrate a physical GPU. Native automatic selection fails if compatible physical hardware is absent; an explicitly selected native software adapter is useful for loader diagnostics but still counts as software. `--require-hardware` requires a native discrete/integrated GPU and rejects software and unknown adapter types. The available local and CI driver coverage is software-only; physical GPU execution remains unvalidated. Device enumeration or a selected device name does not establish support for every GPU model.
+
+Registry selectors can change when hardware or provider policy changes. The UI uses a stable ID only when one is actually available. The pinned native API currently exposes no stable UUID/LUID to this wrapper, so present selections use the exact registry selector rather than an invented persistent hardware identity.
 
 The embedded numerical `--self-test`, `webgpu-test`, and `webgpu-inplace-test` commands deliberately select the embedded provider, independent of saved settings. The distinct `webgpu-device-test` command honors configuration and explicit provider/device overrides, defaulting its effective backend to WebGPU because it tests that backend. CPU inference does not require the system Vulkan loader or a host compiler. WebGPU inference retains GGML CPU fallback for unsupported operations; selecting WebGPU does not mean every operation executes on a GPU.
 

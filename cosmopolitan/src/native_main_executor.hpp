@@ -8,6 +8,13 @@
    Cosmopolitan pthread. Embedded-only execution keeps the ordinary workers. */
 bool cosmo_native_main_required();
 
+/* Deferred SD weight loading invokes backend upload calls inside its worker.
+   Execute that complete worker synchronously for Linux auto/native policy,
+   including CPU requests: mixed-device buffers must not depend on whichever
+   adapter was most recently selected. Returns false for unaffected policies.
+   Throws before executing work if called from a non-main native thread. */
+bool cosmo_native_model_load_on_main(const std::function<void()> &work);
+
 /* Called on the original main thread after registry/device initialization.
    Runs the HTTP service on an explicitly sized thread and pumps synchronous
    native work until that service has stopped and joined its coordinators.

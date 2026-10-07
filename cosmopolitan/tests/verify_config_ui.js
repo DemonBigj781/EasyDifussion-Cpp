@@ -27,9 +27,11 @@ function harness(mode = 'normal', compute = {backend:'cpu', provider:'auto', dev
         calls.push({url,body:opts.body?JSON.parse(opts.body):null});
         if(url==='/get/app_config')return mode==='config-fail'?response({message:'Bad saved config'},500):response(config);
         if(url.endsWith('backend-devices'))return mode==='device-fail'?response({message:'Driver unavailable'},503):response({devices:[
-            {backend:'CPU',selector:'CPU',provider:'builtin',software:true,description:'CPU'},
-            {backend:'WebGPU',selector:'WebGPU0',provider:'native',software:false,description:'Physical GPU',stable_id_available:true,stable_id:'uuid:physical'},
-            {backend:'WebGPU',selector:'WebGPU1',provider:'embedded',software:true,description:'llvmpipe',stable_id_available:false,stable_id:''},
+            {backend:'CPU',selector:'CPU',provider:'builtin',software:true,type:'cpu',description:'CPU'},
+            {backend:'WebGPU',selector:'WebGPU0',provider:'native',software:false,type:'gpu',description:'Physical GPU',stable_id_available:true,stable_id:'uuid:physical'},
+            {backend:'WebGPU',selector:'WebGPU1',provider:'embedded',software:true,type:'software',description:'llvmpipe',stable_id_available:false,stable_id:''},
+            {backend:'WebGPU',selector:'WebGPU2',provider:'native',software:false,type:'unknown',description:'Unclassified adapter',stable_id_available:false,stable_id:''},
+            {backend:'WebGPU',selector:'WebGPU3',provider:'native',software:false,type:'integrated-gpu',description:'Integrated GPU',stable_id_available:false,stable_id:''},
         ]});
         if(url==='/app_config') {
             if(mode==='busy')return response({message:'A native generation request is active'},409);
@@ -52,9 +54,12 @@ function harness(mode = 'normal', compute = {backend:'cpu', provider:'auto', dev
     assert.match(cpu.ids.get('system-info').textContent,/settings.json/);
     await cpu.change('backend_platform','webgpu');
     const choices=cpu.ids.get('cosmo-config-device').options;
-    assert.equal(choices.length,3);
+    assert.equal(choices.length,5);
     assert.match(choices.find(x=>x.value==='WebGPU1').textContent,/software \/ CPU/);
     assert.match(choices.find(x=>x.value==='uuid:physical').textContent,/physical hardware/);
+    assert.match(choices.find(x=>x.value==='WebGPU3').textContent,/physical hardware/);
+    assert.match(choices.find(x=>x.value==='WebGPU2').textContent,/unknown adapter type/);
+    assert.doesNotMatch(choices.find(x=>x.value==='WebGPU2').textContent,/physical hardware|software \/ CPU/);
     await cpu.change('cosmo-config-device','uuid:physical');await cpu.save();
     const sent=cpu.calls.find(x=>x.url==='/app_config').body;
     assert.deepEqual(sent.compute,{backend:'webgpu',provider:'auto',device:'uuid:physical'});

@@ -75,7 +75,10 @@
         if (backend.value === "webgpu" && state && provider.value === state.effective.compute.provider) {
             for (const item of entries.filter(x => x.backend.toLowerCase() === "webgpu")) {
                 const selector = item.stable_id_available && item.stable_id ? item.stable_id : item.selector;
-                const label = `${item.selector}: ${item.description} — ${item.software ? "software / CPU" : "physical hardware"} (${item.provider})`;
+                const physical = item.provider === "native" && item.software === false &&
+                    (item.type === "gpu" || item.type === "integrated-gpu");
+                const kind = item.software === true ? "software / CPU" : physical ? "physical hardware" : "unknown adapter type";
+                const label = `${item.selector}: ${item.description} — ${kind} (${item.provider})`;
                 option(device, selector, label);
                 if (wanted === item.selector) wanted = selector;
             }
