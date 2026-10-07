@@ -92,9 +92,9 @@ controls are disabled in this form. Other rendered application pages still
 have separate backend integration work; see
 [`application-api.md`](../docs/application-api.md).
 
-Stop becomes available after sampling begins. Cancellation during checkpoint
-loading is not implemented. A stop request waits for native generation to
-return; it does not instantly free memory in use. If the generation connection
+Stop becomes available after the first sampling step completes. Cancellation
+during checkpoint loading is not implemented. A stop request waits for native
+generation to return; it does not instantly free memory in use. If the generation connection
 is lost, the page keeps the request pending until progress establishes that
 the server has finished. The server advertises its native single-user mode
 explicitly; kiosk configuration is unsupported, and failed capability lookup
@@ -146,6 +146,19 @@ progress, checkpoint listing and persistent options reads remain available.
 Duplicate task IDs receive 409. Invalid overrides receive 400. Interrupting
 a different, preparing or finished task receives 409. Completed requests and
 error paths release the generation lock and request overlay.
+
+Generation routes copy their request bodies into one server-owned coordinator
+and leave the HTTP I/O threads free. The HTTP response remains pending until
+the native operation finishes. The coordinator owns the request gate and
+parameters while model loading, generation and PNG encoding run on a pthread
+with an explicitly requested and measured 8 MiB stack. The pinned runtime's
+default 80 KiB stack was insufficient for recursive GGML graph traversal.
+
+The coordinator joins that inference worker, receives its exceptions and
+allocation-error state, then posts the response onto the originating HTTP I/O
+thread. Progress and native cancellation remain available throughout the
+request. Shutdown closes admission, joins owned work before destroying server
+dependencies, and releases undelivered responses after the I/O loops stop.
 
 ## Verification and evidence scope
 

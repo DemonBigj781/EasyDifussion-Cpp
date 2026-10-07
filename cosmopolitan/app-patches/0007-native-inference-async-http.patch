@@ -1,0 +1,196 @@
+--- a/include/server.h
++++ b/include/server.h
+@@ -2,6 +2,11 @@
+ #define __SERVER_H__
+ 
+ #include <memory>
++#include <atomic>
++#include <vector>
++
++#include "inference_dispatcher.hpp"
++struct CosmoPendingResponse;
+ #include <mutex>
+ #include <cstdint>
+ #include <string>
+@@ -57,6 +62,8 @@
+ 
+    private:
+     void setupRoutes();
++    void dispatchGeneration(const crow::request& req, crow::response& response, int kind);
++    void finishAsyncRequests();
+ 
+     // Route handlers
+     crow::response handlePing();
+@@ -94,6 +101,11 @@
+     std::string active_task_id_;
+     uint64_t request_sequence_ = 0;
+     bool should_stop_;
++    CosmoInferenceDispatcher inference_dispatcher_;
++    std::mutex pending_response_mutex_;
++    std::vector<std::shared_ptr<CosmoPendingResponse>> pending_responses_;
++    std::shared_ptr<std::atomic<bool>> response_delivery_alive_ =
++        std::make_shared<std::atomic<bool>>(true);
+ };
+ 
+ #endif  // __SERVER_H__
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -311,7 +311,7 @@
+     setupRoutes();
+ }
+ 
+-Server::~Server() { stop(); }
++Server::~Server() { stop(); finishAsyncRequests(); }
+ 
+ void Server::setupRoutes() {
+     cosmo_register_ui_routes(app_);
+@@ -334,20 +334,20 @@
+     });
+ 
+     // Image generation endpoints
+-    CROW_ROUTE(app_, "/v1/sdapi/v1/txt2img").methods("POST"_method)([this](const crow::request& req) {
+-        return handleTxt2Img(req);
++    CROW_ROUTE(app_, "/v1/sdapi/v1/txt2img").methods("POST"_method)([this](const crow::request& req, crow::response& response) {
++        dispatchGeneration(req, response, 0);
+     });
+ 
+-    CROW_ROUTE(app_, "/v1/sdapi/v1/img2img").methods("POST"_method)([this](const crow::request& req) {
+-        return handleImg2Img(req);
++    CROW_ROUTE(app_, "/v1/sdapi/v1/img2img").methods("POST"_method)([this](const crow::request& req, crow::response& response) {
++        dispatchGeneration(req, response, 1);
+     });
+ 
+-    CROW_ROUTE(app_, "/v1/sdapi/v1/txt2video").methods("POST"_method)([this](const crow::request& req) {
+-        return handleTxt2Video(req);
++    CROW_ROUTE(app_, "/v1/sdapi/v1/txt2video").methods("POST"_method)([this](const crow::request& req, crow::response& response) {
++        dispatchGeneration(req, response, 2);
+     });
+ 
+-    CROW_ROUTE(app_, "/v1/sdapi/v1/img2video").methods("POST"_method)([this](const crow::request& req) {
+-        return handleImg2Video(req);
++    CROW_ROUTE(app_, "/v1/sdapi/v1/img2video").methods("POST"_method)([this](const crow::request& req, crow::response& response) {
++        dispatchGeneration(req, response, 3);
+     });
+ 
+     // Progress endpoint
+@@ -383,11 +383,111 @@
+ void Server::run() {
+     std::cout << "Starting server on port " << port_ << std::endl;
+     app_.bindaddr("127.0.0.1").port(port_).multithreaded().run();
++    // Crow signal handling stops its I/O pools directly. They have joined when
++    // run returns, but their io_service objects remain owned by app_.
++    finishAsyncRequests();
+ }
+ 
+ void Server::stop() {
+     should_stop_ = true;
++    inference_dispatcher_.close_admission();
++    image_generator_->interrupt();
+     app_.stop();
++}
++
++struct CosmoPendingResponse {
++    crow::response* response = nullptr;
++    asio::io_service* io = nullptr;
++    std::string body;
++    crow::response result;
++};
++
++void Server::dispatchGeneration(const crow::request& req, crow::response& response, int kind) {
++    if (!req.io_service) {
++        response = request_error(500, "Native generation has no HTTP executor");
++        response.end();
++        return;
++    }
++    auto pending = std::make_shared<CosmoPendingResponse>();
++    pending->response = &response;
++    pending->io = req.io_service;
++    pending->body = req.body; // No request/parser storage is borrowed by the worker.
++    {
++        std::lock_guard<std::mutex> lock(pending_response_mutex_);
++        pending_responses_.push_back(pending);
++    }
++    auto alive = response_delivery_alive_;
++    bool accepted = false;
++    try {
++        accepted = inference_dispatcher_.try_submit([this, pending, kind] {
++            try {
++                crow::request copy;
++                copy.body = pending->body;
++                switch (kind) {
++                    case 0: pending->result = handleTxt2Img(copy); break;
++                    case 1: pending->result = handleImg2Img(copy); break;
++                    case 2: pending->result = handleTxt2Video(copy); break;
++                    case 3: pending->result = handleImg2Video(copy); break;
++                    default: pending->result = request_error(500, "Invalid native generation route"); break;
++                }
++            } catch (const std::exception& error) {
++                pending->result = request_error(500, sd_generation_error_message(error.what()));
++            } catch (...) {
++                pending->result = request_error(500, "Unknown native generation failure");
++            }
++        }, [this, pending, alive] {
++            // app_ owns this io_service until after finishAsyncRequests joins
++            // the coordinator. Posting after stop is safe; shutdown abandons
++            // any response whose queued completion could not execute.
++            pending->io->post([this, pending, alive] {
++                if (!alive->load()) return;
++                crow::response* response = nullptr;
++                {
++                    std::lock_guard<std::mutex> lock(pending_response_mutex_);
++                    response = pending->response;
++                    pending->response = nullptr;
++                    auto& items = pending_responses_;
++                    items.erase(std::remove(items.begin(), items.end(), pending), items.end());
++                }
++                if (response) {
++                    *response = std::move(pending->result);
++                    response->end();
++                }
++            });
++        });
++    } catch (const std::exception& error) {
++        response = request_error(500, error.what());
++    }
++    if (!accepted) {
++        {
++            std::lock_guard<std::mutex> lock(pending_response_mutex_);
++            pending->response = nullptr;
++            auto& items = pending_responses_;
++            items.erase(std::remove(items.begin(), items.end(), pending), items.end());
++        }
++        if (response.code == 200) response = request_error(409, "A native generation request is active");
++        response.end();
++    }
++}
++
++void Server::finishAsyncRequests() {
++    // Call only after Crow's I/O loops have joined (or before they start).
++    response_delivery_alive_->store(false);
++    inference_dispatcher_.close_admission();
++    image_generator_->interrupt();
++    inference_dispatcher_.shutdown();
++    std::vector<std::shared_ptr<CosmoPendingResponse>> pending;
++    {
++        std::lock_guard<std::mutex> lock(pending_response_mutex_);
++        pending.swap(pending_responses_);
++    }
++    for (auto& item : pending) {
++        crow::response* response = item->response;
++        item->response = nullptr;
++        // end() needs live Crow worker-local callbacks. Those workers stopped;
++        // abandon only releases the connection ownership, without I/O.
++        if (response) response->abandon();
++    }
+ }
+ 
+ crow::response Server::handlePing() { return crow::response(200, "OK"); }
+@@ -439,6 +539,8 @@
+ }
+ 
+ crow::response Server::handlePostOptions(const crow::request& req) {
++    if (inference_dispatcher_.busy())
++        return request_error(409, "A native generation request is active");
+     std::unique_lock<std::mutex> generation_lock(generation_mutex_, std::try_to_lock);
+     if (!generation_lock.owns_lock()) {
+         return request_error(409, "A native generation request is active");

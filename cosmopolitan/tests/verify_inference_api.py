@@ -113,8 +113,9 @@ def task_body(model, steps):
                                   "live_previews_enable": False}}
 
 
-def progress(client, task_id):
-    status, value, _ = client.request("/v1/internal/progress", {"id_task": task_id, "live_preview": False})
+def progress(client, task_id, timeout=10):
+    status, value, _ = client.request("/v1/internal/progress", {"id_task": task_id, "live_preview": False},
+                                      timeout=timeout)
     if status == 404:
         return None
     if status != 200 or not isinstance(value, dict):
@@ -201,6 +202,18 @@ def generation_checks(client, model, baseline, process, deadline, logs, requests
     client.expect(PREFIX + "interrupt", {"id_task": "wrong-task-" + uuid.uuid4().hex}, status=409)
     if client.expect(PREFIX + "options") != baseline:
         raise RuntimeError("Request-local checkpoint options leaked into persistent GET options")
+    # Each client call opens a new connection. Repeated requests expose a Crow
+    # I/O worker blocked by a synchronous generation handler, even when the
+    # first few progress/409 responses happened to use available workers.
+    progress_seconds = []
+    for _ in range(32):
+        if pending.done.is_set():
+            raise RuntimeError("Active progress responsiveness observation window was missed")
+        started = time.monotonic()
+        state = progress(client, body["force_task_id"], timeout=2)
+        progress_seconds.append(round(time.monotonic() - started, 6))
+        if state is None or state["completed"]:
+            raise RuntimeError("Generation was not active throughout the progress responsiveness probe")
     status, result, _ = pending.result(deadline)
     if status != 200 or not isinstance(result, dict) or len(result.get("images", [])) != 1:
         raise RuntimeError(f"Real native txt2img did not produce one image: HTTP {status}: {str(result)[:500]}")
@@ -224,7 +237,10 @@ def generation_checks(client, model, baseline, process, deadline, logs, requests
             "final_progress": state, "png": decoded, "concurrent_generation_status": 409,
             "concurrent_options_status": 409, "wrong_task_interrupt_status": 409,
             "finished_task_interrupt_status": 409, "duplicate_task_id_status": 409,
-            "persistent_options_unchanged": True}
+            "persistent_options_unchanged": True,
+            "active_progress_responsiveness": {"requests": len(progress_seconds), "timeout_seconds": 2,
+                                               "elapsed_seconds": progress_seconds,
+                                               "max_seconds": max(progress_seconds)}}
 
 
 def invalid_override_checks(client, model, baseline):
@@ -351,6 +367,19 @@ def verify(args):
                                                                      requests, args.cancel_steps)
                     if process.poll() is not None:
                         raise RuntimeError("Server exited after inference instead of remaining available")
+                    worker_records = re.findall(
+                        r"^NATIVE_INFERENCE_WORKER stack_bytes=(\d+) guard_bytes=(\d+) "
+                        r"stack_source=pthread_getattr_np$",
+                        stderr.read_text(errors="replace"), re.MULTILINE)
+                    expected_workers = 1 if args.skip_cancel else 2
+                    if len(worker_records) != expected_workers or any(
+                            int(size) != 8 * 1024 * 1024 or int(guard) <= 0
+                            for size, guard in worker_records):
+                        raise RuntimeError("Native requests did not report their actual 8 MiB inference worker stacks")
+                    report["inference_workers"] = [
+                        {"stack_bytes": int(size), "guard_bytes": int(guard),
+                         "source": "pthread_getattr_np"}
+                        for size, guard in worker_records]
                     report["status"] = "passed"
                 finally:
                     report["server_exit_before_cleanup"] = process.poll()

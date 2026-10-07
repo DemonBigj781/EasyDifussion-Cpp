@@ -1,0 +1,71 @@
+--- a/include/logging.h
++++ b/include/logging.h
+@@ -21,8 +21,10 @@
+ #define LOG_WARNING(...) log_message(LogLevel::Warning, __VA_ARGS__)
+ #define LOG_ERROR(...) log_message(LogLevel::Error, __VA_ARGS__)
+ 
+-// Native generation and allocation logs run synchronously on the request thread.
++// Native generation errors are local to the thread executing inference.
+ void reset_sd_generation_error();
++bool sd_generation_error_out_of_vram();
++void set_sd_generation_error_out_of_vram(bool value);
+ std::string sd_generation_error_message(const std::string& fallback);
+ 
+ // SD callback for stable-diffusion.cpp integration
+--- a/src/logging.cpp
++++ b/src/logging.cpp
+@@ -14,6 +14,14 @@
+ 
+ void reset_sd_generation_error() {
+     generation_out_of_vram = false;
++}
++
++bool sd_generation_error_out_of_vram() {
++    return generation_out_of_vram;
++}
++
++void set_sd_generation_error_out_of_vram(bool value) {
++    generation_out_of_vram = value;
+ }
+ 
+ std::string sd_generation_error_message(const std::string& fallback) {
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -1,5 +1,6 @@
+ #include "server.h"
+ #include "ui_routes.hpp"
++#include "inference_worker.hpp"
+ 
+ #include <algorithm>
+ #include <cctype>
+@@ -687,7 +688,9 @@
+             throw std::invalid_argument("Cache threshold cannot be negative");
+         }
+ 
+-        std::vector<std::string> frames = image_generator_->generateVideo(params, task_id);
++        std::vector<std::string> frames = cosmo_inference_worker([&] {
++            return image_generator_->generateVideo(params, task_id);
++        });
+         crow::json::wvalue info;
+         info["prompt"]       = params.prompt;
+         info["seed"]         = params.seed;
+@@ -1014,13 +1017,12 @@
+                      params.width, params.height);
+         }
+ 
+-        // Generate images (runs in same thread, blocks until complete)
+-        std::vector<std::string> images;
+-        if (is_img2img) {
+-            images = image_generator_->generateImg2Img(params, task_id);
+-        } else {
+-            images = image_generator_->generateTxt2Img(params, task_id);
+-        }
++        // Keep this request's gate and parameters alive until the explicitly
++        // sized worker completes model loading, generation, and PNG encoding.
++        std::vector<std::string> images = cosmo_inference_worker([&] {
++            return is_img2img ? image_generator_->generateImg2Img(params, task_id)
++                             : image_generator_->generateTxt2Img(params, task_id);
++        });
+ 
+         // Create info JSON string
+         crow::json::wvalue info_json;

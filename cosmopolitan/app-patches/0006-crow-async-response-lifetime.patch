@@ -1,0 +1,35 @@
+--- a/third_party/crow/http_response.h
++++ b/third_party/crow/http_response.h
+@@ -247,7 +247,10 @@
+                 }
+                 if (complete_request_handler_)
+                 {
+-                    complete_request_handler_();
++                    // Completion clears the response's callbacks. Retain this
++                    // callable's Connection ownership until end() has returned.
++                    auto complete_request = std::move(complete_request_handler_);
++                    complete_request();
+                     manual_length_header = false;
+                     skip_body = false;
+                 }
+@@ -259,6 +262,20 @@
+         {
+             body += body_part;
+             end();
++        }
++
++        /// Release an unfinished asynchronous response during server shutdown.
++        /// Call only after its I/O loop and all external response producers have
++        /// stopped. Unlike end(), this does not run middleware or socket writes.
++        void abandon()
++        {
++            // Either callback may own the Connection containing this response.
++            // Keep both alive until all accesses to this object have finished.
++            auto complete_request = std::move(complete_request_handler_);
++            auto is_alive = std::move(is_alive_helper_);
++            complete_request_handler_ = nullptr;
++            is_alive_helper_ = nullptr;
++            completed_ = true;
+         }
+ 
+         /// Check if the connection is still alive (usually by checking the socket status).

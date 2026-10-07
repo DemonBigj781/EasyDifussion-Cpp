@@ -188,7 +188,7 @@
             active = job;
             updateControls();
             progress.removeAttribute("value");
-            message("Loading the checkpoint and preparing generation. Stop becomes available when sampling begins.");
+            message("Loading the checkpoint and preparing generation. Stop becomes available after the first sampling step completes.");
             const body = {
                 force_task_id: id, prompt, negative_prompt: byId("negative_prompt").value,
                 width, height, steps, cfg_scale: cfg, seed, batch_size: 1,
