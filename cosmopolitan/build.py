@@ -24,6 +24,7 @@ SDK_VERSION = "4.0.2"
 SDK_URL = "https://cosmo.zip/pub/cosmocc/cosmocc-4.0.2.zip"
 SDK_SHA256 = "85b8c37a406d862e656ad4ec14be9f6ce474c1b436b9615e91a55208aced3f44"
 LLAMA_REVISION = "c589f0ed10c643678c4707dd160c21ac7633ebc0"
+COMPILER_WRAPPER_REVISION = "preprocess-parity-v1"
 
 
 def digest(path):
@@ -112,6 +113,19 @@ def host_tools(out):
 def make_wrappers(out, sdk):
     directory = out / "toolchain"
     loader = sdk / "bin/ape-x86_64.elf"
+    # Cosmocc 4.0.2 omits PREDEF/CFLAGS/PRECIOUS in its -E/-M/-MM branch.
+    # sccache uses that branch before compilation, so it otherwise sees host
+    # Linux macros and different integer typedefs. Derive the correction from
+    # the pinned script rather than duplicating its language/mode flag logic.
+    # The installed SDK remains unchanged; normal compilation still uses it.
+    original = (sdk / "bin/cosmocross").read_text()
+    old = 'if [ $INTENT = cpp ]; then\n  set -- "$CC" $PLATFORM $CPPFLAGS "$@"\n'
+    new = ('if [ $INTENT = cpp ]; then\n'
+           '  set -- "$CC" $PLATFORM $PREDEF $CFLAGS $CPPFLAGS "$@" $PRECIOUS\n')
+    if original.count(old) != 1:
+        raise RuntimeError("Pinned Cosmocc preprocessing branch changed; review wrapper parity")
+    preprocess = directory / "cosmocross-preprocess.sh"
+    write_if_changed(preprocess, original.replace(old, new))
     for name, tool in {
         "cc": "x86_64-unknown-cosmo-cc", "cxx": "x86_64-unknown-cosmo-c++",
         "ar": "x86_64-unknown-cosmo-ar", "ranlib": "x86_64-linux-cosmo-ranlib",
@@ -120,8 +134,15 @@ def make_wrappers(out, sdk):
         binary = sdk / "bin" / tool
         content = ("#!" + sys.executable + "\nimport os,sys\n"
                    + "binary=" + repr(str(binary)) + "\n"
-                   + "loader=" + repr(str(loader)) + "\n"
-                   + "with open(binary,'rb') as f: magic=f.read(4)\n"
+                   + "loader=" + repr(str(loader)) + "\n")
+        if name in ("cc", "cxx"):
+            content += ("# " + COMPILER_WRAPPER_REVISION + "\n"
+                        + "preprocess=" + repr(str(preprocess)) + "\n"
+                        + "intent=[x for x in sys.argv[1:] if x in ('-E','-M','-MM','-c','-S')]\n"
+                        + "if intent and intent[-1] in ('-E','-M','-MM'):\n"
+                        + "    with open(preprocess) as f: script=f.read()\n"
+                        + "    os.execv('/bin/sh',['/bin/sh','-c',script,binary]+sys.argv[1:])\n")
+        content += ("with open(binary,'rb') as f: magic=f.read(4)\n"
                    + "argv=([loader,binary] if magic[:2]==b'MZ' else [binary])+sys.argv[1:]\n"
                    + "os.execv(argv[0],argv)\n")
         write_if_changed(directory / name, content, executable=True)
@@ -238,17 +259,24 @@ class BuildCache:
                 value = self.env.get(name)
                 if value and str(Path(shutil.which(value) or value).resolve()) != self.launcher:
                     raise RuntimeError("Conflicting compiler launcher in " + name)
-            buster = "cosmocc-" + SDK_VERSION + "-" + SDK_SHA256
-            if self.env.get("SCCACHE_C_CUSTOM_CACHE_BUSTER", buster) != buster:
-                raise RuntimeError("SCCACHE_C_CUSTOM_CACHE_BUSTER must identify the pinned Cosmocc SDK")
+            base_buster = "cosmocc-" + SDK_VERSION + "-" + SDK_SHA256
+            buster = base_buster + "-" + COMPILER_WRAPPER_REVISION
+            if self.env.get("SCCACHE_C_CUSTOM_CACHE_BUSTER", buster) not in (base_buster, buster):
+                raise RuntimeError("SCCACHE_C_CUSTOM_CACHE_BUSTER must identify the pinned SDK and wrapper revision")
+            # Only application wrappers implement preprocessing parity. Do not
+            # silently enable caching for direct SDK compilers in dependencies.
+            for name in ("CMAKE_C_COMPILER_LAUNCHER", "CMAKE_CXX_COMPILER_LAUNCHER"):
+                if self.env.get(name):
+                    raise RuntimeError("Unset " + name + "; use --compiler-launcher for the normalized application wrappers only")
             self.env.update(RUSTC_WRAPPER=self.launcher, CARGO_INCREMENTAL="0",
                             SCCACHE_C_CUSTOM_CACHE_BUSTER=buster)
             self.report["configuration"] = {"enabled": True, "launcher": self.launcher, "version": version,
                 "launcher_sha256": digest(self.launcher), "sdk_sha256": SDK_SHA256,
-                "cache_buster": buster, "rust_incremental": False,
+                "cache_buster": buster, "wrapper_revision": COMPILER_WRAPPER_REVISION,
+                "rust_incremental": False,
                 "c_cpp": "CMake compiler launcher before the existing Cosmocc wrappers",
                 "rust": "RUSTC_WRAPPER inherited by the pinned custom-target Rust runner",
-                "excluded": ["Mesa Meson compilation", "direct compiler calls", "linking", "packaging"]}
+                "excluded": ["dependency CMake launchers", "Mesa Meson compilation", "direct compiler calls", "linking", "packaging"]}
             self.report["before"] = self.snapshot()
 
     def snapshot(self):
@@ -369,6 +397,13 @@ def build_application(args, out, cache):
         sdk = sdk_setup(out)
         cmake, ninja = host_tools(out)
         wrappers = make_wrappers(out, sdk)
+        if cache.launcher:
+            cache.report["configuration"]["preprocessing_shim"] = {
+                "sdk_driver_sha256": digest(sdk / "bin/cosmocross"),
+                "shim_sha256": digest(wrappers / "cosmocross-preprocess.sh"),
+                "cc_wrapper_sha256": digest(wrappers / "cc"),
+                "cxx_wrapper_sha256": digest(wrappers / "cxx"),
+            }
     with cache.phase("prepare_application_source"):
         source, shared, fingerprint = prepare_source(out)
     shutil.copy2(sdk / "bin/ape-x86_64.elf", out / "ape-x86_64.elf")

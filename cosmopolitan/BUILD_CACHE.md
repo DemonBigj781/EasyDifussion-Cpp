@@ -10,8 +10,10 @@ remain authoritative.
 This is separate from the earlier [toolchain compatibility experiment](vast/BUILD_CACHE.md).
 That experiment demonstrated cache hits; it did not enable caching for the
 application. The production integration records its own statistics and
-elapsed times. Until its CI reports are available, it does not establish a
-whole-application speedup.
+elapsed times. Its first full CI build failed during compilation; the
+[CI build record](https://github.com/DemonBigj781/EasyDifussion-Cpp/actions/runs/37629231689)
+records 97 cache misses, zero hits and no completed application. It does not
+establish a whole-application speedup.
 
 ## Build commands
 
@@ -36,7 +38,26 @@ existing `out/toolchain/cc` and `out/toolchain/cxx` wrappers. It does not change
 environment passed to dependency preparation. Conflicting launchers and a
 nested `RUSTC_WORKSPACE_WRAPPER` are rejected. The Cosmocc SDK archive hash is
 included in `SCCACHE_C_CUSTOM_CACHE_BUSTER` because the small wrapper file alone
-does not identify all the compiler bytes it invokes.
+does not identify all the compiler bytes it invokes. The effective namespace
+also includes `preprocess-parity-v1`; the recipe accepts the workflow's SDK
+base value and adds that revision. This excludes entries written before the
+preprocessing correction below.
+
+Cosmocc 4.0.2's standalone preprocessing branch omits its normalization header
+and compilation flags. An uncorrected sccache preprocessing call can therefore
+see host Linux macros, an incorrect numeric Cosmopolitan version and different
+integer typedefs. The application wrappers generate a preprocessing shim from
+the pinned SDK driver with one checked change: `-E`, `-M` and `-MM` receive the
+same normalization header, mode-dependent flags and frame-pointer option as
+compilation. The original compiler path remains shell `$0`, preserving the
+SDK's directory, architecture and language selection. The SDK itself is not
+modified, and ordinary compilation continues through its original driver.
+Reports record the original driver, generated shim and wrapper hashes.
+
+The application contains no C++ module units, so its CMake configuration
+disables module scanning. Otherwise CMake's GCC C++20 scan adds `-fmodules-ts`,
+which sccache 0.16.0 treats as non-cacheable; this accounted for 183 uncached
+calls in the failed first full build.
 
 The main workflow installs the reviewed
 `mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba`
@@ -92,10 +113,18 @@ The explicit launcher covers C and C++ targets in the application CMake build.
 The inherited Rust wrapper covers compilations invoked through the pinned
 Rust runner. It does not replace that runner or its target/std/cfg settings.
 
+When this cache option is enabled, independently supplied
+`CMAKE_C_COMPILER_LAUNCHER`/`CMAKE_CXX_COMPILER_LAUNCHER` environment settings
+are rejected with an instruction to use the application option. This avoids
+silently enabling sccache for dependency compilers that do not use the corrected
+application wrappers. The Rust wrapper remains inherited by dependencies.
+
 There is no automatic coverage claim for Mesa's Meson compilation, direct
 compiler calls, assembly, linking, packaging, runtime shader compilation or
 model execution. LLVM has its own configuration fingerprint and cached CMake
 build; this change does not force that configuration to adopt a launcher.
 Changing a CMake-launcher environment variable alone is insufficient for an
 already configured dependency tree. The application recipe passes its launcher
-settings explicitly on every reconfiguration.
+settings explicitly on every reconfiguration. Existing externally configured
+dependency caches remain the caller's responsibility; the recipe does not
+rewrite them or claim they have been validated with this launcher.
