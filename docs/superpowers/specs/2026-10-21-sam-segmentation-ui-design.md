@@ -9,7 +9,7 @@ subsequent editor use.
 
 ## Architecture
 
-Both UIs call one existing-host API route, . The route
+Both UIs call one existing-host API route, `POST /sam/segment`. The route
 follows the repository's native image-tool pattern: validate a bounded base64
 image request, resolve an installed SAM model and helper executable, write
 temporary input/output files, invoke the helper without a shell, and return a
@@ -22,6 +22,16 @@ the change to the existing helper-process integration boundary.
 
 ## Request contract
 
+```json
+{
+  "image": "data:image/png;base64,...",
+  "model": "/absolute/or/approved/model/path",
+  "prompt_type": "point",
+  "point": {"x": 120, "y": 80},
+  "box": {"x1": 20, "y1": 20, "x2": 400, "y2": 300},
+  "multimask": false
+}
+```
 
 
 Exactly one prompt type is required. Coordinates are validated as finite,
