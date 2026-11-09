@@ -4,13 +4,16 @@ No source pin is changed and no producer/build is launched by this module.
 Consumers must keep the export quiescent until compilation/package completion.
 """
 
+import copy
 import hashlib
+import json
 import os
 from pathlib import Path
 import posixpath
 import re
 import stat
 import sys
+import tempfile
 
 from foundation_handoff import (HandoffError, TOOLS, _canonical_hash, _digest,
                                 _file, _hex, _relative, _revision, load_handoff,
@@ -171,6 +174,7 @@ def verify_source_sdk(sdk, record_path, handoff):
         raise HandoffError("Source runtime ABI input inventory is incomplete")
     for value in abi.values():
         _hex(value, 64, "source ABI digest")
+    verify_source_inputs(sdk, record, handoff)
     expected = materialized_sdk_files(record.get("files"))
     actual = {path.relative_to(sdk).as_posix() for path in _files(sdk)}
     if actual != set(expected) | {"SOURCE_RUNTIME.json"}:
@@ -182,6 +186,101 @@ def verify_source_sdk(sdk, record_path, handoff):
                 _digest(path) != entry["sha256"]):
             raise HandoffError("Materialized source SDK differs from producer input: " + name)
     return {key: record[key] for key in ("kind", "source", "runtime_identity", "runtime_abi")}
+
+
+def verify_source_inputs(sdk, record, handoff):
+    """Bind the exported SDK to its producer's tracked-source inventory."""
+    inventory = record.get("source_inventory_record")
+    if (not isinstance(inventory, dict) or set(inventory) != {"path", "sha256"} or
+            inventory.get("path") != "SOURCE_INPUTS.json"):
+        raise HandoffError("Source runtime requires its bound SOURCE_INPUTS.json inventory")
+    path = _file(sdk, inventory["path"])
+    _hex(inventory.get("sha256"), 64, "source inventory file digest")
+    if _digest(path) != inventory["sha256"]:
+        raise HandoffError("Source input inventory bytes differ from source runtime record")
+    inputs = load_handoff(path)
+    if (not isinstance(inputs, dict) or set(inputs) != {"schema_version", "kind", "source", "files"} or
+            type(inputs.get("schema_version")) is not int or
+            inputs["schema_version"] != 1 or inputs.get("kind") != "cosmopolitan-tracked-source-inputs" or
+            inputs.get("source") != record["source"]):
+        raise HandoffError("Source input inventory does not match the source runtime")
+    files = inputs.get("files")
+    if not isinstance(files, dict) or not files:
+        raise HandoffError("Source input inventory is empty")
+    for name, entry in files.items():
+        _relative(name, "source input path")
+        parts = name.split("/")
+        if ".git" in parts or any("/".join(parts[:index]) in files for index in range(1, len(parts))):
+            raise HandoffError("Overlapping or reserved tracked source path: " + name)
+        if (not isinstance(entry, dict) or entry.get("type") not in ("file", "symlink") or
+                type(entry.get("size")) is not int or entry["size"] < 0):
+            raise HandoffError("Invalid tracked source input: " + name)
+        expected = {"mode", "type", "size", "sha256"} | ({"target"} if entry["type"] == "symlink" else set())
+        if set(entry) != expected:
+            raise HandoffError("Unexpected tracked source input fields: " + name)
+        _hex(entry.get("sha256"), 64, "source input file digest")
+        if entry["type"] == "symlink":
+            target = entry.get("target")
+            if (entry.get("mode") != "120000" or not isinstance(target, str) or not target or
+                    "\0" in target or entry["size"] != len(os.fsencode(target)) or
+                    entry["sha256"] != hashlib.sha256(os.fsencode(target)).hexdigest()):
+                raise HandoffError("Invalid tracked source symlink: " + name)
+        elif entry.get("mode") not in ("100644", "100755") or "target" in entry:
+            raise HandoffError("Invalid tracked source file mode: " + name)
+    source_hash = _canonical_hash(files)
+    source = record["source"]
+    foundation = handoff["foundation"]
+    if (record.get("source_tree_sha256") != source_hash or foundation["source_tree_sha256"] != source_hash or
+            foundation["repository"] != source["repository"] or foundation["revision"] != source["revision"]):
+        raise HandoffError("Handoff source identity differs from the tracked source inventory")
+    # The supported producer builds a clean pinned commit with all ABI changes
+    # already committed. Do not accept an undeclared post-checkout patch layer.
+    if record.get("source_patches") != [] or handoff["runtime"]["provenance"]["patches_sha256"] != _canonical_hash([]):
+        raise HandoffError("Source patch identity must bind the producer's empty post-commit patch list")
+    for name, expected in record["source_abi_inputs"].items():
+        if files.get(name, {}).get("type") != "file" or files[name]["sha256"] != expected:
+            raise HandoffError("Source ABI input differs from the tracked source inventory: " + name)
+    producer = record["producer"]
+    recipe = files.get(producer["entrypoint"], {})
+    if recipe.get("type") != "file" or recipe.get("sha256") != producer.get("sha256"):
+        raise HandoffError("Source package recipe differs from the tracked source inventory")
+
+
+def normalize_link_paths(source, root):
+    """Normalize only selected build paths; preserve nested producer evidence.
+
+    This creates an in-memory view, not a verified manifest. The caller must
+    validate every selected input before publishing or consuming the view.
+    """
+    if not isinstance(source, dict) or "consumer_view" in source:
+        raise HandoffError("Expected an original producer LINK.json, not a generated consumer view")
+    mode = source.get("path_mode", "absolute")
+    if mode not in ("absolute", "export-root-relative"):
+        raise HandoffError("Unsupported dependency manifest path_mode: " + repr(mode))
+    link = copy.deepcopy(source)
+    if mode == "export-root-relative":
+        def absolute(value):
+            return str(root / _relative(value, "export-relative build input"))
+
+        for field in ("sdk_root", "wgpu_archive", "licenses"):
+            link[field] = absolute(source.get(field))
+        for field in ("include_dirs", "runtime_sources", "runtime_objects", "driver_link_args"):
+            values = source.get(field)
+            if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+                raise HandoffError("Invalid dependency manifest field: " + field)
+            link[field] = [value if field == "driver_link_args" and value.startswith("-")
+                           else absolute(value) for value in values]
+        hashes = source.get("file_sha256")
+        if not isinstance(hashes, dict):
+            raise HandoffError("Prebuilt dependency file digest inventory is missing")
+        link["file_sha256"] = {absolute(path): value for path, value in hashes.items()}
+    link["path_mode"] = "absolute"
+    return link, mode
+
+
+def link_view_bytes(view):
+    """Stable bytes for the location-bound, generated CMake input."""
+    return (json.dumps(view, indent=2, sort_keys=True, ensure_ascii=True) + "\n").encode("utf-8")
 
 
 def select_foundation(manifest_path, export_root, sdk_path, link_path, *, pin, application_patches):
@@ -236,7 +335,7 @@ def select_foundation(manifest_path, export_root, sdk_path, link_path, *, pin, a
                 raise HandoffError("Declared runtime input is outside the selected source SDK: " + name)
 
     link_file = artifact(Path(link_path).absolute(), "data")
-    link = load_handoff(link_file)
+    link, path_mode = normalize_link_paths(load_handoff(link_file), root)
     if (not isinstance(link, dict) or type(link.get("format")) is not int or link["format"] != 1 or
             link.get("static") is not True or link.get("target") != "x86_64 Cosmopolitan APE" or
             link.get("runtime_shared_libraries") != [] or link.get("pin") != pin or
@@ -353,13 +452,53 @@ def select_foundation(manifest_path, export_root, sdk_path, link_path, *, pin, a
             raise HandoffError("Prebuilt dependency digest differs from handoff: " + name)
     handoff_hash = _digest(Path(manifest_path))
     link_hash = _digest(link_file)
+    link["consumer_view"] = {"schema_version": 1, "source_manifest_sha256": link_hash,
+                             "source_path_mode": path_mode, "export_root": str(root)}
+    view_hash = hashlib.sha256(link_view_bytes(link)).hexdigest()
     selection_identity = _canonical_hash({"handoff_sha256": handoff_hash, "link_sha256": link_hash,
+                                           "link_view_sha256": view_hash, "export_root": str(root),
                                            "runtime_identity_sha256": report["runtime_identity_sha256"]})
     return {"sdk": sdk, "tools": tools, "link_manifest": link_file,
+            "export_root": root, "link_view": link, "link_view_sha256": view_hash,
             "handoff_manifest": Path(manifest_path).resolve(strict=True),
             "handoff_sha256": handoff_hash, "link_sha256": link_hash,
             "selection_identity_sha256": selection_identity,
             "handoff_report": report, "runtime": upstream_runtime}
+
+
+def write_link_view(directory, selection):
+    """Write a verified, location-bound build view without changing the export.
+
+    Existing mismatched views fail rather than hiding an unexpected mutation.
+    Like selection itself, this assumes trusted, quiescent local inputs.
+    """
+    content = link_view_bytes(selection["link_view"])
+    if hashlib.sha256(content).hexdigest() != selection["link_view_sha256"]:
+        raise HandoffError("Generated dependency view changed after selection")
+    directory = Path(directory).absolute()
+    for path in (*reversed(directory.parents), directory):
+        if path.is_symlink():
+            raise HandoffError("Generated dependency view directory cannot contain a symlink")
+    directory = directory.resolve(strict=False)
+    if directory == selection["export_root"] or selection["export_root"] in directory.parents:
+        raise HandoffError("Generated dependency view must be outside the immutable export")
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "LINK.json"
+    if path.is_symlink() or (path.exists() and not path.is_file()):
+        raise HandoffError("Generated dependency view must be a regular file")
+    if path.exists():
+        if path.read_bytes() != content:
+            raise HandoffError("Existing generated dependency view does not match selection")
+        return path
+    descriptor, temporary = tempfile.mkstemp(prefix=".LINK-", suffix=".json", dir=directory)
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            output.write(content)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return path
 
 
 def tool_command(binary, loader):

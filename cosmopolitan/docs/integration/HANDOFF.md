@@ -159,6 +159,6 @@ its compiler, headers, CRT, runtime archives, Rust delivery and final linker
 together. No compatible source-runtime export has been built or consumed yet.
 
 Contract tests are authored in `cosmopolitan/tests/test_foundation_handoff.py`.
-They have not been run in this implementation checkpoint. No CPU behavioral
-validation, WebGPU execution, GPU workflow or paid resource operation is
+The 38 validator cases pass as part of the non-model contract suite. No model
+inference, WebGPU execution, GPU workflow or paid resource operation is
 authorized by this document or by successful static identity validation.

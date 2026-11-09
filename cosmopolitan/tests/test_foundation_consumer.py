@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Source consumer contract cases, authored for the later CPU validation gate."""
+"""Non-model source consumer contract cases using synthetic local fixtures."""
 
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 import unittest
@@ -42,7 +43,7 @@ class FoundationConsumerTests(unittest.TestCase):
             "target": {"architecture": "x86_64", "abi": "cosmopolitan-ape",
                        "c_triple": "x86_64-linux-cosmo", "rust_triple": "x86_64-unknown-linux-musl"},
             "runtime": {"kind": "source-built",
-                        "provenance": {**self.pin, "patches_sha256": digest(b"patches")},
+                        "provenance": {**self.pin, "patches_sha256": handoff._canonical_hash([])},
                         "provenance_record": "sdk/SOURCE_RUNTIME.json",
                         "headers": {"path": "sdk/include", "tree_sha256": ""},
                         "crt_objects": ["sdk/x86_64-linux-cosmo/lib/crt.o"],
@@ -79,8 +80,27 @@ class FoundationConsumerTests(unittest.TestCase):
             "source_abi_inputs": {name: digest(name.encode()) for name in
                                   ("libc/nt/struct/sid.h", "libc/dlopen/dladdr.c",
                                    "libc/intrin/fds.h", "libc/proc/posix_spawn.c")},
-            "producer": {"entrypoint": "tool/cosmocc/package.sh", "fresh_outputs": True}, "files": records,
+            "producer": {"entrypoint": "tool/cosmocc/package.sh", "sha256": digest(b"package recipe"),
+                         "fresh_outputs": True}, "files": records,
         }
+        source_inputs = {
+            "schema_version": 1, "kind": "cosmopolitan-tracked-source-inputs", "source": source["source"],
+            "files": {"fixture.c": {"type": "file", "mode": "100644", "size": 6, "sha256": digest(b"source")}},
+        }
+        for name, expected in source["source_abi_inputs"].items():
+            source_inputs["files"][name] = {"type": "file", "mode": "100644", "size": len(name), "sha256": expected}
+        source_inputs["files"]["tool/cosmocc/package.sh"] = {
+            "type": "file", "mode": "100755", "size": len(b"package recipe"), "sha256": digest(b"package recipe"),
+        }
+        inputs_bytes = json.dumps(source_inputs).encode()
+        self.artifact("sdk/SOURCE_INPUTS.json", "data", inputs_bytes)
+        records["SOURCE_INPUTS.json"] = {"type": "file", "mode": 0o644, "size": len(inputs_bytes),
+                                         "sha256": digest(inputs_bytes)}
+        self.data["toolchain"]["support_files"].append("sdk/SOURCE_INPUTS.json")
+        source["source_tree_sha256"] = handoff._canonical_hash(source_inputs["files"])
+        source["source_inventory_record"] = {"path": "SOURCE_INPUTS.json", "sha256": digest(inputs_bytes)}
+        source["source_patches"] = []
+        self.data["foundation"]["source_tree_sha256"] = source["source_tree_sha256"]
         source["runtime_identity"] = "sha256:" + handoff._canonical_hash(source)
         self.upstream = {key: source[key] for key in ("kind", "source", "runtime_identity", "runtime_abi")}
         self.artifact("sdk/SOURCE_RUNTIME.json", "data", json.dumps(source).encode())
@@ -144,6 +164,22 @@ class FoundationConsumerTests(unittest.TestCase):
                                           self.root / "deps/LINK.json", pin=self.pin,
                                           application_patches=self.patches)
 
+    def make_relative(self):
+        relative = lambda path: Path(path).relative_to(self.root).as_posix()
+        self.link["path_mode"] = "export-root-relative"
+        for field in ("sdk_root", "wgpu_archive", "licenses"):
+            self.link[field] = relative(self.link[field])
+        for field in ("include_dirs", "runtime_sources", "runtime_objects", "driver_link_args"):
+            self.link[field] = [value if value.startswith("-") else relative(value)
+                                for value in self.link[field]]
+        self.link["file_sha256"] = {relative(path): value for path, value in self.link["file_sha256"].items()}
+        self.persist()
+
+    def output_directory(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        return Path(temporary.name) / "generated"
+
     def reject(self, message):
         with self.assertRaisesRegex(handoff.HandoffError, message):
             self.select()
@@ -168,6 +204,123 @@ class FoundationConsumerTests(unittest.TestCase):
         self.link["application_patches"] = {}
         self.persist()
         self.reject("application patch identity")
+
+    def test_absolute_source_still_gets_a_bound_generated_view(self):
+        selected = self.select()
+        view = selected["link_view"]
+        self.assertEqual(view["path_mode"], "absolute")
+        self.assertEqual(view["consumer_view"], {
+            "schema_version": 1, "source_manifest_sha256": selected["link_sha256"],
+            "source_path_mode": "absolute", "export_root": str(self.root),
+        })
+        self.assertEqual(selected["link_view_sha256"], digest(consumer.link_view_bytes(view)))
+
+    def test_relative_link_normalizes_only_selected_paths(self):
+        original_archive = self.link["wgpu_archive"]
+        self.link["software_vulkan"]["producer_path"] = "/producer/original/archive.a"
+        self.make_relative()
+        before = (self.root / "deps/LINK.json").read_bytes()
+        selected = self.select()
+        view = selected["link_view"]
+        self.assertEqual(view["wgpu_archive"], original_archive)
+        self.assertEqual(view["sdk_root"], str(self.sdk))
+        self.assertEqual(view["runtime_objects"], [str(self.root / "deps/lib/runtime.o")])
+        self.assertEqual(view["runtime_sources"], [str(self.root / "deps/runtime/bridge.c")])
+        self.assertEqual(view["include_dirs"], [str(self.sdk / "include"), str(self.root / "deps/include")])
+        self.assertIn(str(self.root / "deps/lib/llvm.a"), view["driver_link_args"])
+        self.assertIn(str(self.root / "deps/lib/llvm.a"), view["file_sha256"])
+        self.assertEqual(view["license_sha256"], self.link["license_sha256"])
+        self.assertEqual(view["software_vulkan"], self.link["software_vulkan"])
+        self.assertEqual(view["runtime"], self.upstream)
+        self.assertEqual((self.root / "deps/LINK.json").read_bytes(), before)
+        self.assertEqual(selected["link_sha256"], digest(before))
+
+    def test_relocation_changes_only_consumer_location_binding(self):
+        self.make_relative()
+        before = self.select()
+        relocated = self.output_directory()
+        shutil.copytree(self.root, relocated)
+        after = consumer.select_foundation(relocated / "HANDOFF.json", relocated, relocated / "sdk",
+                                           relocated / "deps/LINK.json", pin=self.pin,
+                                           application_patches=self.patches)
+        self.assertEqual(before["handoff_sha256"], after["handoff_sha256"])
+        self.assertEqual(before["link_sha256"], after["link_sha256"])
+        self.assertEqual(before["handoff_report"], after["handoff_report"])
+        self.assertNotEqual(before["link_view_sha256"], after["link_view_sha256"])
+        self.assertNotEqual(before["selection_identity_sha256"], after["selection_identity_sha256"])
+        self.assertEqual(after["link_view"]["sdk_root"], str(relocated / "sdk"))
+
+    def test_relative_mode_cannot_contain_absolute_inputs(self):
+        self.make_relative()
+        self.link["wgpu_archive"] = str(self.root / "deps/lib/webgpu.a")
+        self.persist()
+        self.reject("normalized relative POSIX path")
+
+    def test_relative_mode_cannot_escape_or_normalize_parent_components(self):
+        self.make_relative()
+        self.link["runtime_sources"] = ["deps/runtime/../runtime/bridge.c"]
+        self.persist()
+        self.reject("normalized relative POSIX path")
+
+    def test_relative_digest_keys_must_also_be_relative(self):
+        self.make_relative()
+        self.link["file_sha256"][str(self.root / "deps/lib/webgpu.a")] = digest(archive())
+        self.persist()
+        self.reject("normalized relative POSIX path")
+
+    def test_unknown_path_mode_is_rejected(self):
+        self.link["path_mode"] = "auto"
+        self.persist()
+        self.reject("Unsupported dependency manifest path_mode")
+
+    def test_malformed_relative_path_array_is_rejected(self):
+        self.make_relative()
+        self.link["include_dirs"] = "deps/include"
+        self.persist()
+        self.reject("Invalid dependency manifest field: include_dirs")
+
+    def test_generated_view_cannot_be_resubmitted_as_producer_evidence(self):
+        self.link["consumer_view"] = {"source_manifest_sha256": digest(b"forged source")}
+        self.persist()
+        self.reject("original producer LINK.json")
+
+    def test_generated_view_write_is_exact_and_repeatable(self):
+        self.make_relative()
+        selected = self.select()
+        output = self.output_directory()
+        path = consumer.write_link_view(output, selected)
+        self.assertEqual(digest(path.read_bytes()), selected["link_view_sha256"])
+        self.assertEqual(consumer.write_link_view(output, selected), path)
+        self.assertEqual(json.loads(path.read_bytes()), selected["link_view"])
+
+    def test_existing_modified_view_is_not_silently_overwritten(self):
+        selected = self.select()
+        output = self.output_directory()
+        path = consumer.write_link_view(output, selected)
+        path.write_text("modified")
+        with self.assertRaisesRegex(handoff.HandoffError, "Existing generated dependency view"):
+            consumer.write_link_view(output, selected)
+
+    def test_in_memory_view_mutation_is_rejected_before_writing(self):
+        selected = self.select()
+        selected["link_view"]["runtime"] = {"kind": "stock-sdk"}
+        output = self.output_directory()
+        with self.assertRaisesRegex(handoff.HandoffError, "changed after selection"):
+            consumer.write_link_view(output, selected)
+        self.assertFalse(output.exists())
+
+    def test_generated_view_cannot_modify_the_export(self):
+        selected = self.select()
+        with self.assertRaisesRegex(handoff.HandoffError, "outside the immutable export"):
+            consumer.write_link_view(self.root / "generated", selected)
+        self.assertFalse((self.root / "generated").exists())
+
+    def test_generated_view_cannot_use_a_symlink_destination(self):
+        output = self.output_directory()
+        output.mkdir()
+        (output / "LINK.json").symlink_to(self.root / "deps/LINK.json")
+        with self.assertRaisesRegex(handoff.HandoffError, "must be a regular file"):
+            consumer.write_link_view(output, self.select())
 
     def test_stock_sdk_identity_cannot_leak_into_source_link(self):
         self.link["sdk_archive_sha256"] = digest(b"stock SDK")
@@ -244,6 +397,45 @@ class FoundationConsumerTests(unittest.TestCase):
     def test_source_sdk_extra_file_is_rejected(self):
         (self.sdk / "untracked-file").write_text("not in producer inventory")
         self.reject("missing or unexpected files")
+
+    def test_handoff_source_tree_must_match_producer_source_inputs(self):
+        self.data["foundation"]["source_tree_sha256"] = digest(b"unrelated source")
+        self.persist()
+        self.reject("differs from the tracked source inventory")
+
+    def test_handoff_source_patch_digest_must_match_committed_source_profile(self):
+        self.data["runtime"]["provenance"]["patches_sha256"] = digest(b"unrecorded patches")
+        self.persist()
+        self.reject("empty post-commit patch list")
+
+    def test_inventory_raw_bytes_are_bound_independently_of_handoff_artifact(self):
+        self.artifact("sdk/SOURCE_INPUTS.json", "data", b"{}")
+        self.persist()
+        self.reject("inventory bytes differ")
+
+    def test_source_inventory_evidence_is_required(self):
+        record = json.loads((self.sdk / "SOURCE_RUNTIME.json").read_text())
+        del record["source_inventory_record"]
+        with self.assertRaisesRegex(handoff.HandoffError, "requires its bound SOURCE_INPUTS.json"):
+            consumer.verify_source_inputs(self.sdk, record, self.data)
+
+    def test_abi_input_hashes_must_agree_with_complete_source_inventory(self):
+        record = json.loads((self.sdk / "SOURCE_RUNTIME.json").read_text())
+        record["source_abi_inputs"]["libc/intrin/fds.h"] = digest(b"different ABI")
+        with self.assertRaisesRegex(handoff.HandoffError, "Source ABI input differs"):
+            consumer.verify_source_inputs(self.sdk, record, self.data)
+
+    def test_recipe_hash_must_agree_with_complete_source_inventory(self):
+        record = json.loads((self.sdk / "SOURCE_RUNTIME.json").read_text())
+        record["producer"]["sha256"] = digest(b"different recipe")
+        with self.assertRaisesRegex(handoff.HandoffError, "Source package recipe differs"):
+            consumer.verify_source_inputs(self.sdk, record, self.data)
+
+    def test_source_runtime_cannot_add_post_commit_patches(self):
+        record = json.loads((self.sdk / "SOURCE_RUNTIME.json").read_text())
+        record["source_patches"] = ["unrecorded.patch"]
+        with self.assertRaisesRegex(handoff.HandoffError, "empty post-commit patch list"):
+            consumer.verify_source_inputs(self.sdk, record, self.data)
 
     def test_source_tool_role_cannot_select_another_sdk_program(self):
         self.data["toolchain"]["c_compiler"] = self.data["toolchain"]["ape_linker"]

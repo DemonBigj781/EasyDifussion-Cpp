@@ -19,17 +19,18 @@ not a smaller replacement scope.
   snapshot have been reviewed. See [source baselines](source-baselines.json).
 - No application code, dependency pin, runtime, UI, training implementation,
   or workflow is changed by this initial checkpoint.
-- No build, behavioral CPU test, software-WebGPU test, physical-GPU test, paid
-  resource operation, or workflow dispatch has been performed for this checkpoint.
+- No application/dependency build, model inference, software-WebGPU execution,
+  physical-GPU test, paid resource operation, or workflow dispatch has been
+  performed for this checkpoint.
 - The newer Cosmopolitan foundation has not yet been integrated. The existing
   foundation pin remains intact until its compatible source/runtime/toolchain
   handoff is established.
 - A [versioned static handoff validator](HANDOFF.md) is implemented. It binds
   declared compiler, header, CRT, C++ ABI and
   component identities to exported artifact bytes; it does not select a new
-  toolchain or establish runtime correctness. Contract tests are authored but
-  remain unrun. Only Python bytecode compilation and static review have been
-  performed during this implementation checkpoint.
+  toolchain or establish runtime correctness. Python bytecode compilation,
+  whitespace checks and 91 non-model handoff/consumer/routing tests pass.
+  These synthetic and mocked cases do not invoke a real SDK or model.
 - The [explicit source-runtime build consumer](CONSUMER.md) is implemented
   behind a complete-export selection. It leaves the default SDK and pin
   unchanged and refuses incomplete/mixed inputs. No compatible export has
@@ -42,9 +43,9 @@ not a smaller replacement scope.
 2. Account for and implement the capabilities represented across all three
    application branches. Preserve distinct behavior; do not substitute a
    wholesale branch merge for a feature and contract review.
-3. Complete implementation before behavioral CPU validation. Compilation and
-   static inspection may occur during implementation, provided they do not
-   implicitly launch runtime probes or tests.
+3. Basic non-model tests, compilation and static inspection may occur during
+   implementation. Do not launch CPU/GPU model inference. Broader runtime
+   validation still needs its own deliberate scope and permission.
 4. Run CPU validation before GPU validation. GPU behavior remains unverified
    until it is actually exercised under a separately authorized plan.
 

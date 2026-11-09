@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Contract tests. Do not run until the implementation-phase test gate opens."""
+"""Non-model handoff contract tests using synthetic local artifact fixtures."""
 
 import copy
 import hashlib

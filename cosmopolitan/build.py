@@ -409,17 +409,17 @@ def main():
         parser.error("source-runtime environment overrides require an explicit complete foundation handoff")
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
-    lock = (out / "build.lock").open("w")
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    mode = "prepare" if args.prepare_only else "dependencies" if args.dependencies_only else "application"
-    cache = BuildCache(args.compiler_launcher, out, mode)
-    try:
-        build_application(args, out, cache)
-    except BaseException as error:
-        cache.finish(error)
-        raise
-    else:
-        cache.finish()
+    with (out / "build.lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        mode = "prepare" if args.prepare_only else "dependencies" if args.dependencies_only else "application"
+        cache = BuildCache(args.compiler_launcher, out, mode)
+        try:
+            build_application(args, out, cache)
+        except BaseException as error:
+            cache.finish(error)
+            raise
+        else:
+            cache.finish()
 
 
 def build_application(args, out, cache):
@@ -465,7 +465,8 @@ def build_application(args, out, cache):
     # A missing/failed backend is a build failure; never emit a CPU-only
     # application under the all-in-one backend build's name.
     if selected:
-        software_metadata = selected["link_manifest"]
+        from foundation_consumer import write_link_view
+        software_metadata = write_link_view(out / ("foundation-source-" + identity), selected)
     else:
         with cache.phase("software_webgpu_dependencies"):
             run(software_command, env=cache.env)
@@ -501,8 +502,11 @@ def build_application(args, out, cache):
     if args.cache_replay:
         with cache.phase("replay_real_application_objects"):
             cache.replay(build, ninja, env)
-    if selected and source_selection(args) != selected:
-        raise RuntimeError("Source foundation changed during application compilation")
+    if selected:
+        if source_selection(args) != selected:
+            raise RuntimeError("Source foundation changed during application compilation")
+        if software_metadata.is_symlink() or digest(software_metadata) != selected["link_view_sha256"]:
+            raise RuntimeError("Generated foundation view changed during application compilation")
     if args.libraries_only:
         print("Shared GGML, llama.cpp, stable-diffusion.cpp, and UI static targets built")
         return
@@ -528,6 +532,9 @@ def build_application(args, out, cache):
         metadata["cosmocc"] = {"version": "source-built", **selected["runtime"]}
         metadata["foundation_handoff"] = {
             **selected["handoff_report"], "manifest_sha256": selected["handoff_sha256"],
+            "source_link_sha256": selected["link_sha256"],
+            "generated_link_sha256": selected["link_view_sha256"],
+            "export_root": str(selected["export_root"]),
             "selection_identity_sha256": selected["selection_identity_sha256"],
             "toolchain_selected": True, "application_compiled": True,
             "build_path": "explicit-prebuilt-source-runtime",

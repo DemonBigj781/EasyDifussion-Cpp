@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Argument-routing cases. Authored only; execution waits for the CPU gate."""
+"""Non-model argument-routing cases; application work and subprocesses are mocked."""
 
 import importlib.util
 import os
