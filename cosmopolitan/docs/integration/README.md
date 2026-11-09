@@ -24,12 +24,16 @@ not a smaller replacement scope.
 - The newer Cosmopolitan foundation has not yet been integrated. The existing
   foundation pin remains intact until its compatible source/runtime/toolchain
   handoff is established.
-- A [versioned static handoff validator](HANDOFF.md) is now implemented outside
-  the active build path. It binds declared compiler, header, CRT, C++ ABI and
+- A [versioned static handoff validator](HANDOFF.md) is implemented. It binds
+  declared compiler, header, CRT, C++ ABI and
   component identities to exported artifact bytes; it does not select a new
   toolchain or establish runtime correctness. Contract tests are authored but
-  remain unrun. Only Python bytecode compilation and static review are allowed
-  during this implementation checkpoint.
+  remain unrun. Only Python bytecode compilation and static review have been
+  performed during this implementation checkpoint.
+- The [explicit source-runtime build consumer](CONSUMER.md) is implemented
+  behind a complete-export selection. It leaves the default SDK and pin
+  unchanged and refuses incomplete/mixed inputs. No compatible export has
+  been built or selected; foundation activation remains pending.
 
 ## Required order
 
@@ -70,8 +74,8 @@ reorganization, and an additional LTX video model by Lightricks whose exact
 version is not confirmed. These are pending inputs, not code assumed present in this snapshot.
 Reconcile the actual diffs when available; do not guess a model version or
 replace those changes with this branch's older files.
-The reported LTX model test did not exercise FP8 math modes; it must not be
-used as FP8 correctness evidence.
+The reported LTX model run used an unspecified alternate execution path.
+FP8 matrix multiplication was not tested and must remain unverified.
 
 For every capability, retain the source implementation or an explicit
 replacement mapping until native behavior and later validation are accounted
@@ -111,6 +115,13 @@ older hardware. Preserve and account for both paths; Vulkan availability is
 not equivalent to satisfying WebGPU's current ShaderF16/subgroup requirements.
 These targets are requirements, not tested support claims. No GPU test or
 paid resource use is authorized by this inventory.
+
+FP8 compatibility is required on older devices, including the Ampere RTX 3090,
+even when conversion or emulation is slower. Preserve the format's semantics
+and distinguish model storage precision, conversion and actual arithmetic.
+Do not infer Hopper-native FP8 capability for Ampere or report a fallback as
+native FP8. Apply compatibility work only when the model/operation requires
+it, avoiding conversion and overhead on paths that can run without it.
 
 ## Foundation handoff contract
 

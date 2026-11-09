@@ -2,8 +2,10 @@
 
 `cosmopolitan/foundation_handoff.py` is a host-side, standard-library-only
 validator for a completed foundation export. It never launches a compiler,
-application, runtime probe or model. It does not select a toolchain or update
-the application pin. The current application build remains unchanged.
+application, runtime probe or model. The standalone validator does not select
+a toolchain or update the application pin. A separate, explicitly selected
+[build consumer](CONSUMER.md) can use a complete source-runtime export after
+additional checks. The default application build and its pin remain unchanged.
 
 The producer and consumer agree on exact input identities before changing
 the compiler, runtime and dependency integration together. A successful
@@ -151,10 +153,10 @@ fallback is produced.
 ## Activation and test status
 
 The current stock-SDK preparation path does not emit this new contract and
-has not been silently relabeled as a source-runtime foundation. The new
-validator remains outside the build path until the completed foundation can
-export it and the consumer actually selects its compiler, headers, CRT,
-runtime archives, Rust standard library and final linker consistently.
+has not been silently relabeled as a source-runtime foundation. The optional
+consumer requires a complete export matching the committed pin and selects
+its compiler, headers, CRT, runtime archives, Rust delivery and final linker
+together. No compatible source-runtime export has been built or consumed yet.
 
 Contract tests are authored in `cosmopolitan/tests/test_foundation_handoff.py`.
 They have not been run in this implementation checkpoint. No CPU behavioral

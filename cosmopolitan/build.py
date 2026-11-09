@@ -355,6 +355,15 @@ class BuildCache:
             print("Build/cache report: " + str(self.path), flush=True)
 
 
+def source_selection(args):
+    from foundation_consumer import select_foundation
+    pin = json.loads((HERE / "software-webgpu/PIN.json").read_text())
+    patches = {str(path.relative_to(HERE)): digest(path)
+               for path in sorted((HERE / "backend/patches").glob("*.patch"))}
+    return select_foundation(args.foundation_handoff, args.foundation_root, args.runtime_sdk,
+                             args.software_webgpu_metadata, pin=pin, application_patches=patches)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=HERE / "out")
@@ -368,6 +377,12 @@ def main():
                         help="cache for the pinned static WGPU/Mesa/LLVM dependencies")
     parser.add_argument("--foundation-source", type=Path,
                         help="local Git object source for the exact pinned software WebGPU commit")
+    parser.add_argument("--foundation-handoff", type=Path,
+                        help="verified complete source-runtime handoff; requires the three export path options")
+    parser.add_argument("--foundation-root", type=Path, help="materialized source foundation export root")
+    parser.add_argument("--runtime-sdk", type=Path, help="complete source SDK inside the verified export")
+    parser.add_argument("--software-webgpu-metadata", type=Path,
+                        help="prebuilt application-patched source-runtime LINK.json inside the export")
     parser.add_argument("--compiler-launcher", default=os.environ.get("COSMO_COMPILER_LAUNCHER", "none"),
                         help="none (default), sccache, or its executable path; supported version 0.16.0")
     parser.add_argument("--cache-replay", action="store_true",
@@ -377,6 +392,21 @@ def main():
         parser.error("--cache-replay requires a cached full application build")
     if args.jobs < 1:
         parser.error("--jobs must be positive")
+    source_options = (args.foundation_handoff, args.foundation_root, args.runtime_sdk,
+                      args.software_webgpu_metadata)
+    args.source_selection = None
+    if any(source_options):
+        if not all(source_options):
+            parser.error("source runtime requires --foundation-handoff, --foundation-root, --runtime-sdk and --software-webgpu-metadata")
+        if args.foundation_source or args.software_webgpu_out:
+            parser.error("a prebuilt source handoff cannot be combined with legacy dependency staging options")
+        if args.compiler_launcher != "none" or args.cache_replay:
+            parser.error("source-runtime compiler caching requires separate preprocessing qualification; use --compiler-launcher none")
+        # Keep the committed pin authoritative. This option cannot silently
+        # upgrade it or activate an unreviewed candidate foundation revision.
+        args.source_selection = source_selection(args)
+    elif os.environ.get("COSMO_RUNTIME_PROFILE") == "source-built" or os.environ.get("COSMO_RUNTIME_SDK"):
+        parser.error("source-runtime environment overrides require an explicit complete foundation handoff")
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     lock = (out / "build.lock").open("w")
@@ -393,11 +423,25 @@ def main():
 
 
 def build_application(args, out, cache):
+    selected = args.source_selection
+    if selected and args.dependencies_only:
+        print("Verified prebuilt source-runtime dependencies: " + str(selected["link_manifest"]))
+        return
     with cache.phase("prepare_sdk_and_tools"):
-        sdk = sdk_setup(out)
+        sdk = selected["sdk"] if selected else sdk_setup(out)
         cmake, ninja = host_tools(out)
-        wrappers = make_wrappers(out, sdk)
-        if cache.launcher:
+        if selected:
+            from foundation_consumer import write_wrappers
+            identity = selected["selection_identity_sha256"]
+            wrappers = write_wrappers(out / ("toolchain-source-" + identity), selected)
+            cache.report["configuration"] = {
+                "enabled": False, "wrapper_revision": "source-direct-v1",
+                "source_runtime": selected["runtime"], "handoff": selected["handoff_report"],
+                "wrapper_sha256": {name: digest(wrappers / name) for name in ("cc", "cxx", "ar", "ranlib", "strip")},
+            }
+        else:
+            wrappers = make_wrappers(out, sdk)
+        if cache.launcher and not selected:
             cache.report["configuration"]["preprocessing_shim"] = {
                 "sdk_driver_sha256": digest(sdk / "bin/cosmocross"),
                 "shim_sha256": digest(wrappers / "cosmocross-preprocess.sh"),
@@ -406,27 +450,41 @@ def build_application(args, out, cache):
             }
     with cache.phase("prepare_application_source"):
         source, shared, fingerprint = prepare_source(out)
-    shutil.copy2(sdk / "bin/ape-x86_64.elf", out / "ape-x86_64.elf")
+    loader = selected["tools"]["ape_loader"] if selected else sdk / "bin/ape-x86_64.elf"
+    shutil.copy2(loader, out / "ape-x86_64.elf")
     software_out = (args.software_webgpu_out or out / "software-webgpu").resolve()
     software_command = [sys.executable, HERE / "software-webgpu/prepare.py",
                         "--out", software_out, "--sdk", sdk, "--jobs", args.jobs]
     if args.foundation_source:
         software_command.extend(["--foundation-source", args.foundation_source.resolve()])
     if args.prepare_only:
-        run([*software_command, "--stage", "prepare"], env=cache.env)
+        if not selected:
+            run([*software_command, "--stage", "prepare"], env=cache.env)
         print("Prepared source: " + str(source))
         return
     # A missing/failed backend is a build failure; never emit a CPU-only
     # application under the all-in-one backend build's name.
-    with cache.phase("software_webgpu_dependencies"):
-        run(software_command, env=cache.env)
-    software_metadata = software_out / "LINK.json"
+    if selected:
+        software_metadata = selected["link_manifest"]
+    else:
+        with cache.phase("software_webgpu_dependencies"):
+            run(software_command, env=cache.env)
+        software_metadata = software_out / "LINK.json"
     if args.dependencies_only:
         print("Prepared static software WebGPU dependencies: " + str(software_metadata))
         return
-    env = dict(cache.env, COSMO_SDK=str(sdk), COSMO_BUILD_TOOLS=str(wrappers))
+    if selected:
+        # Do not let ambient include/library/compiler overrides turn a verified
+        # source SDK into a mixed build. Host utilities still come from PATH.
+        env = {key: cache.env[key] for key in
+               ("HOME", "PATH", "TMPDIR", "TEMP", "TMP", "USER", "LOGNAME", "SYSTEMROOT")
+               if key in cache.env}
+        env.update(LC_ALL="C", COSMO_RUNTIME_PROFILE="source-built", COSMO_RUNTIME_SDK=str(sdk))
+    else:
+        env = dict(cache.env)
+    env.update(COSMO_SDK=str(sdk), COSMO_BUILD_TOOLS=str(wrappers))
     env["PATH"] = str(wrappers) + os.pathsep + str(out / "tools/bin") + os.pathsep + env["PATH"]
-    build = out / "build"
+    build = out / ("build-source-" + identity) if selected else out / "build"
     with cache.phase("configure_application"):
         run([cmake, "-S", HERE, "-B", build, "-G", "Ninja",
          "-DCMAKE_TOOLCHAIN_FILE=" + str(HERE / "cmake/cosmocc.cmake"),
@@ -443,13 +501,19 @@ def build_application(args, out, cache):
     if args.cache_replay:
         with cache.phase("replay_real_application_objects"):
             cache.replay(build, ninja, env)
+    if selected and source_selection(args) != selected:
+        raise RuntimeError("Source foundation changed during application compilation")
     if args.libraries_only:
         print("Shared GGML, llama.cpp, stable-diffusion.cpp, and UI static targets built")
         return
     debug = build / "bin/easy-diffusion.com.dbg"
     linked = out / "easy-diffusion.unpacked.exe"
-    run([sdk / "bin/ape-x86_64.elf", sdk / "bin/apelink", "-o", linked,
-         "-l", sdk / "bin/ape-x86_64.elf", debug])
+    if selected:
+        from foundation_consumer import tool_command
+        package_command = tool_command(selected["tools"]["ape_linker"], loader)
+    else:
+        package_command = [loader, sdk / "bin/apelink"]
+    run([*package_command, "-o", linked, "-l", loader, debug])
     set_stack(linked)
     shutil.copy2(debug, out / "easy-diffusion.com.dbg")
     metadata = {"cosmocc": {"version": SDK_VERSION, "url": SDK_URL, "sha256": SDK_SHA256},
@@ -460,7 +524,16 @@ def build_application(args, out, cache):
                 "vocabulary_translation_units": 12,
                 "software_webgpu": json.loads(software_metadata.read_text()),
                 "software_webgpu_metadata_sha256": digest(software_metadata)}
+    if selected:
+        metadata["cosmocc"] = {"version": "source-built", **selected["runtime"]}
+        metadata["foundation_handoff"] = {
+            **selected["handoff_report"], "manifest_sha256": selected["handoff_sha256"],
+            "selection_identity_sha256": selected["selection_identity_sha256"],
+            "toolchain_selected": True, "application_compiled": True,
+            "build_path": "explicit-prebuilt-source-runtime",
+        }
     recipe_files = [HERE / "build.py", HERE / "build.sh", HERE / "CMakeLists.txt"]
+    recipe_files.extend(HERE / name for name in ("foundation_handoff.py", "foundation_consumer.py"))
     for directory in ("cmake", "patches", "app-patches", "software-webgpu", "backend", "src"):
         recipe_files.extend(p for p in (HERE / directory).rglob("*") if p.is_file())
     metadata["build_recipe_sha256"] = {
