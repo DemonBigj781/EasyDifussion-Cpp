@@ -24,6 +24,12 @@ not a smaller replacement scope.
 - The newer Cosmopolitan foundation has not yet been integrated. The existing
   foundation pin remains intact until its compatible source/runtime/toolchain
   handoff is established.
+- A [versioned static handoff validator](HANDOFF.md) is now implemented outside
+  the active build path. It binds declared compiler, header, CRT, C++ ABI and
+  component identities to exported artifact bytes; it does not select a new
+  toolchain or establish runtime correctness. Contract tests are authored but
+  remain unrun. Only Python bytecode compilation and static review are allowed
+  during this implementation checkpoint.
 
 ## Required order
 
@@ -54,6 +60,19 @@ contracts: compared with main it adds 622 blobs, removes 255, and modifies 231.
 These are Git tree counts, not feature counts or proof of functional parity.
 A file moved or present in a tree can still be incomplete or unreachable.
 
+The source commits in this checkpoint are audit snapshots, not a freeze on
+upstream development. Main may continue receiving minor edits. Re-read all
+three upstream heads before integration, compare changes since these recorded
+snapshots and reconcile them explicitly. Do not overwrite continuing work or
+move any existing branch as a side effect of updating this development branch.
+Reported but not yet submitted main changes include an Anima difference, UI
+reorganization, and an additional LTX video model by Lightricks whose exact
+version is not confirmed. These are pending inputs, not code assumed present in this snapshot.
+Reconcile the actual diffs when available; do not guess a model version or
+replace those changes with this branch's older files.
+The reported LTX model test did not exercise FP8 math modes; it must not be
+used as FP8 correctness evidence.
+
 For every capability, retain the source implementation or an explicit
 replacement mapping until native behavior and later validation are accounted
 for. Track implementation and verification separately. A rendered page, a
@@ -68,6 +87,30 @@ training families, data preparation, optimizers, sampling, export and resume.
 The partial native SD 1.5 trainer is not assumed correct or complete.
 Python-exclusive training and transformation paths need native implementations
 or compatible custom interfaces before their deployed Python path is removed.
+
+### Required hardware accounting
+
+Preserve per-device backend choices, capabilities, compilation flags and memory
+constraints. The currently identified targets are:
+
+- NVIDIA V100; exact memory capacity and configuration remain unspecified.
+- NVIDIA P102-100; exact memory capacity and configuration remain unspecified.
+- Dell NVIDIA RTX 3090 24 GB, part 0N78PC, Ampere.
+- Intel XG310 with four independent 8 GB devices. Do not treat this as one
+  automatically pooled 32 GB device.
+- Steam Deck `gfx1033`; preserve its integrated/shared-memory constraints.
+- Radeon RX 580 2048SP; do not substitute the capability/compilation assumptions
+  of a differently configured RX 580.
+- Jetson AGX Xavier 32 GB developer kit: ARM64/Volta, JetPack 5/CUDA 11.4,
+  shared system/device memory. Preserve existing Xavier build flags and its
+  distinct toolchain/runtime requirements. An ARM64 manifest validator is not
+  evidence of a completed ARM64 application port.
+
+Direct Vulkan is an important backend alongside WebGPU, particularly for
+older hardware. Preserve and account for both paths; Vulkan availability is
+not equivalent to satisfying WebGPU's current ShaderF16/subgroup requirements.
+These targets are requirements, not tested support claims. No GPU test or
+paid resource use is authorized by this inventory.
 
 ## Foundation handoff contract
 
