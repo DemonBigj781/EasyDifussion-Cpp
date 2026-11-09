@@ -1,0 +1,125 @@
+{
+  "format": 1,
+  "review_date_utc": "2026-11-09",
+  "repository": "https://github.com/DemonBigj781/EasyDifussion-Cpp",
+  "development_branch": "dev/cosmopolitan-foundation-integration",
+  "development_base": "0f10cd4ab32213fe90e69c14d48de353ef698577",
+  "scope": "Read-only Git tree and workflow inventory. Counts refer to blobs, not features, active endpoints, correctness or verified parity.",
+  "baselines": [
+    {
+      "branch": "main",
+      "commit": "b42704a624652a53099fbc994e9a6b7648cd3b0c",
+      "blob_count": 7924,
+      "recursive_tree_truncated": false
+    },
+    {
+      "branch": "Theory",
+      "commit": "aa54da093aeeb9fa9ce34163f73d5797c31c316d",
+      "blob_count": 8291,
+      "recursive_tree_truncated": false
+    },
+    {
+      "branch": "cosmopolitan-test",
+      "commit": "0f10cd4ab32213fe90e69c14d48de353ef698577",
+      "blob_count": 8538,
+      "recursive_tree_truncated": false
+    }
+  ],
+  "comparisons": [
+    {
+      "base": "main",
+      "head": "cosmopolitan-test",
+      "added_blobs": 615,
+      "removed_blobs": 1,
+      "modified_blobs": 5,
+      "removed_paths": [
+        ".github/workflows/##0-All-Toolchain-Image.yaml"
+      ],
+      "modified_paths": [
+        {
+          "path": ".gitignore",
+          "base_blob": "dda56e3e14a3b351877e98cd3ed6e2caaecab0e5",
+          "head_blob": "43bc675ffdd78fde873b455bc934209ba387e2d4"
+        },
+        {
+          "path": "README.md",
+          "base_blob": "5bb8b3a11b60f316be6e70c3eff676b564076dac",
+          "head_blob": "2a35c751c0cd0f68701148049ec7c191df46c3be"
+        },
+        {
+          "path": "source/sdkit3-port-source/stable-diffusion.cpp/ggml/src/ggml-webgpu/ggml-webgpu-shader-lib.hpp",
+          "base_blob": "66c1c3c8977e38c61286962d0defa2ff4ac28c9c",
+          "head_blob": "9b3fd11ee2e1f4046dda3ce4af35b27e900811b7"
+        },
+        {
+          "path": "source/sdkit3-port-source/stable-diffusion.cpp/ggml/src/ggml-webgpu/ggml-webgpu.cpp",
+          "base_blob": "c001cda7d116c8a34d76de1281c292e222bcc402",
+          "head_blob": "d7f51da69a95f040915d81eca78544c33eb3897b"
+        },
+        {
+          "path": "source/sdkit3-port-source/third_party/asio/detail/config.hpp",
+          "base_blob": "14cf8cd78b4897b1b4798802baae75b26b0c7b06",
+          "head_blob": "3c64addde3aca46ce2cc6f9df2cc6f94fffa5568"
+        }
+      ]
+    },
+    {
+      "base": "main",
+      "head": "Theory",
+      "added_blobs": 622,
+      "removed_blobs": 255,
+      "modified_blobs": 231
+    },
+    {
+      "base": "cosmopolitan-test",
+      "head": "Theory",
+      "added_blobs": 622,
+      "removed_blobs": 869,
+      "modified_blobs": 234
+    }
+  ],
+  "current_foundation_pin": {
+    "format": 1,
+    "repository": "https://github.com/DemonBigj781/cosmopolitan-lua.git",
+    "revision": "c2a7b3f8c871e44ae1e3fc8db36759c7b1829326",
+    "paths": [
+      "third_party/llvm_cosmo",
+      "third_party/lavapipe",
+      "third_party/wgpu_native",
+      "third_party/rust_ape",
+      "LICENSE"
+    ],
+    "archive_sha256": "e7a9f22763e6d7b5777dd200ad00ab31a6d9c8afa877fec0b145ff8bb8d730be",
+    "wgpu_native_version": "29.0.1.1",
+    "mesa_version": "25.2.8",
+    "llvm_version": "19.1.7",
+    "cosmocc_version": "4.0.2",
+    "rust_toolchain": "nightly-2026-07-28"
+  },
+  "workflow_review": {
+    "definition_count": 67,
+    "automatic_push_workflows": [
+      {
+        "path": ".github/workflows/cosmopolitan-test.yml",
+        "branches": [
+          "cosmopolitan-test"
+        ]
+      },
+      {
+        "path": ".github/workflows/cosmopolitan-vast-test.yml",
+        "branches": [
+          "cosmopolitan-test"
+        ]
+      }
+    ],
+    "all_other_triggers": "workflow_dispatch or workflow_call",
+    "workflow_dispatches_performed": 0
+  },
+  "verification": {
+    "compilation": "not run",
+    "behavioral_cpu": "not run; implementation must finish first",
+    "software_webgpu": "not run",
+    "physical_gpu": "not run",
+    "paid_gpu": "prohibited"
+  }
+}
