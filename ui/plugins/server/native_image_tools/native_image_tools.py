@@ -3,6 +3,7 @@
 import base64
 import binascii
 import json
+import math
 import os
 import subprocess
 import sys
@@ -50,6 +51,15 @@ class ObjectRemovalRequest(BaseModel):
     image: str
     mask: str
     feather: int = 4
+
+
+class SAMSegmentationRequest(BaseModel):
+    image: str
+    model: str
+    prompt_type: str
+    point: Dict[str, float] | None = None
+    box: Dict[str, float] | None = None
+    multimask: bool = False
 
 
 def _decode_image(value: str) -> bytes:
@@ -273,13 +283,140 @@ def _backend_tool(name: str, override: str) -> Path:
         except Exception:
             pass
         sdkit_root = Path(app.ROOT_DIR) / "backends" / "sdkit3"
-        candidates = ([backend_dir / name] if backend_dir else [])
+        candidates = ([backend_dir / name, backend_dir / f"{name}.exe"] if backend_dir else [])
         candidates.extend(sorted(sdkit_root.glob(f"*/{name}")))
-        candidates.append(Path(app.ROOT_DIR) / "backends" / "tools" / name)
+        candidates.extend(sorted(sdkit_root.glob(f"*/{name}.exe")))
+        candidates.extend([
+            Path(app.ROOT_DIR) / "backends" / "tools" / name,
+            Path(app.ROOT_DIR) / "backends" / "tools" / f"{name}.exe",
+        ])
+        source_build = Path(app.ROOT_DIR) / "source" / "sdkit3-port-source" / "build"
+        candidates.extend(sorted(source_build.glob(f"*/bin/{name}")))
+        candidates.extend(sorted(source_build.glob(f"*/bin/{name}.exe")))
+        candidates.extend(sorted(source_build.glob(f"bin/{name}")))
+        candidates.extend(sorted(source_build.glob(f"bin/{name}.exe")))
     for candidate in candidates:
         if candidate.is_file() and os.access(str(candidate), os.X_OK):
             return candidate
     raise FileNotFoundError(f"Native helper is not installed: {name}")
+
+
+def _sam_binary() -> Path:
+    return _backend_tool("sam", "SDKIT_SAM_BINARY")
+
+
+def _sam_model_path(model: str) -> Path:
+    if not isinstance(model, str) or not model.strip():
+        raise ValueError("SAM model is required")
+    from easydiffusion.model_manager import get_model_dirs, resolve_model_to_use
+
+    resolved = Path(resolve_model_to_use(model.strip(), "sam"))
+    if not resolved.is_file():
+        raise FileNotFoundError(f"SAM model is not installed: {model}")
+    candidate = Path(os.path.realpath(resolved))
+    for model_dir in get_model_dirs("sam"):
+        root = Path(os.path.realpath(model_dir))
+        try:
+            if os.path.commonpath((str(root), str(candidate))) == str(root):
+                return candidate
+        except ValueError:
+            continue
+    raise ValueError("SAM model must be selected from a configured SAM model directory")
+
+
+def _coordinate(value, name: str) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    if not math.isfinite(number):
+        raise ValueError(f"{name} must be finite")
+    return number
+
+
+def _sam_prompt_arguments(request: SAMSegmentationRequest, width: int, height: int):
+    if request.prompt_type not in {"point", "box"}:
+        raise ValueError("SAM prompt_type must be 'point' or 'box'")
+    if request.prompt_type == "point":
+        if not request.point or request.box is not None:
+            raise ValueError("point prompt requires point coordinates only")
+        x = _coordinate(request.point.get("x"), "point x")
+        y = _coordinate(request.point.get("y"), "point y")
+        if not 0 <= x <= width or not 0 <= y <= height:
+            raise ValueError("point coordinates must be within the image")
+        arguments = ["-p", f"{x:g},{y:g}"]
+    else:
+        if not request.box or request.point is not None:
+            raise ValueError("box prompt requires box coordinates only")
+        x1 = _coordinate(request.box.get("x1"), "box x1")
+        y1 = _coordinate(request.box.get("y1"), "box y1")
+        x2 = _coordinate(request.box.get("x2"), "box x2")
+        y2 = _coordinate(request.box.get("y2"), "box y2")
+        if not (0 <= x1 < x2 <= width and 0 <= y1 < y2 <= height):
+            raise ValueError("box coordinates must be ordered and within the image")
+        arguments = ["-b", f"{x1:g},{y1:g},{x2:g},{y2:g}"]
+    return (["-sm"] if not request.multimask else []) + arguments
+
+
+def _run_sam(command, timeout: int):
+    with _PROCESS_LOCK:
+        completed = subprocess.run(
+            [str(value) for value in command],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+            env=os.environ.copy(),
+        )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "SAM helper failed"
+        raise RuntimeError(detail[-2000:])
+
+
+def segment_sam(request: SAMSegmentationRequest) -> Dict[str, Any]:
+    image = _decode_image(request.image)
+    with Image.open(BytesIO(image)) as opened:
+        width, height = opened.size
+    binary = _sam_binary()
+    model = _sam_model_path(request.model)
+    prompt_arguments = _sam_prompt_arguments(request, width, height)
+    source_path = None
+    output_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as source:
+            source.write(image)
+            source_path = source.name
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as output:
+            output_path = output.name
+        _run_sam(
+            [
+                binary,
+                "--model", model,
+                "--inp", source_path,
+                "--out", output_path,
+                *prompt_arguments,
+            ],
+            timeout=300,
+        )
+        with open(output_path, "rb") as output:
+            mask = output.read()
+        if not mask:
+            raise RuntimeError("SAM helper returned an empty mask")
+        try:
+            with Image.open(BytesIO(mask)) as opened:
+                if opened.format != "PNG":
+                    raise RuntimeError("SAM helper returned a non-PNG mask")
+                opened.verify()
+        except (OSError, ValueError) as exc:
+            raise RuntimeError("SAM helper returned an invalid PNG mask") from exc
+        return {"mask": _png_data_url(mask), "width": width, "height": height}
+    finally:
+        for path in (source_path, output_path):
+            if path:
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
 
 
 def _detector_model(kind: str) -> Path:

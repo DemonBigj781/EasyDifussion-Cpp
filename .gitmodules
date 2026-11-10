@@ -1,0 +1,3 @@
+[submodule "source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/libwebm"]
+	path = source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/libwebm
+	url = https://github.com/webmproject/libwebm.git

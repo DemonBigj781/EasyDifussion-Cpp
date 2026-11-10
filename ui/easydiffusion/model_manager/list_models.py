@@ -149,6 +149,8 @@ def set_model_metadata(model_type, models, exts):
                 # log.info(f"Could not identify model type for {m['abs_path']}: {e}")
             if sd_model_class:
                 m["tags"].append(sd_model_class)
+        elif model_type == "motion-module":
+            m["tags"].append("animatediff")
         elif model_type == "vae":
             try:
                 vae_family = identify_vae_latent_family(m["abs_path"])

@@ -20,6 +20,8 @@ const SETTINGS_IDS_LIST = [
     "width",
     "height",
     "num_inference_steps",
+    "tome_ratio",
+    "negative_guidance_min_sigma",
     "guidance_scale",
     "distilled_guidance_scale",
     "prompt_strength",

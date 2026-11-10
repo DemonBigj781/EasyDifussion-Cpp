@@ -73,6 +73,7 @@ public:
 
     ggml_backend_t runtime_backend(SDBackendModule module);
     ggml_backend_t params_backend(SDBackendModule module);
+    std::string runtime_assignment(SDBackendModule module) const;
 
     std::vector<ggml_backend_t> runtime_backends(SDBackendModule module);
 
@@ -104,6 +105,23 @@ ggml_status sd_backend_graph_compute_with_eval_callback(ggml_backend_t backend,
                                                         void* callback_eval_user_data);
 std::string sd_backend_resolve_name(const std::string& name);
 const char* sd_backend_module_name(SDBackendModule module);
+std::string sd_format_generation_failure(ggml_backend_t backend,
+                                         const std::string& module,
+                                         const std::string& assignment,
+                                         const std::string& cause,
+                                         const std::string& model,
+                                         size_t requested_bytes,
+                                         const std::string& failed_member = {});
+void sd_set_last_error(const std::string& message);
+void sd_clear_last_error();
+const std::string& sd_last_error();
+void sd_record_generation_failure(ggml_backend_t backend,
+                                  const std::string& module,
+                                  const std::string& assignment,
+                                  const std::string& cause,
+                                  const std::string& model = {},
+                                  size_t requested_bytes = 0,
+                                  const std::string& failed_member = {});
 void ggml_ext_im_set_f32_1d(const struct ggml_tensor* tensor, int i, float value);
 bool add_rpc_devices(const std::string& servers);
 #endif  // __SD_CORE_GGML_EXTEND_BACKEND_H__

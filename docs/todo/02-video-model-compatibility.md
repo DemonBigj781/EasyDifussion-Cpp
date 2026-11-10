@@ -12,6 +12,12 @@ Generalize the native video pipeline so new model families can be added without 
 6. Make frame count, width/height constraints, temporal compression, and FPS capability-driven.
 7. Add one additional model family first to prove the abstraction before adding more.
 
+## Deferred follow-ups
+These are later work, separate from the current SD1.5/SDXL video toggle, mutually exclusive EasyCache/TeaCache selection, and validated GIF output/display.
+
+- [ ] Evaluate AnimateDiff SD2 support using https://github.com/damian0815/AnimateDiff-sd2 as a reference. Verify matching SD2 motion weights, tensor mappings, conditioning, and prediction/scheduler behavior in the native C++ backend before expanding UI model-family eligibility. Do not assume SD1.5 motion adapters are interchangeable with SD2.
+- [ ] Evaluate https://github.com/N3oRay/AnimateHYBRID for reusable animation techniques. Audit actual motion-weight execution, dependencies, licensing, and reproducible quality/memory results before deciding whether to port anything; do not treat README claims or synthetic noise as verified motion-module inference.
+
 ## Likely code areas
 `source/sdkit3-port-source/`, stable-diffusion.cpp video model loading, server request schema, UI video controls, model manager, and tests.
 

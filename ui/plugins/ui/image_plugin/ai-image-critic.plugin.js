@@ -45,9 +45,9 @@
         <div class="collapsible-content settings-panel-entries">
             <p>Judge prompt adherence and image quality locally with llama.cpp. Select a complete vision bundle, or pair a standalone projector with its matching language GGUF.</p>
             <label for="${ID}-text-model">Language GGUF <small>(standalone projector only)</small></label>
-            <select id="${ID}-text-model"></select>
+            <input id="${ID}-text-model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="">
             <label for="${ID}-vision-model">Vision bundle / projector</label>
-            <select id="${ID}-vision-model"></select>
+            <input id="${ID}-vision-model" type="text" spellcheck="false" autocomplete="off" class="model-filter" data-path="">
             <label for="${ID}-compute-mode">Compute</label>
             <select id="${ID}-compute-mode">
                 <option value="gpu">GPU offload</option>
@@ -64,8 +64,8 @@
     if (typeof createCollapsibles === "function") createCollapsibles(panel)
     if (typeof prettifyInputs === "function") prettifyInputs(panel)
 
-    const textModel = document.getElementById(`${ID}-text-model`)
-    const visionModel = document.getElementById(`${ID}-vision-model`)
+    const textModel = new ModelDropdown(document.getElementById(`${ID}-text-model`), null, "No text GGUFs found")
+    const visionModel = new ModelDropdown(document.getElementById(`${ID}-vision-model`), null, "No vision GGUFs found")
     const computeMode = document.getElementById(`${ID}-compute-mode`)
     const gpuLayers = document.getElementById(`${ID}-gpu-layers`)
     const contextSize = document.getElementById(`${ID}-context`)
@@ -74,6 +74,8 @@
     gpuLayers.value = saved.gpuLayers ?? "99"
     computeMode.value = saved.computeMode ?? (gpuLayers.value === "0" ? "cpu" : "gpu")
     contextSize.value = saved.contextSize ?? "4096"
+    const textModelMetadata = new Map()
+    const visionModelMetadata = new Map()
 
     function updateComputeMode() {
         const cpuOnly = computeMode.value === "cpu"
@@ -117,37 +119,23 @@
         return data
     }
 
-    function fillSelect(select, values, selected, label) {
-        select.replaceChildren()
-        if (!values.length) {
-            const option = document.createElement("option")
-            option.value = ""
-            option.textContent = `No ${label} found`
-            select.appendChild(option)
-            return
-        }
+    function fillModelDropdown(dropdown, values, selected, metadata, label) {
+        metadata.clear()
         values.forEach((entry) => {
             const value = typeof entry === "string" ? entry : entry.model
-            const option = document.createElement("option")
-            option.value = value
-            option.textContent = typeof entry === "string"
-                ? entry
-                : `${value}${entry.kind === "bundle" ? " — complete bundle" : entry.kind === "bundle_projector" ? " — bundled projector" : ""}${entry.usable ? "" : " — incompatible"}`
-            option.title = typeof entry === "string" ? value : entry.detail
-            option.dataset.usable = typeof entry === "string" || entry.usable ? "true" : "false"
-            option.dataset.kind = typeof entry === "string" ? "language" : entry.kind
-            select.appendChild(option)
+            metadata.set(value, typeof entry === "string" ? { kind: "language", usable: true, detail: value } : entry)
         })
-        if (values.some((entry) => (typeof entry === "string" ? entry : entry.model) === selected)) {
-            select.value = selected
-        }
+        dropdown.inputModels = buildTree(values.map((entry) => ({ model: typeof entry === "string" ? entry : entry.model })))
+        dropdown.populateModels()
+        dropdown.modelFilter.placeholder = values.length ? `Select ${label}…` : `No ${label} found`
+        dropdown.value = metadata.has(selected) ? selected : ""
     }
 
     function updateModelPairControls() {
-        const kind = visionModel.selectedOptions[0]?.dataset.kind
+        const kind = visionModelMetadata.get(visionModel.value)?.kind
         const needsLanguageModel = kind === "projector"
         textModel.disabled = !needsLanguageModel
-        textModel.title = needsLanguageModel
+        textModel.modelFilter.title = needsLanguageModel
             ? "Select the language GGUF made for this standalone projector."
             : "The selected vision bundle supplies its own language model."
     }
@@ -156,8 +144,8 @@
         status.textContent = "Checking local GGUF models…"
         try {
             const inventory = await requestJson("/ai-critic/models")
-            fillSelect(textModel, inventory.text_models || [], readSettings().textModel, "text GGUFs")
-            fillSelect(visionModel, inventory.vision_models || [], readSettings().visionModel, "vision GGUFs")
+            fillModelDropdown(textModel, inventory.text_models || [], readSettings().textModel, textModelMetadata, "text GGUF")
+            fillModelDropdown(visionModel, inventory.vision_models || [], readSettings().visionModel, visionModelMetadata, "vision GGUF")
             updateModelPairControls()
             const usable = (inventory.vision_models || []).filter((entry) => entry.usable).length
             if (!inventory.ready) {
@@ -302,8 +290,9 @@
             notify("Add and select a compatible vision GGUF and mmproj first.", true)
             return
         }
-        if (visionModel.selectedOptions[0]?.dataset.usable === "false") {
-            notify(visionModel.selectedOptions[0].title || "The selected vision GGUF has no projector.", true)
+        const selectedVision = visionModelMetadata.get(visionModel.value)
+        if (selectedVision && !selectedVision.usable) {
+            notify(selectedVision.detail || "The selected vision GGUF has no projector.", true)
             return
         }
         const button = this

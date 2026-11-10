@@ -5,10 +5,12 @@
   const API_ROOT = "/civitai-api/civitai"
   const SEARCH_ENDPOINT = `${API_ROOT}/search`
   const ENUMS_ENDPOINT = `${API_ROOT}/enums`
-  const IMAGES_ENDPOINT = `${API_ROOT}/global-images`
+  const IMAGES_ENDPOINT = `${API_ROOT}/images`
   const DOWNLOAD_ENDPOINT = `${API_ROOT}/download`
   const HF_API_ROOT = "/huggingface-api"
   const LS_SETTINGS_KEY = "civitaiSettings"
+  const LS_ENUMS_KEY = "civitaiEnumCache"
+  const LS_IMAGE_TAGS_KEY = "civitaiImageTags"
 
   // CivitAI enforces different sort enums for models vs. images; keep them separate.
   const SORT_OPTIONS = {
@@ -21,6 +23,7 @@
       "Most Reactions",
       "Most Comments",
       "Newest",
+      "Random",
     ],
     huggingface: [
       "Most Downloaded",
@@ -92,18 +95,24 @@
     const modelTypeEl = panel.querySelector(`#${PLUGIN_ID}-model-type`)
     const downloadQueueEl = panel.querySelector(`#${PLUGIN_ID}-queue`)
     const downloadQueueCountEl = panel.querySelector(`#${PLUGIN_ID}-queue-count`)
-    const modeEls = panel.querySelectorAll(`input[name="${PLUGIN_ID}-mode"]`)
-    const imagesLabel = panel.querySelector(`#${PLUGIN_ID}-images-label`)
     const helpEl = panel.querySelector(`#${PLUGIN_ID}-help`)
 
     const imgFiltersRow = panel.querySelector(`#${PLUGIN_ID}-imgfilters`)
     const postIdEl = panel.querySelector(`#${PLUGIN_ID}-postid`)
     const usernameEl = panel.querySelector(`#${PLUGIN_ID}-username`)
+    const imageSortEl = panel.querySelector(`#${PLUGIN_ID}-image-sort`)
+    const tagSearchEl = panel.querySelector(`#${PLUGIN_ID}-tag-search`)
+    const tagSuggestionsEl = panel.querySelector(`#${PLUGIN_ID}-tag-suggestions`)
+    const selectedTagsEl = panel.querySelector(`#${PLUGIN_ID}-selected-tags`)
+    const modeEls = panel.querySelectorAll(`input[name="${PLUGIN_ID}-mode"]`)
+    const tagCatalog = new Map(), selectedTags = new Map()
+    let suggestions = [], activeTagIndex = -1
+    let warmingTagCatalog = false
 
     // Paging state
     let currentPage = 1
-    let currentMode = "models" // models | images
     let currentProvider = "civitai"
+    let currentMode = "models"
     let activeSearch = null
     let activeSearchController = null
     let searchGeneration = 0
@@ -114,41 +123,37 @@
     let nextCursor = null
     const prevCursorStack = [] // stack of cursors for previous pages (cursor used to fetch that page)
 
-    function getMode() {
-      const checked = panel.querySelector(`input[name="${PLUGIN_ID}-mode"]:checked`)
-      return checked ? checked.value : "models"
-    }
-
-    function applyModeUI() {
-      currentMode = getMode()
-      imgFiltersRow.style.display = currentMode === "images" ? "flex" : "none"
-      baseModelEl.disabled = currentProvider === "huggingface" || currentMode !== "models"
-      modelTypeEl.disabled = baseModelEl.disabled
-      refreshSortOptions()
-    }
-
     function applyProviderUI() {
       currentProvider = providerEl.value === "huggingface" ? "huggingface" : "civitai"
-      const imageRadio = panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="images"]`)
       const isHuggingFace = currentProvider === "huggingface"
+      const imageRadio = panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="images"]`)
       imageRadio.disabled = isHuggingFace
-      imagesLabel.style.opacity = isHuggingFace ? "0.5" : "1"
-      if (isHuggingFace && getMode() === "images") {
-        panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="models"]`).checked = true
-      }
+      if (isHuggingFace && imageRadio.checked) panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="models"]`).checked = true
+      currentMode = panel.querySelector(`input[name="${PLUGIN_ID}-mode"]:checked`).value
+      const imageMode = currentMode === "images"
+      imgFiltersRow.style.display = isHuggingFace ? "none" : "flex"
       periodEl.disabled = isHuggingFace
-      baseModelEl.disabled = isHuggingFace || getMode() !== "models"
+      baseModelEl.disabled = isHuggingFace || imageMode
+      modelTypeEl.disabled = isHuggingFace || imageMode
+      sortEl.disabled = imageMode
+      sortEl.hidden = imageMode
+      panel.querySelector(`#${PLUGIN_ID}-model-filters`).style.display = imageMode ? "none" : "flex"
+      queryEl.hidden = imageMode
+      panel.querySelector(`#${PLUGIN_ID}-queue-panel`).hidden = imageMode
+      imageSortEl.querySelector('option[value="Random"]').disabled = !imageMode
+      if (!imageMode && imageSortEl.value === "Random") imageSortEl.value = "Newest"
       queryEl.placeholder = isHuggingFace
         ? "Search Hugging Face models or enter owner/repository"
         : "Search term or Civitai URN (blank browses)"
       helpEl.textContent = isHuggingFace
         ? "Browse Hugging Face model repositories and download supported weight files into your configured models folder."
-        : "Image search uses Civitai's images-v6 query when available and falls back to the public image API."
-      applyModeUI()
+        : imageMode ? "Browse images directly through the image API using selected autocomplete tags. No model cards or custom text queries."
+        : "Search models to see their bound images automatically. Model files and each model's image gallery stay separate."
+      refreshSortOptions()
     }
 
     function refreshSortOptions() {
-      const key = currentProvider === "huggingface" ? "huggingface" : currentMode
+      const key = currentProvider === "huggingface" ? "huggingface" : "models"
       const allowed = SORT_OPTIONS[key] || SORT_OPTIONS.models
       const current = sortEl.value
       sortEl.innerHTML = allowed.map((s) => `<option value="${s}">${s}</option>`).join("")
@@ -196,18 +201,161 @@
     }
 
     async function loadFilterOptions() {
+      function applyEnums(enums) {
+        if (!enums || !Array.isArray(enums.modelTypes) || !Array.isArray(enums.baseModels)) {
+          throw new Error("Invalid Civitai enum response")
+        }
+        addFilterOptions(modelTypeEl, enums.modelTypes)
+        addFilterOptions(baseModelEl, enums.baseModels)
+      }
       try {
-        // The server proxies Civitai's ModelType and BaseModel enums.
-        const res = await fetch(ENUMS_ENDPOINT)
+        const cached = JSON.parse(localStorage.getItem(LS_ENUMS_KEY) || "null")
+        if (cached) applyEnums(cached.enums)
+      } catch (_) {
+        console.warn("Cached Civitai enums unavailable; using built-in options until refresh")
+      }
+      try {
+        // Refresh on every UI load, without discarding usable cached choices.
+        const res = await fetch(ENUMS_ENDPOINT, {cache:"no-store"})
         const json = await safeJson(res)
         if (!res.ok || !json.ok) throw new Error("Could not load Civitai filter options")
-        addFilterOptions(modelTypeEl, json.modelTypes)
-        addFilterOptions(baseModelEl, json.baseModels)
+        applyEnums(json)
+        try {
+          localStorage.setItem(LS_ENUMS_KEY, JSON.stringify({fetchedAt:Date.now(),enums:json}))
+        } catch (_) {
+          console.warn("Civitai enums refreshed, but browser storage is unavailable")
+        }
       } catch (error) {
-        // Keep the built-in options and saved selections available on failure.
-        console.warn("Using built-in Civitai filter options", error)
+        console.warn("Using cached or built-in Civitai filter options", error)
       }
     }
+
+    function validTag(tag) {
+      return tag && Number.isSafeInteger(tag.id) && tag.id > 0 && typeof tag.name === "string" && tag.name.trim()
+    }
+
+    function rememberImageTags(items) {
+      let changed = false
+      for (const image of items) {
+        for (const tag of Array.isArray(image.tags) ? image.tags : []) {
+          if (!validTag(tag)) continue
+          if (tagCatalog.get(tag.id)?.name !== tag.name) {
+            tagCatalog.set(tag.id, {id:tag.id,name:tag.name})
+            changed = true
+          }
+        }
+      }
+      if (!changed) return
+      for (const id of tagCatalog.keys()) {
+        if (tagCatalog.size <= 10000) break
+        if (!selectedTags.has(id)) tagCatalog.delete(id)
+      }
+      try {localStorage.setItem(LS_IMAGE_TAGS_KEY, JSON.stringify([...tagCatalog.values()]))}
+      catch (_) {console.warn("Image tag cache could not be saved; current-session suggestions remain available")}
+      if (document.activeElement === tagSearchEl) showTagSuggestions()
+    }
+
+    async function warmTagCatalog() {
+      if (warmingTagCatalog || currentProvider !== "civitai") return
+      warmingTagCatalog = true
+      try {
+        const response = await fetch(`${IMAGES_ENDPOINT}?limit=20&sort=Most%20Reactions&nsfw=false`, {headers:headersForRequest(undefined,"civitai")})
+        const result = await safeJson(response)
+        if (!response.ok || !result.ok) throw new Error("Image tag discovery unavailable")
+        rememberImageTags(result.items || [])
+      } catch (_) {
+        console.warn("Using cached image tags; browse images to discover additional suggestions")
+      } finally {warmingTagCatalog = false}
+    }
+
+    function hideTagSuggestions() {
+      tagSuggestionsEl.hidden = true
+      tagSearchEl.setAttribute("aria-expanded", "false")
+      tagSearchEl.removeAttribute("aria-activedescendant")
+    }
+
+    function highlightTag(index) {
+      activeTagIndex = index
+      const options = [...tagSuggestionsEl.querySelectorAll('[role="option"]')]
+      options.forEach((option, i) => {
+        option.setAttribute("aria-selected", String(i === index))
+        option.style.background = i === index ? "var(--background-color3)" : "transparent"
+      })
+      if (options[index]) tagSearchEl.setAttribute("aria-activedescendant", options[index].id)
+      else tagSearchEl.removeAttribute("aria-activedescendant")
+    }
+
+    function chooseTag(tag) {
+      // Only catalog-backed suggestion objects can create a search filter.
+      const known = tagCatalog.get(tag?.id)
+      if (!known) return
+      selectedTags.set(known.id, known)
+      tagSearchEl.value = ""
+      hideTagSuggestions()
+      renderSelectedTags()
+      saveSettings()
+    }
+
+    function renderSelectedTags() {
+      selectedTagsEl.replaceChildren()
+      for (const tag of selectedTags.values()) {
+        const chip = document.createElement("button")
+        chip.type = "button"
+        chip.className = "secondaryButton"
+        chip.dataset.selectedTag = tag.id
+        chip.setAttribute("aria-label", `Remove ${tag.name}`)
+        chip.textContent = `${tag.name} ×`
+        chip.addEventListener("click", () => {selectedTags.delete(tag.id);renderSelectedTags();saveSettings()})
+        selectedTagsEl.appendChild(chip)
+      }
+    }
+
+    function showTagSuggestions() {
+      const query = tagSearchEl.value.trim().toLowerCase()
+      suggestions = [...tagCatalog.values()].filter(tag => !selectedTags.has(tag.id) && tag.name.toLowerCase().includes(query))
+        .sort((a,b) => Number(b.name.toLowerCase().startsWith(query)) - Number(a.name.toLowerCase().startsWith(query)) || a.name.localeCompare(b.name))
+        .slice(0,20)
+      tagSuggestionsEl.replaceChildren()
+      for (const [index,tag] of suggestions.entries()) {
+        const option = document.createElement("button")
+        option.type = "button"
+        option.id = `${PLUGIN_ID}-tag-option-${tag.id}`
+        option.dataset.tagId = tag.id
+        option.setAttribute("role", "option")
+        option.tabIndex = -1
+        option.style.cssText = "display:block;width:100%;text-align:left;overflow-wrap:anywhere;border:0;padding:8px;"
+        option.textContent = `${tag.name} · #${tag.id}`
+        option.addEventListener("pointerdown", event => event.preventDefault())
+        option.addEventListener("pointermove", () => highlightTag(index))
+        option.addEventListener("click", () => chooseTag(tag))
+        tagSuggestionsEl.appendChild(option)
+      }
+      if (!suggestions.length) {
+        const empty = document.createElement("small")
+        empty.textContent = "No matching cached image tags. Browse Images to discover more; custom terms are not accepted."
+        tagSuggestionsEl.appendChild(empty)
+      }
+      tagSuggestionsEl.hidden = false
+      tagSearchEl.setAttribute("aria-expanded", "true")
+      highlightTag(suggestions.length ? 0 : -1)
+    }
+
+    tagSearchEl.addEventListener("input", showTagSuggestions)
+    tagSearchEl.addEventListener("focus", () => {showTagSuggestions();if (!tagCatalog.size) warmTagCatalog()})
+    tagSearchEl.addEventListener("keydown", event => {
+      if (event.key === "Escape") {hideTagSuggestions();return}
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault()
+        if (tagSuggestionsEl.hidden) showTagSuggestions()
+        else if (suggestions.length) highlightTag((activeTagIndex + (event.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length)
+      } else if (event.key === "Enter") {
+        event.preventDefault()
+        if (!tagSuggestionsEl.hidden && suggestions[activeTagIndex]) chooseTag(suggestions[activeTagIndex])
+      }
+    })
+    document.addEventListener("click", event => {
+      if (event.target !== tagSearchEl && !tagSuggestionsEl.contains(event.target)) hideTagSuggestions()
+    })
 
     function saveSettings() {
       const settings = {
@@ -217,7 +365,9 @@
         apikey: apiKeyEl.value.trim(),
         huggingfaceToken: hfTokenEl.value.trim(),
         provider: currentProvider,
-        mode: getMode(),
+        imageSort: imageSortEl.value,
+        selectedTags: [...selectedTags.values()],
+        mode: currentMode,
         postId: (postIdEl.value || "").trim(),
         username: (usernameEl.value || "").trim(),
         baseModel: baseModelEl.value,
@@ -227,6 +377,11 @@
     }
 
     function loadSettings() {
+      try {
+        for (const tag of JSON.parse(localStorage.getItem(LS_IMAGE_TAGS_KEY) || "[]")) {
+          if (validTag(tag)) tagCatalog.set(tag.id, {id:tag.id,name:tag.name})
+        }
+      } catch (_) {console.warn("Saved image tag catalog unavailable")}
       const saved = localStorage.getItem(LS_SETTINGS_KEY)
       if (saved) {
         try {
@@ -239,6 +394,11 @@
           currentProvider = providerEl.value
           postIdEl.value = settings.postId || ""
           usernameEl.value = settings.username || ""
+          for (const tag of Array.isArray(settings.selectedTags) ? settings.selectedTags : []) {
+            if (validTag(tag) && tagCatalog.has(tag.id)) selectedTags.set(tag.id, tagCatalog.get(tag.id))
+          }
+          const mode = settings.mode === "images" ? "images" : "models"
+          panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="${mode}"]`).checked = true
           // Restore selections from live enums even before the next enum fetch.
           for (const [select, value] of [[baseModelEl, settings.baseModel], [modelTypeEl, settings.modelType]]) {
             const savedValue = typeof value === "string" ? value : ""
@@ -246,46 +406,50 @@
             select.value = savedValue
           }
 
-          const m = settings.mode === "images" ? "images" : "models"
-          const radio = panel.querySelector(`input[name="${PLUGIN_ID}-mode"][value="${m}"]`)
-          if (radio) radio.checked = true
-          currentMode = m
           refreshSortOptions()
-          const sortKey = currentProvider === "huggingface" ? "huggingface" : currentMode
+          const sortKey = currentProvider === "huggingface" ? "huggingface" : "models"
           const allowed = SORT_OPTIONS[sortKey] || []
           sortEl.value = allowed.includes(settings.sort) ? settings.sort : allowed[0]
+          const imageSort = settings.imageSort || settings.sort
+          imageSortEl.value = SORT_OPTIONS.images.includes(imageSort) ? imageSort : "Newest"
         } catch (e) {
           console.warn("Failed to parse CivitAI settings", e)
         }
       }
       applyProviderUI()
+      renderSelectedTags()
     }
 
     loadSettings()
     loadFilterOptions()
+    warmTagCatalog()
 
-    ;[sortEl, periodEl, baseModelEl, modelTypeEl, nsfwEl, apiKeyEl, hfTokenEl, postIdEl, usernameEl].forEach((el) =>
+    ;[sortEl, imageSortEl, periodEl, baseModelEl, modelTypeEl, nsfwEl, apiKeyEl, hfTokenEl, postIdEl, usernameEl].forEach((el) =>
       el.addEventListener("change", saveSettings)
-    )
-
-    modeEls.forEach((el) =>
-      el.addEventListener("change", () => {
-        applyModeUI()
-        saveSettings()
-      })
     )
 
     providerEl.addEventListener("change", () => {
       applyProviderUI()
       saveSettings()
+      resetSearchView()
+    })
+    modeEls.forEach(el => el.addEventListener("change", () => {
+      applyProviderUI()
+      saveSettings()
+      resetSearchView()
+    }))
+
+    function resetSearchView() {
+      activeSearchController?.abort()
+      searchGeneration++
       resultsEl.innerHTML = ""
-      statusEl.textContent = currentProvider === "huggingface" ? "Hugging Face model mode." : "Civitai model mode."
+      statusEl.textContent = currentProvider === "huggingface" ? "Hugging Face models. Press Search to browse." : `Civitai ${currentMode}. Press Search to browse.`
       activeSearch = null
       currentPage = 1
       pageLabel.textContent = "Page 1"
       prevBtn.disabled = true
       nextBtn.disabled = true
-    })
+    }
 
     clearBtn.addEventListener("click", () => {
       apiKeyEl.value = ""
@@ -333,22 +497,43 @@
     async function runSearch(search, cursorOverride = undefined) {
       // Allow blank query: browse recent, filtered by sort/period/nsfw
       const q = search.query
-      const mode = search.mode
 
       // A setting can change while an earlier request is still running. Abort
       // it and ignore stale responses so old cards cannot replace new results.
       activeSearchController?.abort()
-      const controller = typeof AbortController === "function" ? new AbortController() : null
+      const controller = new AbortController()
       activeSearchController = controller
       const generation = ++searchGeneration
 
       resultsEl.innerHTML = ""
+      prevBtn.disabled = true
+      nextBtn.disabled = true
       statusEl.textContent = search.provider === "huggingface"
         ? "Searching Hugging Face models..."
-        : mode === "images" ? "Searching Civitai images..." : "Searching Civitai models..."
+        : "Searching Civitai models and images..."
+      if (search.mode === "images") statusEl.textContent = "Searching Civitai images..."
       pageLabel.textContent = `Page ${currentPage}`
 
       try {
+        if (search.mode === "images" && search.provider === "civitai") {
+          let url = `${IMAGES_ENDPOINT}?limit=30&nsfw=${Boolean(search.nsfw)}&sort=${encodeURIComponent(search.imageSort)}`
+          const cursor = cursorOverride !== undefined ? cursorOverride : currentCursor
+          if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`
+          if (search.period) url += `&period=${encodeURIComponent(search.period)}`
+          if (search.postId) url += `&postId=${encodeURIComponent(search.postId)}`
+          if (search.username) url += `&username=${encodeURIComponent(search.username)}`
+          if (search.tagIds) url += `&tags=${encodeURIComponent(search.tagIds)}`
+          const response = await fetch(url, {headers:headersForRequest(search.apiKey,"civitai"),signal:controller.signal})
+          const result = await safeJson(response)
+          if (generation !== searchGeneration) return
+          if (!response.ok || !result.ok) throw new Error(result.detail || result.error || "Image search failed")
+          renderImages(result.items || [], resultsEl)
+          nextCursor = extractCursor(result.metadata?.nextCursor || result.metadata?.nextPage) || null
+          prevBtn.disabled = !prevCursorStack.length
+          nextBtn.disabled = !nextCursor
+          statusEl.textContent = `${result.items?.length || 0} images`
+          return
+        }
         if (search.provider === "huggingface") {
           let url = `${HF_API_ROOT}/search?limit=20&page=${encodeURIComponent(String(currentPage))}`
           url += `&query=${encodeURIComponent(q || "")}`
@@ -359,7 +544,7 @@
           const json = await safeJson(res)
           if (generation !== searchGeneration) return
           if (!res.ok || !json.ok) throw new Error(json.detail || json.error || "Search failed")
-          renderModels(json.items || [])
+          renderModels(json.items || [], search, generation, controller)
           prevBtn.disabled = currentPage <= 1
           nextBtn.disabled = !json.metadata?.hasNext
           nextCursor = null
@@ -368,46 +553,23 @@
         }
 
         const urn = parseUrn(q)
-        const endpoint = mode === "images" ? IMAGES_ENDPOINT : SEARCH_ENDPOINT
+        let url = `${SEARCH_ENDPOINT}?limit=20`
+        const isQuerySearch = !urn && (q || "").trim().length > 0
+        const useCursor = cursorOverride !== undefined ? cursorOverride : currentCursor
+        if (useCursor) url += `&cursor=${encodeURIComponent(useCursor)}`
+        else if (!isQuerySearch) url += `&page=${encodeURIComponent(String(currentPage))}`
 
-        // build base url
-        let url = `${endpoint}?limit=${encodeURIComponent(mode === "images" ? 60 : 20)}`
-
-        if (mode === "images") {
-          const useCursor = cursorOverride !== undefined ? cursorOverride : currentCursor
-          if (useCursor) url += `&cursor=${encodeURIComponent(useCursor)}`
-          else url += `&page=${encodeURIComponent(String(currentPage))}`
-        } else {
-          // models:
-          // - If query is blank => page-based browse is allowed
-          // - If query is non-blank => CivitAI requires cursor-based pagination (NO page param)
-          const qTrim = (q || "").trim()
-          const isUrn = !!urn
-          const isQuerySearch = !isUrn && qTrim.length > 0
-
-          const useCursor = cursorOverride !== undefined ? cursorOverride : currentCursor
-
-          if (isQuerySearch) {
-            if (useCursor) url += `&cursor=${encodeURIComponent(useCursor)}`
-            // else: first page of query search: omit both page and cursor
-          } else {
-            // browse (blank query) OR URN lookup
-            if (useCursor) url += `&cursor=${encodeURIComponent(useCursor)}`
-            else url += `&page=${encodeURIComponent(String(currentPage))}`
-          }
-        }
-
-        if (search.nsfw) url += `&nsfw=true`
+        url += `&nsfw=${Boolean(search.nsfw)}`
         if (search.sort) url += `&sort=${encodeURIComponent(search.sort)}`
         if (search.period) url += `&period=${encodeURIComponent(search.period)}`
-        if (mode === "models" && search.baseModel) {
+        if (search.baseModel) {
           url += `&baseModels=${encodeURIComponent(search.baseModel)}`
         }
-        if (mode === "models" && search.modelType) {
+        if (search.modelType) {
           url += `&types=${encodeURIComponent(search.modelType)}`
         }
 
-        // If URN, prefer direct lookup in server (modelId/modelVersionId) for BOTH modes.
+        // Exact URN versions also scope the associated image gallery.
         if (urn) {
           url += `&modelId=${encodeURIComponent(String(urn.modelId))}`
           if (urn.versionId != null) {
@@ -421,47 +583,25 @@
           url += `&query=${encodeURIComponent(q || "")}`
         }
 
-        // Images extra filters (only meaningful in images mode)
-        if (mode === "images") {
-          if (search.postId) url += `&postId=${encodeURIComponent(search.postId)}`
-          if (search.username) url += `&username=${encodeURIComponent(search.username)}`
-        }
-
         const requestOptions = { headers: headersForRequest(search.apiKey, search.provider) }
         if (controller) requestOptions.signal = controller.signal
         const res = await fetch(url, requestOptions)
         const json = await safeJson(res)
         if (generation !== searchGeneration) return
-        if (!json.ok) throw new Error(json.error || "Search failed")
+        if (!res.ok || !json.ok) throw new Error(json.detail || json.error || "Search failed")
 
-        if (mode === "images") {
-          renderImages(json.items || [])
-          const totalPages = json.metadata?.pages || null
-          prevBtn.disabled = currentPage <= 1
-          nextBtn.disabled = totalPages ? currentPage >= totalPages : (json.items || []).length === 0
-          statusEl.textContent = `${json.items?.length || 0} images`
-          nextCursor = extractCursor(json.metadata?.nextCursor || json.metadata?.nextPage) || null
-          if (nextCursor) nextBtn.disabled = false
-        } else {
-          renderModels(json.items || [])
-          nextCursor = extractCursor(json.metadata?.nextCursor || json.metadata?.nextPage) || null
-
-          // If this is browse mode (blank query) and server provides total pages, allow page-based next.
-          const qTrim = (q || "").trim()
-          const isUrn = !!urn
-          const isQuerySearch = !isUrn && qTrim.length > 0
-          const totalPages = json.metadata?.pages || null
-
-          prevBtn.disabled = currentPage <= 1 && prevCursorStack.length === 0
-
-          if (isQuerySearch) {
-            nextBtn.disabled = !nextCursor
-          } else {
-            // browse or URN: if cursor exists, use it; else fall back to pages if available
-            nextBtn.disabled = nextCursor ? false : (totalPages ? currentPage >= totalPages : false)
-          }
-
-          statusEl.textContent = `${json.items?.length || 0} models`
+        const galleries = renderModels(json.items || [], search, generation, controller)
+        nextCursor = extractCursor(json.metadata?.nextCursor || json.metadata?.nextPage) || null
+        const totalPages = json.metadata?.pages || null
+        prevBtn.disabled = currentPage <= 1 && prevCursorStack.length === 0
+        nextBtn.disabled = isQuerySearch ? !nextCursor
+          : nextCursor ? false : (totalPages ? currentPage >= totalPages : (json.items || []).length === 0)
+        statusEl.textContent = `${json.items?.length || 0} models · associated images appear below each model.`
+        // Limit automatic image discovery to one in-flight request. A new
+        // search cancels both the active request and the rest of this queue.
+        for (const loadGallery of galleries) {
+          if (generation !== searchGeneration || controller.signal.aborted) return
+          await loadGallery()
         }
       } catch (err) {
         if (err?.name === "AbortError" || generation !== searchGeneration) return
@@ -469,12 +609,11 @@
         statusEl.textContent = "Search error: " + (err && err.message ? err.message : "Server Error")
         prevBtn.disabled = true
         nextBtn.disabled = true
-      } finally {
-        if (controller && activeSearchController === controller) activeSearchController = null
       }
     }
 
-    function renderModels(items) {
+    function renderModels(items, search, generation, controller) {
+      const galleries = []
       resultsEl.innerHTML = ""
       items.forEach((item) => {
         // IMPORTANT: server returns item.modelVersion (singular)
@@ -493,8 +632,9 @@
           "?"
 
         const card = document.createElement("div")
+        card.dataset.modelId = item.id
         card.style =
-          "border:1px solid var(--background-color3); border-radius:8px; padding:8px; display:grid; grid-template-columns:76px 1fr; gap:8px; margin-bottom:4px;"
+          "border:1px solid var(--background-color3); border-radius:8px; padding:8px; display:grid; grid-template-columns:76px minmax(0,1fr); gap:8px; margin-bottom:4px;min-width:0;overflow-wrap:anywhere;"
         card.innerHTML = `
           <div style="width:76px;height:76px;overflow:hidden;border-radius:6px;background:var(--background-color3);display:flex;align-items:center;justify-content:center;">
             ${
@@ -538,6 +678,7 @@
               }
             </div>
 
+            <details data-model-files><summary style="cursor:pointer">Model files (${files.length})</summary>
             <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--background-color3);padding-top:4px;max-height:140px;overflow:auto;">
               ${
                 files.length
@@ -563,7 +704,7 @@
                       .join("")
                   : `<div style="font-size:0.85em;color:var(--text-color2);">No downloadable files</div>`
               }
-            </div>
+            </div></details>
           </div>
         `
 
@@ -606,15 +747,90 @@
         }
 
         resultsEl.appendChild(card)
+        if (search.provider === "civitai" && item.id) galleries.push(createModelGallery(card, item, search, generation, controller))
       })
+      return galleries
     }
 
-    function renderImages(items) {
-      resultsEl.innerHTML = ""
+    function createModelGallery(card, item, search, generation, controller) {
+      const section = document.createElement("section")
+      section.style.cssText = "grid-column:1/-1;min-width:0;border-top:1px solid var(--background-color3);padding-top:10px;"
+      section.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <strong>Model images</strong><small data-image-status role="status">Waiting to load images…</small>
+        <button class="secondaryButton" data-action="image-retry" type="button" hidden>Retry images</button>
+        </div><div data-image-gallery></div>
+        <nav aria-label="Images for ${escapeHTML(item.name || item.id)}" style="display:flex;justify-content:space-between;gap:8px;margin-top:8px">
+          <button class="secondaryButton" data-action="image-prev" type="button" disabled>Previous images</button>
+          <button class="secondaryButton" data-action="image-next" type="button" disabled>Next images</button>
+        </nav>`
+      card.appendChild(section)
+      const target = section.querySelector("[data-image-gallery]")
+      const status = section.querySelector("[data-image-status]")
+      const previous = section.querySelector("[data-action=image-prev]")
+      const next = section.querySelector("[data-action=image-next]")
+      const retry = section.querySelector("[data-action=image-retry]")
+      let state = {cursor:null, previous:[], page:1, next:null}
+      let retryPage = state, loading = false
+      const stale = () => generation !== searchGeneration || controller.signal.aborted
+      async function load(paging) {
+        if (loading || stale()) return
+        loading = true
+        previous.disabled = next.disabled = true
+        retry.hidden = true
+        status.textContent = "Loading images…"
+        try {
+          let url = `${IMAGES_ENDPOINT}?limit=6&modelId=${encodeURIComponent(String(item.id))}`
+          const urn = parseUrn(search.query)
+          if (urn?.modelId === Number(item.id) && urn.versionId) url += `&modelVersionId=${urn.versionId}`
+          if (paging.cursor) url += `&cursor=${encodeURIComponent(paging.cursor)}`
+          url += `&nsfw=${Boolean(search.nsfw)}&sort=${encodeURIComponent(search.imageSort)}`
+          if (search.period) url += `&period=${encodeURIComponent(search.period)}`
+          if (search.postId) url += `&postId=${encodeURIComponent(search.postId)}`
+          if (search.username) url += `&username=${encodeURIComponent(search.username)}`
+          if (search.tagIds) url += `&tags=${encodeURIComponent(search.tagIds)}`
+          const response = await fetch(url, {headers:headersForRequest(search.apiKey, "civitai"),signal:controller.signal})
+          const result = await safeJson(response)
+          if (stale()) return
+          if (!response.ok || !result.ok) throw new Error(result.detail || result.error || "Image listing failed")
+          renderImages(result.items || [], target)
+          state = {...paging, next:extractCursor(result.metadata?.nextCursor || result.metadata?.nextPage) || null}
+          status.textContent = `${result.items?.length || 0} images · Page ${state.page}`
+        } catch (error) {
+          if (error.name === "AbortError" || stale()) return
+          status.textContent = `Image listing error: ${error.message || "Server Error"}`
+          retryPage = paging
+          retry.hidden = false
+        } finally {
+          loading = false
+          if (!stale()) {
+            previous.disabled = !state.previous.length
+            next.disabled = !state.next
+          }
+        }
+      }
+      next.addEventListener("click", () => {
+        if (state.next) load({...state, cursor:state.next, previous:[...state.previous,state.cursor], page:state.page + 1})
+      })
+      previous.addEventListener("click", () => {
+        if (!state.previous.length) return
+        const stack = [...state.previous]
+        load({...state, cursor:stack.pop(), previous:stack, page:state.page - 1})
+      })
+      retry.addEventListener("click", () => load(retryPage))
+      return () => load(state)
+    }
 
+    function renderImages(items, target) {
+      rememberImageTags(items)
+      target.innerHTML = ""
       const grid = document.createElement("div")
-      grid.style = "display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px;"
-      resultsEl.appendChild(grid)
+      grid.style = "display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%,160px), 1fr)); gap:8px;"
+      target.appendChild(grid)
+      if (!items.length) {
+        const empty = document.createElement("p")
+        empty.textContent = "No images returned for this model and the selected filters."
+        grid.appendChild(empty)
+      }
 
       items.forEach((img) => {
         const url = safeExternalUrl(img.url || img.thumbnailUrl || "")
@@ -625,7 +841,7 @@
           <div style="width:100%; aspect-ratio:1/1; background:var(--background-color3); display:flex; align-items:center; justify-content:center; overflow:hidden;">
             ${
               url
-                ? `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`
+                ? `<img src="${url}" loading="lazy" decoding="async" alt="Civitai image ${escapeHTML(img.id || "")}" style="width:100%;height:100%;object-fit:cover;" />`
                 : `<span style="font-size:10px;">No image</span>`
             }
           </div>
@@ -638,16 +854,18 @@
               ${img.username ? tagChip(`${img.username}`) : ""}
             </div>
             ${
-              img.url
+              url
                 ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">
-                    <a class="secondaryButton" href="${img.url}" target="_blank" rel="noopener" style="text-align:center;">Open</a>
-                    <button class="primaryButton" data-action="import-image" type="button">Import + save</button>
+                    <a class="secondaryButton" href="${escapeHTML(url)}" target="_blank" rel="noopener" style="text-align:center;">Open</a>
+                    <button class="secondaryButton" data-action="image-details" type="button">Prompt &amp; metadata</button>
+                    <button class="primaryButton" data-action="import-image" type="button">Save + apply Civitai settings</button>
                   </div>`
                 : ""
             }
           </div>
         `
         const importButton = card.querySelector("[data-action=import-image]")
+        card.querySelector("[data-action=image-details]")?.addEventListener("click", () => showImageDetails(img))
         if (importButton) {
           importButton.addEventListener("click", () => importCivitaiImage(img, importButton))
         }
@@ -670,15 +888,15 @@
 
     function civitaiTaskBody(image, localUrl) {
       const metadata = image.meta && typeof image.meta === "object" ? image.meta : {}
-      const body = { init_image: localUrl }
+      const body = localUrl ? { init_image: localUrl } : {}
       const prompt = image.prompt || metadataValue(metadata, "prompt", "positivePrompt")
       const negativePrompt = metadataValue(metadata, "negativePrompt", "negative_prompt")
-      const steps = metadataValue(metadata, "steps", "numInferenceSteps")
+      const steps = metadataValue(metadata, "steps", "numInferenceSteps", "num_inference_steps")
       const cfg = metadataValue(metadata, "cfgScale", "guidanceScale", "cfg")
       const seed = metadataValue(metadata, "seed")
       const sampler = metadataValue(metadata, "sampler", "samplerName")
       const scheduler = metadataValue(metadata, "scheduler", "schedulerName")
-      const model = metadataValue(metadata, "model", "modelName")
+      const model = metadataValue(metadata, "model", "modelName", "use_stable_diffusion_model")
       const size = String(metadataValue(metadata, "size", "resolution") || "").match(/(\d+)\s*[x×]\s*(\d+)/i)
 
       if (prompt !== undefined) {
@@ -702,6 +920,115 @@
       return body
     }
 
+    function embeddedSettings(file) {
+      const info = file.embedded?.info || {}, exif = file.embedded?.exif || {}
+      const comment = exif.UserComment || exif.ExifIFD?.UserComment
+      const raw = info.parameters || comment?.text || (typeof comment === "string" ? comment : "")
+      let metadata = {...info}
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed
+        } catch (_) {
+          const marker = raw.lastIndexOf("\nSteps:")
+          if (marker >= 0) {
+            const prompts = raw.slice(0, marker).split("\nNegative prompt:")
+            metadata = {prompt:prompts[0].trim(), negativePrompt:prompts.slice(1).join("\nNegative prompt:").trim()}
+            for (const match of raw.slice(marker + 1).matchAll(/(?:^|,\s*)(Steps|Sampler|CFG scale|Seed|Size|Model|Scheduler):\s*([^,]*)/gi)) metadata[match[1]] = match[2].trim()
+          }
+        }
+      }
+      // A ComfyUI prompt/workflow graph is not a positive prompt string.
+      if (typeof metadata.prompt !== "string" || /^\s*[\[{]/.test(metadata.prompt)) delete metadata.prompt
+      return civitaiTaskBody({meta:metadata,width:metadata.width,height:metadata.height})
+    }
+
+    function applySettings(body, source) {
+      const applied = [], skipped = []
+      for (const [key, originalValue] of Object.entries(body)) {
+        let value = originalValue
+        const select = key === "sampler_name" ? document.getElementById("sampler_name")
+          : key === "scheduler_name" ? document.getElementById("scheduler_name") : null
+        if (select?.options) {
+          const normalize = name => String(name).toLowerCase().replace(/[^a-z0-9+]/g, "")
+          const option = [...select.options].find(option => normalize(option.value) === normalize(value) || normalize(option.textContent) === normalize(value))
+          if (!option) {skipped.push(key);continue}
+          value = option.value
+        }
+        if (value !== undefined && typeof TASK_MAPPING !== "undefined" && TASK_MAPPING[key]) {
+          TASK_MAPPING[key].setUI(value)
+          applied.push(key)
+        }
+      }
+      if (applied.includes("prompt") && typeof promptField !== "undefined") promptField.dispatchEvent(new Event("input", {bubbles:true}))
+      const result = applied.length ? `Applied ${applied.join(", ")} from ${source}.` : "No recognized settings to apply; copy the report to preserve other fields."
+      return result + (skipped.length ? ` Unavailable choices left unchanged: ${skipped.join(", ")}.` : "")
+    }
+
+    function showImageDetails(image) {
+      const dialog = document.createElement("dialog")
+      dialog.style.cssText = "width:min(1050px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90vh;box-sizing:border-box;overflow:auto;"
+      dialog.innerHTML = `<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2 style="margin:0;min-width:0;overflow-wrap:anywhere">Image ${escapeHTML(image.id)} · metadata sources</h2><button data-action="close-details" type="button" style="flex-shrink:0">Close</button></div>
+        <p>Civitai reports and embedded file metadata may disagree. Each report stays independent. Applying settings is explicit; unknown fields remain in the report.</p>
+        <div data-reports style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;align-items:start"></div>
+        <p data-report-status role="status" style="overflow-wrap:anywhere"></p>`
+      const status = dialog.querySelector("[data-report-status]")
+      let inspectionController
+      dialog.querySelector("[data-action=close-details]").addEventListener("click", () => dialog.close())
+      dialog.addEventListener("close", () => {inspectionController?.abort();dialog.remove()})
+      function reportPanel(source, title, report, settings) {
+        const section = document.createElement("section")
+        section.dataset.reportSource = source
+        section.style.minWidth = "0"
+        section.innerHTML = `<h3>${title}</h3><textarea aria-label="${title}" readonly rows="16" spellcheck="false" style="width:100%;resize:vertical;box-sizing:border-box;font:12px/1.5 monospace"></textarea><div data-report-actions style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button data-action="copy-report" type="button">Copy report</button><button data-action="copy-prompt" type="button">Copy prompt</button><button data-action="copy-negative" type="button">Copy negative</button><button data-action="apply-report" type="button">Apply settings</button></div>`
+        const field = section.querySelector("textarea")
+        let body = settings
+        async function copy(value) {
+          try {await navigator.clipboard.writeText(value);status.textContent = `Copied ${title}.`}
+          catch (_) {field.focus();field.select();status.textContent = "Clipboard unavailable. The report is selected for manual copying."}
+        }
+        section.querySelector("[data-action=copy-report]").addEventListener("click", () => copy(field.value))
+        section.querySelector("[data-action=copy-prompt]").addEventListener("click", () => copy(String(body.prompt ?? "")))
+        section.querySelector("[data-action=copy-negative]").addEventListener("click", () => copy(String(body.negative_prompt ?? "")))
+        section.querySelector("[data-action=apply-report]").addEventListener("click", () => {status.textContent = applySettings(body, title)})
+        function update(value, newSettings) {
+          body = newSettings
+          field.value = typeof value === "string" ? value : JSON.stringify(value, null, 2)
+          section.querySelector("[data-action=copy-prompt]").disabled = body.prompt === undefined
+          section.querySelector("[data-action=copy-negative]").disabled = body.negative_prompt === undefined
+          section.querySelector("[data-action=apply-report]").disabled = !Object.keys(body).length
+        }
+        update(report, settings)
+        dialog.querySelector("[data-reports]").appendChild(section)
+        return {section, update}
+      }
+      reportPanel("civitai", "Civitai-reported metadata", image, civitaiTaskBody(image))
+      const file = reportPanel("file", "Downloaded-file metadata", "Not read yet. Inspect the delivered image bytes; Civitai may deliver a resized or metadata-stripped copy.", {})
+      const inspect = document.createElement("button")
+      inspect.type = "button"
+      inspect.dataset.action = "inspect-file"
+      inspect.textContent = "Inspect downloaded file"
+      inspect.style.marginTop = "10px"
+      file.section.appendChild(inspect)
+      inspect.addEventListener("click", async () => {
+        inspect.disabled = true
+        status.textContent = "Reading the delivered image file (up to 100 MB); not saving it to the gallery…"
+        inspectionController = new AbortController()
+        try {
+          const response = await fetch(`${API_ROOT}/image-metadata`, {method:"POST",headers:{"Content-Type":"application/json",...headersForRequest(undefined,"civitai")},body:JSON.stringify({url:image.url}),signal:inspectionController.signal})
+          const result = await safeJson(response)
+          if (!response.ok || !result.ok) throw new Error(result.detail || result.error || "Metadata inspection failed")
+          file.update(result.file, embeddedSettings(result.file))
+          status.textContent = `Read ${result.file.sizeBytes} bytes · ${result.file.format} · ${result.file.width}×${result.file.height}. File metadata is not replaced by Civitai metadata; empty sections mean no metadata was found there.`
+          inspect.textContent = "Read file again"
+        } catch (error) {
+          if (error.name !== "AbortError") status.textContent = `File inspection error: ${error.message}`
+        } finally {inspect.disabled = false}
+      })
+      document.body.appendChild(dialog)
+      dialog.showModal()
+    }
+
     async function importCivitaiImage(image, button) {
       const previousText = button.textContent
       button.disabled = true
@@ -719,11 +1046,8 @@
         const result = await safeJson(response)
         if (!response.ok || !result.ok) throw new Error(result.detail || result.error || "Import failed")
         const imported = civitaiTaskBody(image, result.editorUrl)
-        Object.entries(imported).forEach(([key, value]) => {
-          if (typeof TASK_MAPPING !== "undefined" && TASK_MAPPING[key]) TASK_MAPPING[key].setUI(value)
-        })
-        if (imported.prompt !== undefined) promptField.dispatchEvent(new Event("input", { bubbles: true }))
-        statusEl.textContent = `Imported settings and saved ${result.relativePath} to the gallery.`
+        const applied = applySettings(imported, "Civitai-reported metadata")
+        statusEl.textContent = `Saved ${result.relativePath} to the gallery. ${applied}`
         selectTab("tab-main")
       } catch (error) {
         console.error(error)
@@ -813,10 +1137,14 @@
     }
 
     function captureSearch() {
-      applyModeUI()
+      if (currentProvider === "civitai" && tagSearchEl.value.trim()) {
+        throw new Error("Select a tag from autocomplete or clear the unselected text before searching.")
+      }
       return {
-        query: (queryEl.value || "").trim(),
+        query: currentMode === "images" ? "" : (queryEl.value || "").trim(),
         mode: currentMode,
+        imageSort: imageSortEl.value,
+        tagIds: [...selectedTags.keys()].join(","),
         sort: sortEl.value,
         period: periodEl.value,
         nsfw: nsfwEl.checked,
@@ -832,7 +1160,8 @@
     function run() {
       // Search is the commit boundary. Draft controls may change without
       // changing the cards or the query used by pagination.
-      activeSearch = captureSearch()
+      try {activeSearch = captureSearch()}
+      catch (error) {statusEl.textContent = `Search error: ${error.message}`;return}
       currentPage = 1
       currentCursor = null
       nextCursor = null
@@ -858,7 +1187,7 @@
         currentCursor = nextCursor
         currentPage++
         runSearch(activeSearch, currentCursor)
-      } else if (activeSearch.mode === "images" || !activeSearch.query) {
+      } else if (!activeSearch.query) {
         currentPage++
         runSearch(activeSearch, undefined)
       }
@@ -877,16 +1206,15 @@
         currentCursor = prevCursorStack.pop() || null
         currentPage = Math.max(1, currentPage - 1)
         runSearch(activeSearch, currentCursor)
-      } else if ((activeSearch.mode === "images" || !activeSearch.query) && currentPage > 1) {
+      } else if (!activeSearch.query && currentPage > 1) {
         currentPage--
         runSearch(activeSearch, undefined)
       }
     })
 
-    // initial mode UI text
     statusEl.textContent = currentProvider === "huggingface"
-      ? "Hugging Face model mode."
-      : currentMode === "images" ? "Civitai image mode." : "Civitai model mode."
+      ? "Hugging Face models."
+      : currentMode === "images" ? "Browse Civitai images using selected tags." : "Search Civitai models to see their bound images and downloadable files."
     refreshDownloadQueue()
     return true
   }

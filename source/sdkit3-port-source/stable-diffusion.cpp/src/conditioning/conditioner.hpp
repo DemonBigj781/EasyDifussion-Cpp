@@ -3263,14 +3263,20 @@ struct LTXAVEmbedder : public Conditioner {
                                           false,
                                           true,
                                           true);
-        GGML_ASSERT(!hidden_states.empty());
+        if (hidden_states.empty()) {
+            LOG_ERROR("LTXAV text encoder conditioning failed; native video generation cannot continue");
+            return {};
+        }
         hidden_states = apply_token_weights(std::move(hidden_states), weights);
 
         int64_t valid_tokens = 0;
         for (float value : mask) {
             valid_tokens += static_cast<int64_t>(value > 0.0f);
         }
-        GGML_ASSERT(valid_tokens > 0);
+        if (valid_tokens <= 0) {
+            LOG_ERROR("LTXAV text encoder produced no valid prompt tokens");
+            return {};
+        }
 
         hidden_states = sd::ops::slice(hidden_states,
                                        1,
@@ -3321,7 +3327,12 @@ struct LTXAVEmbedder : public Conditioner {
         }
 
         hidden_states.reshape_({kNumStates * kHiddenSize, valid_tokens});
-        return projector->compute(n_threads, hidden_states, false, true, true);
+        auto projected = projector->compute(n_threads, hidden_states, false, true, true);
+        if (projected.empty()) {
+            LOG_ERROR("LTXAV text projection failed; native video generation cannot continue");
+            return {};
+        }
+        return projected;
     }
 
     SDCondition get_learned_condition(int n_threads,
@@ -3335,7 +3346,10 @@ struct LTXAVEmbedder : public Conditioner {
         prompt_attn_range.second = static_cast<int>(prompt.size());
 
         auto hidden_states = encode_prompt(n_threads, prompt, prompt_attn_range);
-        GGML_ASSERT(!hidden_states.empty());
+        if (hidden_states.empty()) {
+            LOG_ERROR("LTXAV conditioning failed; native video generation cannot continue");
+            return {};
+        }
 
         int64_t t1 = ggml_time_ms();
         LOG_DEBUG("computing LTXAV condition graph completed, taking %" PRId64 " ms", t1 - t0);

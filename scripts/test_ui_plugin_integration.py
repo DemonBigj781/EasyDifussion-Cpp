@@ -78,14 +78,19 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn("frameCount < 2", plugin)
         self.assertIn('worker.onerror = function(event)', library)
 
-    def test_local_image_actions_are_required_plugins(self):
+    def test_local_image_actions_are_optional_plugins(self):
         for relative in (
             "image_plugin/ai-image-critic.plugin.js",
             "image_plugin/make-very-similar.plugin.js",
         ):
             with self.subTest(relative=relative):
-                self.assertIn(f'"/plugins/core/{relative}"', self.loader)
+                self.assertNotIn(f'"/plugins/core/{relative}"', self.loader)
                 self.assertTrue((self.plugin_root / relative).is_file())
+        preferences = (self.repo_root / "ui" / "media" / "js" / "local-plugin-preferences.js").read_text(encoding="utf-8")
+        self.assertIn('id: "ai-image-critic"', preferences)
+        self.assertIn('id: "make-very-similar"', preferences)
+        self.assertIn('path: "/plugins/core/image_plugin/ai-image-critic.plugin.js"', preferences)
+        self.assertIn('path: "/plugins/core/image_plugin/make-very-similar.plugin.js"', preferences)
         critic = (self.plugin_root / "image_plugin" / "ai-image-critic.plugin.js").read_text(encoding="utf-8")
         self.assertIn('fetch(url, options)', critic)
         self.assertIn('"/ai-critic/analyze"', critic)
@@ -94,7 +99,8 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn("showError(error)", critic)
         self.assertIn('value="cpu">CPU only', critic)
         self.assertIn('computeMode.value === "cpu"', critic)
-        self.assertIn('entry.kind === "bundle"', critic)
+        self.assertIn("visionModelMetadata.get(visionModel.value)?.kind", critic)
+        self.assertIn("const selectedVision = visionModelMetadata.get(visionModel.value)", critic)
         self.assertIn("updateModelPairControls()", critic)
         self.assertNotIn("PerchancePluginCore", critic)
         similar = (self.plugin_root / "image_plugin" / "make-very-similar.plugin.js").read_text(encoding="utf-8")
@@ -103,6 +109,24 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         server = (self.repo_root / "ui" / "easydiffusion" / "server.py").read_text(encoding="utf-8")
         self.assertIn('@server_api.get("/ai-critic/models")', server)
         self.assertIn('@server_api.post("/ai-critic/analyze")', server)
+
+    def test_image_modifier_helpers_are_optional_plugins(self):
+        modifier_plugins = {
+            "stig-relocate-modifiers": "modifiers_plugin/stig-relocateModifiers.plugin.js",
+            "custom-modifiers": "modifiers_plugin/custom-modifiers.plugin.js",
+            "modifier-drag-drop": "modifiers_plugin/Modifiers-dnd.plugin.js",
+            "modifier-mouse-wheel": "modifiers_plugin/Modifiers-wheel.plugin.js",
+            "modifier-toggle": "modifiers_plugin/modifiers-toggle.plugin.js",
+        }
+        self.assertIn('id: "image-modifiers"', self.preferences)
+        self.assertIn("data-image-modifiers-hidden", self.preferences)
+        for plugin_id, relative in modifier_plugins.items():
+            with self.subTest(plugin_id=plugin_id):
+                self.assertNotIn(f'"/plugins/core/{relative}"', self.loader)
+                self.assertIn(f'id: "{plugin_id}"', self.preferences)
+                self.assertIn(f'path: "/plugins/core/{relative}"', self.preferences)
+                self.assertIn("defaultEnabled: true", self.preferences)
+                self.assertTrue((self.plugin_root / relative).is_file())
 
     def test_native_backend_arguments_use_structured_controls(self):
         parameters = (self.repo_root / "ui" / "media" / "js" / "parameters.js").read_text(encoding="utf-8")
@@ -126,6 +150,23 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn("MODEL_DIRECTORY_STORAGE_KEY", parameters)
         self.assertIn("Object.prototype.hasOwnProperty.call(browserDirectories, key)", parameters)
         self.assertIn("configDirectories[key]", parameters)
+
+    def test_model_path_pickers_use_searchable_model_dropdowns(self):
+        index = (self.repo_root / "ui" / "index.html").read_text(encoding="utf-8")
+        main = (self.repo_root / "ui" / "media" / "js" / "main.js").read_text(encoding="utf-8")
+        training_html = (self.plugin_root / "training_plugin" / "training.tab.plugin.html").read_text(encoding="utf-8")
+        training_js = (self.plugin_root / "training_plugin" / "training.tab.plugin.js").read_text(encoding="utf-8")
+        self.assertIn('id="upscale_model" name="upscale_model" type="text"', index)
+        self.assertIn('class="model-filter" data-path="RealESRGAN_x4plus"', index)
+        self.assertNotRegex(index, re.compile(r'<select[^>]+id="upscale_model"'))
+        self.assertIn('let upscaleModelField = new ModelDropdown(document.querySelector("#upscale_model")', main)
+        self.assertIn("refreshUpscalerModels()", main)
+        for field_id in ("training-qwen3", "training-vae"):
+            self.assertIn(f'id="{field_id}" type="text"', training_html)
+            self.assertNotRegex(training_html, re.compile(rf'<select[^>]+id="{field_id}"'))
+        self.assertIn('const qwen3Picker = new ModelDropdown(el("qwen3")', training_js)
+        self.assertIn('const vaePicker = new ModelDropdown(el("vae")', training_js)
+        self.assertIn('qwen3: qwen3Picker.value.trim(), vae: vaePicker.value.trim()', training_js)
 
     def test_controlnet_architecture_modes_are_automatic_or_standard(self):
         root = self.plugin_root / "controlnet_plugin"
@@ -246,6 +287,10 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         root = self.plugin_root / "tipo_plugin"
         plugin = (root / "tipo.plugin.js").read_text(encoding="utf-8")
         html = (root / "tipo.plugin.html").read_text(encoding="utf-8")
+        self.assertNotIn('"/plugins/core/tipo_plugin/tipo.plugin.js"', self.loader)
+        self.assertIn('id: "tipo-prompt-generator"', self.preferences)
+        self.assertIn('path: "/plugins/core/tipo_plugin/tipo.plugin.js"', self.preferences)
+        self.assertIn("defaultEnabled: true", self.preferences)
         for control in (
             "z-tipo-preset",
             "z-tipo-preset-name",

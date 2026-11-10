@@ -41,10 +41,12 @@ from ui.plugins.server.native_image_tools import (
     BackgroundRemovalRequest,
     NativeDetectionRequest,
     ObjectRemovalRequest,
+    SAMSegmentationRequest,
     TextMaskRequest,
     detect as native_detect,
     remove_background as native_remove_background,
     remove_object as native_remove_object,
+    segment_sam as native_segment_sam,
     text_mask as native_text_mask,
 )
 from fastapi import FastAPI, HTTPException
@@ -231,6 +233,17 @@ def init():
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Native detection failed: {exc}") from exc
 
+    @server_api.post("/sam/segment")
+    def segment_with_sam(req: SAMSegmentationRequest):
+        try:
+            return JSONResponse(native_segment_sam(req), headers=NOCACHE_HEADERS)
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(status_code=504, detail="SAM segmentation timed out") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"SAM segmentation failed: {exc}") from exc
+
     @server_api.post("/image-tools/text-mask")
     def create_native_text_mask(req: TextMaskRequest):
         try:
@@ -261,6 +274,7 @@ def init():
             raise HTTPException(status_code=500, detail=f"Object removal failed: {exc}") from exc
 
     from ui.plugins.server.tipo import GenerateRequest as TipoGenerateRequest
+    from ui.plugins.server.local_llm import ProcessRequest as LocalLLMProcessRequest
 
     @server_api.get("/tipo/health")
     @server_api.get("/tipo-api/health", include_in_schema=False)
@@ -282,6 +296,30 @@ def init():
         from ui.plugins.server.tipo import generate
 
         return generate(req)
+
+    @server_api.get("/local-llm/health")
+    def local_llm_health():
+        from ui.plugins.server.local_llm import health
+
+        return JSONResponse(health(), headers=NOCACHE_HEADERS)
+
+    @server_api.get("/local-llm/settings")
+    def local_llm_settings_get():
+        from ui.plugins.server.local_llm import get_settings
+
+        return JSONResponse(get_settings(), headers=NOCACHE_HEADERS)
+
+    @server_api.post("/local-llm/settings")
+    def local_llm_settings_save(payload: dict):
+        from ui.plugins.server.local_llm import save_settings
+
+        return JSONResponse(save_settings(payload), headers=NOCACHE_HEADERS)
+
+    @server_api.post("/local-llm/process")
+    def local_llm_process(req: LocalLLMProcessRequest):
+        from ui.plugins.server.local_llm import process_prompt
+
+        return JSONResponse(process_prompt(req), headers=NOCACHE_HEADERS)
 
     @server_api.get("/gallery/settings")
     @server_api.get("/gallery-plugin/settings", include_in_schema=False)
@@ -495,15 +533,15 @@ def init():
         configured = os.environ.get("SD_UI_CPP_RENDERER")
         if configured and os.path.isfile(configured) and os.access(configured, os.X_OK):
             return configured
+        standalone = os.path.join(app.ROOT_DIR, "source", "UI.cpp", "build", "bin", "easy-diffusion-ui-render")
+        if os.path.isfile(standalone) and os.access(standalone, os.X_OK):
+            return standalone
         build_root = os.path.join(app.ROOT_DIR, "source", "sdkit3-port-source", "build")
         candidates = glob.glob(os.path.join(build_root, "*", "bin", "easy-diffusion-ui-render"))
         candidates.append(os.path.join(build_root, "bin", "easy-diffusion-ui-render"))
         for candidate in sorted(candidates):
             if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                 return candidate
-        standalone = os.path.join(app.ROOT_DIR, "source", "UI.cpp", "build", "bin", "easy-diffusion-ui-render")
-        if os.path.isfile(standalone) and os.access(standalone, os.X_OK):
-            return standalone
         return None
 
     cpp_ui_assets = os.path.join(app.ROOT_DIR, "source", "UI.cpp", "Pages", "assets")
@@ -655,8 +693,10 @@ def init():
     def shutdown_event():  # Signal render thread to close on shutdown
         task_manager.current_state_error = SystemExit("Application shutting down.")
         from easydiffusion.tipo import shutdown as shutdown_tipo
+        from ui.plugins.server.local_llm import shutdown as shutdown_local_llm
 
         shutdown_tipo()
+        shutdown_local_llm()
         ai_image_critic.shutdown()
         training.shutdown()
 
@@ -918,6 +958,11 @@ def render_internal(req: dict):
 
         # separate out the request data into rendering and task-specific data
         render_req: GenerateImageRequest = GenerateImageRequest.parse_obj(req)
+        if render_req.inpaint_color_guide is not None:
+            if render_req.init_image is None:
+                raise HTTPException(status_code=400, detail="Color-weighted inpaint requires an original image")
+            if not 0 < render_req.prompt_strength < 1:
+                raise HTTPException(status_code=400, detail="Color-weighted inpaint requires prompt strength between 0 and 1 (exclusive)")
         task_data: RenderTaskData = RenderTaskData.parse_obj(req)
         models_data: ModelsData = ModelsData.parse_obj(req)
         output_format: OutputFormatData = OutputFormatData.parse_obj(req)
@@ -928,7 +973,7 @@ def render_internal(req: dict):
         if "force_save_path" in config:
             save_data.save_to_disk_path = config["force_save_path"]
 
-        render_req.init_image_mask = req.get("mask")  # hack: will rename this in the HTTP API in a future revision
+        render_req.init_image_mask = req.get("init_image_mask", req.get("mask"))
 
         app.save_to_config(
             models_data.model_paths.get("stable-diffusion"),

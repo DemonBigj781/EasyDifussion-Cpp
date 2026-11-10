@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import os
+import asyncio
 import json
 import itertools
 import queue
 import threading
 import time
+import tempfile
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 from urllib.parse import quote, urlparse
@@ -17,6 +19,7 @@ from fastapi.responses import FileResponse
 
 from . import huggingface as hf
 from . import service as civ
+from .image_metadata import download_image, IMAGE_EXTENSIONS
 from easydiffusion import gallery
 from easydiffusion.utils import log as _logger
 
@@ -363,10 +366,7 @@ async def civitai_import_image(request: Request):
     if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
         raise HTTPException(status_code=400, detail="Image URL must use an official CivitAI HTTPS host")
 
-    headers = {"Accept": "image/*"}
     api_key = _resolve_key(request, payload)
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
 
     root = gallery.configured_directory()
     root.mkdir(parents=True, exist_ok=True)
@@ -377,35 +377,8 @@ async def civitai_import_image(request: Request):
 
     temporary = root / f".civitai-{safe_id}-{uuid4().hex}.part"
     try:
-        with civ.requests.get(source_url, headers=headers, stream=True, timeout=120) as response:
-            response.raise_for_status()
-            final = urlparse(response.url)
-            if final.scheme != "https" or final.hostname not in allowed_hosts:
-                raise ValueError("CivitAI image redirected to an unsupported host")
-            content_type = str(response.headers.get("content-type") or "").split(";", 1)[0].lower()
-            extension = {
-                "image/png": ".png",
-                "image/jpeg": ".jpg",
-                "image/webp": ".webp",
-                "image/gif": ".gif",
-                "image/bmp": ".bmp",
-            }.get(content_type)
-            if extension is None:
-                raise ValueError(f"Unsupported CivitAI image type: {content_type or 'unknown'}")
-            total = 0
-            maximum = 100 * 1024 * 1024
-            with temporary.open("wb") as output:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
-                    if not chunk:
-                        continue
-                    total += len(chunk)
-                    if total > maximum:
-                        raise ValueError("CivitAI image exceeds the 100 MB import limit")
-                    output.write(chunk)
-
-        if gallery.Image is not None:
-            with gallery.Image.open(temporary) as opened:
-                opened.verify()
+        file_metadata = await asyncio.to_thread(download_image, source_url, temporary, api_key)
+        extension = IMAGE_EXTENSIONS[file_metadata["format"]]
 
         destination = root / f"civitai-{safe_id}{extension}"
         if destination.exists():
@@ -414,7 +387,7 @@ async def civitai_import_image(request: Request):
         relative = destination.relative_to(root).as_posix()
         sidecar = destination.with_suffix(destination.suffix + ".civitai.json")
         sidecar.write_text(
-            json.dumps({"source": "civitai", "image": image}, ensure_ascii=False, indent=2),
+            json.dumps({"source": "civitai", "image": image, "downloadedFile": file_metadata}, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return {
@@ -423,6 +396,7 @@ async def civitai_import_image(request: Request):
             "galleryUrl": f"/gallery/file/{quote(relative, safe='/')}",
             "editorUrl": f"/civitai-api/civitai/imported/{quote(relative, safe='/')}",
             "metadata": image.get("meta") or {},
+            "fileMetadata": file_metadata,
             "size": destination.stat().st_size,
         }
     except HTTPException:
@@ -434,6 +408,23 @@ async def civitai_import_image(request: Request):
             temporary.unlink(missing_ok=True)
         except OSError:
             pass
+
+
+@APP.post("/civitai/image-metadata")
+async def civitai_image_metadata(request: Request):
+    payload = await request.json()
+    if not isinstance(payload, dict) or not isinstance(payload.get("url"), str):
+        raise HTTPException(status_code=400, detail="Missing CivitAI image URL")
+    try:
+        with tempfile.TemporaryDirectory(prefix="civitai-metadata-") as directory:
+            result = await asyncio.to_thread(
+                download_image, payload["url"], Path(directory) / "image.part", _resolve_key(request, payload)
+            )
+        return {"ok": True, "file": result}
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=_safe_error(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=_safe_error(error)) from error
 
 
 @APP.get("/civitai/me")
@@ -693,6 +684,12 @@ async def civitai_images(request: Request):
     start = time.perf_counter()
     try:
         qp = request.query_params
+        try:
+            tag_ids = _integer_csv(qp.get("tags") or "")
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="Image tags must contain positive numeric IDs") from error
+        if any(tag <= 0 for tag in tag_ids):
+            raise HTTPException(status_code=400, detail="Image tags must contain positive numeric IDs")
 
         query = qp.get("query", "") or ""
         page = int(qp.get("page", "1") or "1")
@@ -733,12 +730,15 @@ async def civitai_images(request: Request):
             model_version_id=model_version_id,
             post_id=post_id,
             username=username,
+            tag_ids=tag_ids,
         )
 
         elapsed_ms = (time.perf_counter() - start) * 1000.0
         _logger.info("GET /civitai/images -> 200 (%.1fms)", elapsed_ms)
         return result
 
+    except HTTPException:
+        raise
     except Exception as exc:
         civ._log(f"images error: {exc}")
         elapsed_ms = (time.perf_counter() - start) * 1000.0
@@ -752,89 +752,39 @@ async def civitai_global_images(request: Request):
     start = time.perf_counter()
     try:
         qp = request.query_params
-        search_key = _resolve_search_key(request)
-
-        created_from, created_to = _created_at_range(request)
         query = qp.get("query") or qp.get("q") or ""
         limit = int(qp.get("limit", "51") or "51")
         page = max(1, int(qp.get("page", "1") or "1"))
-        cursor = qp.get("cursor")
         nsfw = civ._to_bool(qp.get("nsfw"))
         sort = qp.get("sort")
         period = qp.get("period")
-        post_id = civ._to_int(qp.get("postId"))
-        username = qp.get("username") or qp.get("user") or qp.get("users")
+        model_sort = qp.get("modelSort") or "Newest"
+        if model_sort not in civ.ALLOWED_SORT_MODELS:
+            model_sort = "Newest"
 
-        # The public images API is authoritative for a normal gallery browse and
-        # implements the image-specific sort and period controls itself.  Use
-        # images_v6 only when its full-text/faceted search is actually needed.
-        index_filters = {
-            "query": query,
-            "tag": qp.get("tag") or qp.get("tags"),
-            "technique": qp.get("technique") or qp.get("techniques"),
-            "tool": qp.get("tool") or qp.get("tools"),
-            "aspect_ratio": qp.get("aspectRatio"),
-            "base_model": qp.get("baseModel"),
-            "media_type": qp.get("mediaType") or qp.get("type"),
-            "created_from": created_from,
-            "created_to": created_to,
-        }
-        try:
-            if any(str(value or "").strip() for value in index_filters.values()):
-                result = civ._global_images_civitai(
-                    query=query,
-                    search_key=search_key,
-                    limit=limit,
-                    page=page,
-                    nsfw=nsfw,
-                    tag=index_filters["tag"],
-                    technique=index_filters["technique"],
-                    tool=index_filters["tool"],
-                    aspect_ratio=index_filters["aspect_ratio"],
-                    base_model=index_filters["base_model"],
-                    media_type=index_filters["media_type"],
-                    username=username,
-                    created_from=created_from,
-                    created_to=created_to,
-                    sort=sort,
-                    period=period,
-                )
-            else:
-                result = civ._images_civitai(
-                    query="",
-                    api_key=_resolve_key(request),
-                    limit=limit,
-                    page=page,
-                    cursor=cursor,
-                    nsfw=nsfw,
-                    sort=sort,
-                    period=period,
-                    post_id=post_id,
-                    username=username,
-                )
-                result.setdefault("metadata", {})["searchBackend"] = "public-images-api"
-        except Exception as search_error:
-            _logger.warning(
-                "CivitAI images_v6 search unavailable; using public API fallback: %s",
-                _safe_error(search_error),
-            )
-            fallback_query = query or qp.get("tag") or qp.get("technique") or qp.get("tool") or ""
-            result = civ._images_civitai(
-                query=fallback_query,
-                api_key=_resolve_key(request),
-                limit=limit,
-                page=page,
-                cursor=cursor,
-                nsfw=nsfw,
-                sort=sort,
-                model_sort=civ._map_image_sort_to_model_sort(sort),
-                period=period,
-                post_id=post_id,
-                username=username,
-            )
-            result.setdefault("metadata", {})["searchBackend"] = "public-api-fallback"
+        result = civ._search_civitai(
+            query=query,
+            page=page,
+            api_key=_resolve_key(request),
+            cursor=qp.get("cursor"),
+            nsfw=nsfw,
+            sort=model_sort,
+            period=period,
+            limit=limit,
+            types=qp.get("types") or qp.get("modelType"),
+            base_models=qp.get("baseModels") or qp.get("baseModel"),
+            model_id=civ._to_int(qp.get("modelId")),
+            model_version_id=(
+                civ._to_int(qp.get("modelVersionId"))
+                if civ._to_int(qp.get("modelVersionId")) is not None
+                else civ._to_int(qp.get("versionId"))
+            ),
+        )
+        metadata = result.setdefault("metadata", {})
+        metadata["searchBackend"] = "model-locations"
+        metadata["imageListing"] = "select-model-first"
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        _logger.info("GET /civitai/global-images -> 200 (%.1fms)", elapsed_ms)
+        _logger.info("GET /civitai/global-images model locations -> 200 (%.1fms)", elapsed_ms)
         return result
     except HTTPException:
         raise

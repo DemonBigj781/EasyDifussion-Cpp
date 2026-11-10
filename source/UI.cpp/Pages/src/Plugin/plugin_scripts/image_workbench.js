@@ -104,7 +104,7 @@
             }catch(error){progress.textContent=error.message;}finally{running=false;start.disabled=false;}
         }
         const start=ui.button(panel,"cpp-img2img-start","Start generating images",run);
-        ui.button(panel,"cpp-img2img-stop","Stop sequence and queue",()=>gen.cancel());
+        ui.button(panel,"cpp-img2img-stop","Stop sequence and queue",()=>gen.cancelAll());
         window.addEventListener("cpp-generation-cancel",()=>{epoch++;});
         window.addEventListener("local-plugin-preferences-changed",()=>{if(!ui.enabled("stig-image-to-img2img"))epoch++;});
         window.CppImageTools={setSource,applyToRequest(request){

@@ -122,7 +122,9 @@ Node page_content(const Definition& page) {
     if (page.id == "canvas") {
         return panel("Canvas", {
             Node::element("div", {{"class", "canvas-toolbar"}}, {
-                button("canvas-draw", "Draw"), button("canvas-inpaint", "Inpaint"), button("canvas-generate", "Generate")
+                button("canvas-draw", "Draw"), button("canvas-inpaint", "Inpaint"),
+                button("canvas-advanced-inpaint", "Advanced Inpaint"),
+                button("canvas-generate", "Use on Main", "primaryButton"), button("canvas-cancel", "Cancel")
             }),
             Node::element("canvas", {{"id", "image-editor-canvas"}, {"aria-label", "Canvas editor"}}, {}),
             Node::element("div", {{"id", "image-editor-page-content"}}, {}),
@@ -360,6 +362,52 @@ Node page_content(const Definition& page) {
         }
         if (page.id == "settings") {
             settings.push_back(Node::element("fieldset", {{"id", "cpp-input-saving"}}, {}));
+            settings.push_back(Node::element("fieldset", {{"id", "local-llm-settings"}}, {
+                Node::element("legend", {}, {Node::text("Local LLM Prompt Processor")}),
+                Node::element("p", {}, {Node::text("Choose the GGUF model and fixed CPU/CUDA placement used by the prompt processor on Main. Models must be inside models_dir.")}),
+                Node::element("p", {{"id", "local-llm-settings-status"}, {"role", "status"}}, {Node::text("Loading local LLM settings…")}),
+                Node::element("label", {{"for", "local-llm-model-path"}}, {
+                    Node::text("GGUF model path"),
+                    Node::element("input", {{"id", "local-llm-model-path"}, {"type", "text"}, {"list", "local-llm-model-options"}, {"autocomplete", "off"}}, {}),
+                }),
+                Node::element("datalist", {{"id", "local-llm-model-options"}}, {}),
+                Node::element("label", {{"for", "local-llm-device"}}, {
+                    Node::text("Execution device"),
+                    Node::element("select", {{"id", "local-llm-device"}}, {
+                        Node::element("option", {{"value", "cpu"}}, {Node::text("CPU")}),
+                        Node::element("option", {{"value", "cuda"}}, {Node::text("NVIDIA CUDA")}),
+                    }),
+                }),
+                Node::element("label", {{"for", "local-llm-gpu-layers"}}, {
+                    Node::text("GPU layers (CUDA only; 999 requests full offload)"),
+                    Node::element("input", {{"id", "local-llm-gpu-layers"}, {"type", "number"}, {"min", "0"}, {"max", "999"}, {"step", "1"}}, {}),
+                }),
+                Node::element("label", {{"for", "local-llm-context-length"}}, {
+                    Node::text("Context length"),
+                    Node::element("input", {{"id", "local-llm-context-length"}, {"type", "number"}, {"min", "512"}, {"max", "131072"}, {"step", "1"}}, {}),
+                }),
+                Node::element("label", {{"for", "local-llm-max-tokens"}}, {
+                    Node::text("Maximum output tokens"),
+                    Node::element("input", {{"id", "local-llm-max-tokens"}, {"type", "number"}, {"min", "1"}, {"max", "4096"}, {"step", "1"}}, {}),
+                }),
+                Node::element("label", {{"for", "local-llm-temperature"}}, {
+                    Node::text("Temperature"),
+                    Node::element("input", {{"id", "local-llm-temperature"}, {"type", "number"}, {"min", "0"}, {"max", "2"}, {"step", "0.05"}}, {}),
+                }),
+                Node::element("label", {{"for", "local-llm-top-p"}}, {
+                    Node::text("Top P"),
+                    Node::element("input", {{"id", "local-llm-top-p"}, {"type", "number"}, {"min", "0"}, {"max", "1"}, {"step", "0.05"}}, {}),
+                }),
+                Node::element("label", {{"for", "local-llm-top-k"}}, {
+                    Node::text("Top K"),
+                    Node::element("input", {{"id", "local-llm-top-k"}, {"type", "number"}, {"min", "0"}, {"max", "200"}, {"step", "1"}}, {}),
+                }),
+                Node::element("label", {{"for", "local-llm-repeat-penalty"}}, {
+                    Node::text("Repeat penalty"),
+                    Node::element("input", {{"id", "local-llm-repeat-penalty"}, {"type", "number"}, {"min", "0.5"}, {"max", "2"}, {"step", "0.05"}}, {}),
+                }),
+                button("local-llm-save-settings", "Save Local LLM Settings", "primaryButton"),
+            }));
             settings.push_back(Node::element("fieldset", {{"id", "kiosk-settings"}}, {
                 Node::element("legend", {}, {Node::text("Kiosk mode")}),
                 Node::element("label", {{"for", "kiosk-mode-enabled"}}, {
@@ -447,11 +495,18 @@ Page render(const std::string& path) {
         page.add_script("/cpp-ui/scripts/input_preferences.js");
     page.add_script("/cpp-ui/scripts/kiosk.js");
     page.add_script("/cpp-ui/scripts/plugin_preferences.js");
+    if (active->id == "main" || active->id == "canvas") {
+        page.add_script("/media/js/editor-mask-tools.js");
+        page.add_script("/media/js/image-preview-tabs.js");
+        page.add_script("/cpp-ui/scripts/canvas_workspace.js");
+    }
     if (active->id == "logs") page.add_script("/cpp-ui/assets/log-viewer.js");
     if (active->id == "console") page.add_script("/cpp-ui/assets/console.js");
     if (active->id == "gpu-config") page.add_script("/cpp-ui/scripts/native-device-routing.js");
     if (active->id == "settings" || active->id == "gpu-config")
         page.add_script("/cpp-ui/scripts/backend-platform.js");
+    if (active->id == "main" || active->id == "settings")
+        page.add_script("/media/js/local-llm.js");
     if (active->id == "plugin-config") page.add_script("/cpp-ui/scripts/plugin_manager.js");
     if (active->id == "main" || active->id == "training") {
         page.add_stylesheet("/media/css/searchable-models.css");
@@ -467,6 +522,7 @@ Page render(const std::string& path) {
         page.add_script("/cpp-ui/scripts/generation_queue.js");
         page.add_script("/cpp-ui/scripts/optional_plugins.js");
         page.add_script("/cpp-ui/scripts/generate.js");
+        page.add_script("/cpp-ui/scripts/sam_segmentation.js");
         page.add_script("/cpp-ui/scripts/creative_plugins.js");
         page.add_script("/cpp-ui/scripts/workbench_core.js");
         page.add_script("/cpp-ui/scripts/prompt_workbench.js");

@@ -294,6 +294,9 @@
 
     const GIF_HEADER = 'data:image/gif;base64,'
     PLUGINS['TASK_CREATE'].push(function(event) {
+            // Native video owns its initial frame, including GIF inputs. Do
+            // not replace its queued task with the legacy frame-by-frame loop.
+            if (event?.reqBody?.video_mode) return;
             if (typeof event?.reqBody?.init_image !== 'string' || !event.reqBody.init_image.startsWith(GIF_HEADER)) {
                 return
             }

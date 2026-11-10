@@ -17,6 +17,20 @@ backend_config:
 # current user's bin directories.
 # perchance:
 #   launcher: /path/to/Perchance-1.0.0-x86_64.AppImage
+# Optional local llama.cpp prompt processor shown on both Generate frontends.
+# The model must be a GGUF file below models_dir. Use device: cpu with
+# gpu_layers: 0 for deterministic CPU-only placement, or device: cuda on NVIDIA
+# systems.
+# local_llm:
+#   model_path: /path/below/models_dir/to/instruction-model.gguf
+#   device: cpu
+#   gpu_layers: 0
+#   context_length: 4096
+#   max_tokens: 512
+#   temperature: 0.7
+#   top_p: 0.95
+#   top_k: 40
+#   repeat_penalty: 1.05
 # Advanced backend overrides are applied by scripts/check_modules.py.
 #   # Extra backend flags (example: cross-attention optimizations)
 #   COMMANDLINE_ARGS: "--opt-split-attention"

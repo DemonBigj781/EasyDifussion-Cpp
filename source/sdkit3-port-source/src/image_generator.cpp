@@ -7,6 +7,9 @@
 #include <filesystem>
 #include <functional>
 #include <initializer_list>
+#include <iomanip>
+#include <limits>
+#include <sstream>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -24,6 +27,14 @@
 #include "string_utils.h"
 
 namespace fs = std::filesystem;
+
+static std::string sampling_optimization_args(float ratio, float sigma) {
+    if (ratio == 0.f && sigma == 0.f) return {};
+    std::ostringstream args;
+    args << std::setprecision(std::numeric_limits<float>::max_digits10)
+         << "tome_ratio=" << ratio << ",negative_guidance_min_sigma=" << sigma;
+    return args.str();
+}
 
 // Global callback data structure
 struct CallbackData {
@@ -45,6 +56,7 @@ static void progress_callback(int step, int steps, float time, void* data) {
         float progress = steps > 0 ? static_cast<float>(step) / static_cast<float>(steps) : 0.0f;
         g_callback_data.task_state_manager->updateTaskProgress(g_callback_data.task_id, progress, "", step, steps);
         if (g_callback_data.video_generation) {
+            g_callback_data.task_state_manager->updateTaskPhase(g_callback_data.task_id, "sampling", step, steps);
             LOG_INFO("Video sampling step %d/%d (%.1f%%, %.2fs)",
                      step,
                      steps,
@@ -53,6 +65,20 @@ static void progress_callback(int step, int steps, float time, void* data) {
         } else {
             LOG_DEBUG("Progress: step %d/%d (%.1f%%), time: %.2fs", step, steps, progress * 100.0f, time);
         }
+    }
+}
+
+static void video_frame_progress_callback(int frame, int frames, void* data) {
+    std::lock_guard<std::mutex> lock(g_callback_mutex);
+    if (!g_callback_data.task_state_manager || g_callback_data.task_id.empty() ||
+        !g_callback_data.video_generation) {
+        return;
+    }
+    g_callback_data.task_state_manager->updateTaskPhase(g_callback_data.task_id, "decoding", frame, frames);
+    if (frames > 0) {
+        LOG_INFO("Video decode frame %d/%d", frame, frames);
+    } else {
+        LOG_INFO("Video frame decoding started");
     }
 }
 
@@ -146,6 +172,59 @@ ImageGenerator::~ImageGenerator() {
     }
 }
 
+void ImageGenerator::configureVaeTiling(sd_tiling_params_t& tiling_params, bool enabled) const {
+    // --vae-tiles is already in latent pixels. Preserve --vae-tile-size as a
+    // pixel-space compatibility override. Disabled tiling still carries these
+    // values for automatic image-decode retries.
+    int latent_tile_x = vae_tiles_;
+    int latent_tile_y = vae_tiles_;
+    if (!vae_tile_size_.empty()) {
+        const size_t x_pos = vae_tile_size_.find('x');
+        try {
+            if (x_pos != std::string::npos) {
+                const std::string tile_x_str = vae_tile_size_.substr(0, x_pos);
+                const std::string tile_y_str = vae_tile_size_.substr(x_pos + 1);
+                latent_tile_x = std::stoi(tile_x_str) / 8;
+                latent_tile_y = std::stoi(tile_y_str) / 8;
+            } else {
+                latent_tile_x = latent_tile_y = std::stoi(vae_tile_size_) / 8;
+            }
+        } catch (const std::exception&) {
+            LOG_WARNING("Invalid VAE tile size '%s', using --vae-tiles %d",
+                        vae_tile_size_.c_str(),
+                        vae_tiles_);
+            latent_tile_x = latent_tile_y = vae_tiles_;
+        }
+    }
+
+    latent_tile_x = std::max(latent_tile_x, 4);
+    latent_tile_y = std::max(latent_tile_y, 4);
+    const int overlap_limit = std::max(1, std::min(latent_tile_x, latent_tile_y) / 2);
+    const int overlap_pixels = std::min(vae_tiled_overlap_, overlap_limit);
+    const float overlap_ratio = static_cast<float>(overlap_pixels) /
+                                static_cast<float>(std::min(latent_tile_x, latent_tile_y));
+
+    tiling_params.enabled = enabled;
+    tiling_params.tile_size_x = latent_tile_x;
+    tiling_params.tile_size_y = latent_tile_y;
+    tiling_params.target_overlap = overlap_ratio;
+    tiling_params.rel_size_x = 0.0f;
+    tiling_params.rel_size_y = 0.0f;
+    if (enabled) {
+        LOG_INFO("VAE tiling enabled with %dx%d latent tiles, %d-pixel overlap (%dx%d image pixels)",
+                 latent_tile_x,
+                 latent_tile_y,
+                 overlap_pixels,
+                 latent_tile_x * 8,
+                 latent_tile_y * 8);
+    } else {
+        LOG_INFO("Automatic VAE fallback configured for %dx%d latent tiles with %d-pixel overlap",
+                 latent_tile_x,
+                 latent_tile_y,
+                 overlap_pixels);
+    }
+}
+
 // Helper function to build embedding map from directory
 static void buildEmbeddingMap(const std::string& embedding_dir, std::map<std::string, std::string>& embedding_map) {
     static const std::vector<std::string> valid_ext = {".gguf", ".safetensors", ".pt", ".sft"};
@@ -235,8 +314,17 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 
     // Video checkpoints use the same context loader and options model selector.
     // Empty adapter/control paths deliberately release image-only extensions.
-    if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true, params.backend,
-                           params.audio_vae_path, params.embeddings_connectors_path)) {
+    if (!ensureModelLoaded("", "", "", "",
+                           params.latent_interposer_model_path,
+                           params.furception_vae_path,
+                           params.latent_interposer_encode_model_path,
+                           params.latent_interposer_decode_model_path,
+                           params.latent_interposer_vae_format,
+                           true,
+                           params.backend,
+                           params.audio_vae_path,
+                           params.embeddings_connectors_path,
+                           params.motion_module_path)) {
         throw std::runtime_error("Failed to load video model from options");
     }
 
@@ -255,6 +343,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     }
     sd_set_progress_callback(nullptr, nullptr);
     sd_set_sample_progress_callback(progress_callback, nullptr);
+    sd_set_video_frame_progress_callback(video_frame_progress_callback, nullptr);
     sd_set_preview_callback(preview_callback, PREVIEW_PROJ, 3, true, false, nullptr);
 
     sd_vid_gen_params_t gen_params;
@@ -275,6 +364,8 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     gen_params.sample_params.scheduler         = params.scheduler;
     gen_params.sample_params.sample_steps      = params.steps;
     gen_params.sample_params.guidance.txt_cfg  = params.cfg_scale;
+    const auto optimization_args = sampling_optimization_args(params.tome_ratio, params.negative_guidance_min_sigma);
+    gen_params.sample_params.extra_sample_args = optimization_args.empty() ? nullptr : optimization_args.c_str();
     if (std::isfinite(params.flow_shift)) {
         gen_params.sample_params.flow_shift = params.flow_shift;
     }
@@ -282,6 +373,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     gen_params.cache.reuse_threshold = params.cache_threshold;
     gen_params.cache.start_percent   = params.cache_start_percent;
     gen_params.cache.end_percent     = params.cache_end_percent;
+    configureVaeTiling(gen_params.vae_tiling_params, vae_tiling_);
 
     std::vector<sd_lora_t> loras;
     const size_t lora_count = std::min(params.lora_paths.size(), params.lora_alphas.size());
@@ -294,6 +386,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 
     sd_image_t init_image = {0, 0, 0, nullptr};
     sd_image_t end_image  = {0, 0, 0, nullptr};
+    sd_image_t latent_interposer_source_image = {0, 0, 0, nullptr};
     auto decode_video_condition = [&](const std::string& encoded, const char* name) -> sd_image_t {
         if (encoded.empty()) {
             return {0, 0, 0, nullptr};
@@ -311,13 +404,23 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     try {
         init_image = decode_video_condition(params.init_image_base64, "initial");
         end_image  = decode_video_condition(params.end_image_base64, "ending");
+        if (params.latent_interposer_enabled && !params.latent_interposer_source_image_base64.empty()) {
+            latent_interposer_source_image = createLatentInterposerSourceImage(
+                params.latent_interposer_source_image_base64, params.width, params.height);
+        }
     } catch (...) {
         if (init_image.data) freeImage(init_image);
         if (end_image.data) freeImage(end_image);
+        if (latent_interposer_source_image.data) freeImage(latent_interposer_source_image);
         throw;
     }
     gen_params.init_image = init_image;
     gen_params.end_image  = end_image;
+    gen_params.latent_interposer_enabled = params.latent_interposer_enabled;
+    gen_params.latent_interposer_source = params.latent_interposer_source;
+    gen_params.latent_interposer_source_image = latent_interposer_source_image;
+    gen_params.latent_interposer_phase_x = params.latent_interposer_phase_x;
+    gen_params.latent_interposer_phase_y = params.latent_interposer_phase_y;
 
     LOG_INFO("Generating video: prompt='%s', size=%dx%d, frames=%d, fps=%d, steps=%d, cache=%d",
              params.prompt.c_str(), params.width, params.height, params.frames, params.fps,
@@ -345,6 +448,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     if (cancelled_during_preparation) {
         if (init_image.data) freeImage(init_image);
         if (end_image.data) freeImage(end_image);
+        if (latent_interposer_source_image.data) freeImage(latent_interposer_source_image);
         return {};
     }
     const bool ok = generate_video(sd_ctx_, &gen_params, &frames, &frame_count, &audio);
@@ -355,6 +459,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     }
     if (init_image.data) freeImage(init_image);
     if (end_image.data) freeImage(end_image);
+    if (latent_interposer_source_image.data) freeImage(latent_interposer_source_image);
     free_sd_audio(audio);
 
     if (generation_cancelled) {
@@ -371,6 +476,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 
     std::vector<std::string> encoded_frames;
     encoded_frames.reserve(static_cast<size_t>(frame_count));
+    task_state_manager_->updateTaskPhase(task_id, "finalizing", 0, frame_count);
     for (int i = 0; i < frame_count; ++i) {
         {
             std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
@@ -381,6 +487,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
             }
         }
         encoded_frames.push_back(imageToBase64(frames[i]));
+        task_state_manager_->updateTaskPhase(task_id, "finalizing", i + 1, frame_count);
     }
     free_sd_images(frames, frame_count);
     {
@@ -506,6 +613,8 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     gen_params.sample_params.scheduler = params.scheduler;
     gen_params.sample_params.sample_steps = params.steps;
     gen_params.sample_params.guidance.txt_cfg = params.cfg_scale;
+    const auto optimization_args = sampling_optimization_args(params.tome_ratio, params.negative_guidance_min_sigma);
+    gen_params.sample_params.extra_sample_args = optimization_args.empty() ? nullptr : optimization_args.c_str();
 
     // img2img specific
     if (is_img2img && !params.init_image_base64.empty()) {
@@ -568,7 +677,8 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         gen_params.latent_interposer_phase_x = params.latent_interposer_phase_x;
         gen_params.latent_interposer_phase_y = params.latent_interposer_phase_y;
         if (!params.latent_interposer_source_image_base64.empty()) {
-            latent_interposer_source_image = createLatentInterposerSourceImage(params);
+            latent_interposer_source_image = createLatentInterposerSourceImage(
+                params.latent_interposer_source_image_base64, params.width, params.height);
             gen_params.latent_interposer_source_image = latent_interposer_source_image;
         }
         LOG_INFO("Using staged Latent Interposer source %d with phase %d,%d",
@@ -601,58 +711,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
             vae_tiling_enabled = false;
         }
     }
-    {
-        // The new --vae-tiles option is already in latent pixels. Preserve
-        // --vae-tile-size as a pixel-space compatibility override. Disabled
-        // tiling still carries these values for the automatic retry.
-        int latent_tile_x = vae_tiles_;
-        int latent_tile_y = vae_tiles_;
-        if (!vae_tile_size_.empty()) {
-            size_t x_pos = vae_tile_size_.find('x');
-            try {
-                if (x_pos != std::string::npos) {
-                    std::string tile_x_str = vae_tile_size_.substr(0, x_pos);
-                    std::string tile_y_str = vae_tile_size_.substr(x_pos + 1);
-                    latent_tile_x = std::stoi(tile_x_str) / 8;
-                    latent_tile_y = std::stoi(tile_y_str) / 8;
-                } else {
-                    latent_tile_x = latent_tile_y = std::stoi(vae_tile_size_) / 8;
-                }
-            } catch (const std::exception& e) {
-                LOG_WARNING("Invalid VAE tile size '%s', using --vae-tiles %d",
-                            vae_tile_size_.c_str(),
-                            vae_tiles_);
-                latent_tile_x = latent_tile_y = vae_tiles_;
-            }
-        }
-
-        latent_tile_x = std::max(latent_tile_x, 4);
-        latent_tile_y = std::max(latent_tile_y, 4);
-        const int overlap_limit = std::max(1, std::min(latent_tile_x, latent_tile_y) / 2);
-        const int overlap_pixels = std::min(vae_tiled_overlap_, overlap_limit);
-        const float overlap_ratio = static_cast<float>(overlap_pixels) /
-                                    static_cast<float>(std::min(latent_tile_x, latent_tile_y));
-
-        gen_params.vae_tiling_params.enabled = vae_tiling_enabled;
-        gen_params.vae_tiling_params.tile_size_x = latent_tile_x;
-        gen_params.vae_tiling_params.tile_size_y = latent_tile_y;
-        gen_params.vae_tiling_params.target_overlap = overlap_ratio;
-        gen_params.vae_tiling_params.rel_size_x = 0.0f;
-        gen_params.vae_tiling_params.rel_size_y = 0.0f;
-        if (vae_tiling_enabled) {
-            LOG_INFO("VAE tiling enabled with %dx%d latent tiles, %d-pixel overlap (%dx%d image pixels)",
-                     latent_tile_x,
-                     latent_tile_y,
-                     overlap_pixels,
-                     latent_tile_x * 8,
-                     latent_tile_y * 8);
-        } else {
-            LOG_INFO("Automatic VAE fallback configured for %dx%d latent tiles with %d-pixel overlap",
-                     latent_tile_x,
-                     latent_tile_y,
-                     overlap_pixels);
-        }
-    }
+    configureVaeTiling(gen_params.vae_tiling_params, vae_tiling_enabled);
 
     // Generate images
     {
@@ -854,12 +913,12 @@ sd_image_t ImageGenerator::createControlNetLLLiteImage(const ImageGenerationPara
     return image;
 }
 
-sd_image_t ImageGenerator::createLatentInterposerSourceImage(const ImageGenerationParams& params) {
-    sd_image_t image = base64ToImage(params.latent_interposer_source_image_base64);
+sd_image_t ImageGenerator::createLatentInterposerSourceImage(const std::string& encoded, int width, int height) {
+    sd_image_t image = base64ToImage(encoded);
     if (!image.data) {
         throw std::runtime_error("Failed to decode Furception latent source image");
     }
-    if (!resizeImage(image, params.width, params.height, true)) {
+    if (!resizeImage(image, width, height, true)) {
         freeImage(image);
         throw std::runtime_error("Failed to resize Furception latent source image");
     }
@@ -980,10 +1039,11 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        bool native_video_request,
                                        const std::string& request_compute_backend,
                                        const std::string& audio_vae_path,
-                                       const std::string& embeddings_connectors_path) {
+                                       const std::string& embeddings_connectors_path,
+                                       const std::string& motion_module_path) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    for (const auto& path : {audio_vae_path, embeddings_connectors_path}) {
+    for (const auto& path : {audio_vae_path, embeddings_connectors_path, motion_module_path}) {
         if (!path.empty() && !fs::is_regular_file(path)) {
             throw std::invalid_argument("Video companion file not found: " + path);
         }
@@ -1137,6 +1197,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
         llm_path_str,
         audio_vae_path,
         embeddings_connectors_path,
+        motion_module_path,
         controlnet_path_str,
         automatic_control_net_sd1_path,
         automatic_control_net_sdxl_path,
@@ -1270,6 +1331,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.llm_path = llm_path_str.empty() ? nullptr : llm_path_str.c_str();
     params.audio_vae_path = audio_vae_path.empty() ? nullptr : audio_vae_path.c_str();
     params.embeddings_connectors_path = embeddings_connectors_path.empty() ? nullptr : embeddings_connectors_path.c_str();
+    params.motion_module_path = motion_module_path.empty() ? nullptr : motion_module_path.c_str();
     params.taesd_path = nullptr;
     params.control_net_path = controlnet_path_str.empty() ? nullptr : controlnet_path_str.c_str();
     params.control_net_sd1_path = automatic_control_net_sd1_path.empty() ? nullptr : automatic_control_net_sd1_path.c_str();

@@ -1,3 +1,4 @@
+import ast
 import pathlib
 import re
 import unittest
@@ -65,7 +66,7 @@ class TestTerminologyConsistency(unittest.TestCase):
         image_html = (self.repo_root / "ui" / "plugins" / "ui" / "image_plugin" / "image-settings.plugin.html").read_text(encoding="utf-8")
         self.assertIn('class="collapsible">Video Options', video_html)
         self.assertNotIn('id="native-video-model"', video_html)
-        self.assertNotIn('id="native-video-enabled"', video_html)
+        self.assertIn('id="native-video-enabled"', video_html)
         self.assertIn("Options", image_html)
         self.assertIn('<label for="stable_diffusion_model">Model:</label>', image_html)
         self.assertNotIn('id="native-video-vae"', video_html)
@@ -110,7 +111,13 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn('"mochi/t5xxl"', model_manager_py)
         self.assertIn('seen_real_paths = set()', list_models_py)
         self.assertIn('if "/mochi/vae/" in f"/{rel_path}"', list_models_py)
-        self.assertIn('LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video"]', model_manager_py)
+        listable = next(node.value for node in ast.parse(model_manager_py).body
+                        if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name)
+                        and target.id == "LISTABLE_MODEL_TYPES" for target in node.targets))
+        self.assertIsInstance(listable, ast.BinOp)
+        self.assertEqual(listable.left.id, "KNOWN_MODEL_TYPES")
+        self.assertIsInstance(listable.op, ast.Add)
+        self.assertTrue({"video", "motion-module"}.issubset(ast.literal_eval(listable.right)))
         self.assertIn('relative_to = app.MODELS_DIR if model_type == "video" else None', list_models_py)
         self.assertIn("model_manager.LISTABLE_MODEL_TYPES", server_py)
 
@@ -161,7 +168,7 @@ class TestTerminologyConsistency(unittest.TestCase):
         generator_cpp = (
             self.repo_root / "source" / "sdkit3-port-source" / "src" / "image_generator.cpp"
         ).read_text()
-        config = (self.repo_root / "config.yaml").read_text()
+        defaults = (self.repo_root / "source/sdkit3-port-source/include/server.h").read_text()
 
         self.assertIn('arg == "--video-clip-on-cpu"', main_cpp)
         self.assertIn('arg == "--video-vae-on-cpu"', main_cpp)
@@ -180,11 +187,11 @@ class TestTerminologyConsistency(unittest.TestCase):
         self.assertIn("native_video_request && video_mmap_weights_", generator_cpp)
         self.assertIn("native_video_request && !video_max_vram_.empty()", generator_cpp)
         self.assertIn("native_video_request && video_stream_layers_", generator_cpp)
-        self.assertNotIn("--video-clip-on-cpu", config)
-        self.assertNotIn("--video-vae-on-cpu", config)
-        self.assertNotIn("--video-offload-to-cpu", config)
-        self.assertNotIn("--video-max-vram", config)
-        self.assertNotIn("--video-stream-layers", config)
+        # Operator-local config may deliberately enable offloading. Assert
+        # native defaults and request scoping, not a user's saved preferences.
+        for name in ("video_clip_on_cpu", "video_vae_on_cpu", "video_offload_to_cpu", "video_stream_layers"):
+            self.assertRegex(defaults, rf"bool\s+{name}\s*=\s*false;")
+        self.assertIn("std::string video_max_vram;", defaults)
         self.assertIn("g_callback_data.video_generation   = true", generator_cpp)
         self.assertIn("Video sampling step %d/%d", generator_cpp)
 

@@ -4,6 +4,7 @@
 #include "core/ggml_extend.hpp"
 #include "core/util.h"
 #include "ggml-backend.h"
+#include "runtime/token-merge.hpp"
 
 class DownSampleBlock : public GGMLBlock {
 protected:
@@ -405,6 +406,7 @@ public:
 
 class BasicTransformerBlock : public GGMLBlock {
 protected:
+    SpatialTokenMerge token_merge;
     int64_t n_head;
     int64_t d_head;
     bool ff_in;
@@ -461,7 +463,16 @@ public:
 
         auto r = x;
         x      = norm1->forward(ctx, x);
-        x      = attn1->forward(ctx, x, x);  // self-attention
+        const bool merge = ctx->spatial_token_merge_ratio > 0.f && !ctx->training_graph && !ff_in &&
+                           x->ne[1] >= 64 && ctx->spatial_token_merge_base_tokens > 0 &&
+                           x->ne[1] * 4 >= ctx->spatial_token_merge_base_tokens;
+        if (merge) {
+            auto plan = token_merge.merge(ctx, r, x, ctx->spatial_token_merge_ratio);
+            x = attn1->forward(ctx, plan.values, plan.values);
+            x = token_merge.unmerge(ctx, plan, x);
+        } else {
+            x = attn1->forward(ctx, x, x);
+        }
         x      = ggml_add(ctx->ggml_ctx, x, r);
         r      = x;
         x      = norm2->forward(ctx, x);

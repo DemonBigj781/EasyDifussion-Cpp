@@ -12,6 +12,9 @@ struct TaskState {
     float progress;
     int current_step;
     int total_steps;
+    std::string phase;
+    int phase_current;
+    int phase_total;
     std::string live_preview;  // base64 encoded image
     int id_live_preview;
     std::vector<std::string> result_images;  // base64 encoded images
@@ -28,6 +31,8 @@ class TaskStateManager {
     void createTask(const std::string& task_id);
     void updateTaskProgress(const std::string& task_id, float progress, const std::string& live_preview = "",
                             int current_step = -1, int total_steps = -1);
+    void updateTaskPhase(const std::string& task_id, const std::string& phase,
+                         int phase_current = -1, int phase_total = -1);
     void completeTask(const std::string& task_id, const std::vector<std::string>& images, const std::string& info);
     void interruptTask(const std::string& task_id);
 

@@ -157,8 +157,25 @@ let schedulerSelectionContainer = document.querySelector("#schedulerSelection")
 let useFaceCorrectionField = document.querySelector("#use_face_correction")
 let gfpganModelField = new ModelDropdown(document.querySelector("#gfpgan_model"), ["gfpgan", "codeformer"], "", false)
 let useUpscalingField = document.querySelector("#use_upscale")
-let upscaleModelField = document.querySelector("#upscale_model")
+let upscaleModelField = new ModelDropdown(document.querySelector("#upscale_model"), null, "Select an upscaler")
 let upscaleAmountField = document.querySelector("#upscale_amount")
+const DEFAULT_UPSCALER_MODEL = "RealESRGAN_x4plus"
+const FIXED_UPSCALER_MODELS = [
+    { model: "RealESRGAN_x4plus" },
+    { model: "RealESRGAN_x4plus_anime_6B" },
+    { model: "ESRGAN_4x", featureKeys: ["backend_webui", "backend_sdkit3"] },
+    { model: "Lanczos", featureKeys: ["backend_webui"] },
+    { model: "Nearest", featureKeys: ["backend_webui"] },
+    { model: "ScuNET", featureKeys: ["backend_webui"] },
+    { model: "ScuNET PSNR", featureKeys: ["backend_webui"] },
+    { model: "SwinIR_4x", featureKeys: ["backend_webui"] },
+    { model: "latent_upscaler", featureKeys: ["backend_ed_classic", "backend_ed_diffusers"] },
+]
+const CURRENT_BACKEND_FEATURE_KEY = "backend_sdkit3"
+
+function isUpscalerModelSupported(model) {
+    return !model.featureKeys || model.featureKeys.includes(CURRENT_BACKEND_FEATURE_KEY)
+}
 
 function getUpscalerFilterName(path) {
     if (!path) return null
@@ -173,25 +190,24 @@ function getUpscalerFilterName(path) {
 }
 
 function refreshUpscalerModels() {
-    const selectedValue = upscaleModelField.value
-    upscaleModelField.querySelectorAll("option[data-discovered-upscaler]").forEach((option) => option.remove())
-
-    const existingValues = new Set(Array.from(upscaleModelField.options, (option) => option.value))
+    const selectedValue = upscaleModelField.value || DEFAULT_UPSCALER_MODEL
+    const upscalerModels = FIXED_UPSCALER_MODELS
+        .filter(isUpscalerModelSupported)
+        .map((model) => model.model)
+    const existingValues = new Set(upscalerModels)
     const discoveredModels = (modelsCache?.models || [])
         .filter((model) => model.tags?.[0] === "realesrgan")
         .sort((a, b) => (a.name || a.model).localeCompare(b.name || b.model))
 
     for (const model of discoveredModels) {
         if (existingValues.has(model.model)) continue
-        const option = document.createElement("option")
-        option.value = model.model
-        option.textContent = model.name || model.model
-        option.dataset.discoveredUpscaler = "true"
-        upscaleModelField.appendChild(option)
+        upscalerModels.push(model.model)
         existingValues.add(model.model)
     }
 
-    if (existingValues.has(selectedValue)) upscaleModelField.value = selectedValue
+    upscaleModelField.inputModels = buildTree(upscalerModels.map((model) => ({ model })))
+    upscaleModelField.populateModels()
+    upscaleModelField.value = existingValues.has(selectedValue) ? selectedValue : DEFAULT_UPSCALER_MODEL
     onUpscaleModelChange()
 }
 
@@ -698,6 +714,7 @@ function showImages(reqBody, res, outputContainer, livePreview) {
 
             const req = Object.assign({}, reqBody, {
                 seed: result?.seed || reqBody.seed,
+                output_format: imageOutputFormat(imageElem.src, res.task_data?.output_format || reqBody.output_format),
             })
             imageElem.setAttribute("data-seed", req.seed)
             imageElem.setAttribute("data-imagecounter", ++imageCounter)
@@ -844,8 +861,13 @@ function onDownloadJSONClick(req, img) {
     saveAs(blob, name)
 }
 
+function imageOutputFormat(source, fallback) {
+    const mime = /^data:image\/(gif|png|jpeg|jpg|webp)(?:;|,)/i.exec(source || "")?.[1]?.toLowerCase()
+    return mime === "jpg" ? "jpeg" : mime || fallback
+}
+
 function onDownloadImageClick(req, img) {
-    const name = getDownloadFilename(img, req["output_format"])
+    const name = getDownloadFilename(img, imageOutputFormat(img.src, req["output_format"]))
     const blob = dataURItoBlob(img.src)
     saveAs(blob, name)
 }
@@ -1321,7 +1343,7 @@ function createInitImageHover(taskEntry, task) {
         div.querySelector(".downloadPreviewImg").addEventListener("click", (e) => {
             e.preventDefault()
 
-            const name = "image." + task.reqBody["output_format"]
+            const name = "image." + imageOutputFormat(img.src, task.reqBody["output_format"])
             const blob = dataURItoBlob(img.src)
             saveAs(blob, name)
         })
@@ -1567,6 +1589,8 @@ function getCurrentUserRequest() {
             hidden_negative_prompt: hiddenNegativePromptField.value.trim(),
             num_outputs: numOutputsParallel,
             num_inference_steps: parseInt(numInferenceStepsField.value),
+            tome_ratio: Number(document.getElementById("tome_ratio")?.value || 0),
+            negative_guidance_min_sigma: Number(document.getElementById("negative_guidance_min_sigma")?.value || 0),
             guidance_scale: parseFloat(guidanceScaleField.value),
             width: width,
             height: height,
@@ -1598,6 +1622,10 @@ function getCurrentUserRequest() {
         // }
         if (maskSetting.checked) {
             newTask.reqBody.mask = imageInpainter.getImg()
+            newTask.reqBody.strict_mask_border = strictMaskBorderField.checked
+        }
+        if (colorGuideSetting.checked && advancedInpainter.appliedColorGuide) {
+            newTask.reqBody.inpaint_color_guide = advancedInpainter.appliedColorGuide
             newTask.reqBody.strict_mask_border = strictMaskBorderField.checked
         }
         newTask.reqBody.preserve_init_image_color_profile = applyColorCorrectionField.checked
@@ -2106,6 +2134,7 @@ function onDimensionChange() {
     let heightValue = parseInt(heightField.value)
     if (!initImagePreviewContainer.classList.contains("has-image")) {
         imageEditor.setImage(null, widthValue, heightValue)
+        advancedInpainter.setImage(null, widthValue, heightValue)
     } else {
         // Keep the editor and mask in the source image's coordinate space.
         // The generation dimensions may use a different aspect ratio and are
@@ -2116,6 +2145,7 @@ function onDimensionChange() {
             initImagePreview.naturalWidth,
             initImagePreview.naturalHeight
         )
+        advancedInpainter.setBackground(initImagePreview.src)
     }
     if (widthValue < 512 && heightValue < 512) {
         smallImageWarning.classList.remove("displayNone")
@@ -2391,7 +2421,7 @@ function onUpscaleModelChange() {
 }
 upscaleModelField.addEventListener("change", onUpscaleModelChange)
 onUpscaleModelChange()
-if (modelsCache?.models) refreshUpscalerModels()
+refreshUpscalerModels()
 
 makeImageBtn.addEventListener("click", makeImage)
 
@@ -2702,13 +2732,15 @@ function setInitialImageSource(source, autoSelectDimensions = true) {
 }
 
 function img2imgLoad() {
+    const editorUpdate = initImagePreview.dataset.editorUpdate === "true"
+    delete initImagePreview.dataset.editorUpdate
     promptStrengthContainer.style.display = "table-row"
     if (!testDiffusers.checked) {
         samplerSelectionContainer.style.display = "none"
     }
     initImagePreviewContainer.classList.add("has-image")
     colorCorrectionSetting.style.display = ""
-    strictMaskBorderSetting.style.display = maskSetting.checked ? "" : "none"
+    strictMaskBorderSetting.style.display = maskSetting.checked || colorGuideSetting.checked ? "" : "none"
 
     const sourceWidth = initImagePreview.naturalWidth
     const sourceHeight = initImagePreview.naturalHeight
@@ -2726,6 +2758,12 @@ function img2imgLoad() {
     delete initImagePreview.dataset.autoSelectDimensions
     imageEditor.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
     imageInpainter.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
+    if (editorUpdate && advancedInpainter.width === sourceWidth && advancedInpainter.height === sourceHeight) {
+        advancedInpainter.setBackground(this.src)
+    } else {
+        advancedInpainter.setImage(this.src, sourceWidth, sourceHeight)
+        colorGuideSetting.checked = false
+    }
 }
 
 function img2imgUnload() {
@@ -2733,6 +2771,7 @@ function img2imgUnload() {
     initImagePreview.src = ""
     delete initImagePreview.dataset.autoSelectDimensions
     maskSetting.checked = false
+    colorGuideSetting.checked = false
 
     promptStrengthContainer.style.display = "none"
     if (!testDiffusers.checked) {
@@ -2742,6 +2781,8 @@ function img2imgUnload() {
     colorCorrectionSetting.style.display = "none"
     strictMaskBorderSetting.style.display = "none"
     imageEditor.setImage(null, parseInt(widthField.value), parseInt(heightField.value))
+    imageInpainter.setImage(null, parseInt(widthField.value), parseInt(heightField.value))
+    advancedInpainter.setImage(null, parseInt(widthField.value), parseInt(heightField.value))
 }
 initImagePreview.addEventListener("load", img2imgLoad)
 initImageClearBtn.addEventListener("click", img2imgUnload)
@@ -2750,7 +2791,7 @@ maskSetting.addEventListener("click", function () {
     onDimensionChange()
 })
 maskSetting.addEventListener("change", function () {
-    strictMaskBorderSetting.style.display = this.checked ? "" : "none"
+    strictMaskBorderSetting.style.display = this.checked || colorGuideSetting.checked ? "" : "none"
 })
 
 promptsFromFileBtn.addEventListener("click", function () {

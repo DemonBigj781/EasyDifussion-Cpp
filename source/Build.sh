@@ -7,7 +7,7 @@ CUDA_ARCH="${SDKIT_CUDA_ARCHITECTURES:-86}"
 CUDA_VERSION="${SDKIT_CUDA_VERSION:-}"
 SYCL_DEVICE_ARCH="${SDKIT_SYCL_DEVICE_ARCH:-}"
 BUILD_TYPE="${SDKIT_BUILD_TYPE:-Release}"
-BUILD_JOBS="${SDKIT_BUILD_JOBS:-4}"
+BUILD_JOBS="${SDKIT_BUILD_JOBS:-1}"
 TARGET="${SDKIT_BUILD_TARGET:-sdkit}"
 BUILD_DIR="${SDKIT_BUILD_DIR:-}"
 BUILD_DIR_EXPLICIT=0
@@ -39,7 +39,7 @@ Options:
   --xavier22        Jetson Xavier, custom Ubuntu 22.04 preset
   --build-dir PATH  Build outside the default local build directory
   --build-type TYPE CMake build type (default: Release)
-  --jobs N          Parallel build jobs (default: 4)
+  --jobs N          Parallel build jobs (default: 1)
   --target NAME     CMake target (default: sdkit)
   --sprite-gpt      Build the isolated native Sprite-GPT sidecar
   --deploy PATH     Copy the completed bin bundle to PATH
@@ -246,6 +246,7 @@ CMAKE_ARGS=(
     -DSDKIT_BUILD_NATIVE_VISION=OFF
     -DSDKIT_BUILD_SPRITE_GPT="$BUILD_SPRITE_GPT"
     -DSDKIT_BUILD_IMAGE_TOOLS=ON
+    -DSDKIT_LLAMA_BUILD_JOBS="$BUILD_JOBS"
 )
 if [[ "$BUILD_SPRITE_GPT" == ON ]]; then
     TORCH_PYTHON="${SDKIT_TORCH_PYTHON:-$SCRIPT_DIR/../.venv/bin/python}"
@@ -279,6 +280,18 @@ if [[ "$USE_SYCL" == ON ]]; then
     else
         echo "Using Intel oneAPI/SYCL backend (JIT device code)"
     fi
+fi
+if command -v ccache >/dev/null 2>&1; then
+    CMAKE_ARGS+=(
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+    )
+    if [[ "$USE_CUDA" == ON ]]; then
+        CMAKE_ARGS+=(-DCMAKE_CUDA_COMPILER_LAUNCHER=ccache)
+    fi
+    echo "Using ccache: $(command -v ccache)"
+else
+    echo "ccache not found; building without compiler cache" >&2
 fi
 if [[ "$USE_VULKAN" == ON ]]; then
     echo "Using Vulkan GPU backend"

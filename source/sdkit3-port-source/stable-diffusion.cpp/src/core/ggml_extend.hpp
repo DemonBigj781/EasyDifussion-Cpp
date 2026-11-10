@@ -1734,6 +1734,8 @@ struct WeightAdapter {
 };
 
 struct GGMLRunnerContext {
+    float spatial_token_merge_ratio = 0.f;
+    int64_t spatial_token_merge_base_tokens = 0;
     ggml_backend_t backend                                           = nullptr;
     ggml_context* ggml_ctx                                           = nullptr;
     uint8_t flash_attn_enabled                                       = 0;
@@ -1791,6 +1793,8 @@ protected:
     using GraphCutPlan    = sd::ggml_graph_cut::Plan;
 
     ggml_backend_t runtime_backend = nullptr;
+    std::string diagnostic_module;
+    std::string diagnostic_assignment;
 
     ggml_context* params_ctx = nullptr;
 
@@ -2009,14 +2013,24 @@ protected:
         auto manager = weight_manager.lock();
         if (manager == nullptr) {
             if (!params_to_prepare.empty()) {
-                LOG_ERROR("%s weight manager is not set for graph params", get_desc().c_str());
+                sd_record_generation_failure(runtime_backend,
+                                             diagnostic_module,
+                                             diagnostic_assignment,
+                                             "weight_manager_unavailable",
+                                             get_desc());
+                LOG_ERROR("%s", sd_last_error().c_str());
                 return false;
             }
             return true;
         }
 
         if (!manager->prepare_params(params_to_prepare)) {
-            LOG_ERROR("%s prepare graph weights failed", get_desc().c_str());
+            sd_record_generation_failure(runtime_backend,
+                                         diagnostic_module,
+                                         diagnostic_assignment,
+                                         "weight_preparation",
+                                         get_desc());
+            LOG_ERROR("%s", sd_last_error().c_str());
             return false;
         }
         for (ggml_tensor* param : params_to_prepare) {
@@ -2267,9 +2281,21 @@ protected:
         }
         compute_allocr = ggml_gallocr_new(ggml_backend_get_default_buffer_type(runtime_backend));
 
+        size_t planned_compute_buffer_size = 0;
+        ggml_gallocr_reserve_n_size(compute_allocr,
+                                    gf,
+                                    nullptr,
+                                    nullptr,
+                                    &planned_compute_buffer_size);
+
         if (!ggml_gallocr_reserve(compute_allocr, gf)) {
-            // failed to allocate the compute buffer
-            LOG_ERROR("%s: failed to allocate the compute buffer\n", get_desc().c_str());
+            sd_record_generation_failure(runtime_backend,
+                                         diagnostic_module,
+                                         diagnostic_assignment,
+                                         "compute_buffer_allocation",
+                                         get_desc(),
+                                         planned_compute_buffer_size);
+            LOG_ERROR("%s: %s", get_desc().c_str(), sd_last_error().c_str());
             free_compute_buffer();
             return false;
         }
@@ -2868,11 +2894,21 @@ protected:
             ggml_backend_sched_reset(sched);
             pin_multi_device_nodes(gf);  // reset clears the pins; re-apply before alloc
             if (!ggml_backend_sched_alloc_graph(sched, gf)) {
-                LOG_ERROR("%s sched alloc compute graph failed", get_desc().c_str());
+                sd_record_generation_failure(runtime_backend,
+                                             diagnostic_module,
+                                             diagnostic_assignment,
+                                             "scheduled_graph_allocation",
+                                             get_desc());
+                LOG_ERROR("%s", sd_last_error().c_str());
                 return std::nullopt;
             }
         } else if (!ggml_gallocr_alloc_graph(compute_allocr, gf)) {
-            LOG_ERROR("%s alloc compute graph failed", get_desc().c_str());
+            sd_record_generation_failure(runtime_backend,
+                                         diagnostic_module,
+                                         diagnostic_assignment,
+                                         "compute_graph_allocation",
+                                         get_desc());
+            LOG_ERROR("%s", sd_last_error().c_str());
             return std::nullopt;
         }
 
@@ -3098,6 +3134,12 @@ public:
 
 public:
     virtual std::string get_desc() = 0;
+
+    void set_generation_diagnostic_context(const std::string& module,
+                                           const std::string& assignment) {
+        diagnostic_module     = module;
+        diagnostic_assignment = assignment;
+    }
 
     GGMLRunner(ggml_backend_t backend,
                std::shared_ptr<RunnerWeightManager> manager = nullptr)

@@ -17,16 +17,23 @@ void reset_sd_generation_error() {
 }
 
 std::string sd_generation_error_message(const std::string& fallback) {
+    std::string details = fallback;
+    if (const char* native_error = sd_get_last_error(); native_error && *native_error &&
+        details.find(native_error) == std::string::npos) {
+        details += ": ";
+        details += native_error;
+    }
+
     // A lost Vulkan device is a driver/device failure, not proof of exhausted VRAM.
-    if (fallback.find("ErrorDeviceLost") != std::string::npos ||
-        fallback.find("VK_ERROR_DEVICE_LOST") != std::string::npos) {
+    if (details.find("ErrorDeviceLost") != std::string::npos ||
+        details.find("VK_ERROR_DEVICE_LOST") != std::string::npos) {
         return "Vulkan GPU device lost (ErrorDeviceLost). Use Settings > Clear VRAM to restart the backend, "
                "then retry with a smaller image or another VAE device.";
     }
     if (generation_out_of_vram) {
         return "Out of VRAM: the GPU ran out of memory. Reduce image size or batch size, or enable VAE tiling.";
     }
-    return fallback;
+    return details;
 }
 
 static bool is_gpu_out_of_memory(const std::string& message) {

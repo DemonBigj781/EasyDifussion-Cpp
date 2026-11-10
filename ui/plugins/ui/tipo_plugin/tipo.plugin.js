@@ -140,7 +140,7 @@
         const presetEl = container.querySelector(`#${ID_PREFIX}-preset`);
         const presetNameEl = container.querySelector(`#${ID_PREFIX}-preset-name`);
         const deletePresetEl = container.querySelector(`#${ID_PREFIX}-delete-preset`);
-        const modelEl = container.querySelector(`#${ID_PREFIX}-model`);
+        const modelEl = new ModelDropdown(container.querySelector(`#${ID_PREFIX}-model`), null, "No models found");
         const deviceEl = container.querySelector(`#${ID_PREFIX}-device`);
         const modelInfoEl = container.querySelector(`#${ID_PREFIX}-model-info`);
         const tagLengthEl = container.querySelector(`#${ID_PREFIX}-tag-length`);
@@ -417,20 +417,13 @@
                 const models = Array.isArray(data.models) ? data.models : [];
                 availableModels = models;
                 modelMetadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
-                modelEl.innerHTML = "";
+                modelEl.inputModels = buildTree(models.map(model => ({ model })));
+                modelEl.populateModels();
+                modelEl.modelFilter.placeholder = models.length ? "Select TIPO model…" : "No models found";
                 if (models.length === 0) {
-                    const opt = document.createElement("option");
-                    opt.value = "";
-                    opt.textContent = "No models found";
-                    modelEl.appendChild(opt);
+                    modelEl.value = "";
                     renderPresets();
                 } else {
-                    models.forEach((model) => {
-                        const opt = document.createElement("option");
-                        opt.value = model;
-                        opt.textContent = model;
-                        modelEl.appendChild(opt);
-                    });
                     if (currentModel && models.includes(currentModel)) {
                         modelEl.value = currentModel;
                     } else if (settings.model && models.includes(settings.model)) {

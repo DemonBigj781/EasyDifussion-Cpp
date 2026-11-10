@@ -1,9 +1,11 @@
 from typing import Any, List, Dict, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GenerateImageRequest(BaseModel):
+    tome_ratio: float = Field(0.0, ge=0, le=0.5, allow_inf_nan=False)
+    negative_guidance_min_sigma: float = Field(0.0, ge=0, allow_inf_nan=False)
     backend_assignment: str = ""
     prompt: str = ""
     negative_prompt: str = ""
@@ -21,6 +23,7 @@ class GenerateImageRequest(BaseModel):
 
     init_image: Any = None
     init_image_mask: Any = None
+    inpaint_color_guide: Any = None
     ref_images: Any = None  # list of base64-encoded reference images for vision-based models
     control_image: Any = None
     control_alpha: Union[float, List[float]] = None
@@ -66,8 +69,22 @@ class FilterImageRequest(BaseModel):
 
 
 class VideoGenerationRequest(BaseModel):
+    tome_ratio: float = Field(0.0, ge=0, le=0.5, allow_inf_nan=False)
+    negative_guidance_min_sigma: float = Field(0.0, ge=0, allow_inf_nan=False)
+    motion_module_model: Optional[str] = None
     audio_vae_model: Optional[str] = None
     embeddings_connectors_model: Optional[str] = None
+    latent_interposer_model: Optional[str] = None
+    latent_interposer_enabled: bool = False
+    latent_interposer_source: str = "fx"
+    latent_interposer_furception_vae: str = "furception_vae_1-0"
+    latent_interposer_source_seed: int = 1
+    latent_interposer_phase_x: int = 0
+    latent_interposer_phase_y: int = 0
+    latent_interposer_encode_enabled: bool = False
+    latent_interposer_decode_enabled: bool = False
+    latent_interposer_encode_model: Optional[str] = None
+    latent_interposer_decode_model: Optional[str] = None
     backend_assignment: str = ""
     prompt: str = ""
     negative_prompt: str = ""
@@ -75,6 +92,7 @@ class VideoGenerationRequest(BaseModel):
     width: int = 512
     height: int = 512
     num_inference_steps: int = 20
+    video_steps: Optional[int] = Field(None, ge=1, le=200)
     guidance_scale: float = 5.0
     init_image: Any = None
     end_image: Any = None
@@ -208,6 +226,7 @@ class GenerateImageResponse:
     def json(self):
         del self.render_request.init_image
         del self.render_request.init_image_mask
+        del self.render_request.inpaint_color_guide
         del self.render_request.ref_images
         del self.render_request.control_image
 

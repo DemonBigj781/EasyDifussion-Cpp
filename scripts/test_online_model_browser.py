@@ -177,6 +177,56 @@ class OnlineModelBrowserTests(unittest.TestCase):
         self.assertEqual(order, [1, 2, 3])
         self.assertEqual(maximum_active, 1)
 
+    def test_global_images_returns_model_locations_without_obsolete_global_search(self):
+        class Request:
+            headers = {}
+            query_params = {
+                "query": "portrait",
+                "limit": "12",
+                "page": "2",
+                "sort": "Most Reactions",
+                "period": "Month",
+                "nsfw": "true",
+            }
+
+        captured = {}
+
+        def obsolete_global_image_search(**_kwargs):
+            raise AssertionError("obsolete global image search should not be called")
+
+        def fake_search(**kwargs):
+            captured.update(kwargs)
+            return {
+                "ok": True,
+                "items": [{"id": 123, "name": "Portrait model", "modelVersion": {"id": 456}}],
+                "metadata": {"page": 2, "nextCursor": "next-model-page"},
+            }
+
+        with mock.patch.object(service, "_global_images_civitai", obsolete_global_image_search), \
+             mock.patch.object(service, "_search_civitai", fake_search):
+            result = self._run_async(api.civitai_global_images(Request()))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["items"][0]["id"], 123)
+        self.assertEqual(result["metadata"]["searchBackend"], "model-locations")
+        self.assertEqual(result["metadata"]["imageListing"], "select-model-first")
+        self.assertEqual(captured["query"], "portrait")
+        self.assertEqual(captured["page"], 2)
+        self.assertEqual(captured["limit"], 12)
+        self.assertEqual(captured["sort"], "Newest")
+        self.assertEqual(captured["period"], "Month")
+        self.assertTrue(captured["nsfw"])
+
+    def test_images_requires_model_context_for_text_query(self):
+        with self.assertRaisesRegex(ValueError, "Select a model"):
+            service._images_civitai(query="portrait", api_key=None)
+
+    @staticmethod
+    def _run_async(awaitable):
+        import asyncio
+
+        return asyncio.run(awaitable)
+
     @staticmethod
     def _anima_model():
         return {

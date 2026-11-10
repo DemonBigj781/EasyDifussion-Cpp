@@ -17,9 +17,10 @@ body { margin:0; background:var(--ui-bg); color:var(--ui-text); font:14px/1.45 "
 .panel-box h3 { margin:0 0 12px; }
 .page-columns { border-collapse:separate; border-spacing:12px 0; margin:0 -12px; width:calc(100% + 24px); table-layout:fixed; }
 .page-column { vertical-align:top; }
-.page-column label,#page-content fieldset > label { display:block; margin:9px 0; }
+.page-column label,#page-content fieldset > label,#page-content .panel-box > label { display:block; margin:9px 0; }
 input,textarea,select { max-width:100%; color:var(--ui-text); background:var(--input-background-color,#15171b); border:1px solid var(--input-border-color,var(--ui-border)); border-radius:4px; padding:7px 9px; }
 label > input,label > textarea,label > select { display:block; width:100%; margin-top:4px; }
+label > input[type="checkbox"] { display:inline-block; width:auto; margin:0 4px 0 0; vertical-align:middle; }
 textarea { min-height:78px; resize:vertical; }
 button { color:var(--ui-text); background:var(--ui-raised); border:1px solid var(--ui-border); border-radius:5px; padding:8px 12px; margin:3px; cursor:pointer; }
 button:hover { border-color:var(--ui-accent); }

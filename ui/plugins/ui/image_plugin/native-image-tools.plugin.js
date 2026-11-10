@@ -27,6 +27,22 @@
         <button id="native-remove-object" class="button" type="button" title="Remove the currently painted inpaint mask with the Deep Object Removal model">
             <i class="fa-solid fa-eraser"></i> Remove object
         </button>
+        <details id="native-sam" class="native-sam">
+            <summary>SAM Segmentation</summary>
+            <div class="native-sam-grid">
+                <label for="native-sam-image">Source image</label>
+                <input id="native-sam-image" type="file" accept="image/*">
+                <label for="native-sam-model">SAM model</label>
+                <input id="native-sam-model" class="model-filter" data-path="" type="text" autocomplete="off" placeholder="Search SAM models…">
+                <label for="native-sam-prompt-type">Prompt</label>
+                <select id="native-sam-prompt-type"><option value="point">Point</option><option value="box">Box</option></select>
+                <label for="native-sam-point-x">Point X</label><input id="native-sam-point-x" type="number" min="0" step="0.5" value="0">
+                <label for="native-sam-point-y">Point Y</label><input id="native-sam-point-y" type="number" min="0" step="0.5" value="0">
+                <label for="native-sam-box">Box x1,y1,x2,y2</label><input id="native-sam-box" type="text" value="0,0,1,1" placeholder="x1,y1,x2,y2">
+            </div>
+            <button id="native-sam-generate" class="button" type="button">Generate mask</button>
+            <img id="native-sam-preview" class="native-sam-preview" alt="Generated SAM mask" hidden>
+        </details>
         <small id="native-image-tools-status" aria-live="polite"></small>`
     buttons.appendChild(holder)
 
@@ -35,11 +51,18 @@
         #native-image-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         #native-image-tools .button { border: 0; font: inherit; }
         #native-image-tools-status { flex-basis: 100%; min-height: 1.25em; opacity: .8; }
+        .native-sam { flex-basis: 100%; margin-top: 8px; }
+        .native-sam-grid { display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr); gap: 6px 8px; margin: 8px 0; }
+        .native-sam-preview { max-width: 240px; max-height: 180px; display: block; margin-top: 8px; }
+        @media (max-width: 700px) { .native-sam-grid { grid-template-columns: 1fr; } }
     `
     document.head.appendChild(style)
 
     const status = document.getElementById("native-image-tools-status")
     const controls = Array.from(holder.querySelectorAll("button"))
+    const samModel = typeof ModelDropdown === "function"
+        ? new ModelDropdown(document.getElementById("native-sam-model"), "sam", "None")
+        : null
 
     function ensureImage() {
         if (!preview.src || !preview.naturalWidth || !preview.naturalHeight) {
@@ -53,6 +76,36 @@
         canvas.height = preview.naturalHeight
         canvas.getContext("2d").drawImage(preview, 0, 0)
         return canvas.toDataURL("image/png")
+    }
+
+    let samSource = ""
+    document.getElementById("native-sam-image").addEventListener("change", () => {
+        const file = document.getElementById("native-sam-image").files?.[0]
+        if (!file) return
+        const reader = new FileReader()
+        reader.addEventListener("load", () => { samSource = String(reader.result || "") })
+        reader.readAsDataURL(file)
+    })
+
+    async function segmentWithSam() {
+        const source = samSource || imagePayload()
+        if (!source) throw new Error("Choose an image first.")
+        if (!samModel?.value) throw new Error("Choose a SAM model first.")
+        const promptType = document.getElementById("native-sam-prompt-type").value
+        const payload = {image: source, model: samModel.value, prompt_type: promptType, multimask: false}
+        if (promptType === "point") {
+            payload.point = {x: Number(document.getElementById("native-sam-point-x").value), y: Number(document.getElementById("native-sam-point-y").value)}
+        } else {
+            const values = document.getElementById("native-sam-box").value.split(",").map(Number)
+            if (values.length !== 4) throw new Error("Box prompt needs x1,y1,x2,y2.")
+            payload.box = {x1: values[0], y1: values[1], x2: values[2], y2: values[3]}
+        }
+        const result = await post("/sam/segment", payload)
+        if (!result.mask) throw new Error("SAM returned no mask.")
+        const maskPreview = document.getElementById("native-sam-preview")
+        maskPreview.src = result.mask
+        maskPreview.hidden = false
+        status.textContent = `SAM mask generated at ${result.width} × ${result.height}.`
     }
 
     async function post(url, payload) {
@@ -159,4 +212,5 @@
     document.getElementById("native-object-mask").addEventListener("click", () => run(() => detectionMask("objects")))
     document.getElementById("native-face-mask").addEventListener("click", () => run(() => detectionMask("face")))
     document.getElementById("native-remove-object").addEventListener("click", () => run(removeObject))
+    document.getElementById("native-sam-generate").addEventListener("click", () => run(segmentWithSam))
 })()

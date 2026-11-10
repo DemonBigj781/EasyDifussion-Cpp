@@ -248,9 +248,13 @@ def getUIPlugins():
 
     file_names = set()
     for plugins_dir, dir_prefix in UI_PLUGINS_SOURCES:
-        for file in os.listdir(plugins_dir):
-            if file.endswith(".plugin.js") and file not in file_names:
-                plugins.append(f"/plugins/{dir_prefix}/{file}")
+        for root, directories, files in os.walk(plugins_dir):
+            directories.sort()
+            for file in sorted(files):
+                if not file.endswith(".plugin.js") or file in file_names:
+                    continue
+                relative_path = os.path.relpath(os.path.join(root, file), plugins_dir).replace(os.sep, "/")
+                plugins.append(f"/plugins/{dir_prefix}/{relative_path}")
                 file_names.add(file)
 
     return plugins

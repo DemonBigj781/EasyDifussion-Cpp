@@ -33,7 +33,7 @@ PLUGIN_NAME = "civitai"
 PLUGIN_VERSION = "0.4.0"
 
 ALLOWED_SORT_MODELS = {"Highest Rated", "Most Downloaded", "Newest"}
-ALLOWED_SORT_IMAGES = {"Most Reactions", "Most Comments", "Newest"}
+ALLOWED_SORT_IMAGES = {"Most Reactions", "Most Comments", "Newest", "Random"}
 ALLOWED_PERIODS = {"AllTime", "Year", "Month", "Week", "Day"}
 
 _PERIOD_SECONDS = {
@@ -501,6 +501,7 @@ def _bridge_cache_key(
     model_version_id: Optional[int],
     post_id: Optional[int],
     username: Optional[str],
+    tag_ids: Tuple[int, ...] = (),
 ) -> Tuple[Any, ...]:
     return (
         (query or "").strip(),
@@ -516,6 +517,7 @@ def _bridge_cache_key(
         model_version_id,
         post_id,
         username or "",
+        tag_ids,
     )
 
 
@@ -567,6 +569,7 @@ def _request_with_retries(
         headers.update(extra_headers)
     for attempt in range(max_retries + 1):
         try:
+            started = time.perf_counter()
             response = requests.request(
                 method=method,
                 url=url,
@@ -575,8 +578,20 @@ def _request_with_retries(
                 json=json_body,
                 timeout=timeout,
             )
+            endpoint = urlparse(url)
+            # Requests has already decompressed content; Content-Length may
+            # describe compressed wire bytes, so report both without comparing.
+            _log(
+                f"HTTP {method.upper()} {endpoint.hostname}{endpoint.path} "
+                f"status={response.status_code} received_bytes={len(response.content)} "
+                f"content_length={response.headers.get('Content-Length', 'unknown')} "
+                f"content_encoding={response.headers.get('Content-Encoding', 'identity')} "
+                f"elapsed_ms={(time.perf_counter() - started) * 1000:.1f} attempt={attempt + 1}"
+            )
             response.raise_for_status()
             data = response.json() or {}
+            if isinstance(data, dict) and isinstance(data.get("items"), list):
+                _log(f"Parsed {endpoint.path} items={len(data['items'])}")
             if cacheable and key is not None:
                 _cache_set(key, data)
             return data
@@ -827,6 +842,7 @@ def _trim_model_item(
 
 def _trim_image_item(img: Dict[str, Any]) -> Dict[str, Any]:
     return {
+        **img,
         "id": img.get("id"),
         "url": img.get("url"),
         "hash": img.get("hash"),
@@ -895,6 +911,11 @@ def _global_images_civitai(
     sort: Optional[str] = None,
     period: Optional[str] = None,
 ) -> Dict[str, Any]:
+    raise ValueError(
+        "Civitai global image search is unavailable. Search models first, "
+        "choose a model location, then list images inside that selected model."
+    )
+
     clean_search_key = str(search_key or "").strip()
     if clean_search_key:
         search_host = str(
@@ -940,7 +961,7 @@ def _global_images_civitai(
         return int(timestamp)
 
     created_from_unix = unix_milliseconds(created_from)
-    # images_v6 does not accept the public API's period enum.  Translate it to
+    # The removed website image index did not accept the public API's period enum. Translate it to
     # the index's creation timestamp so the date-range control still constrains
     # full-text image searches.
     if created_from_unix is None and selected_period in _PERIOD_SECONDS:
@@ -974,7 +995,7 @@ def _global_images_civitai(
         "queries": [
             {
                 "q": str(query or ""),
-                "indexUid": "images_v6",
+                "indexUid": "removed-global-image-index",
                 "facets": [
                     "aspectRatio",
                     "baseModel",
@@ -1049,7 +1070,7 @@ def _global_images_civitai(
             }
         )
 
-    # images_v6 ranks text relevance.  Preserve that candidate selection, then
+    # The removed website image index ranked text relevance. Preserve that candidate selection, then
     # honor the gallery's requested image ordering for the returned page.
     items = _sort_unified_images(items, selected_sort)
 
@@ -1071,8 +1092,8 @@ def _global_images_civitai(
             "prevPage": page - 1 if page > 1 else None,
             "processingTimeMs": first.get("processingTimeMs"),
             "facets": first.get("facetDistribution") or {},
-            "searchBackend": "website-images_v6",
-            "searchIndex": "images_v6",
+            "searchBackend": "removed-global-image-index",
+            "searchIndex": "removed-global-image-index",
             "gallerySource": gallery_origin,
             "sort": selected_sort,
             "period": selected_period,
@@ -1193,6 +1214,7 @@ def _enums_civitai() -> Dict[str, Any]:
     return {
         "ok": True,
         "modelTypes": data.get("ModelType") or [],
+        "modelFileTypes": data.get("ModelFileType") or [],
         "baseModels": data.get("BaseModel") or [],
         "activeBaseModels": data.get("ActiveBaseModel") or [],
         "baseModelTypes": data.get("BaseModelType") or [],
@@ -1405,7 +1427,10 @@ def _search_civitai(
             params["cursor"] = norm_cursor
         # DO NOT send page when query is present
     else:
-        params["page"] = max(1, int(page or 1))
+        if norm_cursor:
+            params["cursor"] = norm_cursor
+        else:
+            params["page"] = max(1, int(page or 1))
 
     if nsfw is not None:
         params["nsfw"] = str(bool(nsfw)).lower()
@@ -1482,8 +1507,18 @@ def _images_civitai(
     model_version_id: Optional[int] = None,
     post_id: Optional[int] = None,
     username: Optional[str] = None,
+    tag_ids: Optional[list[int]] = None,
 ) -> Dict[str, Any]:
     url = "https://civitai.com/api/v1/images"
+    if any(type(tag) is not int or tag <= 0 for tag in tag_ids or []):
+        raise ValueError("Image tags must contain positive numeric IDs")
+    normalized_tags = tuple(sorted(set(tag_ids or [])))
+
+    if str(query or "").strip() and model_id is None and model_version_id is None:
+        raise ValueError(
+            "Select a model first. Civitai image search is model-scoped; "
+            "search models, choose a model location, then list images inside it."
+        )
 
     limit = max(1, min(int(limit or 50), 200))
     bridge_key = _bridge_cache_key(
@@ -1500,6 +1535,7 @@ def _images_civitai(
         model_version_id=model_version_id,
         post_id=post_id,
         username=username,
+        tag_ids=normalized_tags,
     )
     cached = _bridge_cache_get(bridge_key)
     if cached is not None:
@@ -1507,11 +1543,14 @@ def _images_civitai(
 
     # When no text query needs resolving, use the public images endpoint
     # directly. This covers selected models, posts, and unfiltered traversal.
-    if not str(query or "").strip():
+    if not str(query or "").strip() or model_id is not None or model_version_id is not None:
         image_params: Dict[str, Any] = {
             "limit": limit,
             "withMeta": "true",
+            "withTags": "true",
         }
+        if normalized_tags:
+            image_params["tags"] = ",".join(str(tag) for tag in normalized_tags)
         if model_id is not None:
             image_params["modelId"] = int(model_id)
         norm_cursor = _normalize_cursor(cursor)
@@ -1558,110 +1597,14 @@ def _images_civitai(
         _bridge_cache_set(bridge_key, result)
         return result
 
-    # Always bridge image searches through model-search, then unify images by modelId.
-    # This keeps image discovery consistent with model relevance/search controls.
-    mapped_model_sort = model_sort or _map_image_sort_to_model_sort(sort) or "Newest"
-    model_search = _search_civitai(
-        query=(str(query or "").strip()),
-        page=max(1, int(page or 1)),
-        api_key=api_key,
-        cursor=cursor,
-        nsfw=nsfw,
-        sort=mapped_model_sort,
-        period=period,
-        limit=20,
-        model_id=model_id,
-        model_version_id=model_version_id,
+    # Text queries are intentionally not bridged to global image search here.
+    # Civitai no longer has the old global image search as a reliable source;
+    # callers must first search/select a model location and then list images with
+    # modelId/modelVersionId through the public images endpoint above.
+    raise ValueError(
+        "Select a model first. Civitai image search is model-scoped; "
+        "search models, choose a model location, then list images inside it."
     )
-    model_items = model_search.get("items", []) or []
-
-    merged: list[Dict[str, Any]] = []
-    seen_ids: set[int] = set()
-    max_total_images = 4000
-
-    for model in model_items:
-        mid = model.get("id")
-        if mid is None:
-            continue
-        try:
-            model_id_int = int(mid)
-        except Exception:
-            continue
-
-        image_cursor: Optional[str] = None
-        seen_image_cursors: set[str] = set()
-        while True:
-            image_params: Dict[str, Any] = {
-                "limit": 200,
-                "modelId": model_id_int,
-                "withMeta": "true",
-            }
-            if image_cursor:
-                image_params["cursor"] = image_cursor
-            if model_version_id is not None:
-                image_params["modelVersionId"] = int(model_version_id)
-            if post_id is not None:
-                image_params["postId"] = int(post_id)
-            if username:
-                image_params["username"] = username
-            if nsfw is not None:
-                image_params["nsfw"] = str(bool(nsfw)).lower()
-            if sort in ALLOWED_SORT_IMAGES:
-                image_params["sort"] = sort
-            if period:
-                image_params["period"] = period
-
-            data = _request_with_retries("GET", url, params=_clean_params(image_params), api_key=api_key)
-            items = data.get("items", []) or []
-
-            for raw in items:
-                trimmed = _trim_image_item(raw)
-                iid = trimmed.get("id")
-                if isinstance(iid, int):
-                    if iid in seen_ids:
-                        continue
-                    seen_ids.add(iid)
-                merged.append(trimmed)
-
-            if len(merged) >= max_total_images:
-                break
-
-            meta = data.get("metadata", {}) or {}
-            next_image_cursor = _normalize_cursor(
-                meta.get("nextCursor") or meta.get("nextPageCursor")
-            )
-            if (
-                not next_image_cursor
-                or next_image_cursor in seen_image_cursors
-            ):
-                break
-            seen_image_cursors.add(next_image_cursor)
-            image_cursor = next_image_cursor
-
-        if len(merged) >= max_total_images:
-            break
-
-    merged = _sort_unified_images(merged, sort)
-    unified_total = len(merged)
-    merged = merged[:limit]
-
-    result = {
-        "ok": True,
-        "items": merged,
-        "metadata": {
-            "page": model_search.get("metadata", {}).get("page", page),
-            "pages": model_search.get("metadata", {}).get("pages"),
-            "total": unified_total,
-            "returned": len(merged),
-            "modelsMatched": len(model_items),
-            "nextPage": model_search.get("metadata", {}).get("nextPage"),
-            "prevPage": model_search.get("metadata", {}).get("prevPage"),
-            "nextCursor": model_search.get("metadata", {}).get("nextCursor"),
-            "prevCursor": model_search.get("metadata", {}).get("prevCursor"),
-        },
-    }
-    _bridge_cache_set(bridge_key, result)
-    return result
 
 
 # ----------------------------
@@ -1956,14 +1899,19 @@ def _download_file(
 
         total = resumed_bytes
         mode = "ab" if is_resuming else "wb"
-        with temp_path.open(mode) as fh:
-            for chunk in r.iter_content(chunk_size=1024 * 1024):
-                if not chunk:
-                    continue
-                fh.write(chunk)
-                total += len(chunk)
-                if progress_callback:
-                    progress_callback(total, total_bytes)
+        try:
+            with temp_path.open(mode) as fh:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if not chunk:
+                        continue
+                    fh.write(chunk)
+                    total += len(chunk)
+                    if progress_callback:
+                        progress_callback(total, total_bytes)
+        finally:
+            _log(f"Model download status={r.status_code} received_bytes={total - resumed_bytes} "
+                 f"content_length={response_bytes if response_bytes is not None else 'unknown'} "
+                 f"resumed_bytes={resumed_bytes} file_bytes={total}")
 
         if total_bytes is not None and total != total_bytes:
             raise IOError(

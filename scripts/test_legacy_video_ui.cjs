@@ -5,11 +5,18 @@ const path = require("node:path")
 const root = path.resolve(__dirname, "..")
 const source = name => fs.readFileSync(path.join(root, name), "utf8")
 const models = [
+    {model: "sd15", tags: ["stable-diffusion", "sd_v1_base"]},
+    {model: "motion", tags: ["motion-module", "animatediff"]},
     {model: "image", tags: ["stable-diffusion", "sdxl"]},
     {model: "video/mochi", tags: ["stable-diffusion", "mochi_v1_preview"]},
     {model: "video/ltx-distilled", tags: ["stable-diffusion", "ltx_video_v0_9_7"]},
     {model: "external/wan", tags: ["video", "wan_t2v_14b"]},
     {model: "video/ltx-2.3-dev", tags: ["stable-diffusion", "ltx2_3"]},
+    {model: "video/ltx-2-19b-distilled-Q3_K_M", tags: ["stable-diffusion", "ltx2"]},
+    {model: "video/ltx-2.3-22b-distilled-Q3_K_M", tags: ["stable-diffusion", "ltx2_3"]},
+    ...["LTX2_video_vae_bf16", "LTX2_audio_vae_bf16", "ltx-2.3-22b-distilled_video_vae",
+        "ltx-2.3-22b-distilled_audio_vae"].map(model => ({model,tags:["vae"]})),
+    ...["ltx-2-19b-embeddings_connector_distill_bf16", "ltx-2.3-22b-distilled_embeddings_connectors"].map(model => ({model,tags:["text-encoder"]})),
     ...["ltx-2.3-22b-dev_video_vae", "ltx-2.3-22b-dev_audio_vae"].map(model => ({model,tags:["vae"]})),
     ...["gemma-3-12b-it-Q4_K_M", "ltx-2.3-22b-dev_embeddings_connectors"].map(model => ({model,tags:["text-encoder"]})),
     ...["image-vae", "mochi/mochi_vae", "mochi/mochi_vae_fp8_e4m3fn", "wan/wan_2.1_vae"].map(model => ({model, tags: ["vae"]})),
@@ -73,18 +80,36 @@ async function run() {
         await page.goto(url)
         await page.waitForSelector("#stable_diffusion_model")
         assert.equal(await page.locator("#native-video-model").count(), 0)
-        assert.equal(await page.locator("#native-video-enabled").count(), 0)
-        assert.equal(await page.locator("#sdkit3-native-video-panel").isVisible(), false)
+        assert.equal(await page.locator("#native-video-enabled").count(), 1)
+        assert.equal(await page.locator("#sdkit3-native-video-panel").isVisible(), true)
+        assert.equal(await page.locator("#native-video-motion-module").isVisible(), true)
+        assert.equal(await page.locator("#native-video-steps").count(), 1)
         async function choose(id, model) {
             await page.locator(`#${id}`).click()
             await page.locator(`#${id}-model-list .model-file[data-path=${JSON.stringify(model)}]`).click()
         }
+        for (const model of ["sd15", "image"]) {
+            await choose("stable_diffusion_model", model)
+            await choose("native-video-motion-module", "motion")
+            for (const mode of ["easycache", "teacache", "disabled"]) {
+                await page.selectOption("#native-video-cache", mode)
+                const request = await page.evaluate(() => fixtureRequest())
+                assert.equal(request.video, true)
+                assert.equal(request.body.cache_mode, mode)
+                assert.equal(await page.locator("#native-video-threshold").isDisabled(), mode === "disabled")
+            }
+        }
         await choose("stable_diffusion_model", "video/mochi")
+        assert.equal(await page.locator("#native-video-motion-module").isDisabled(), true)
         assert.equal(await page.locator("#vae_model").getAttribute("data-path"), "mochi/mochi_vae_fp8_e4m3fn")
         assert.deepEqual(await page.evaluate(() => textEncoderModelField.modelNames), ["t5xxl_fp8_e4m3fn"])
-        assert.equal(await page.evaluate(() => fixtureRequest().video), true)
+        const mochiRequest = await page.evaluate(() => fixtureRequest())
+        assert.equal(mochiRequest.video, true)
+        assert.equal(mochiRequest.body.motion_module_model, undefined)
         await page.locator("#sdkit3-native-video-panel > h4").click()
+        await page.locator("#native-video-steps").fill("12")
         await page.locator("#native-video-frames").fill("49")
+        assert.equal(await page.evaluate(() => fixtureRequest().body.video_steps), 12)
         assert.equal(await page.evaluate(() => fixtureRequest().body.video_frames), 49)
         await choose("vae_model", "mochi/mochi_vae")
         await page.evaluate(() => document.dispatchEvent(new Event("refreshModels")))
@@ -101,19 +126,35 @@ async function run() {
         await page.evaluate(() => document.dispatchEvent(new Event("refreshModels")))
         await page.waitForTimeout(50)
         assert.equal(await page.locator("#native-video-audio-vae").getAttribute("data-path"), "ltx-2.3-22b-dev_audio_vae")
+        for (const version of ["2", "2.3", "2"]) {
+            const original = version === "2"
+            await choose("stable_diffusion_model", `video/ltx-${version}-${original ? "19" : "22"}b-distilled-Q3_K_M`)
+            assert.equal(await page.locator("#native-video-ltx23-resources").isVisible(), true)
+            const request = await page.evaluate(() => fixtureRequest())
+            assert.equal(request.body.use_vae_model, original ? "LTX2_video_vae_bf16" : "ltx-2.3-22b-distilled_video_vae")
+            assert.equal(request.body.audio_vae_model, original ? "LTX2_audio_vae_bf16" : "ltx-2.3-22b-distilled_audio_vae")
+            assert.equal(request.body.embeddings_connectors_model, original ? "ltx-2-19b-embeddings_connector_distill_bf16" : "ltx-2.3-22b-distilled_embeddings_connectors")
+            assert.equal(request.body.video_steps, 8)
+            assert.equal(request.body.guidance_scale, 1)
+            assert.equal(request.body.scheduler_name, "ltx2")
+        }
         await choose("stable_diffusion_model", "external/wan")
         assert.equal(await page.locator("#vae_model").getAttribute("data-path"), "wan/wan_2.1_vae")
         await choose("stable_diffusion_model", "video/ltx-distilled")
         assert.equal(await page.locator("#vae_model").getAttribute("data-path"), "")
-        assert.equal(await page.evaluate(() => fixtureRequest().body.num_inference_steps), 8)
+        assert.equal(await page.evaluate(() => fixtureRequest().body.video_steps), 8)
         await choose("stable_diffusion_model", "image")
+        assert.equal(await page.locator("#native-video-motion-module").isDisabled(), false)
+        assert.equal(await page.locator("#native-video-motion-module").getAttribute("data-path"), "motion")
+        assert.equal(await page.evaluate(() => fixtureRequest().video), true)
+        await choose("native-video-motion-module", "")
         assert.equal(await page.evaluate(() => fixtureRequest().video), false)
         assert.equal(await page.locator("#native-video-ltx23-resources").isVisible(), false)
         assert.equal(await page.locator("#vae_model").getAttribute("data-path"), "image-vae")
         assert.deepEqual(await page.evaluate(() => textEncoderModelField.modelNames), ["image-encoder"])
         await choose("stable_diffusion_model", "video/mochi")
         assert.equal(await page.locator("#vae_model").getAttribute("data-path"), "mochi/mochi_vae")
-        await choose("stable_diffusion_model", "video/ltx-2.3-dev")
+        await choose("stable_diffusion_model", "video/ltx-2-19b-distilled-Q3_K_M")
         await page.locator("#native-video-frames").scrollIntoViewIfNeeded()
         await page.screenshot({path:"/tmp/legacy-video-desktop.png"})
         await page.setViewportSize({width:390,height:844})
@@ -122,7 +163,7 @@ async function run() {
         assert.ok(box.x >= 0 && box.x + box.width <= 390)
         await page.screenshot({path:"/tmp/legacy-video-mobile.png"})
         assert.deepEqual(errors, [])
-        console.log("PASS: real dropdowns, LTX-2.3 four-resource autoload and payload, catalog merge, overrides, refresh, image/video round trip, routing, frame count, desktop/mobile; no backend")
+        console.log("PASS: real dropdowns, LTX-2.0/2.3 version-matched four-resource autoload and payload, bidirectional switching, catalog merge, overrides, refresh, image/video round trip, routing, frame count, desktop/mobile; no backend")
     } finally {if (browser) await browser.close(); server.close()}
 }
 run().catch(error => {console.error(error); server.close(); process.exitCode = 1})

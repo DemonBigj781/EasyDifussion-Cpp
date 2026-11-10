@@ -1,4 +1,4 @@
-<h2>Online Model Browser</h2>
+<h2>Models &amp; Images</h2>
 <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
     <label for="civitai-downloader-provider">Provider</label>
     <select id="civitai-downloader-provider" style="flex:1">
@@ -6,21 +6,21 @@
         <option value="huggingface">Hugging Face</option>
     </select>
 </div>
-<div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+<div style="display:flex;gap:12px;margin-bottom:8px" role="group" aria-label="Search content">
     <label><input type="radio" name="civitai-downloader-mode" value="models" checked> Models</label>
-    <label id="civitai-downloader-images-label"><input type="radio" name="civitai-downloader-mode" value="images"> Images</label>
+    <label><input type="radio" name="civitai-downloader-mode" value="images"> Images</label>
 </div>
 <div style="display:flex; gap:6px; margin-bottom:6px;">
     <input id="civitai-downloader-query" type="text" autocomplete="off" spellcheck="false" placeholder="Search term or Civitai URN (blank browses)" style="flex:1">
     <button class="secondaryButton" id="civitai-downloader-search" type="button">Search</button>
 </div>
 <div style="display:flex; gap:6px; margin-bottom:6px;">
-    <select id="civitai-downloader-sort" style="flex:1"></select>
-    <select id="civitai-downloader-period" style="flex:1">
+    <select id="civitai-downloader-sort" style="flex:1;min-width:0" aria-label="Model sort"></select>
+    <select id="civitai-downloader-period" style="flex:1;min-width:0" aria-label="Model and image period">
         <option value="AllTime">All Time</option><option value="Year">Year</option><option value="Month">Month</option><option value="Week">Week</option><option value="Day">Day</option>
     </select>
 </div>
-<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+<div id="civitai-downloader-model-filters" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
     <!-- Built-in Civitai enum values keep filters usable while live enums load. -->
     <label for="civitai-downloader-model-type" style="align-self:center">Tensor type</label>
     <select id="civitai-downloader-model-type" style="flex:1; min-width:160px" title="Filter Civitai models by resource type">
@@ -112,13 +112,26 @@
         <option value="Other">Other</option>
     </select>
 </div>
-<small id="civitai-downloader-help">Image search uses Civitai's images-v6 query when available and falls back to the public image API.</small>
-<div id="civitai-downloader-imgfilters" style="display:none; gap:6px; margin:8px 0">
-    <input id="civitai-downloader-postid" type="number" placeholder="postId (optional)" style="flex:1">
-    <input id="civitai-downloader-username" type="text" placeholder="username (optional)" style="flex:1">
+<small id="civitai-downloader-help">Search models to see their images automatically. Each model has its own image paging and a separate expandable model-files section.</small>
+<div id="civitai-downloader-imgfilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;align-items:center">
+    <label for="civitai-downloader-image-sort">Image sort</label>
+    <select id="civitai-downloader-image-sort" style="flex:1;min-width:140px">
+        <option>Newest</option><option>Most Reactions</option><option>Most Comments</option><option value="Random">Random</option>
+    </select>
+    <input id="civitai-downloader-postid" type="number" placeholder="Image postId (optional)" aria-label="Image post ID" style="flex:1;min-width:140px">
+    <input id="civitai-downloader-username" type="text" placeholder="Image username (optional)" aria-label="Image username" style="flex:1;min-width:140px">
+    <div style="position:relative;flex:1 1 240px;min-width:0">
+        <input id="civitai-downloader-tag-search" type="text" placeholder="Select image tags…" aria-label="Find image tags"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="civitai-downloader-tag-suggestions"
+               autocomplete="off" style="width:100%">
+        <div id="civitai-downloader-tag-suggestions" role="listbox" aria-label="Image tag suggestions" hidden
+             style="position:absolute;z-index:100;left:0;right:0;max-height:260px;overflow:auto;background:var(--background-color2);border:1px solid var(--background-color3);border-radius:6px;padding:4px"></div>
+    </div>
+    <div id="civitai-downloader-selected-tags" aria-label="Selected image tags" style="display:flex;flex-wrap:wrap;gap:4px;flex-basis:100%"></div>
+    <small style="flex-basis:100%">Select suggestions to add tags. Typed text is never searched. Choices are cached from verified image metadata and expand as you browse.</small>
 </div>
 <div id="civitai-downloader-status" style="min-height:18px; margin-bottom:6px"></div>
-<details open style="margin-bottom:8px; border:1px solid var(--background-color3); border-radius:6px; padding:5px 7px;">
+<details id="civitai-downloader-queue-panel" open style="margin-bottom:8px; border:1px solid var(--background-color3); border-radius:6px; padding:5px 7px;">
     <summary style="cursor:pointer;">Download queue <span id="civitai-downloader-queue-count"></span></summary>
     <div id="civitai-downloader-queue" style="display:flex; flex-direction:column; gap:4px; margin-top:5px;">
         <small>No downloads yet.</small>

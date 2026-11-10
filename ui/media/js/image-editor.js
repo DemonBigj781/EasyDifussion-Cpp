@@ -1,4 +1,5 @@
 var editorControlsLeft = document.getElementById("image-editor-controls-left")
+const colorGuideSetting = document.getElementById("enable_color_guide")
 
 const IMAGE_EDITOR_MAX_UPSCALE = 2
 const IMAGE_EDITOR_MIN_VISIBLE = 48
@@ -39,78 +40,15 @@ const defaultToolEnd = (editor, ctx, x, y, is_overlay = false) => {
 }
 const toolDoNothing = (editor, ctx, x, y, is_overlay = false) => { }
 
-function magicWandSelect(editor, targetCtx, x, y) {
+function magicWandSelect(editor, targetCtx, x, y, options = editor.options) {
     const width = editor.width
     const height = editor.height
-    const startX = Math.max(0, Math.min(width - 1, Math.floor(x)))
-    const startY = Math.max(0, Math.min(height - 1, Math.floor(y)))
     const source = editor.layers.background.ctx.getImageData(0, 0, width, height).data
-    const selected = new Uint8Array(width * height)
-    const queue = new Int32Array(width * height)
-    const start = startY * width + startX
-    const baseOffset = start * 4
-    const baseR = source[baseOffset]
-    const baseG = source[baseOffset + 1]
-    const baseB = source[baseOffset + 2]
-    const threshold = Number(editor.options.wand_threshold || 30)
-    const thresholdSquared = threshold * threshold
-    let read = 0
-    let write = 0
+    const selected = EditorMaskTools.select(source, width, height, x, y,
+        Number(options.wand_threshold ?? 30), Number(options.selection_buffer ?? 0))
 
-    selected[start] = 1
-    queue[write++] = start
-    while (read < write) {
-        const pixel = queue[read++]
-        const px = pixel % width
-        const py = Math.floor(pixel / width)
-        const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
-        for (let i = 0; i < neighbors.length; i++) {
-            const next = neighbors[i]
-            if (next < 0 || next >= selected.length || selected[next]) continue
-            if ((i === 0 && px === 0) || (i === 1 && px === width - 1)) continue
-            const offset = next * 4
-            const dr = source[offset] - baseR
-            const dg = source[offset + 1] - baseG
-            const db = source[offset + 2] - baseB
-            if (dr * dr + dg * dg + db * db > thresholdSquared) continue
-            selected[next] = 1
-            queue[write++] = next
-        }
-    }
-
-    // Grow the selected region by the requested pixel buffer. A multi-source
-    // breadth-first pass keeps this linear even for large mobile images.
-    const buffer = Math.max(0, Math.floor(Number(editor.options.selection_buffer || 0)))
-    if (buffer > 0) {
-        const distance = new Uint16Array(width * height)
-        read = 0
-        for (let i = 0; i < selected.length; i++) {
-            if (selected[i]) {
-                distance[i] = 1
-                queue[read++] = i
-            }
-        }
-        write = read
-        read = 0
-        while (read < write) {
-            const pixel = queue[read++]
-            const px = pixel % width
-            const depth = distance[pixel]
-            if (depth > buffer) continue
-            const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
-            for (let i = 0; i < neighbors.length; i++) {
-                const next = neighbors[i]
-                if (next < 0 || next >= selected.length || distance[next]) continue
-                if ((i === 0 && px === 0) || (i === 1 && px === width - 1)) continue
-                distance[next] = depth + 1
-                selected[next] = 1
-                queue[write++] = next
-            }
-        }
-    }
-
-    const color = editor.inpainter ? { r: 255, g: 255, b: 255 } : hexToRgb(editor.options.color || "#ffffff")
-    const alpha = Math.round(255 * (1 - Number(editor.options.opacity || 0)))
+    const color = editor.inpainter ? { r: 255, g: 255, b: 255 } : hexToRgb(options.color || "#ffffff")
+    const alpha = Math.round(255 * (1 - Number(options.opacity || 0)))
     const mask = new ImageData(width, height)
     for (let i = 0; i < selected.length; i++) {
         if (!selected[i]) continue
@@ -128,41 +66,10 @@ function magicWandSelect(editor, targetCtx, x, y) {
     targetCtx.save()
     targetCtx.globalCompositeOperation = "source-over"
     targetCtx.globalAlpha = 1
-    const feather = Math.floor(Number(editor.options.sharpness || 0) * Number(editor.options.brush_size || 48))
+    const feather = Math.floor(Number(options.sharpness || 0) * Number(options.brush_size || 1))
     targetCtx.filter = feather > 0 ? `blur(${feather}px)` : "none"
     targetCtx.drawImage(temporary, 0, 0)
     targetCtx.restore()
-}
-
-function expandBinaryMask(mask, width, height, radius) {
-    radius = Math.max(0, Math.floor(radius))
-    if (!radius) return mask
-    const queue = new Int32Array(width * height)
-    const distance = new Uint16Array(width * height)
-    let read = 0
-    let write = 0
-    for (let i = 0; i < mask.length; i++) {
-        if (mask[i]) {
-            distance[i] = 1
-            queue[write++] = i
-        }
-    }
-    while (read < write) {
-        const pixel = queue[read++]
-        const x = pixel % width
-        const depth = distance[pixel]
-        if (depth > radius) continue
-        const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width]
-        for (let i = 0; i < neighbors.length; i++) {
-            const next = neighbors[i]
-            if (next < 0 || next >= mask.length || distance[next]) continue
-            if ((i === 0 && x === 0) || (i === 1 && x === width - 1)) continue
-            distance[next] = depth + 1
-            mask[next] = 1
-            queue[write++] = next
-        }
-    }
-    return mask
 }
 
 async function removeImageBackground(editor) {
@@ -299,8 +206,8 @@ const IMAGE_EDITOR_TOOLS = [
         name: "Magic Wand",
         icon: "fa-solid fa-wand-magic-sparkles",
         cursor: "crosshair",
-        begin: (editor, ctx, x, y, is_overlay = false) => {
-            if (!is_overlay) magicWandSelect(editor, ctx, x, y)
+        begin: (editor, ctx, x, y, is_overlay = false, options = editor.options) => {
+            if (!is_overlay) magicWandSelect(editor, ctx, x, y, options)
         },
         move: toolDoNothing,
         end: toolDoNothing,
@@ -392,7 +299,9 @@ const IMAGE_EDITOR_ACTIONS = [
         icon: "fa-solid fa-xmark",
         handler: (editor) => {
             editor.ctx_current.clearRect(0, 0, editor.width, editor.height)
-            imageEditor.setImage(null, editor.width, editor.height) // properly reset the drawing canvas
+            if (!editor.inpainter && !editor.advancedInpainter) {
+                imageEditor.setImage(null, editor.width, editor.height) // properly reset the drawing canvas
+            }
         },
         trackHistory: true,
     },
@@ -513,30 +422,26 @@ var IMAGE_EDITOR_SECTIONS = [
     {
         name: "brush_size",
         title: "Brush Size",
-        default: 48,
-        min: 6,
+        default: 1,
+        min: 1,
         max: 64,
         step: 1,
     },
     {
         name: "wand_threshold",
-        title: "Wand Threshold",
+        title: "Magic Wand Sensitivity",
         default: 30,
-        options: [10, 20, 30, 45, 65, 90],
-        initElement: (element, option) => {
-            element.textContent = option
-            element.title = `Select colors within ${option} RGB distance`
-        },
+        min: 0,
+        max: 255,
+        step: 1,
     },
     {
         name: "selection_buffer",
         title: "Selection Buffer",
         default: 0,
-        options: [0, 2, 4, 8, 16, 32],
-        initElement: (element, option) => {
-            element.textContent = option
-            element.title = `Expand Magic Wand selections by ${option} pixels`
-        },
+        min: 0,
+        max: 64,
+        step: 1,
     },
     {
         name: "opacity",
@@ -545,6 +450,8 @@ var IMAGE_EDITOR_SECTIONS = [
         options: [0, 0.2, 0.4, 0.6, 0.8],
         initElement: (element, option) => {
             element.style.background = `repeating-conic-gradient(rgba(0, 0, 0, ${option}) 0% 25%, rgba(255, 255, 255, ${option}) 0% 50%) 50% / 10px 10px`
+            element.textContent = `${Math.round((1 - option) * 100)}%`
+            element.title = `${Math.round((1 - option) * 100)}% opacity / color weight`
         },
     },
     {
@@ -654,7 +561,7 @@ class EditorHistory {
                 this.editor.setBrush(this.editor.layers.drawing, event.options)
 
                 var first_point = event.points[0]
-                tool.begin(this.editor, ctx, first_point.x, first_point.y)
+                tool.begin(this.editor, ctx, first_point.x, first_point.y, false, event.options)
                 for (var point_i = 1; point_i < event.points.length; point_i++) {
                     tool.move(this.editor, ctx, event.points[point_i].x, event.points[point_i].y)
                 }
@@ -671,12 +578,17 @@ class EditorHistory {
 }
 
 class ImageEditor {
-    constructor(popup, inpainter = false) {
+    constructor(popup, inpainter = false, advancedInpainter = false) {
         this.inpainter = inpainter
+        this.advancedInpainter = advancedInpainter
+        this.appliedColorGuide = null
         this.popup = popup
         this.history = new EditorHistory(this)
         if (inpainter) {
             this.popup.classList.add("inpainter")
+        }
+        if (advancedInpainter) {
+            this.popup.classList.add("advanced-inpainter")
         }
         this.drawing = false
         this.temp_previous_tool = null // used for the ctrl-colorpicker functionality
@@ -735,15 +647,15 @@ class ImageEditor {
             sectionElement.className = section.id
 
             var title = document.createElement("h4")
-            title.innerText = section.title
+            title.innerText = advancedInpainter && section.name === "opacity" ? "Color Hint Weight" : section.title
             sectionElement.appendChild(title)
 
             var optionsContainer = document.createElement("div")
-            if (section.name === "brush_size") {
+            if (section.min !== undefined && section.max !== undefined) {
                 optionsContainer.className = "editor-brush-size-controls"
                 const slider = document.createElement("input")
                 slider.type = "range"
-                slider.id = `${this.popup.id}-brush-size`
+                slider.id = `${this.popup.id}-${section.name.replaceAll("_", "-")}`
                 slider.min = section.min
                 slider.max = section.max
                 slider.step = section.step
@@ -752,9 +664,11 @@ class ImageEditor {
                 const value = document.createElement("output")
                 value.setAttribute("for", slider.id)
                 const update = () => {
-                    this.options.brush_size = Number(slider.value)
-                    value.value = `${slider.value} px`
-                    slider.setAttribute("aria-valuetext", `${slider.value} pixels`)
+                    this.options[section.name] = Number(slider.value)
+                    const unit = section.name === "wand_threshold" ? "" : " px"
+                    value.value = `${slider.value}${unit}`
+                    slider.setAttribute("aria-valuetext", section.name === "wand_threshold"
+                        ? `${slider.value} RGB distance` : `${slider.value} pixels`)
                     this.setBrush()
                 }
                 slider.addEventListener("input", update)
@@ -847,7 +761,7 @@ class ImageEditor {
     }
     show() {
         if (this.popup.classList.contains("editor-page-pane") && typeof window.openImageEditorPage === "function") {
-            window.openImageEditorPage(this.inpainter ? "inpaint" : "draw")
+            window.openImageEditorPage(this.advancedInpainter ? "advanced" : this.inpainter ? "inpaint" : "draw")
         }
         this.popup.classList.add("active")
         this.activateInput()
@@ -859,6 +773,7 @@ class ImageEditor {
         if (this.popup.classList.contains("editor-page-pane") && typeof window.closeImageEditorPage === "function") {
             window.closeImageEditorPage()
         }
+        document.dispatchEvent(new Event("image-input-previews-changed"))
     }
     setSize(width, height) {
         width = parseInt(width)
@@ -1001,10 +916,15 @@ class ImageEditor {
     }
     setImage(url, width, height) {
         this.setSize(width, height)
-        this.layers.background.ctx.clearRect(0, 0, this.width, this.height)
         if (!(url && this.inpainter)) {
             this.layers.drawing.ctx.clearRect(0, 0, this.width, this.height)
         }
+        if (this.advancedInpainter) this.appliedColorGuide = null
+        this.setBackground(url)
+        this.history.clear()
+    }
+    setBackground(url) {
+        this.layers.background.ctx.clearRect(0, 0, this.width, this.height)
         if (url) {
             var image = new Image()
             image.onload = () => {
@@ -1019,16 +939,31 @@ class ImageEditor {
             this.layers.background.ctx.fill()
             this.captureBaseBackground()
         }
-        this.history.clear()
     }
     captureBaseBackground() {
         this.baseBackgroundImageData = this.layers.background.ctx.getImageData(0, 0, this.width, this.height)
+        document.dispatchEvent(new Event("image-input-previews-changed"))
     }
     saveImage() {
-        if (!this.inpainter) {
+        if (this.advancedInpainter) {
+            const strokeData = this.layers.drawing.ctx.getImageData(0, 0, this.width, this.height)
+            let isBlank = true
+            for (let offset = 0; offset < strokeData.data.length; offset += 4) {
+                if (strokeData.data[offset + 3]) {isBlank = false;break}
+            }
+            this.appliedColorGuide = isBlank ? null : this.layers.drawing.canvas.toDataURL()
+            colorGuideSetting.checked = !isBlank
+            if (!initImagePreviewContainer.classList.contains("has-image")) {
+                initImagePreview.dataset.editorUpdate = "true"
+                initImagePreview.src = this.layers.background.canvas.toDataURL()
+            }
+            colorGuideSetting.dispatchEvent(new Event("change"))
+        } else if (!this.inpainter) {
             // This is not an inpainter, so save the image as the new img2img input
             this.layers.background.ctx.drawImage(this.layers.drawing.canvas, 0, 0, this.width, this.height)
             var base64 = this.layers.background.canvas.toDataURL()
+            this.layers.drawing.ctx.clearRect(0, 0, this.width, this.height)
+            initImagePreview.dataset.editorUpdate = "true"
             initImagePreview.src = base64 // this will trigger the rest of the app to use it
         } else {
             // This is an inpainter, so make sure the toggle is set accordingly
@@ -1039,6 +974,7 @@ class ImageEditor {
             maskSetting.dispatchEvent(new Event("change"))
         }
         this.hide()
+        window.imageInputPreviews?.select(this.advancedInpainter ? "advanced" : this.inpainter ? "inpaint" : "draw")
     }
     getImg() {
         // a drop-in replacement of the drawingboard version
@@ -1055,6 +991,7 @@ class ImageEditor {
             ctx.filter = "none"
             ctx.drawImage(image, 0, 0, this.width, this.height)
             this.setBrush(this.layers.drawing)
+            document.dispatchEvent(new Event("image-input-previews-changed"))
         }
         image.src = dataUrl
     }
@@ -1379,15 +1316,57 @@ class ImageEditor {
 
 const imageEditor = new ImageEditor(document.getElementById("image-editor"))
 const imageInpainter = new ImageEditor(document.getElementById("image-inpainter"), true)
+const advancedInpainter = new ImageEditor(document.getElementById("image-advanced-inpainter"), false, true)
 
 imageEditor.setImage(null, 512, 512)
 imageInpainter.setImage(null, 512, 512)
+advancedInpainter.setImage(null, 512, 512)
+
+const imageInputPreviews = new ImagePreviewTabs(document.getElementById("init_image_wrapper"), "legacy-input-preview")
+initImagePreviewContainer.classList.add("has-editor-previews")
+window.imageInputPreviews = imageInputPreviews
+initImagePreview.style.display = "none"
+document.getElementById("init_image_wrapper").style.minWidth = "0"
+document.getElementById("init_image_wrapper").style.maxWidth = "100%"
+initImageClearBtn.className = "init_image_clear tertiaryButton"
+initImageClearBtn.type = "button"
+initImageClearBtn.textContent = "Clear initial image"
+document.getElementById("init_image_buttons").appendChild(initImageClearBtn)
+initImageSizeBox.style.position = "static"
+initImageSizeBox.style.display = "block"
+document.getElementById("init_image_wrapper").appendChild(initImageSizeBox)
+let previewFrame = null
+document.addEventListener("image-input-previews-changed", () => {
+    if (previewFrame !== null) cancelAnimationFrame(previewFrame)
+    previewFrame = requestAnimationFrame(() => {
+        previewFrame = null
+        if (!initImagePreviewContainer.classList.contains("has-image")) {imageInputPreviews.setImages(null);return}
+        imageInputPreviews.setImages({
+            draw: ImagePreviewTabs.render(imageEditor.layers.background.canvas, imageEditor.layers.drawing.canvas, "draw"),
+            inpaint: ImagePreviewTabs.render(imageInpainter.layers.background.canvas, imageInpainter.layers.drawing.canvas, "inpaint"),
+            advanced: ImagePreviewTabs.render(advancedInpainter.layers.background.canvas, advancedInpainter.layers.drawing.canvas, "advanced"),
+        })
+    })
+})
+document.addEventListener("tabClick", event => {
+    if (event.detail?.name === "main") document.dispatchEvent(new Event("image-input-previews-changed"))
+})
+colorGuideSetting.addEventListener("change", () => {
+    if (colorGuideSetting.checked && !advancedInpainter.appliedColorGuide) {
+        colorGuideSetting.checked = false
+        showToast("Save color-weighted guidance from Advanced Inpaint first.", 5000, true)
+    }
+    strictMaskBorderSetting.style.display = maskSetting.checked || colorGuideSetting.checked ? "" : "none"
+})
 
 document.getElementById("init_image_button_draw").addEventListener("click", () => {
     imageEditor.show()
 })
 document.getElementById("init_image_button_inpaint").addEventListener("click", () => {
     imageInpainter.show()
+})
+document.getElementById("init_image_button_advanced_inpaint").addEventListener("click", () => {
+    advancedInpainter.show()
 })
 
 img2imgUnload() // no init image when the app starts

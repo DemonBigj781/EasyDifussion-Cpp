@@ -93,6 +93,11 @@ static inline bool sd_version_is_unet(SDVersion version) {
     return false;
 }
 
+static inline bool sd_version_supports_animatediff(SDVersion version) {
+    return version == VERSION_SD1 || version == VERSION_SD1_INPAINT || version == VERSION_SD1_PIX2PIX ||
+           sd_version_is_sdxl(version);
+}
+
 static inline bool sd_version_is_sd3(SDVersion version) {
     if (version == VERSION_SD3) {
         return true;
