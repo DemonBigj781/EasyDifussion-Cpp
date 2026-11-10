@@ -68,6 +68,7 @@
 #include "runtime/guidance.h"
 #include "runtime/preview_interval.h"
 #include "runtime/sample-cache.h"
+#include "runtime/sampling-optimizations.hpp"
 #include "upscaler.h"
 
 #include "name_conversion.h"
@@ -78,9 +79,6 @@
 const char* sd_vae_format_name(enum sd_vae_format_t format);
 static SDVersion sd_vae_format_to_version(enum sd_vae_format_t format, SDVersion fallback);
 
-static bool sd_version_supports_animatediff(SDVersion version) {
-    return version == VERSION_SD1 || version == VERSION_SD1_INPAINT || version == VERSION_SD1_PIX2PIX;
-}
 
 const char* model_version_to_str[] = {
     "SD 1.x",
@@ -344,6 +342,10 @@ public:
                                 size_t* params_mem_size = nullptr) {
         if (model == nullptr) {
             return true;
+        }
+        if constexpr (std::is_base_of_v<GGMLRunner, T>) {
+            model->set_generation_diagnostic_context(sd_backend_module_name(module),
+                                                     backend_manager.runtime_assignment(module));
         }
         std::map<std::string, ggml_tensor*> group_tensors;
         std::map<ggml_tensor*, enum ggml_op> tensor_ops;
@@ -3096,11 +3098,24 @@ public:
             LOG_DEBUG("using guidance schedule: %s", schedule_str.c_str());
         }
 
+        auto optimization_config = SamplingOptimizations::parse(extra_sample_args);
+        if (!optimization_config) return {};
+        const auto optimizations = *optimization_config;
+        if ((optimizations.tome_ratio > 0.f || optimizations.negative_guidance_min_sigma > 0.f) &&
+            !sd_version_supports_animatediff(version)) {
+            LOG_ERROR("Token merging and NGMS currently require an SD1.5 or SDXL UNet");
+            return {};
+        }
+        if (optimizations.tome_ratio > 0.f && !control_net_lllite_image.empty()) {
+            LOG_ERROR("Token merging is not supported with ControlNet-LLLite projection patches");
+            return {};
+        }
         sd_sample::SampleCacheRuntime cache_runtime = sd_sample::init_sample_cache_runtime(version,
                                                                                            cache_params,
                                                                                            denoiser.get(),
                                                                                            sigmas,
-                                                                                           work_diffusion_model->get_desc());
+                                                                                           work_diffusion_model->get_desc(),
+                                                                                           animatediff_loaded && animatediff_num_frames > 1);
 
         bool needs_uncond_denoised = method == EULER_CFG_PP_SAMPLE_METHOD || method == EULER_A_CFG_PP_SAMPLE_METHOD;
         // Spectrum cache is not supported for CFG++ samplers
@@ -3128,6 +3143,15 @@ public:
         const sd::guidance::BaseGuidance& primary_guidance = use_apg_guidance
                                                                  ? static_cast<const sd::guidance::BaseGuidance&>(adaptive_projected_guidance)
                                                                  : static_cast<const sd::guidance::BaseGuidance&>(classifier_free_guidance);
+        if (optimizations.negative_guidance_min_sigma > 0.f &&
+            (needs_uncond_denoised || !img_uncond.empty() || use_apg_guidance || has_skiplayer || !guidance_schedule.empty() ||
+             !optimizations.cache_compatible(cache_params ? cache_params->mode : SD_CACHE_DISABLED))) {
+            LOG_ERROR("NGMS requires standard CFG with sample caches disabled; CFG++, image guidance, APG, SLG, and scheduled CFG are unsupported");
+            return {};
+        }
+        int negative_evaluations_skipped = 0;
+        if (optimizations.tome_ratio > 0.f) LOG_INFO("Spatial token merging enabled: ratio=%.3f, spatial self-attention only", optimizations.tome_ratio);
+        if (optimizations.negative_guidance_min_sigma > 0.f) LOG_INFO("NGMS enabled: sigma < %.3f on alternating evaluations", optimizations.negative_guidance_min_sigma);
         sd::guidance::SkipLayerGuidance skip_layer_guidance(has_skiplayer ? skip_layers : std::vector<int>(),
                                                             has_skiplayer ? slg_scale : 0.0f,
                                                             guidance.slg.layer_start,
@@ -3274,6 +3298,7 @@ public:
                         nvf = static_cast<int>(noised_input.shape()[3]);
                     }
                     UNetDiffusionExtra unet_extra{nvf, &controls, control_strength};
+                    unet_extra.tome_ratio = optimizations.tome_ratio;
                     unet_extra.lllite_condition = control_net_lllite_image.empty() ? nullptr : &control_net_lllite_image;
                     unet_extra.lllite_strength = control_net_lllite_strength;
                     unet_extra.lllite_step = step;
@@ -3386,7 +3411,9 @@ public:
                 return {};
             }
 
-            if (!uncond.empty()) {
+            const bool skip_negative = !uncond.empty() && optimizations.skip_negative(sigma, step);
+            if (skip_negative) ++negative_evaluations_skipped;
+            if (!uncond.empty() && !skip_negative) {
                 if (!step_cache.is_step_skipped()) {
                     compute_sample_controls(control_image,
                                             noised_input,
@@ -3478,6 +3505,7 @@ public:
 
         auto x0_opt = sample_k_diffusion(method, denoise, x_t, sigmas, sampler_rng, eta, is_flow_denoiser, extra_sample_args, denoiser);
         const int64_t sampling_total_us = ggml_time_us() - sampling_started_us;
+        if (optimizations.negative_guidance_min_sigma > 0.f) LOG_INFO("NGMS skipped %d negative condition evaluations", negative_evaluations_skipped);
         const int64_t measured_us = positive_compute_us + negative_compute_us +
                                     image_uncond_compute_us + preview_compute_us;
         LOG_INFO("sampling profile: total %.3fs, positive %.3fs, negative %.3fs, image-uncond %.3fs, preview %.3fs, other %.3fs",
@@ -4816,6 +4844,10 @@ void sd_vid_gen_params_init(sd_vid_gen_params_t* sd_vid_gen_params) {
     sd_vid_gen_params->height                                = 512;
     sd_vid_gen_params->strength                              = 0.75f;
     sd_vid_gen_params->seed                                  = -1;
+    sd_vid_gen_params->latent_interposer_enabled             = false;
+    sd_vid_gen_params->latent_interposer_source              = SD_LATENT_SOURCE_NONE;
+    sd_vid_gen_params->latent_interposer_phase_x             = 0;
+    sd_vid_gen_params->latent_interposer_phase_y             = 0;
     sd_vid_gen_params->video_frames                          = 6;
     sd_vid_gen_params->fps                                   = 16;
     sd_vid_gen_params->motion_bucket_id                      = 127;
@@ -6733,6 +6765,25 @@ static std::vector<float> make_hires_sigma_schedule(sd_ctx_t* sd_ctx,
                               sigmas.end());
 }
 
+struct GenerationFailureScope {
+    StableDiffusionGGML* sd = nullptr;
+    SDBackendModule module  = SDBackendModule::DIFFUSION;
+    const char* operation   = "generation";
+    bool succeeded           = false;
+
+    ~GenerationFailureScope() {
+        if (succeeded || sd == nullptr || !sd_last_error().empty()) {
+            return;
+        }
+        sd_record_generation_failure(sd->backend_manager.runtime_backend(module),
+                                     sd_backend_module_name(module),
+                                     sd->backend_manager.runtime_assignment(module),
+                                     "generation_failed",
+                                     operation);
+        LOG_ERROR("%s", sd_last_error().c_str());
+    }
+};
+
 SD_API bool generate_image(sd_ctx_t* sd_ctx,
                            const sd_img_gen_params_t* sd_img_gen_params,
                            sd_image_t** images_out,
@@ -6746,6 +6797,9 @@ SD_API bool generate_image(sd_ctx_t* sd_ctx,
     if (sd_ctx == nullptr || sd_img_gen_params == nullptr) {
         return false;
     }
+
+    sd_clear_last_error();
+    GenerationFailureScope failure_scope{sd_ctx->sd, SDBackendModule::DIFFUSION, "image_generation", false};
 
     // MiniMax-H3 is video-only. Its denoiser always splits the packed latent into a video and an
     // audio half, and only generate_video ever computes the audio length, so reaching this
@@ -7072,6 +7126,7 @@ SD_API bool generate_image(sd_ctx_t* sd_ctx,
     } else {
         free_sd_images(result, num_images);
     }
+    failure_scope.succeeded = true;
     return true;
 }
 
@@ -7836,6 +7891,11 @@ static sd_image_t* decode_video_outputs(sd_ctx_t* sd_ctx,
               (int)video_latent.shape()[2],
               (int)video_latent.shape()[3]);
     // auto z = sd::load_tensor_from_file_as_tensor<float>("ltx_vae_z.bin");
+    sd_video_frame_progress_cb_t frame_progress_cb = sd_get_video_frame_progress_callback();
+    void* frame_progress_data = sd_get_video_frame_progress_callback_data();
+    if (frame_progress_cb != nullptr) {
+        frame_progress_cb(0, 0, frame_progress_data);
+    }
     int64_t t4            = ggml_time_ms();
     sd::Tensor<float> vid = sd_ctx->sd->decode_first_stage(video_latent, true);
     int64_t t5            = ggml_time_ms();
@@ -7855,6 +7915,9 @@ static sd_image_t* decode_video_outputs(sd_ctx_t* sd_ctx,
     }
 
     const int64_t frame_count = vid.shape()[frame_dim];
+    if (frame_progress_cb != nullptr) {
+        frame_progress_cb(0, static_cast<int>(frame_count), frame_progress_data);
+    }
     sd_image_t* result_images = (sd_image_t*)calloc(frame_count, sizeof(sd_image_t));
     if (result_images == nullptr) {
         return nullptr;
@@ -7865,6 +7928,9 @@ static sd_image_t* decode_video_outputs(sd_ctx_t* sd_ctx,
 
     for (int64_t i = 0; i < frame_count; i++) {
         result_images[i] = tensor_to_sd_image(vid, static_cast<int>(i));
+        if (frame_progress_cb != nullptr) {
+            frame_progress_cb(static_cast<int>(i + 1), static_cast<int>(frame_count), frame_progress_data);
+        }
     }
 
     return result_images;
@@ -8086,6 +8152,11 @@ static bool generate_animatediff_video(sd_ctx_t* sd_ctx,
     img_gen_params.seed              = sd_vid_gen_params->seed;
     img_gen_params.batch_count       = 1;
     img_gen_params.control_strength  = 1.0f;
+    img_gen_params.latent_interposer_enabled = sd_vid_gen_params->latent_interposer_enabled;
+    img_gen_params.latent_interposer_source = sd_vid_gen_params->latent_interposer_source;
+    img_gen_params.latent_interposer_source_image = sd_vid_gen_params->latent_interposer_source_image;
+    img_gen_params.latent_interposer_phase_x = sd_vid_gen_params->latent_interposer_phase_x;
+    img_gen_params.latent_interposer_phase_y = sd_vid_gen_params->latent_interposer_phase_y;
     img_gen_params.vae_tiling_params = sd_vid_gen_params->vae_tiling_params;
     img_gen_params.cache             = sd_vid_gen_params->cache;
     img_gen_params.hires             = sd_vid_gen_params->hires;
@@ -8108,6 +8179,8 @@ SD_API bool generate_video(sd_ctx_t* sd_ctx,
     if (sd_ctx == nullptr || sd_vid_gen_params == nullptr) {
         return false;
     }
+    sd_clear_last_error();
+    GenerationFailureScope failure_scope{sd_ctx->sd, SDBackendModule::DIFFUSION, "video_generation", false};
     if (frames_out != nullptr) {
         *frames_out = nullptr;
     }
@@ -8124,7 +8197,9 @@ SD_API bool generate_video(sd_ctx_t* sd_ctx,
     if (sd_ctx->sd->animatediff_loaded && sd_version_supports_animatediff(sd_ctx->sd->version)) {
         LOG_INFO("AnimateDiff dispatch: %d frames, %dx%d",
                  sd_vid_gen_params->video_frames, sd_vid_gen_params->width, sd_vid_gen_params->height);
-        return generate_animatediff_video(sd_ctx, sd_vid_gen_params, frames_out, num_frames_out);
+        const bool ok = generate_animatediff_video(sd_ctx, sd_vid_gen_params, frames_out, num_frames_out);
+        failure_scope.succeeded = ok;
+        return ok;
     }
 
     const RefImageParams ref_image_params;
@@ -8167,6 +8242,14 @@ SD_API bool generate_video(sd_ctx_t* sd_ctx,
                                                                    sd_vid_gen_params,
                                                                    request,
                                                                    latents);
+    if (embeds.cond.c_crossattn.empty()) {
+        LOG_ERROR("Video conditioning failed; generation cancelled without terminating the backend");
+        return false;
+    }
+    if (request.use_uncond && embeds.uncond.c_crossattn.empty()) {
+        LOG_ERROR("Unconditional video conditioning failed; generation cancelled without terminating the backend");
+        return false;
+    }
     if (latent_upscale_enabled) {
         LOG_INFO("generate_video %dx%dx%d -> LTX latent spatial upscale",
                  request.width,
@@ -8486,7 +8569,12 @@ SD_API bool generate_video(sd_ctx_t* sd_ctx,
     } else {
         free_sd_audio(generated_audio);
     }
+    failure_scope.succeeded = true;
     return true;
+}
+
+SD_API const char* sd_get_last_error(void) {
+    return sd_last_error().c_str();
 }
 
 SD_API void free_sd_images(sd_image_t* result_images, int num_images) {

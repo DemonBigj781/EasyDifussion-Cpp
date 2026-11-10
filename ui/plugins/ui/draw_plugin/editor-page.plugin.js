@@ -6,6 +6,7 @@
             typeof createTab !== "function" ||
             typeof imageEditor === "undefined" ||
             typeof imageInpainter === "undefined" ||
+            typeof advancedInpainter === "undefined" ||
             document.getElementById("tab-image-editor-page")
         ) {
             return false
@@ -16,18 +17,20 @@
         panel.innerHTML = window.loadRequiredPluginHTML("/plugins/core/draw_plugin/editor-page.plugin.html")
 
         let activeMode = "draw"
+        const editors = {draw: imageEditor, inpaint: imageInpainter, advanced: advancedInpainter}
+        const deactivateAll = () => Object.values(editors).forEach(editor => editor.deactivateInput?.())
         const activate = (mode) => {
             if (mode === "generate") {
-                imageEditor.deactivateInput?.()
-                imageInpainter.deactivateInput?.()
+                deactivateAll()
                 selectTab("tab-main")
                 return
             }
-            activeMode = mode === "inpaint" ? "inpaint" : "draw"
-            const activeEditor = activeMode === "inpaint" ? imageInpainter : imageEditor
-            const inactiveEditor = activeMode === "inpaint" ? imageEditor : imageInpainter
-            inactiveEditor.popup.classList.remove("active")
-            inactiveEditor.deactivateInput?.()
+            activeMode = Object.hasOwn(editors, mode) ? mode : "draw"
+            const activeEditor = editors[activeMode]
+            Object.values(editors).filter(editor => editor !== activeEditor).forEach(editor => {
+                editor.popup.classList.remove("active")
+                editor.deactivateInput?.()
+            })
             activeEditor.popup.classList.add("active")
             activeEditor.activateInput?.()
             panel.querySelectorAll("[data-editor-mode]").forEach((button) => {
@@ -40,7 +43,7 @@
 
         createTab({
             id: "image-editor-page",
-            label: "Inpaint / Draw",
+            label: "Canvas",
             icon: "paintbrush",
             content: panel,
             onOpen: () => activate(activeMode),
@@ -243,7 +246,7 @@
         })
 
         const pageContent = panel.querySelector("#image-editor-page-content")
-        ;[imageEditor, imageInpainter].forEach((editor) => {
+        Object.values(editors).forEach((editor) => {
             editor.popup.classList.remove("popup", "active")
             editor.popup.classList.add("editor-page-pane")
             pageContent.appendChild(editor.popup)
@@ -292,8 +295,7 @@
             activate(mode)
         }
         window.closeImageEditorPage = () => {
-            imageEditor.deactivateInput?.()
-            imageInpainter.deactivateInput?.()
+            deactivateAll()
             selectTab("tab-main")
         }
         activate("draw")
@@ -302,8 +304,7 @@
 
         document.addEventListener("tabClick", (event) => {
             if (event.detail?.name === "image-editor-page") return
-            imageEditor.deactivateInput?.()
-            imageInpainter.deactivateInput?.()
+            deactivateAll()
         })
         return true
     }

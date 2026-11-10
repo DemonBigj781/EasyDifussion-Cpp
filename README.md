@@ -183,6 +183,17 @@ pixel is sampled independently; the generated PNG contains no source content.
 Encode latent interpose remains disabled until an Initial Image (including this
 generated noise) is present, and the server repeats that guard for API calls.
 
+The **Local LLM Prompt Processor** is available from both the C++ Main page and
+the legacy Generate page. Choose an instruction-tuned GGUF below `models_dir`
+and its fixed CPU or NVIDIA CUDA placement in either frontend's Settings page,
+then process a copy of the current positive prompt and apply the result back to
+the prompt field. Both frontends use the same saved settings and managed
+llama.cpp server.
+
+For model/image browsing and independent metadata reports, see the
+[online model browser guide](docs/online-model-browser.md). Native LTX video
+resource setup is covered in the [LTX-2.0/2.3 guide](docs/ltx-video-setup.md).
+
 ## Jetson Xavier benchmark
 
 `scripts/benchmark_sdkit_xavier.py` starts an isolated `sdkit` process, waits

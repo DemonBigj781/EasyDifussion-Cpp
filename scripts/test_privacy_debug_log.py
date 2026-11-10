@@ -90,7 +90,9 @@ class PrivacyDebugLogTests(unittest.TestCase):
         message = "\n".join(captured.output)
         self.assertIn("Result image 1 is very dark", message)
         self.assertIn("Result image 3 is very bright", message)
-        self.assertNotIn("Result image 2", message)
+        self.assertIn("Result image 2 is nearly uniform", message)
+        self.assertNotIn("Result image 2 is very dark", message)
+        self.assertNotIn("Result image 2 is very bright", message)
 
     def test_native_backend_prompt_is_blocked_and_non_finite_counts_are_retained(self):
         messages = []

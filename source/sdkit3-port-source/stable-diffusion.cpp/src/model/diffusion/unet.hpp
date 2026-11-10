@@ -35,6 +35,21 @@ struct UNetConfig {
     int adm_in_channels                    = 2816;  // only for VERSION_SDXL/SVD
     bool enable_animatediff                = false;
     bool animatediff_has_mid_block         = false;
+    bool animatediff_uses_diffusers_names  = false;
+
+    static AnimateDiff::MotionModuleConfig animatediff_motion_config(SDVersion version,
+                                                                      bool has_mid_block) {
+        AnimateDiff::MotionModuleConfig config;
+        if (sd_version_is_sdxl(version)) {
+            config.down_channels             = {320, 640, 1280};
+            config.up_channels               = {1280, 640, 320};
+            config.num_down_motion_per_block = 2;
+            config.num_up_motion_per_block   = 3;
+            config.enable_mid_block          = false;
+        }
+        config.enable_mid_block = has_mid_block;
+        return config;
+    }
 
     static UNetConfig detect_from_weights(const String2TensorStorage& tensor_storage_map,
                                           const std::string& prefix,
@@ -92,6 +107,8 @@ struct UNetConfig {
 
         if (find_weight("motion_module.down_blocks.0.motion_modules.0.temporal_transformer.proj_in.weight") != nullptr) {
             config.enable_animatediff = true;
+            config.animatediff_uses_diffusers_names =
+                find_weight("motion_module.down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attn1.to_q.weight") != nullptr;
             if (find_weight("motion_module.mid_block.motion_modules.0.temporal_transformer.proj_in.weight") != nullptr) {
                 config.animatediff_has_mid_block = true;
             }
@@ -498,8 +515,9 @@ public:
         blocks["out.2"] = std::shared_ptr<GGMLBlock>(new Conv2d(model_channels, out_channels, {3, 3}, {1, 1}, {1, 1}));
 
         if (this->config.enable_animatediff) {
-            AnimateDiff::MotionModuleConfig mm_cfg;
-            mm_cfg.enable_mid_block = this->config.animatediff_has_mid_block;
+            auto mm_cfg = UNetConfig::animatediff_motion_config(this->config.version,
+                                                                  this->config.animatediff_has_mid_block);
+            mm_cfg.use_diffusers_names = this->config.animatediff_uses_diffusers_names;
             blocks["motion_module"] = std::make_shared<AnimateDiff::AnimateDiffModel>(mm_cfg);
         }
     }
@@ -603,7 +621,7 @@ public:
             label_emb      = ctx->training_graph ? ggml_silu(ctx->ggml_ctx, label_emb) : ggml_silu_inplace(ctx->ggml_ctx, label_emb);
             label_emb      = label_embed_2->forward(ctx, label_emb);  // [N, time_embed_dim]
 
-            emb = ggml_add(ctx->ggml_ctx, emb, label_emb);  // [N, time_embed_dim]
+            emb = ggml_add(ctx->ggml_ctx, label_emb, emb);  // [N, time_embed_dim]
         }
         // sd::ggml_graph_cut::mark_graph_cut(emb, "unet.prelude", "emb");
 
@@ -822,8 +840,22 @@ struct UNetModelRunner : public DiffusionModelRunner {
                              float lllite_start_percent                            = 0.f,
                              float lllite_end_percent                              = 0.f,
                              const sd::Tensor<float>& ip_context_tensor            = {},
-                             float ip_scale                                        = 1.f) {
-        ggml_cgraph* gf = new_graph_custom(UNET_GRAPH_SIZE);
+                             float ip_scale                                        = 1.f,
+                             float tome_ratio                                      = 0.f) {
+        size_t graph_size = UNET_GRAPH_SIZE;
+        if (tome_ratio > 0.f) {
+            // Each merged window adds fewer than 128 nodes. Count the
+            // eligible down/up transformer blocks instead of imposing an
+            // image-sized graph limit on a multi-frame AnimateDiff batch.
+            for (size_t level = 0; level < config.channel_mult.size() && level < 2; ++level) {
+                const int scale = 1 << level;
+                if (std::find(config.attention_resolutions.begin(), config.attention_resolutions.end(), scale) == config.attention_resolutions.end()) continue;
+                const size_t tokens = (x_tensor.shape()[0] / scale) * (x_tensor.shape()[1] / scale);
+                const size_t windows = (tokens + 1023) / 1024;
+                graph_size += windows * x_tensor.shape()[3] * (2 * config.num_res_blocks + 1) * config.transformer_depth[level] * 128;
+            }
+        }
+        ggml_cgraph* gf = new_graph_custom(graph_size);
 
         ggml_tensor* x         = make_input(x_tensor);
         ggml_tensor* timesteps = make_input(timesteps_tensor);
@@ -843,6 +875,8 @@ struct UNetModelRunner : public DiffusionModelRunner {
         }
 
         auto runner_ctx = get_context();
+        runner_ctx.spatial_token_merge_ratio = tome_ratio;
+        runner_ctx.spatial_token_merge_base_tokens = x->ne[0] * x->ne[1];
         if (lllite_condition != nullptr && !lllite.empty() && lllite_strength != 0.f && lllite_steps > 0) {
             const int step_index = std::max(0, lllite_step - 1);
             const int start_step = lllite_start_percent > 0.f
@@ -891,7 +925,8 @@ struct UNetModelRunner : public DiffusionModelRunner {
                               float lllite_start_percent                     = 0.f,
                               float lllite_end_percent                       = 0.f,
                               const sd::Tensor<float>& ip_context            = {},
-                              float ip_scale                                 = 1.f) {
+                              float ip_scale                                 = 1.f,
+                              float tome_ratio                               = 0.f) {
         // x: [N, in_channels, h, w]
         // timesteps: [N, ]
         // context: [N, max_position, hidden_size]([N, 77, 768]) or [1, max_position, hidden_size]
@@ -922,7 +957,8 @@ struct UNetModelRunner : public DiffusionModelRunner {
                                lllite_start_percent,
                                lllite_end_percent,
                                ip_context,
-                               ip_scale);
+                               ip_scale,
+                               tome_ratio);
         };
 
         return restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, false, false, false), x.dim());
@@ -950,7 +986,8 @@ struct UNetModelRunner : public DiffusionModelRunner {
                        extra->lllite_start_percent,
                        extra->lllite_end_percent,
                        extra->ip_context ? *extra->ip_context : sd::Tensor<float>{},
-                       extra->ip_scale);
+                       extra->ip_scale,
+                       extra->tome_ratio);
     }
 
     void test() {

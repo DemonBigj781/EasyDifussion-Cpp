@@ -5,6 +5,7 @@ import time
 from PIL import Image
 
 from easydiffusion import model_manager, runtime
+from easydiffusion.color_inpaint import prepare_color_weighted_inpaint
 from easydiffusion.types import GenerateImageRequest, ModelsData, OutputFormatData, SaveToDiskData
 from easydiffusion.types import Image as ResponseImage
 from easydiffusion.types import GenerateImageResponse, RenderTaskData
@@ -300,6 +301,12 @@ def generate_images_internal(
     # Preserve the two fields in UI/task metadata and combine them only in the
     # final backend payload consumed by the model's text encoder.
     backend_req = req.dict()
+    color_guide = backend_req.pop("inpaint_color_guide", None)
+    if color_guide is not None:
+        backend_req["init_image"], backend_req["init_image_mask"] = prepare_color_weighted_inpaint(
+            get_image(req.init_image) if req.init_image is not None else None,
+            get_image(color_guide), req.init_image_mask, (req.width, req.height), req.prompt_strength,
+        )
     backend_req["prompt"] = combine_positive_prompt_for_clip(
         req.prompt,
         req.hidden_positive_prompt,
@@ -361,13 +368,14 @@ def make_step_callback(
         del images
         return partial_images
 
-    def on_image_step(images, i, *args):
+    def on_image_step(images, i, total_steps=None, *args):
         nonlocal last_callback_time
 
         step_time = time.time() - last_callback_time if last_callback_time != -1 else -1
         last_callback_time = time.time()
 
-        progress = {"step": i, "step_time": step_time, "total_steps": n_steps}
+        effective_steps = total_steps if isinstance(total_steps, int) and total_steps > 0 else n_steps
+        progress = {"step": i, "step_time": step_time, "total_steps": effective_steps}
 
         if images is not None:
             progress["output"] = update_temp_img(images, task_temp_images)

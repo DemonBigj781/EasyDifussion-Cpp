@@ -265,6 +265,14 @@ function getTaskUpdater(task, reqBody, outputContainer) {
             const currentStep = Math.max(0, Number(stepUpdate.step) || 0)
             const currentTotal = Math.max(1, Number(stepUpdate.total_steps) || fallbackTotal)
             outputMsg.innerHTML = `Batch ${task.batchesDone} of ${batchCount}. Generating image(s): ${percent}% (step ${currentStep} of ${currentTotal}). Time remaining (approx): ${timeRemaining}`
+            if (stepUpdate.phase === "decoding" || stepUpdate.phase === "finalizing") {
+                const phaseCurrent = Math.max(0, Number(stepUpdate.phase_current) || 0)
+                const phaseTotal = Math.max(0, Number(stepUpdate.phase_total) || 0)
+                const phaseDetail = phaseTotal > 0
+                    ? `${stepUpdate.phase === "decoding" ? "Decoding video frame" : "Finalizing video frame"} ${phaseCurrent} of ${phaseTotal}`
+                    : stepUpdate.phase === "decoding" ? "Decoding video frames" : "Finalizing video output"
+                outputMsg.textContent = `Sampling finished (${currentStep}/${currentTotal}). ${phaseDetail}…`
+            }
             outputMsg.style.display = "block"
             progressBarInner.style.width = `${percent}%`
 

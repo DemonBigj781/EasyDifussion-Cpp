@@ -239,6 +239,21 @@ The example CLI/server still accepts these older CPU placement flags as compatib
 --params-backend '*=cpu'
 ```
 
+## Generation failure diagnostics
+
+Native image and video generation failures retain a thread-local diagnostic
+available through `sd_get_last_error()`. Allocation and graph-dispatch failures
+include the failure cause, module, model runner, requested compute-buffer size
+when it is known, backend selector, physical device description, vendor,
+free/total device memory, and the complete module assignment.
+
+For a multi-device assignment such as
+`diffusion=Vulkan0&Vulkan1&Vulkan2&Vulkan3`, the diagnostic preserves the full
+assignment and reports the selected member. If a lower backend layer identifies
+the actual failing member, it is reported separately as `failed_member`. A
+selector such as `Vulkan1` is not treated as invalid merely because it is not
+the first or fastest device.
+
 Because this default is inserted first, later explicit `--params-backend` entries can still override it, for example `--offload-to-cpu --params-backend te=disk` keeps non-TE parameters on CPU and reloads TE parameters from disk.
 
 Library callers should set `backend` and `params_backend` directly. The old CPU/offload fields are no longer part of the C API. Explicit `--backend` and `--params-backend` assignments are preferred for new commands.

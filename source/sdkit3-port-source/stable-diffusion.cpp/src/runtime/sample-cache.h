@@ -57,7 +57,8 @@ namespace sd_sample {
                                                  const sd_cache_params_t* cache_params,
                                                  Denoiser* denoiser,
                                                  const std::vector<float>& sigmas,
-                                                 const std::string& model_desc);
+                                                 const std::string& model_desc,
+                                                 bool allow_animatediff_cache);
 
     void log_sample_cache_summary(const SampleCacheRuntime& runtime, size_t total_steps);
 

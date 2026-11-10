@@ -30,6 +30,10 @@
             },
             cancel() {
                 if (active) active.cancelled = true;
+                changed(state());
+            },
+            cancelAll() {
+                if (active) active.cancelled = true;
                 for (const job of pending.splice(0)) job.reject(cancelled());
                 changed(state());
             },

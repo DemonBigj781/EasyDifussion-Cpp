@@ -43,6 +43,8 @@ TASK_TEXT_MAPPING = {
     "height": "Height",
     "num_inference_steps": "Steps",
     "guidance_scale": "Guidance Scale",
+    "tome_ratio": "Token Merging Ratio",
+    "negative_guidance_min_sigma": "Negative Guidance Minimum Sigma",
     "distilled_guidance_scale": "Distilled Guidance",
     "prompt_strength": "Prompt Strength",
     "use_lora_model": "LoRA model",

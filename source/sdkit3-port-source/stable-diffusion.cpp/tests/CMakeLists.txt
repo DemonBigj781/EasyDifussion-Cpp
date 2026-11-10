@@ -51,3 +51,27 @@ add_test(NAME sampler-scheduler-test COMMAND sampler-scheduler-test)
 add_executable(backend-device-info-test backend_device_info_test.cpp)
 target_link_libraries(backend-device-info-test PRIVATE stable-diffusion)
 add_test(NAME backend-device-info-test COMMAND backend-device-info-test)
+
+add_executable(generation-failure-test generation_failure_test.cpp)
+target_link_libraries(generation-failure-test PRIVATE stable-diffusion)
+add_test(NAME generation-failure-test COMMAND generation-failure-test)
+
+add_executable(animatediff-topology-test animatediff_topology_test.cpp)
+target_link_libraries(animatediff-topology-test PRIVATE stable-diffusion)
+target_compile_definitions(animatediff-topology-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME animatediff-topology-test COMMAND animatediff-topology-test)
+
+add_executable(animatediff-cache-test animatediff_cache_test.cpp)
+target_link_libraries(animatediff-cache-test PRIVATE stable-diffusion)
+target_compile_definitions(animatediff-cache-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME animatediff-cache-test COMMAND animatediff-cache-test)
+
+add_executable(token-merge-test token_merge_test.cpp)
+target_link_libraries(token-merge-test PRIVATE stable-diffusion)
+target_compile_definitions(token-merge-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME token-merge-test COMMAND token-merge-test CPU)
+
+add_executable(sampling-optimizations-test sampling_optimizations_test.cpp)
+target_link_libraries(sampling-optimizations-test PRIVATE stable-diffusion)
+target_compile_definitions(sampling-optimizations-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME sampling-optimizations-test COMMAND sampling-optimizations-test)

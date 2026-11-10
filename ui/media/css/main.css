@@ -892,6 +892,7 @@ div.img-preview img {
         box-sizing: border-box;
     }
     #initial-image-settings #init_image_buttons > .button,
+    #initial-image-settings #init_image_button_advanced_inpaint,
     #initial-image-settings #inpaint_button_container {
         flex: 1 1 140px;
         min-width: 0;
@@ -936,6 +937,39 @@ div.img-preview img {
 .image-input-section--single .image-input-wrapper {
     grid-row: span 3;
     max-height: 150px;
+}
+
+/* Editor previews need full-width tabs, not the former 150px thumbnail row. */
+#initial-image-settings #init_image_preview_container.has-editor-previews {
+    flex-direction: column;
+    align-items: stretch;
+}
+#initial-image-settings .has-editor-previews #init_image_wrapper {
+    width: 100%;
+    height: auto;
+    max-height: none;
+}
+#initial-image-settings .has-editor-previews .image-preview-tabs {
+    width: 100%;
+}
+#initial-image-settings .has-editor-previews #init_image_buttons {
+    width: 100%;
+    padding-left: 0;
+    margin-top: 10px;
+    flex-direction: row;
+    align-items: stretch;
+}
+#initial-image-settings .has-editor-previews #init_image_buttons > .button,
+#initial-image-settings .has-editor-previews #inpaint_button_container {
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+    min-height: 36px;
+    height: auto;
+    box-sizing: border-box;
+}
+#initial-image-settings .has-editor-previews .init_image_clear {
+    flex-basis: 100%;
 }
 
 /* Preview image base */
@@ -1051,11 +1085,88 @@ div.img-preview img {
 #initial-image-settings,
 #editor-settings,
 #render-settings,
-#output-settings {
+#output-settings,
+#local-llm-prompt-panel {
     min-width: 350px;
 }
 .panel-box > h4 {
     margin: 0;
+}
+
+#local-llm-prompt-panel {
+    margin-bottom: 10px;
+}
+
+.local-llm-panel .collapsible-content {
+    gap: 7px;
+    padding: 10px 0 0;
+}
+
+.local-llm-panel label,
+.local-llm-settings-panel label {
+    display: block;
+}
+
+.local-llm-panel textarea,
+.local-llm-settings-panel input,
+.local-llm-settings-panel select {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.local-llm-panel textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+
+.local-llm-help,
+#local-llm-main-status,
+#local-llm-settings-status {
+    margin: 0;
+}
+
+.local-llm-help {
+    color: var(--small-label-color);
+}
+
+.local-llm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.local-llm-actions button {
+    flex: 1 1 150px;
+    margin: 0;
+}
+
+.local-llm-settings-panel {
+    margin: 24px 0;
+    padding: 16px;
+    border: 1px solid var(--background-color2);
+    border-radius: 6px;
+    background: var(--background-color1);
+}
+
+.local-llm-settings-panel h3 {
+    margin-top: 0;
+}
+
+.local-llm-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+    margin: 14px 0;
+}
+
+.local-llm-settings-grid .local-llm-model-field {
+    grid-column: 1 / -1;
+}
+
+.local-llm-settings-grid input,
+.local-llm-settings-grid select {
+    display: block;
+    margin-top: 4px;
 }
 
 #editor-settings-entries,
@@ -2478,7 +2589,8 @@ div#enlarge-buttons {
     #initial-image-settings label,
     #editor-settings label,
     #render-settings label,
-    #output-settings label {
+    #output-settings label,
+    #local-llm-prompt-panel label {
         font-size: 9pt;
     }
     #editor-settings .model-filter,
@@ -2490,6 +2602,18 @@ div#enlarge-buttons {
     }
     .model_entry .model_name {
         width: 60% !important;
+    }
+
+    #local-llm-prompt-panel {
+        min-width: 0;
+    }
+
+    .local-llm-settings-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .local-llm-settings-grid .local-llm-model-field {
+        grid-column: auto;
     }
 }
 

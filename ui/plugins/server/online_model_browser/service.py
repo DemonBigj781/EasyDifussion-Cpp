@@ -33,7 +33,7 @@ PLUGIN_NAME = "civitai"
 PLUGIN_VERSION = "0.4.0"
 
 ALLOWED_SORT_MODELS = {"Highest Rated", "Most Downloaded", "Newest"}
-ALLOWED_SORT_IMAGES = {"Most Reactions", "Most Comments", "Newest"}
+ALLOWED_SORT_IMAGES = {"Most Reactions", "Most Comments", "Newest", "Random"}
 ALLOWED_PERIODS = {"AllTime", "Year", "Month", "Week", "Day"}
 
 _PERIOD_SECONDS = {
@@ -501,6 +501,7 @@ def _bridge_cache_key(
     model_version_id: Optional[int],
     post_id: Optional[int],
     username: Optional[str],
+    tag_ids: Tuple[int, ...] = (),
 ) -> Tuple[Any, ...]:
     return (
         (query or "").strip(),
@@ -516,6 +517,7 @@ def _bridge_cache_key(
         model_version_id,
         post_id,
         username or "",
+        tag_ids,
     )
 
 
@@ -567,6 +569,7 @@ def _request_with_retries(
         headers.update(extra_headers)
     for attempt in range(max_retries + 1):
         try:
+            started = time.perf_counter()
             response = requests.request(
                 method=method,
                 url=url,
@@ -575,8 +578,20 @@ def _request_with_retries(
                 json=json_body,
                 timeout=timeout,
             )
+            endpoint = urlparse(url)
+            # Requests has already decompressed content; Content-Length may
+            # describe compressed wire bytes, so report both without comparing.
+            _log(
+                f"HTTP {method.upper()} {endpoint.hostname}{endpoint.path} "
+                f"status={response.status_code} received_bytes={len(response.content)} "
+                f"content_length={response.headers.get('Content-Length', 'unknown')} "
+                f"content_encoding={response.headers.get('Content-Encoding', 'identity')} "
+                f"elapsed_ms={(time.perf_counter() - started) * 1000:.1f} attempt={attempt + 1}"
+            )
             response.raise_for_status()
             data = response.json() or {}
+            if isinstance(data, dict) and isinstance(data.get("items"), list):
+                _log(f"Parsed {endpoint.path} items={len(data['items'])}")
             if cacheable and key is not None:
                 _cache_set(key, data)
             return data
@@ -827,6 +842,7 @@ def _trim_model_item(
 
 def _trim_image_item(img: Dict[str, Any]) -> Dict[str, Any]:
     return {
+        **img,
         "id": img.get("id"),
         "url": img.get("url"),
         "hash": img.get("hash"),
@@ -1198,6 +1214,7 @@ def _enums_civitai() -> Dict[str, Any]:
     return {
         "ok": True,
         "modelTypes": data.get("ModelType") or [],
+        "modelFileTypes": data.get("ModelFileType") or [],
         "baseModels": data.get("BaseModel") or [],
         "activeBaseModels": data.get("ActiveBaseModel") or [],
         "baseModelTypes": data.get("BaseModelType") or [],
@@ -1410,7 +1427,10 @@ def _search_civitai(
             params["cursor"] = norm_cursor
         # DO NOT send page when query is present
     else:
-        params["page"] = max(1, int(page or 1))
+        if norm_cursor:
+            params["cursor"] = norm_cursor
+        else:
+            params["page"] = max(1, int(page or 1))
 
     if nsfw is not None:
         params["nsfw"] = str(bool(nsfw)).lower()
@@ -1487,8 +1507,18 @@ def _images_civitai(
     model_version_id: Optional[int] = None,
     post_id: Optional[int] = None,
     username: Optional[str] = None,
+    tag_ids: Optional[list[int]] = None,
 ) -> Dict[str, Any]:
     url = "https://civitai.com/api/v1/images"
+    if any(type(tag) is not int or tag <= 0 for tag in tag_ids or []):
+        raise ValueError("Image tags must contain positive numeric IDs")
+    normalized_tags = tuple(sorted(set(tag_ids or [])))
+
+    if str(query or "").strip() and model_id is None and model_version_id is None:
+        raise ValueError(
+            "Select a model first. Civitai image search is model-scoped; "
+            "search models, choose a model location, then list images inside it."
+        )
 
     if str(query or "").strip() and model_id is None and model_version_id is None:
         raise ValueError(
@@ -1511,6 +1541,7 @@ def _images_civitai(
         model_version_id=model_version_id,
         post_id=post_id,
         username=username,
+        tag_ids=normalized_tags,
     )
     cached = _bridge_cache_get(bridge_key)
     if cached is not None:
@@ -1518,11 +1549,14 @@ def _images_civitai(
 
     # When no text query needs resolving, use the public images endpoint
     # directly. This covers selected models, posts, and unfiltered traversal.
-    if not str(query or "").strip():
+    if not str(query or "").strip() or model_id is not None or model_version_id is not None:
         image_params: Dict[str, Any] = {
             "limit": limit,
             "withMeta": "true",
+            "withTags": "true",
         }
+        if normalized_tags:
+            image_params["tags"] = ",".join(str(tag) for tag in normalized_tags)
         if model_id is not None:
             image_params["modelId"] = int(model_id)
         norm_cursor = _normalize_cursor(cursor)
@@ -1871,14 +1905,19 @@ def _download_file(
 
         total = resumed_bytes
         mode = "ab" if is_resuming else "wb"
-        with temp_path.open(mode) as fh:
-            for chunk in r.iter_content(chunk_size=1024 * 1024):
-                if not chunk:
-                    continue
-                fh.write(chunk)
-                total += len(chunk)
-                if progress_callback:
-                    progress_callback(total, total_bytes)
+        try:
+            with temp_path.open(mode) as fh:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if not chunk:
+                        continue
+                    fh.write(chunk)
+                    total += len(chunk)
+                    if progress_callback:
+                        progress_callback(total, total_bytes)
+        finally:
+            _log(f"Model download status={r.status_code} received_bytes={total - resumed_bytes} "
+                 f"content_length={response_bytes if response_bytes is not None else 'unknown'} "
+                 f"resumed_bytes={resumed_bytes} file_bytes={total}")
 
         if total_bytes is not None and total != total_bytes:
             raise IOError(

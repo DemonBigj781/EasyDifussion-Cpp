@@ -33,10 +33,11 @@ KNOWN_MODEL_TYPES = [
     "wd14-tagger",
     "text-encoder",
 ]
-LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video"]
+LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video", "motion-module", "sam"]
 MODEL_EXTENSIONS = {
     "stable-diffusion": [".ckpt", ".safetensors", ".sft", ".gguf", ".sprite-gpt.json"],
     "video": [".ckpt", ".safetensors", ".sft", ".gguf"],
+    "motion-module": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "vae": [".vae.pt", ".ckpt", ".safetensors", ".sft", ".gguf"],
     "taesdvae": [".pt", ".pth", ".ckpt", ".safetensors", ".sft", ".gguf"],
     "hypernetwork": [".pt", ".safetensors", ".sft"],
@@ -58,6 +59,7 @@ MODEL_EXTENSIONS = {
     "furception-vae": [".safetensors", ".sft"],
     "wd14-tagger": [".onnx"],
     "text-encoder": [".safetensors", ".sft", ".gguf"],
+    "sam": [".bin", ".gguf", ".pth"],
 }
 DEFAULT_MODELS = {
     "stable-diffusion": [
@@ -121,7 +123,7 @@ MODEL_DIRECTORY_CONFIG_KEYS = {
     "stable-diffusion": "checkpoints",
 }
 
-DIRECTORY_MODEL_TYPES = tuple(KNOWN_MODEL_TYPES) + ("video", "tipo")
+DIRECTORY_MODEL_TYPES = tuple(KNOWN_MODEL_TYPES) + ("video", "motion-module", "sam", "tipo")
 DIRECTORY_CONFIG_KEYS = tuple(
     dict.fromkeys(MODEL_DIRECTORY_CONFIG_KEYS.get(model_type, model_type) for model_type in DIRECTORY_MODEL_TYPES)
 )
@@ -142,6 +144,14 @@ DEDICATED_VIDEO_MODEL_FOLDER_NAMES = (
     "mochi",
     "Mochi",
 )
+MOTION_MODULE_MODEL_FOLDER_NAMES = (
+    "animatediff_models",
+    "AnimateDiff",
+    "animatediff",
+    "motion_modules",
+    "motion-modules",
+)
+SAM_MODEL_FOLDER_NAMES = ("sams", "sam", "SAM")
 VIDEO_MODEL_FOLDER_NAMES = DEDICATED_VIDEO_MODEL_FOLDER_NAMES + (
     "diffusion_models",
     "DiffusionModels",
@@ -331,6 +341,21 @@ def resolve_model_to_use_single(model_name: str = None, model_type: str = None, 
                 for candidate in [candidate_stem] + [candidate_stem + ext for ext in model_extensions]:
                     if os.path.isfile(candidate):
                         return candidate
+
+    if model_type == "motion-module" and model_name:
+        normalized_name = str(model_name).replace("\\", "/").lstrip("/")
+        for model_dir in get_model_dirs(model_type):
+            model_root = os.path.realpath(model_dir)
+            candidate_stem = os.path.realpath(os.path.join(model_root, normalized_name))
+            try:
+                confined = os.path.commonpath([model_root, candidate_stem]) == model_root
+            except ValueError:
+                confined = False
+            if not confined:
+                continue
+            for candidate in [candidate_stem] + [candidate_stem + ext for ext in model_extensions]:
+                if os.path.isfile(candidate):
+                    return candidate
 
     for model_dir in get_model_dirs(model_type):
         if model_name:
@@ -677,6 +702,34 @@ def get_model_dirs(model_type: str, base_dir=None):
             seen.add(real_candidate)
             dirs.append(candidate)
         return dirs or [os.path.join(base_dir, DEDICATED_VIDEO_MODEL_FOLDER_NAMES[0])]
+
+    if model_type == "motion-module":
+        dirs = []
+        seen = set()
+        for folder_name in MOTION_MODULE_MODEL_FOLDER_NAMES:
+            candidate = os.path.join(base_dir, folder_name)
+            if not os.path.isdir(candidate):
+                continue
+            real_candidate = os.path.realpath(candidate)
+            if real_candidate in seen:
+                continue
+            seen.add(real_candidate)
+            dirs.append(candidate)
+        return dirs or [os.path.join(base_dir, MOTION_MODULE_MODEL_FOLDER_NAMES[0])]
+
+    if model_type == "sam":
+        dirs = []
+        seen = set()
+        for folder_name in SAM_MODEL_FOLDER_NAMES:
+            candidate = os.path.join(base_dir, folder_name)
+            if not os.path.isdir(candidate):
+                continue
+            real_candidate = os.path.realpath(candidate)
+            if real_candidate in seen:
+                continue
+            seen.add(real_candidate)
+            dirs.append(candidate)
+        return dirs or [os.path.join(base_dir, SAM_MODEL_FOLDER_NAMES[0])]
 
     primary_dir = os.path.join(base_dir, model_type)
     dirs = [primary_dir]

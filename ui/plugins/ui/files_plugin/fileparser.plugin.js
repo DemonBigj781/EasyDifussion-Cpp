@@ -189,32 +189,24 @@
         }
     }
 
-    async function loadLoraList(selectEl, statusEl) {
+    async function loadLoraList(loraPicker, statusEl) {
         statusEl.textContent = "Loading LoRAs…";
-        selectEl.disabled = true;
+        loraPicker.disabled = true;
         try {
             const data = await postJSON(ENDPOINT_LIST);
             const opts = buildOptions(normalizeListResponse(data));
 
-            selectEl.innerHTML = "";
-            const ph = document.createElement("option");
-            ph.value = "";
-            ph.textContent = opts.length ? "Select a LoRA…" : "No LoRAs found";
-            selectEl.appendChild(ph);
-
-            opts.forEach(o=>{
-                const el=document.createElement("option");
-                el.value=o.value;
-                el.textContent=o.label;
-                selectEl.appendChild(el);
-            });
+            loraPicker.inputModels = buildTree(opts.map(o => ({ model: o.value })));
+            loraPicker.populateModels();
+            loraPicker.value = "";
+            loraPicker.modelFilter.placeholder = opts.length ? "Select a LoRA…" : "No LoRAs found";
 
             statusEl.textContent = `Loaded ${opts.length} LoRAs`;
         } catch (e) {
             statusEl.textContent = "Failed to load LoRAs";
             log("loadLoraList error:", e);
         }
-        selectEl.disabled = false;
+        loraPicker.disabled = false;
     }
 
     // Normalizes the built-in API's { meta: {...} } response for the renderer.
@@ -647,8 +639,8 @@
         box.innerHTML = `
             <h4 class="collapsible">LoRa Metadata Reader</h4>
             <div class="collapsible-content" style="display:block;margin-top:15px;">
-                <div style="display:flex;gap:8px;">
-                    <select id="loraSelect" style="flex:1;"></select>
+                <div class="lora-metadata-reader-selector-row">
+                    <input id="loraSelect" type="text" spellcheck="false" autocomplete="off" class="model-filter lora-metadata-reader-select" data-path="">
                     <button class="metadatabtn" id="refreshLora">Refresh</button>
                 </div>
                 <small id="loraStatus"></small>
@@ -688,24 +680,25 @@
 
         const sel = box.querySelector("#loraSelect");
         const stat = box.querySelector("#loraStatus");
+        const loraPicker = new ModelDropdown(sel, null, "Select a LoRA…");
 
-        loadLoraList(sel, stat);
+        loadLoraList(loraPicker, stat);
 
-        box.querySelector("#refreshLora").onclick = () => loadLoraList(sel, stat);
+        box.querySelector("#refreshLora").onclick = () => loadLoraList(loraPicker, stat);
 
-        sel.onchange = async () => {
-            if (!sel.value) return;
+        sel.addEventListener("change", async () => {
+            if (!loraPicker.value) return;
 
             try {
                 stat.textContent = "Reading metadata…";
-                selectLoraInMainTab(sel.value);
-                const meta = await fetchMetadata(sel.value);
-                showMetadata(meta, sel.value.split("/").pop());
+                selectLoraInMainTab(loraPicker.value);
+                const meta = await fetchMetadata(loraPicker.value);
+                showMetadata(meta, loraPicker.value.split("/").pop());
                 stat.textContent = "Metadata loaded";
             } catch (error) {
                 stat.textContent = `Metadata scan failed: ${error.message}`;
             }
-        };
+        });
 
         return true;
     }
@@ -715,6 +708,11 @@
         const style = document.createElement('style');
         style.textContent = `
             .metadatabtn{background:#2168bf}
+            #lora-metadata-reader{max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden}
+            #lora-metadata-reader .collapsible-content{min-width:0;max-width:100%;box-sizing:border-box}
+            .lora-metadata-reader-selector-row{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
+            .lora-metadata-reader-select{flex:1 1 auto;width:100%;min-width:0;max-width:100%;box-sizing:border-box;padding-right:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            #refreshLora{flex:0 0 auto;max-width:40%}
             .trigger-word{cursor:pointer;padding:2px 4px;border-radius:3px;background:#333;color:#fff;margin:1px;display:inline-block;user-select:none}
             .trigger-word:hover,.trigger-word.clicked{background:#2e8b57}
             #lora-metadata-auto-import{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0}

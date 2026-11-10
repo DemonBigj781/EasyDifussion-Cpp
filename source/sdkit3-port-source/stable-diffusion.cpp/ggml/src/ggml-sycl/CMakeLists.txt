@@ -4,9 +4,20 @@ if (NOT GGML_SYCL_TARGET MATCHES "^(INTEL)$")
     message(FATAL_ERROR "GGML_SYCL_TARGET: Invalid target, the supported options are [INTEL]")
 endif()
 
-check_cxx_compiler_flag("-fsycl" SUPPORTS_SYCL)
+get_filename_component(GGML_SYCL_COMPILER_NAME "${CMAKE_CXX_COMPILER}" NAME)
+set(GGML_SYCL_ADAPTIVECPP OFF)
+if (GGML_SYCL_COMPILER_NAME STREQUAL "acpp")
+    set(GGML_SYCL_ADAPTIVECPP ON)
+    message(STATUS "Using AdaptiveCpp/OpenSYCL compiler.")
+else()
+    check_cxx_compiler_flag("-fsycl" SUPPORTS_SYCL)
+endif()
 
-if (DEFINED ENV{ONEAPI_ROOT})
+if (GGML_SYCL_ADAPTIVECPP)
+    # AdaptiveCpp is a complete SYCL compiler driver and rejects the
+    # Intel-specific -fsycl flag. Its generic target JIT handles OpenCL/SPIR-V
+    # devices at runtime.
+elseif (DEFINED ENV{ONEAPI_ROOT})
     message(STATUS "Using oneAPI Release SYCL compiler (icpx).")
 elseif(SUPPORTS_SYCL)
     message(WARNING "Using open-source SYCL compiler (clang++). Didn't detect ENV {ONEAPI_ROOT}.
@@ -97,6 +108,8 @@ detect_and_find_package(IntelSYCL)
 if (IntelSYCL_FOUND)
     # Use oneAPI CMake when possible
     target_link_libraries(ggml-sycl PRIVATE IntelSYCL::SYCL_CXX)
+elseif (GGML_SYCL_ADAPTIVECPP)
+    message(STATUS "AdaptiveCpp supplies the SYCL compile and link driver")
 else()
     # Fallback to the simplest way of enabling SYCL when using intel/llvm nightly for instance
     target_compile_options(ggml-sycl PRIVATE "-fsycl")
@@ -164,18 +177,22 @@ endif()
 
 if (GGML_SYCL_TARGET STREQUAL "INTEL")
     add_compile_definitions(GGML_SYCL_WARP_SIZE=16)
-    if (NOT GGML_SYCL_DEVICE_ARCH)
+    if (NOT GGML_SYCL_DEVICE_ARCH AND NOT GGML_SYCL_ADAPTIVECPP)
         target_link_options(ggml-sycl PRIVATE -Xs -ze-intel-greater-than-4GB-buffer-required)
-    else()
+    elseif (GGML_SYCL_DEVICE_ARCH)
         message(STATUS "Skipping -ze-intel-greater-than-4GB-buffer-required for spir64_gen AOT")
     endif()
 
-    # Link against Intel oneMKL
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(SYCL_COMPILER ON)
+    if (GGML_SYCL_ADAPTIVECPP)
+        message(STATUS "Skipping Intel oneMKL for AdaptiveCpp/OpenSYCL")
+    else()
+        # Link against Intel oneMKL
+        if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+            set(SYCL_COMPILER ON)
+        endif()
+        find_package(MKL REQUIRED)
+        target_link_libraries(ggml-sycl PRIVATE MKL::MKL_SYCL::BLAS)
     endif()
-    find_package(MKL REQUIRED)
-    target_link_libraries(ggml-sycl PRIVATE MKL::MKL_SYCL::BLAS)
 else()
     # default for other target
     message(FATAL_ERROR "GGML_SYCL_TARGET is not supported")

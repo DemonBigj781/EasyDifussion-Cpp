@@ -87,6 +87,8 @@
     el("scrape-search").textContent = "Search and download"
     let ready = false
     const modelPicker = new ModelDropdown(el("model"), null, "Select a checkpoint")
+    const qwen3Picker = new ModelDropdown(el("qwen3"), null, "No configured text encoders found")
+    const vaePicker = new ModelDropdown(el("vae"), null, "No configured VAE files found")
     let nativeReady = false
     let active = false
     let selectedJob = ""
@@ -139,17 +141,18 @@
             ? `${data.datasets.length} prepared dataset${data.datasets.length === 1 ? "" : "s"} loaded.`
             : "No prepared datasets found. Submit tagged images from Grabber Gallery first."
     }
-    function loadAssetOptions(select, assets, placeholder, preferredPattern) {
-        const current = select.value
-        select.replaceChildren(new Option(placeholder, ""), ...assets.map((asset) => new Option(asset.name, asset.path)))
+    function loadAssetOptions(picker, assets, preferredPattern) {
+        const current = picker.value
+        picker.inputModels = buildTree(assets.map((asset) => ({ model: asset.path })))
+        picker.populateModels()
         if (assets.some((asset) => asset.path === current)) {
-            select.value = current
+            picker.value = current
             return
         }
         const preferred = assets.find((asset) => preferredPattern.test(asset.name) && asset.name.endsWith("(folder)"))
             || assets.find((asset) => preferredPattern.test(asset.name))
             || assets[0]
-        select.value = preferred?.path || ""
+        picker.value = preferred?.path || ""
     }
     function controls() {
         const isAnima = el("architecture").value === "anima"
@@ -219,8 +222,8 @@
             } else showError(results[1].reason)
             if (results[2].status === "rejected") showError(results[2].reason)
             if (results[3].status === "fulfilled") {
-                loadAssetOptions(el("qwen3"), results[3].value.text_encoders, "No configured text encoders found", /qwen.?3/i)
-                loadAssetOptions(el("vae"), results[3].value.vaes, "No configured VAE files found", /qwen.?image/i)
+                loadAssetOptions(qwen3Picker, results[3].value.text_encoders, /qwen.?3/i)
+                loadAssetOptions(vaePicker, results[3].value.vaes, /qwen.?image/i)
             } else showError(results[3].reason)
         } finally { refreshing = false; controls() }
     }
@@ -716,7 +719,7 @@
             await acceptJob(await api("/jobs", {
                 dataset: el("dataset").value.trim(), kind: el("kind").value,
                 architecture: el("architecture").value, model: modelPicker.value, backend: el("backend").value,
-                qwen3: el("qwen3").value.trim(), vae: el("vae").value.trim(),
+                qwen3: qwen3Picker.value.trim(), vae: vaePicker.value.trim(),
                 output_name: el("name").value, trigger: el("trigger").value.trim(),
                 init_word: el("init-word").value, precision: el("precision").value,
                 steps: Number(el("steps").value), resolution: Number(el("resolution").value),

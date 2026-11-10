@@ -41,6 +41,11 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || "playwright");
             assert.equal(await page.getAttribute(`#${id}`, "step"), "64");
         }
         assert.equal(await page.locator("#makeImage").innerText(), "Generate");
+        const videoModeLabel = await page.locator('label[for="video_mode"]').boundingBox();
+        const motionModuleLabel = await page.locator('label[for="motion_module_model"]').boundingBox();
+        assert.ok(videoModeLabel && motionModuleLabel
+            && videoModeLabel.y + videoModeLabel.height <= motionModuleLabel.y,
+        "Video generation and motion-module labels must not overlap");
         await page.evaluate(() => scrollTo(0, 0));
         assert.ok(await page.locator("#makeImage").evaluate(el => el.getBoundingClientRect().bottom <= innerHeight),
             "Generate must be visible in the initial desktop viewport");

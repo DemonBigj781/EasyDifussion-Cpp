@@ -308,7 +308,7 @@
             finally{animating=false;animateStart.disabled=false;animateStop.disabled=true;urls.forEach(url=>URL.revokeObjectURL(url));if(video){video.removeAttribute("src");video.load();}}
         }
         const animateStart=button(animate,"cpp-animate-start","Animate",()=>runAnimation().catch(error=>{animationStatus.textContent=error.message;}));
-        const animateStop=button(animate,"cpp-animate-stop","Stop animation and queue",()=>generation.cancel());animateStop.disabled=true;
+        const animateStop=button(animate,"cpp-animate-stop","Stop animation and queue",()=>generation.cancelAll());animateStop.disabled=true;
         function refresh() {
             rabbit.hidden=!enabled("rabbit-hole");animate.hidden=!enabled("animate");
             document.querySelectorAll(".cpp-rabbit-actions").forEach(element=>{element.hidden=rabbit.hidden;});

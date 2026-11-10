@@ -5,19 +5,27 @@
 
     const storageKey = "easy-diffusion-enabled-local-plugins-v1"
     const defaultsVersionKey = "easy-diffusion-local-plugin-defaults-version"
-    const defaultsVersion = 3
+    const defaultsVersion = 9
     const catalog = Object.freeze([
         { id: "image-modifiers", name: "Image Modifiers (show/hide)", defaultEnabled: true, addedInDefaultsVersion: 3, port: "native" },
+        { id: "local-storage-manager", name: "LocalStorage Manager", path: "/plugins/core/localstorage_plugin/stig-localstorage.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 4, port: "native" },
         { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native", nativePath: "/cpp-ui/perchance/image" },
         { id: "perchance-text", name: "Perchance text", path: "/plugins/core/perchance_plugin/perchance-text.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native", nativePath: "/cpp-ui/perchance/text" },
         { id: "perchance-gallery", name: "Perchance gallery", path: "/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native", nativePath: "/cpp-ui/perchance/gallery" },
         { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/core/ui_plugin/accessibility-improvements.plugin.js", port: "native" },
+        { id: "inpainting-enhancements", name: "Inpainting enhancements", path: "/plugins/core/inpaint_plugin/inpainting.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 6, port: "native" },
+        { id: "ai-image-critic", name: "AI Image Critic", path: "/plugins/core/image_plugin/ai-image-critic.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 7, port: "native" },
         { id: "animate", name: "Animate", path: "/plugins/core/animate_plugin/animate.plugin.js", port: "native" },
         { id: "daily-folders", name: "Daily output folders", path: "/plugins/core/ui_plugin/daily-folders.plugin.js", port: "native" },
         { id: "disable-source-image-zoom", name: "Disable source-image zoom", path: "/plugins/core/ui_plugin/disable-source-image-zoom.plugin.js", port: "native" },
         { id: "gpu-mode-quick-toggle", name: "GPU mode quick toggle", path: "/plugins/core/ui_plugin/gpu-mode-quick-toggle.plugin.js", port: "native" },
         { id: "make-image-always-visible", name: "Always-visible Make Image button", path: "/plugins/core/ui_plugin/make-image-button-always-visible.plugin.js", port: "native" },
+        { id: "make-very-similar", name: "Make Very Similar", path: "/plugins/core/image_plugin/make-very-similar.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 7, port: "native" },
+        { id: "modifier-drag-drop", name: "Modifier drag and drop", path: "/plugins/core/modifiers_plugin/Modifiers-dnd.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "modifier-mouse-wheel", name: "Modifier mouse wheel", path: "/plugins/core/modifiers_plugin/Modifiers-wheel.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "modifier-toggle", name: "Modifier active/inactive toggle", path: "/plugins/core/modifiers_plugin/modifiers-toggle.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
         { id: "processing-order-quick-toggle", name: "Processing-order quick toggle", path: "/plugins/core/ui_plugin/processing-order-quick-toggle.plugin.js", port: "native" },
+        { id: "pure-noise-image", name: "Pure Noise Image", path: "/plugins/core/image_plugin/pre-noised-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 5, port: "native" },
         { id: "prompt-diff", name: "Prompt diff", path: "/plugins/core/prompt_plugin/prompt-diff.plugin.js", port: "native" },
         { id: "prompt-translator", name: "Prompt translator (uses Google Translate)", path: "/plugins/core/prompt_plugin/prompt-translator.plugin.js", port: "native" },
         { id: "queue-counter", name: "Queue counter", path: "/plugins/core/ui_plugin/queue-counter.plugin.js", port: "native" },
@@ -26,12 +34,15 @@
         { id: "seed-randomizer", name: "Batch seed randomizer", path: "/plugins/core/ui_plugin/seed-randomizer.plugin.js", port: "native" },
         { id: "prompt-assist", name: "Prompt assistance: token estimates, autocomplete and spellcheck (reload)", path: "/plugins/core/prompt_plugin/prompt-assist.plugin.js", port: "native" },
         { id: "spell-tokenizer", name: "Spell tokenizer and merged tag search", path: "/plugins/core/prompt_plugin/spell-tokenizer.plugin.js", port: "native" },
+        { id: "stig-relocate-modifiers", name: "Stig relocate image modifiers", path: "/plugins/core/modifiers_plugin/stig-relocateModifiers.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "custom-modifiers", name: "Custom modifiers", path: "/plugins/core/modifiers_plugin/custom-modifiers.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
         { id: "stig-image-to-img2img", name: "Stig image-to-img2img tools", path: "/plugins/core/image_plugin/stig-image-to-img2img.plugin.js", port: "native" },
         { id: "stig-image-utilities", name: "Stig image utilities", path: "/plugins/core/image_plugin/stigs-image_utilities.plugin.js", port: "native" },
         { id: "stig-lora-shuttle", name: "Stig LoRA shuttle controls", path: "/plugins/core/lora_plugin/stigs-lora-shuttle-controls.plugin.js", port: "native" },
         { id: "stig-text-to-prompt", name: "Stig text-to-prompt", path: "/plugins/core/prompt_plugin/stig-text2prompt.plugin.js", port: "native" },
         { id: "storyteller", name: "Storyteller tab", path: "/plugins/core/prompt_plugin/storyteller.plugin.js", port: "native" },
         { id: "template-manager", name: "Template manager", path: "/plugins/core/prompt_plugin/template-manager.plugin.js", port: "native" },
+        { id: "tipo-prompt-generator", name: "TIPO Prompt Generator", path: "/plugins/core/tipo_plugin/tipo.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 9, port: "native" },
         { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/core/prompt_plugin/toggle-spellcheck.plugin.js", port: "native" },
     ])
     const knownIds = new Set(catalog.map(plugin => plugin.id))

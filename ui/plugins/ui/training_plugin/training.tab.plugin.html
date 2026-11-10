@@ -35,9 +35,9 @@
                 <label for="training-model">Full checkpoint</label>
                 <div class="model-input"><input id="training-model" class="model-filter" type="text" data-path="" autocomplete="off" placeholder="Search checkpoints…" required></div>
                 <label class="anima-training-option" for="training-qwen3">Anima Qwen3 text encoder path</label>
-                <select class="anima-training-option" id="training-qwen3" required><option value="">Loading configured text encoders…</option></select>
+                <input class="anima-training-option model-filter" id="training-qwen3" type="text" data-path="" autocomplete="off" placeholder="Search configured text encoders…" required>
                 <label class="anima-training-option" for="training-vae">Anima Qwen-Image VAE path</label>
-                <select class="anima-training-option" id="training-vae" required><option value="">Loading configured VAEs…</option></select>
+                <input class="anima-training-option model-filter" id="training-vae" type="text" data-path="" autocomplete="off" placeholder="Search configured VAEs…" required>
                 <label for="training-name">Output name</label>
                 <input id="training-name" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,79}" value="my_lora">
                 <label for="training-steps">Training steps</label>

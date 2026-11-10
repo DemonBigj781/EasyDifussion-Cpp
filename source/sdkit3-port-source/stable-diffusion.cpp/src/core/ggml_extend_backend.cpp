@@ -758,6 +758,10 @@ ggml_backend_t SDBackendManager::runtime_backend(SDBackendModule module) {
     return init_cached_backend(primary_device_name(runtime_assignment_.get(module)));
 }
 
+std::string SDBackendManager::runtime_assignment(SDBackendModule module) const {
+    return runtime_assignment_.get(module);
+}
+
 std::vector<ggml_backend_t> SDBackendManager::runtime_backends(SDBackendModule module) {
     std::vector<ggml_backend_t> backends;
     for (const std::string& name : split_device_list(runtime_assignment_.get(module))) {
@@ -1042,4 +1046,112 @@ const char* sd_backend_module_name(SDBackendModule module) {
             return "detector";
     }
     return "unknown";
+}
+
+static const char* generation_backend_vendor(const char* backend) {
+    if (backend == nullptr) {
+        return "";
+    }
+    if (strcmp(backend, "CUDA") == 0) {
+        return "NVIDIA";
+    }
+    if (strcmp(backend, "HIP") == 0 || strcmp(backend, "ROCm") == 0) {
+        return "AMD";
+    }
+    if (strcmp(backend, "SYCL") == 0) {
+        return "Intel";
+    }
+    if (strcmp(backend, "Metal") == 0 || strcmp(backend, "MTL") == 0) {
+        return "Apple";
+    }
+    return "";
+}
+
+static std::string generation_backend_device_details(ggml_backend_t backend) {
+    if (backend == nullptr) {
+        return "backend=unknown selector=unknown device=unknown vendor=unknown memory_free=unknown memory_total=unknown";
+    }
+
+    ggml_backend_dev_t device = ggml_backend_get_device(backend);
+    if (device == nullptr) {
+        return "backend=" + std::string(SAFE_STR(ggml_backend_name(backend))) +
+               " selector=unknown device=unknown vendor=unknown memory_free=unknown memory_total=unknown";
+    }
+
+    ggml_backend_dev_props props{};
+    ggml_backend_dev_get_props(device, &props);
+    ggml_backend_reg_t registry = ggml_backend_dev_backend_reg(device);
+    const char* backend_name     = registry != nullptr ? ggml_backend_reg_name(registry) : ggml_backend_name(backend);
+    const char* selector         = ggml_backend_dev_name(device);
+    const char* description      = props.description != nullptr && props.description[0] != '\0' ? props.description : props.name;
+
+    std::ostringstream details;
+    details << "backend=" << SAFE_STR(backend_name)
+            << " selector=" << SAFE_STR(selector)
+            << " device=\"" << SAFE_STR(description)
+            << "\" vendor=" << generation_backend_vendor(backend_name)
+            << " memory_free=" << props.memory_free
+            << " memory_total=" << props.memory_total;
+    return details.str();
+}
+
+static thread_local std::string generation_last_error;
+
+std::string sd_format_generation_failure(ggml_backend_t backend,
+                                         const std::string& module,
+                                         const std::string& assignment,
+                                         const std::string& cause,
+                                         const std::string& model,
+                                         size_t requested_bytes,
+                                         const std::string& failed_member) {
+    std::ostringstream message;
+    message << "generation_failed: cause=" << (cause.empty() ? "unknown" : cause)
+            << " module=" << (module.empty() ? "unknown" : module);
+    if (!model.empty()) {
+        message << " model=\"" << model << "\"";
+    }
+    if (requested_bytes > 0) {
+        message << " requested_bytes=" << requested_bytes;
+    }
+    message << " " << generation_backend_device_details(backend)
+            << " assignment=" << (assignment.empty() ? "unknown" : assignment);
+
+    const std::string selector = backend != nullptr && ggml_backend_get_device(backend) != nullptr
+                                     ? SAFE_STR(ggml_backend_dev_name(ggml_backend_get_device(backend)))
+                                     : "";
+    if (!selector.empty() && assignment.find('&') != std::string::npos) {
+        message << " selected_member=" << selector;
+    }
+    if (!failed_member.empty()) {
+        message << " failed_member=" << failed_member;
+    }
+    return message.str();
+}
+
+void sd_set_last_error(const std::string& message) {
+    generation_last_error = message;
+}
+
+void sd_clear_last_error() {
+    generation_last_error.clear();
+}
+
+const std::string& sd_last_error() {
+    return generation_last_error;
+}
+
+void sd_record_generation_failure(ggml_backend_t backend,
+                                  const std::string& module,
+                                  const std::string& assignment,
+                                  const std::string& cause,
+                                  const std::string& model,
+                                  size_t requested_bytes,
+                                  const std::string& failed_member) {
+    sd_set_last_error(sd_format_generation_failure(backend,
+                                                   module,
+                                                   assignment,
+                                                   cause,
+                                                   model,
+                                                   requested_bytes,
+                                                   failed_member));
 }

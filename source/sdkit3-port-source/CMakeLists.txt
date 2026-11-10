@@ -93,18 +93,32 @@ add_custom_command(TARGET sdkit POST_BUILD
         "$<TARGET_FILE_DIR:sdkit>/cpp-ui-scripts"
     COMMENT "Bundling C++ UI scripts with SDKit")
 
+# Find Threads before declaring the standalone helpers that link it.
+find_package(Threads REQUIRED)
+
+add_executable(sam
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples/sam/sam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples/common.cpp)
+target_include_directories(sam PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples/sam
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
+target_link_libraries(sam PRIVATE ggml Threads::Threads)
+if(UNIX AND NOT APPLE)
+    set_target_properties(sam PROPERTIES BUILD_RPATH "$ORIGIN:$ORIGIN/../lib" INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
+endif()
+
 # Suppress Unicode character warnings from Crow library headers on Windows
 if(MSVC)
     target_compile_options(sdkit PRIVATE /wd4566)
 endif()
 
-# Find Threads package for multithreading support
-find_package(Threads REQUIRED)
-
 if(SDKIT_BUILD_TESTS)
     add_executable(generation-error-test tests/test_generation_error.cpp src/logging.cpp)
     target_include_directories(generation-error-test PRIVATE include stable-diffusion.cpp/include)
-    target_link_libraries(generation-error-test PRIVATE Threads::Threads)
+    target_link_libraries(generation-error-test PRIVATE stable-diffusion Threads::Threads)
     add_test(NAME generation-error-test COMMAND generation-error-test)
 endif()
 

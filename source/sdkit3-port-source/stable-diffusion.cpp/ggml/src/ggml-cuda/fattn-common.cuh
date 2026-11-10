@@ -969,7 +969,7 @@ static __global__ void flash_attn_combine_results(
     dst[tid] = VKQ_numerator / VKQ_denominator;
 }
 
-template <int DV, int ncols1, int ncols2>
+template <int DV, int ncols1, int ncols2, bool flatten_grid_z = false>
 void launch_fattn(
     ggml_backend_cuda_context & ctx, ggml_tensor * dst, fattn_kernel_t fattn_kernel, const int nwarps, const size_t nbytes_shared,
     const int nbatch_fa, const bool need_f16_K, const bool need_f16_V, const bool stream_k, const int warp_size = WARP_SIZE
@@ -1174,9 +1174,27 @@ void launch_fattn(
             }
         }
 
+        const int64_t ntiles_z = int64_t(ntiles_z_gqa) * K->ne[2] * Q->ne[3];
+        GGML_ASSERT(ntiles_z <= UINT32_MAX);
+
         blocks_num.x = ntiles_x;
         blocks_num.y = parallel_blocks;
-        blocks_num.z = ntiles_z_gqa*K->ne[2]*Q->ne[3];
+        blocks_num.z = ntiles_z;
+
+        // CUDA limits grid.z to 65535 blocks, while grid.x supports much
+        // larger launches. Large video batches can exceed grid.z even though
+        // their total block count is valid, so tile kernels flatten the
+        // logical x/z coordinates into physical grid.x and reconstruct them
+        // in the kernel. Other attention kernels retain their existing grid.
+        if constexpr (flatten_grid_z) {
+            constexpr uint32_t max_grid_z = 65535;
+            if (blocks_num.z > max_grid_z) {
+                const uint64_t flattened_x = uint64_t(blocks_num.x) * blocks_num.z;
+                GGML_ASSERT(flattened_x <= INT32_MAX);
+                blocks_num.x = flattened_x;
+                blocks_num.z = 1;
+            }
+        }
 
         if (parallel_blocks > 1) {
             dst_tmp.alloc(parallel_blocks*ggml_nelements(KQV));

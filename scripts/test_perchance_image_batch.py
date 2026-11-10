@@ -27,7 +27,7 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(perchance.DEFAULT_GALLERY_CONTENT_FILTER, "none")
         self.assertEqual(perchance._gallery_common({})[1], "none")
 
-    async def test_launcher_prefers_extracted_binary(self):
+    async def test_launcher_prefers_canonical_appimage_over_stale_user_binary(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             project_root = root / "project"
@@ -45,7 +45,7 @@ class TestPerchanceImageBatch(unittest.IsolatedAsyncioTestCase):
                 patch.object(perchance.Path, "home", return_value=home),
                 patch.object(perchance.easy_app, "getConfig", return_value={}),
             ):
-                self.assertEqual(perchance._launcher_path(), extracted)
+                self.assertEqual(perchance._launcher_path(), appimage)
 
     async def test_amount_is_bounded(self):
         with self.assertRaises(HTTPException) as raised:

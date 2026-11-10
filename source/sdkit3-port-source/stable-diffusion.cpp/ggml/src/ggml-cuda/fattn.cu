@@ -420,6 +420,18 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
                 return BEST_FATTN_KERNEL_NONE;
             }
             break;
+        case 160:
+            // AnimateDiff keeps eight temporal heads at 1280 channels. The
+            // native tiled kernels do not instantiate that head width, but
+            // the in-tree xFormers-compatible online-softmax kernel does.
+            // Use it as the memory-efficient fallback instead of materializing
+            // the multi-frame score matrix through GGML_OP_SOFT_MAX.
+            if (V->ne[0] != K->ne[0]) {
+                return BEST_FATTN_KERNEL_NONE;
+            }
+            return ggml_cuda_xformers_attn_supported(device, dst)
+                       ? BEST_FATTN_KERNEL_XFORMERS
+                       : BEST_FATTN_KERNEL_NONE;
         case 192:
             if (V->ne[0] != 128 || !gqa_opt_applies) {
                 return BEST_FATTN_KERNEL_NONE;

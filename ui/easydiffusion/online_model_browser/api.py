@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import os
+import asyncio
 import json
 import itertools
 import queue
 import threading
 import time
+import tempfile
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 from urllib.parse import quote, urlparse
@@ -17,6 +19,7 @@ from fastapi.responses import FileResponse
 
 from . import huggingface as hf
 from . import service as civ
+from .image_metadata import download_image, IMAGE_EXTENSIONS
 from easydiffusion import gallery
 from easydiffusion.utils import log as _logger
 
@@ -363,10 +366,7 @@ async def civitai_import_image(request: Request):
     if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
         raise HTTPException(status_code=400, detail="Image URL must use an official CivitAI HTTPS host")
 
-    headers = {"Accept": "image/*"}
     api_key = _resolve_key(request, payload)
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
 
     root = gallery.configured_directory()
     root.mkdir(parents=True, exist_ok=True)
@@ -377,35 +377,8 @@ async def civitai_import_image(request: Request):
 
     temporary = root / f".civitai-{safe_id}-{uuid4().hex}.part"
     try:
-        with civ.requests.get(source_url, headers=headers, stream=True, timeout=120) as response:
-            response.raise_for_status()
-            final = urlparse(response.url)
-            if final.scheme != "https" or final.hostname not in allowed_hosts:
-                raise ValueError("CivitAI image redirected to an unsupported host")
-            content_type = str(response.headers.get("content-type") or "").split(";", 1)[0].lower()
-            extension = {
-                "image/png": ".png",
-                "image/jpeg": ".jpg",
-                "image/webp": ".webp",
-                "image/gif": ".gif",
-                "image/bmp": ".bmp",
-            }.get(content_type)
-            if extension is None:
-                raise ValueError(f"Unsupported CivitAI image type: {content_type or 'unknown'}")
-            total = 0
-            maximum = 100 * 1024 * 1024
-            with temporary.open("wb") as output:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
-                    if not chunk:
-                        continue
-                    total += len(chunk)
-                    if total > maximum:
-                        raise ValueError("CivitAI image exceeds the 100 MB import limit")
-                    output.write(chunk)
-
-        if gallery.Image is not None:
-            with gallery.Image.open(temporary) as opened:
-                opened.verify()
+        file_metadata = await asyncio.to_thread(download_image, source_url, temporary, api_key)
+        extension = IMAGE_EXTENSIONS[file_metadata["format"]]
 
         destination = root / f"civitai-{safe_id}{extension}"
         if destination.exists():
@@ -414,7 +387,7 @@ async def civitai_import_image(request: Request):
         relative = destination.relative_to(root).as_posix()
         sidecar = destination.with_suffix(destination.suffix + ".civitai.json")
         sidecar.write_text(
-            json.dumps({"source": "civitai", "image": image}, ensure_ascii=False, indent=2),
+            json.dumps({"source": "civitai", "image": image, "downloadedFile": file_metadata}, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return {
@@ -423,6 +396,7 @@ async def civitai_import_image(request: Request):
             "galleryUrl": f"/gallery/file/{quote(relative, safe='/')}",
             "editorUrl": f"/civitai-api/civitai/imported/{quote(relative, safe='/')}",
             "metadata": image.get("meta") or {},
+            "fileMetadata": file_metadata,
             "size": destination.stat().st_size,
         }
     except HTTPException:
@@ -434,6 +408,23 @@ async def civitai_import_image(request: Request):
             temporary.unlink(missing_ok=True)
         except OSError:
             pass
+
+
+@APP.post("/civitai/image-metadata")
+async def civitai_image_metadata(request: Request):
+    payload = await request.json()
+    if not isinstance(payload, dict) or not isinstance(payload.get("url"), str):
+        raise HTTPException(status_code=400, detail="Missing CivitAI image URL")
+    try:
+        with tempfile.TemporaryDirectory(prefix="civitai-metadata-") as directory:
+            result = await asyncio.to_thread(
+                download_image, payload["url"], Path(directory) / "image.part", _resolve_key(request, payload)
+            )
+        return {"ok": True, "file": result}
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=_safe_error(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=_safe_error(error)) from error
 
 
 @APP.get("/civitai/me")
@@ -693,6 +684,12 @@ async def civitai_images(request: Request):
     start = time.perf_counter()
     try:
         qp = request.query_params
+        try:
+            tag_ids = _integer_csv(qp.get("tags") or "")
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="Image tags must contain positive numeric IDs") from error
+        if any(tag <= 0 for tag in tag_ids):
+            raise HTTPException(status_code=400, detail="Image tags must contain positive numeric IDs")
 
         query = qp.get("query", "") or ""
         page = int(qp.get("page", "1") or "1")
@@ -733,12 +730,15 @@ async def civitai_images(request: Request):
             model_version_id=model_version_id,
             post_id=post_id,
             username=username,
+            tag_ids=tag_ids,
         )
 
         elapsed_ms = (time.perf_counter() - start) * 1000.0
         _logger.info("GET /civitai/images -> 200 (%.1fms)", elapsed_ms)
         return result
 
+    except HTTPException:
+        raise
     except Exception as exc:
         civ._log(f"images error: {exc}")
         elapsed_ms = (time.perf_counter() - start) * 1000.0

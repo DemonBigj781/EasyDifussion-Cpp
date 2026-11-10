@@ -19,12 +19,15 @@
     const start = byId("makeImage");
     const stop = byId("stopImage");
     const checkpointPicker = new ModelDropdown(byId("stable_diffusion_model"), null, "Select a checkpoint");
+    const videoMode = byId("video_mode");
+    const motionModulePicker = new ModelDropdown(byId("motion_module_model"), "motion-module", "None");
     const vaePicker = new ModelDropdown(byId("vae_model"), null, "Use checkpoint VAE");
     const textEncoderPicker = new ModelDropdown(byId("text_encoder_model"), null, "Use checkpoint text encoder");
     let companionsReady = false;
     let activeTask = null;
     let stopped = false;
     let preparation = null;
+    let checkpointCatalog = [];
     const queue = window.CppGenerationQueue.createQueue({run: runRequest, changed: state => {
         if (stop) stop.disabled = !state.active && !state.pending;
         window.dispatchEvent(new CustomEvent("cpp-generation-state", {detail: state}));
@@ -54,6 +57,37 @@
         const value = Number.parseFloat(inputValue(id, String(fallback)));
         return Math.min(maximum, Math.max(minimum, Number.isFinite(value) ? value : fallback));
     }
+    function checkpointMetadata(model) {
+        return checkpointCatalog.find(item => String(item.model || item.name || "") === model) || {};
+    }
+    function videoFamily(model) {
+        const tags = checkpointMetadata(model).tags || [];
+        if (tags.some(tag => /^(video$|mochi_|wan_|ltx_video|ltx2|svd$|stable.video.diffusion)/i.test(tag))) return true;
+        return tags.length < 2 && /(?:^|[/\\_ .-])(?:mochi|wan|ltx[-_ ]?video|ltx[-_ ]?2|svd|stable[-_ ]?video[-_ ]?diffusion)(?:[/_. -]|$)/i.test(model);
+    }
+    function isAnimateDiffBase(model) {
+        const tags = checkpointMetadata(model).tags || [];
+        if (tags.length > 1) return tags.some(tag => /^(sd_v1_(base|inpainting)|instruct_pix2pix|sd_xl_(base|inpainting)|sdxl|sd15|sd1\.5)$/.test(tag));
+        return /(?:^|[/\\_ .-])(?:sd15|sd1\.5|sdxl|sd[_-]?xl)(?:[/\\_ .-]|$)/i.test(model);
+    }
+    function syncVideoMode(autoEnable = false) {
+        const model = checkpointPicker.value || "";
+        const nativeVideo = videoFamily(model);
+        const animateDiff = !nativeVideo && Boolean(motionModulePicker.value);
+        const allowedBase = isAnimateDiffBase(model);
+        byId("motion_module_model").disabled = nativeVideo;
+        videoMode.disabled = nativeVideo || !allowedBase;
+        if (autoEnable) videoMode.checked = nativeVideo || animateDiff;
+        if (nativeVideo) videoMode.checked = true;
+        if (!nativeVideo && !allowedBase) videoMode.checked = false;
+        updateVideoCacheUI();
+    }
+    function updateVideoCacheUI() {
+        const enabled = videoMode.checked;
+        byId("video_cache_mode").disabled = !enabled;
+        for (const id of ["video_cache_threshold", "video_cache_start", "video_cache_end"])
+            byId(id).disabled = !enabled || byId("video_cache_mode").value === "disabled";
+    }
     async function loadCheckpoints() {
         const select = byId("stable_diffusion_model");
         const modelStatus = byId("generation-model-status");
@@ -63,6 +97,7 @@
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const payload = await response.json();
             const models = Array.isArray(payload.models) ? payload.models : [];
+            checkpointCatalog = models;
             checkpointPicker.inputModels = buildTree(models.map(model => ({model: String(model.model || model.name || "")})));
             checkpointPicker.populateModels();
             try {
@@ -72,7 +107,9 @@
             } catch (_) {}
             select.addEventListener("change", () => {
                 window.CppInputPreferences.save("stable_diffusion_model", checkpointPicker.value);
+                syncVideoMode(true);
             });
+            syncVideoMode(true);
             if (modelStatus) modelStatus.textContent = models.length ? `${models.length} checkpoints available.` : "No checkpoints found.";
         } catch (error) {
             select.disabled = true;
@@ -87,6 +124,7 @@
             for (const [picker, endpoint, type, key] of [
                 [vaePicker, "/get/vae", "vae", "easy-diffusion-cpp-vae-v1"],
                 [textEncoderPicker, "/get/other", "text-encoder", "easy-diffusion-cpp-text-encoder-v1"],
+                [motionModulePicker, "/get/other", "motion-module", "easy-diffusion-cpp-motion-module-v1"],
             ]) {
                 const response = await fetch(endpoint, {cache: "no-store"});
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -95,14 +133,17 @@
                 picker.inputModels = buildTree(models);
                 picker.populateModels();
                 try {
-                    const saved = window.CppInputPreferences.get(type === "vae" ? "vae_model" : "text_encoder_model", key);
+                    const saved = window.CppInputPreferences.get(type === "vae" ? "vae_model" : type === "text-encoder" ? "text_encoder_model" : "motion_module_model", key);
                     if (saved && models.some(model => model.model === saved)) picker.value = saved;
                 } catch (_) {}
                 picker.addEventListener("change", () => {
-                    window.CppInputPreferences.save(type === "vae" ? "vae_model" : "text_encoder_model", picker.value || "");
+                    const preferenceKey = type === "vae" ? "vae_model" : type === "text-encoder" ? "text_encoder_model" : "motion_module_model";
+                    window.CppInputPreferences.save(preferenceKey, picker.value || "");
+                    if (type === "motion-module") syncVideoMode(true);
                 });
             }
             companionsReady = true;
+            syncVideoMode(true);
         } catch (error) {
             if (message) message.textContent = `Could not load companion models: ${error.message}. Reload before generating.`;
         }
@@ -187,6 +228,12 @@
                 } else if (Number.isFinite(event.step) && Number.isFinite(event.total_steps)) {
                     if (progress) { progress.max = event.total_steps; progress.value = event.step; }
                     setStatus(`Rendering: step ${event.step} of ${event.total_steps}`);
+                    if (event.phase === "decoding" || event.phase === "finalizing") {
+                        const phaseCurrent = Math.max(0, Number(event.phase_current) || 0);
+                        const phaseTotal = Math.max(0, Number(event.phase_total) || 0);
+                        if (phaseTotal > 0) setStatus(`${event.phase === "decoding" ? "Decoding" : "Finalizing"} video frame ${phaseCurrent} of ${phaseTotal}…`);
+                        else setStatus(event.phase === "decoding" ? "Sampling finished. Decoding video frames…" : "Finalizing video output…");
+                    }
                 }
             }
             if (completed) return;
@@ -209,6 +256,8 @@
             height: integer("height", 512, 64, 2048),
             num_outputs: integer("num_images", 1, 1, 8),
             num_inference_steps: integer("steps", 25, 1, 200),
+            tome_ratio: Number(inputValue("tome_ratio", "0")),
+            negative_guidance_min_sigma: Number(inputValue("negative_guidance_min_sigma", "0")),
             guidance_scale: number("guidance_scale", 7.5, 0, 30),
             seed,
             session_id: sessionId,
@@ -216,14 +265,52 @@
             stream_image_progress: true,
             vram_usage_level: "balanced",
         };
+        syncVideoMode();
+        if (!Number.isFinite(request.tome_ratio) || request.tome_ratio < 0 || request.tome_ratio > .5)
+            throw new Error("Token merging ratio must be between 0 and 0.5.");
+        if (!Number.isFinite(request.negative_guidance_min_sigma) || request.negative_guidance_min_sigma < 0)
+            throw new Error("Negative guidance minimum sigma must be finite and non-negative.");
+        const nativeVideo = videoFamily(checkpoint);
+        const animateDiff = !nativeVideo && Boolean(motionModulePicker.value);
+        if (videoMode.checked && !nativeVideo && !isAnimateDiffBase(checkpoint))
+            throw new Error("Video mode is available only for SD 1.5 or SDXL checkpoints.");
+        if (videoMode.checked && !nativeVideo && !animateDiff)
+            throw new Error("Select an AnimateDiff motion module before enabling video generation.");
+        request.video_mode = Boolean(videoMode.checked && (nativeVideo || animateDiff));
         if (byId("sampler")?.value) request.sampler_name = byId("sampler").value;
         window.CppImageModifiers?.applyToRequest(request);
         window.CppGeneratePlugins?.applyToRequest(request);
         window.CppImageTools?.applyToRequest(request);
+        window.CppCanvas?.applyToRequest(request);
         Object.assign(request, window.CppIPAdapter?.requestOptions() || {});
+        if (request.video_mode && animateDiff) {
+            request.motion_module_model = motionModulePicker.value;
+            request.video_frames = integer("video_frames", 16, 1, 32);
+            request.fps = integer("video_fps", 8, 1, 60);
+        }
+        if (request.video_mode && !animateDiff) request.video_frames = integer("video_frames", 25, 1, 513);
+        if (request.video_mode) {
+            if (nativeVideo) {
+                request.tome_ratio = 0;
+                request.negative_guidance_min_sigma = 0;
+            }
+            request.video_steps = integer("video_steps", 20, 1, 200);
+            request.cache_mode = byId("video_cache_mode").value;
+            if (request.negative_guidance_min_sigma > 0 && request.cache_mode !== "disabled")
+                throw new Error("Negative guidance minimum sigma requires video caching to be disabled.");
+            request.cache_threshold = byId("video_cache_threshold").value === "" ? null : Number(byId("video_cache_threshold").value);
+            request.cache_start_percent = Number(byId("video_cache_start").value);
+            request.cache_end_percent = Number(byId("video_cache_end").value);
+            if (!["disabled", "easycache", "teacache"].includes(request.cache_mode))
+                throw new Error("Select one cache method.");
+            if (!(request.cache_start_percent >= 0 && request.cache_start_percent < request.cache_end_percent && request.cache_end_percent <= 100))
+                throw new Error("Cache range must satisfy 0 <= start < end <= 100 percent.");
+            if (request.cache_threshold !== null && (!Number.isFinite(request.cache_threshold) || request.cache_threshold < 0))
+                throw new Error("Cache threshold must be finite and non-negative.");
+        }
         try {
             const saved = JSON.parse(localStorage.getItem("easy-diffusion-native-device-routing-v1") || "{}");
-            request.backend_assignment = Object.entries(saved.image || {})
+            request.backend_assignment = Object.entries((request.video_mode ? saved.video : saved.image) || {})
                 .filter(([, value]) => typeof value === "string" && value)
                 .map(([key, value]) => `${key}=${value}`).join(",");
         } catch (_) {}
@@ -240,8 +327,9 @@
             await window.CppOptionalPlugins?.prepare(request, preparation.signal);
             preparation = null;
             if (isCancelled()) throw new Error("Generation cancelled.");
-            setStatus("Adding image to the queue…");
-            const response = await fetch("/render", {
+            const isVideo = Boolean(request.video_mode || request.motion_module_model);
+            setStatus(isVideo ? "Adding AnimateDiff video to the queue…" : "Adding image to the queue…");
+            const response = await fetch(isVideo ? "/video" : "/render", {
                 method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(request),
             });
             const payload = await response.json();
@@ -273,9 +361,10 @@
         const response = await fetch(`/image/stop?task=${encodeURIComponent(activeTask)}`, {cache:"no-store"});
         if (!response.ok) throw new Error(`Could not stop task (HTTP ${response.status}).`);
     }
-    async function cancel() {
+    async function cancel(all = false) {
         stopped = true;
-        queue.cancel();
+        if (all) queue.cancelAll();
+        else queue.cancel();
         preparation?.abort();
         window.dispatchEvent(new Event("cpp-generation-cancel"));
         setStatus("Stopping generation…");
@@ -283,8 +372,11 @@
         catch (error) { setStatus(error.message, true); throw error; }
     }
     start?.addEventListener("click", startGeneration);
+    videoMode.addEventListener("change", () => syncVideoMode());
+    byId("video_cache_mode").addEventListener("change", updateVideoCacheUI);
     stop?.addEventListener("click", () => cancel().catch(() => {}));
     window.CppGeneration = {buildRequest, enqueue: request => queue.enqueue({...request, session_id:sessionId}), cancel,
+        cancelAll: () => cancel(true),
         get state() { return queue.state; },
         get newestFirst() { return queue.newestFirst; },
         set newestFirst(value) { queue.newestFirst = value; },

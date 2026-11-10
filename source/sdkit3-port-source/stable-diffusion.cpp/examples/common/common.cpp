@@ -434,7 +434,7 @@ ArgOptions SDContextParams::get_options() {
          &ip_adapter_path},
         {"",
          "--motion-module",
-         "path to AnimateDiff motion module (SD 1.5); enables video generation on --video-frames > 1",
+         "path to AnimateDiff motion module (SD 1.5 or SDXL beta); enables video generation on --video-frames > 1",
          0,
          &motion_module_path},
         {"",

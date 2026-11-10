@@ -343,6 +343,8 @@ static sd_progress_cb_t sd_progress_cb = nullptr;
 void* sd_progress_cb_data              = nullptr;
 static sd_progress_cb_t sd_sample_progress_cb = nullptr;
 static void* sd_sample_progress_cb_data       = nullptr;
+static sd_video_frame_progress_cb_t sd_video_frame_progress_cb = nullptr;
+static void* sd_video_frame_progress_cb_data                    = nullptr;
 
 static sd_preview_cb_t sd_preview_cb = nullptr;
 static void* sd_preview_cb_data      = nullptr;
@@ -632,6 +634,10 @@ void sd_set_sample_progress_callback(sd_progress_cb_t cb, void* data) {
     sd_sample_progress_cb      = cb;
     sd_sample_progress_cb_data = data;
 }
+void sd_set_video_frame_progress_callback(sd_video_frame_progress_cb_t cb, void* data) {
+    sd_video_frame_progress_cb      = cb;
+    sd_video_frame_progress_cb_data = data;
+}
 void sd_set_preview_callback(sd_preview_cb_t cb, preview_t mode, int interval, bool denoised, bool noisy, void* data) {
     sd_preview_cb       = cb;
     sd_preview_cb_data  = data;
@@ -686,6 +692,12 @@ sd_progress_cb_t sd_get_sample_progress_callback() {
 }
 void* sd_get_sample_progress_callback_data() {
     return sd_sample_progress_cb_data;
+}
+sd_video_frame_progress_cb_t sd_get_video_frame_progress_callback() {
+    return sd_video_frame_progress_cb;
+}
+void* sd_get_video_frame_progress_callback_data() {
+    return sd_video_frame_progress_cb_data;
 }
 
 sd_image_t tensor_to_sd_image(const sd::Tensor<float>& tensor, int frame_index) {

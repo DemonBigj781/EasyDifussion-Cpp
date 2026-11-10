@@ -229,6 +229,7 @@ def log_result_image_diagnostics(
     image_decoder=None,
     dark_threshold: float = 20.0,
     bright_threshold: float = 235.0,
+    flat_stddev_threshold: float = 0.1,
 ) -> None:
     """Inspect only caller-supplied result images; inputs are never discovered here."""
 
@@ -237,7 +238,8 @@ def log_result_image_diagnostics(
     for index, encoded_image in enumerate(images, start=1):
         try:
             image = image_decoder(encoded_image) if image_decoder is not None else encoded_image
-            red, green, blue = ImageStat.Stat(image.convert("RGB")).mean
+            statistics = ImageStat.Stat(image.convert("RGB"))
+            red, green, blue = statistics.mean
             mean_luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
         except Exception as error:
             logger.warning(
@@ -262,6 +264,11 @@ def log_result_image_diagnostics(
                 index,
                 mean_luminance,
                 bright_threshold,
+            )
+        elif max(statistics.stddev) <= flat_stddev_threshold:
+            logger.warning(
+                "Result image %d is nearly uniform: mean_luminance=%.2f/255 max_channel_stddev=%.4f",
+                index, mean_luminance, max(statistics.stddev),
             )
 
 

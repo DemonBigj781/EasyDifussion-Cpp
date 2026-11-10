@@ -39,11 +39,16 @@
                                     <i class="fa-solid fa-paintbrush"></i>
                                     Inpaint
                                 </div>
-                                <input id="enable_mask" name="enable_mask" type="checkbox">
+                                <input id="enable_mask" name="enable_mask" type="checkbox" aria-label="Use ordinary inpaint mask (first influence)">
+                            </div>
+                            <div id="init_image_button_advanced_inpaint" class="button" title="Add separate opacity-weighted color guidance after ordinary inpaint; keep the original image unchanged">
+                                <i class="fa-solid fa-palette"></i>
+                                Advanced Inpaint
                             </div>
                         </div>
                     </div>
                     <div id="apply_color_correction_setting" class="pl-5"><input id="apply_color_correction" name="apply_color_correction" type="checkbox"> <label for="apply_color_correction">Preserve color profile <small>(helps during inpainting)</small></label></div>
+                    <div class="pl-5"><input id="enable_color_guide" name="enable_color_guide" type="checkbox"> <label for="enable_color_guide">Use color-weighted inpaint guidance <small>(after ordinary inpaint; keep prompt strength below 1)</small></label></div>
                     <div id="strict_mask_border_setting" class="pl-5"><input id="strict_mask_border" name="strict_mask_border" type="checkbox"> <label for="strict_mask_border">Strict Mask Border <small>(won't modify outside the mask, but the mask border might be visible)</small></label></div>
                 </div>
 

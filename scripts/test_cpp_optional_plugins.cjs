@@ -32,13 +32,27 @@ test('queue preserves FIFO, supports newest first, counts images and survives er
     assert.equal((await failures.enqueue({seed:2})).seed,2);
 });
 
-test('cancel rejects queued requests and active result without starting another task', async () => {
+test('cancel rejects only the active request and starts the next queued task', async () => {
+    const {createQueue} = require(path.join(root, 'generation_queue.js'));
+    const order=[],releases=[];
+    const q=createQueue({run:req=>new Promise(resolve=>{order.push(req.seed);releases.push(resolve);})});
+    const a=q.enqueue({seed:1}), b=q.enqueue({seed:2});
+    const cancelled=assert.rejects(a,/cancel/i);
+    q.cancel(); releases.shift()({}); await cancelled;
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(order,[1,2]);
+    releases.shift()({seed:2});
+    assert.equal((await b).seed,2);
+    assert.deepEqual(q.state,{active:false,pending:0,images:0});
+});
+
+test('cancelAll rejects the active and every queued request', async () => {
     const {createQueue} = require(path.join(root, 'generation_queue.js'));
     let release;
     const q=createQueue({run:()=>new Promise(resolve=>{release=resolve;})});
     const a=q.enqueue({seed:1}), b=q.enqueue({seed:2});
     const checks=[assert.rejects(a,/cancel/i),assert.rejects(b,/cancel/i)];
-    q.cancel(); release({}); await Promise.all(checks);
+    q.cancelAll(); release({}); await Promise.all(checks);
     assert.deepEqual(q.state,{active:false,pending:0,images:0});
 });
 

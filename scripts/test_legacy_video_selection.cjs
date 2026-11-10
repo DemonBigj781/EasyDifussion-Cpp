@@ -14,6 +14,7 @@ const models = [
     checkpoint("svd", "svd"), checkpoint("external/mochi", "mochi_v1_preview", "video"),
     ...["image-vae", "mochi/mochi_vae", "mochi/mochi_vae_fp8_e4m3fn", "wan/wan_2.1_vae"].map(model => ({model, tags: ["vae"]})),
     ...["image-encoder", "t5xxl_fp8_e4m3fn", "umt5_xxl_fp8_e4m3fn_scaled"].map(model => ({model, tags: ["text-encoder"]})),
+    {model: "motion-module", tags: ["motion-module", "animatediff"]},
     {model: "t5xxl_fp16", tags: ["text-encoder"], installed: false},
 ]
 
@@ -36,7 +37,7 @@ function harness({selected = "image", state = {}, catalog = models} = {}) {
         after() {}
         querySelectorAll() {return [...elements.values()].filter(e => e.id.startsWith("native-video-"))}
     }
-    for (const id of ["editor-settings", "stable_diffusion_model", "vae_model", "text_encoder_model"]) elements.set(id, new Element(id))
+    for (const id of ["editor-settings", "stable_diffusion_model", "vae_model", "text_encoder_model", "native-video-motion-module"]) elements.set(id, new Element(id))
     const document = new EventTarget()
     Object.assign(document, {getElementById: id => elements.get(id), querySelector: id => elements.get(id.slice(1)),
         createElement: () => new Element(), head: {appendChild() {}}})
@@ -59,7 +60,12 @@ function harness({selected = "image", state = {}, catalog = models} = {}) {
             addEventListener: (...args) => el.addEventListener(...args)}
     }
     context.stableDiffusionModelField = field("stable_diffusion_model", selected)
-    context.FixtureDropdown = class {constructor(el) {return field(el.id, el.dataset.path || "")}}
+    const dropdownFields = new Map()
+    context.FixtureDropdown = class {constructor(el) {
+        const result = field(el.id, el.dataset.path || "")
+        dropdownFields.set(el.id, result)
+        return result
+    }}
     vm.runInContext("ModelDropdown = FixtureDropdown", context)
     context.vaeModelField = field("vae_model", "image-vae")
     let encoders = ["image-encoder"]
@@ -69,6 +75,8 @@ function harness({selected = "image", state = {}, catalog = models} = {}) {
     vm.runInContext(plugin, context)
     return {context, elements, store,
         select(model) {context.stableDiffusionModelField.value = model},
+        selectMotionModule(model) {dropdownFields.get("native-video-motion-module").value = model},
+        motionModule() {return dropdownFields.get("native-video-motion-module").value},
         companions() {return JSON.parse(JSON.stringify({vae: context.vaeModelField.value, encoders: context.textEncoderModelField.modelNames}))},
         task(model = context.stableDiffusionModelField.value) {
             const event = {reqBody: {use_stable_diffusion_model: model, use_vae_model: context.vaeModelField.value,
@@ -79,9 +87,108 @@ function harness({selected = "image", state = {}, catalog = models} = {}) {
     }
 }
 
-test("there is one checkpoint selector, without a separate video enable toggle", () => {
-    for (const id of ["native-video-model", "native-video-enabled", "native-video-vae", "native-video-text-encoder"]) {
+test("AnimateDiff motion-module selection routes an image checkpoint to video and clamps frames", () => {
+    const h = harness(); h.selectMotionModule("motion-module")
+    h.elements.get("native-video-frames").value = "99"
+    const task = h.task()
+    assert.ok(task.instance instanceof h.context.SD.VideoTask)
+    assert.equal(task.reqBody.motion_module_model, "motion-module")
+    assert.equal(task.reqBody.video_frames, 32)
+})
+
+test("clearing the motion module restores still-image routing", () => {
+    const h = harness(); h.selectMotionModule("motion-module")
+    assert.ok(h.task().instance instanceof h.context.SD.VideoTask)
+    h.selectMotionModule("")
+    const task = h.task()
+    assert.equal(task.instance, undefined)
+    assert.equal(task.reqBody.motion_module_model, undefined)
+})
+
+test("native video ignores a preserved AnimateDiff selection until an image checkpoint returns", () => {
+    const h = harness({selected: "renamed-video"}); h.selectMotionModule("motion-module")
+    const task = h.task()
+    assert.ok(task.instance instanceof h.context.SD.VideoTask)
+    assert.equal(task.reqBody.motion_module_model, undefined)
+    assert.equal(h.motionModule(), "motion-module")
+})
+
+test("native video clears SD-only sampling optimizations", () => {
+    const h = harness({selected: "renamed-video"})
+    const event = {reqBody: {use_stable_diffusion_model: "renamed-video", tome_ratio: 0.25,
+        negative_guidance_min_sigma: 1}}
+    h.context.PLUGINS.TASK_BUILD.forEach(fn => fn(event))
+    assert.equal(event.reqBody.tome_ratio, 0)
+    assert.equal(event.reqBody.negative_guidance_min_sigma, 0)
+})
+
+test("video toggle uses the existing checkpoint selector", () => {
+    assert.ok(html.includes('id="native-video-enabled"'))
+    for (const id of ["native-video-model", "native-video-vae", "native-video-text-encoder"]) {
         assert.ok(!html.includes(`id="${id}"`), `${id} must be removed`)
+    }
+})
+
+test("AnimateDiff controls remain available for still-image checkpoints", () => {
+    assert.doesNotMatch(plugin, /panel\.classList\.toggle\("displayNone", !family && !motionModule\.value\)/)
+})
+
+test("both caches are independently selectable for real SD1.5 and SDXL architecture tags", () => {
+    for (const family of ["sd_v1_base", "sd_xl_base"]) {
+        const h = harness({selected:"renamed", catalog:[...models, checkpoint("renamed", family)]})
+        h.selectMotionModule("motion-module")
+        for (const mode of ["easycache", "teacache", "disabled", "easycache"]) {
+            h.elements.get("native-video-cache").value = mode
+            h.elements.get("native-video-cache").dispatchEvent(new Event("change"))
+            const task = h.task()
+            assert.ok(task.instance instanceof h.context.SD.VideoTask)
+            assert.equal(task.reqBody.cache_mode, mode)
+            assert.equal(h.elements.get("native-video-threshold").disabled, mode === "disabled")
+        }
+    }
+})
+
+test("queued AnimateDiff requests preserve cache and motion settings after the UI changes", () => {
+    const h = harness(); h.selectMotionModule("motion-module")
+    h.elements.get("native-video-cache").value = "teacache"
+    h.elements.get("native-video-threshold").value = "0.08"
+    const event = {reqBody:{use_stable_diffusion_model:"image"}}
+    h.context.PLUGINS.TASK_BUILD.forEach(fn => fn(event))
+    h.selectMotionModule("")
+    h.select("wan")
+    h.elements.get("native-video-cache").value = "easycache"
+    h.context.PLUGINS.TASK_CREATE.forEach(fn => fn(event))
+    assert.ok(event.instance instanceof h.context.SD.VideoTask)
+    assert.equal(event.reqBody.motion_module_model, "motion-module")
+    assert.equal(event.reqBody.cache_mode, "teacache")
+    assert.equal(event.reqBody.cache_threshold, 0.08)
+})
+
+test("turning AnimateDiff off does not attach cache options to still-image requests", () => {
+    const h = harness(); h.selectMotionModule("motion-module")
+    const toggle = h.elements.get("native-video-enabled")
+    toggle.checked = false; toggle.dispatchEvent(new Event("change"))
+    assert.equal(h.task().reqBody.cache_mode, undefined)
+    assert.equal(h.task().instance, undefined)
+})
+
+test("AnimateDiff uses dedicated video steps instead of still-image options", () => {
+    const h = harness(); h.selectMotionModule("motion-module")
+    h.elements.get("native-video-steps").value = "12"
+    const event = {reqBody:{use_stable_diffusion_model:"image", num_inference_steps:4}}
+    h.context.PLUGINS.TASK_BUILD.forEach(fn => fn(event))
+    h.context.PLUGINS.TASK_CREATE.forEach(fn => fn(event))
+    assert.equal(event.reqBody.num_inference_steps,4)
+    assert.equal(event.reqBody.video_steps,12)
+})
+
+test("Illustrious and Pony SDXL checkpoints remain valid AnimateDiff image bases", () => {
+    for (const model of ["illustrious-checkpoint", "pony-checkpoint"]) {
+        const h = harness({selected: model, catalog: [...models, checkpoint(model, "sd_xl_base")]})
+        h.selectMotionModule("motion-module")
+        const task = h.task()
+        assert.ok(task.instance instanceof h.context.SD.VideoTask)
+        assert.equal(task.reqBody.motion_module_model, "motion-module")
     }
 })
 test("dedicated video catalog is available in the main dropdown and metadata lookup", () => {
@@ -104,7 +211,7 @@ test("video families select their own resources, embedded SVD clears external re
     assert.deepEqual(h.companions(), {vae: "wan/wan_2.1_vae", encoders: ["umt5_xxl_fp8_e4m3fn_scaled"]})
     h.select("ltx-distilled")
     assert.deepEqual(h.companions(), {vae: "", encoders: ["t5xxl_fp8_e4m3fn"]})
-    assert.equal(h.task().reqBody.num_inference_steps, 8)
+    assert.equal(h.task().reqBody.video_steps, 8)
     h.select("svd"); assert.deepEqual(h.companions(), {vae: "", encoders: []})
     h.select("image"); assert.deepEqual(h.companions(), {vae: "image-vae", encoders: ["image-encoder"]})
     assert.equal(h.task().instance, undefined)
@@ -195,4 +302,47 @@ test("LTX-2.3 reports missing auxiliary resources without substituting other ver
     assert.match(h.elements.get("native-video-status").textContent,/audio VAE/i)
     assert.match(h.elements.get("native-video-status").textContent,/embedding connectors/i)
     assert.throws(()=>h.task(),/LTX-2.3.*missing/i)
+})
+
+const ltxCatalog = [...models,
+    checkpoint("video/ltx-2-19b-distilled-Q3_K_M", "ltx2"),
+    checkpoint("video/ltx-2.3-22b-distilled-Q3_K_M", "ltx2_3"),
+    checkpoint("video/ltx-2.5-dev", "ltx2_5"),
+    ...["LTX2_video_vae_bf16", "LTX2_audio_vae_bf16",
+        "ltx-2.3-22b-dev_video_vae", "ltx-2.3-22b-dev_audio_vae",
+        "ltx-2.3-22b-distilled_video_vae", "ltx-2.3-22b-distilled_audio_vae"].map(model => ({model,tags:["vae"]})),
+    ...["gemma-3-12b-it-Q4_K_S", "ltx-2-19b-embeddings_connector_dev_bf16",
+        "ltx-2-19b-embeddings_connector_distill_bf16", "ltx-2.3-22b-dev_embeddings_connectors",
+        "ltx-2.3-22b-distilled_embeddings_connectors"].map(model => ({model,tags:["text-encoder"]})),
+]
+test("original LTX-2.0 selects its distilled resources, not 2.3, and switches both ways", () => {
+    const h = harness({catalog:ltxCatalog})
+    for (const version of ["2", "2.3", "2", "2.3"]) {
+        const original = version === "2"
+        h.select(`video/ltx-${version}-${original ? "19" : "22"}b-distilled-Q3_K_M`)
+        const event = h.task()
+        assert.equal(event.reqBody.use_vae_model, original ? "LTX2_video_vae_bf16" : "ltx-2.3-22b-distilled_video_vae")
+        assert.equal(event.reqBody.audio_vae_model, original ? "LTX2_audio_vae_bf16" : "ltx-2.3-22b-distilled_audio_vae")
+        assert.equal(event.reqBody.embeddings_connectors_model, original ? "ltx-2-19b-embeddings_connector_distill_bf16" : "ltx-2.3-22b-distilled_embeddings_connectors")
+        assert.equal(event.reqBody.use_text_encoder_model, "gemma-3-12b-it-Q4_K_S")
+        assert.equal(event.reqBody.scheduler_name, "ltx2")
+        assert.equal(event.reqBody.sampler_name, "euler")
+        assert.equal(event.reqBody.video_steps, 8)
+        assert.equal(event.reqBody.guidance_scale, 1)
+        assert.equal(h.elements.get("native-video-ltx23-resources").classList.contains("displayNone"), false)
+    }
+    h.select("image")
+    assert.deepEqual(h.companions(), {vae:"image-vae",encoders:["image-encoder"]})
+    assert.equal(h.task().reqBody.audio_vae_model, undefined)
+})
+test("LTX-2.0 refuses missing original companions and does not adopt 2.3 resources", () => {
+    const h = harness({catalog:ltxCatalog.filter(m => !m.model.startsWith("LTX2_") && !m.model.startsWith("ltx-2-19b-embeddings"))})
+    h.select("video/ltx-2-19b-distilled-Q3_K_M")
+    assert.throws(() => h.task(), /LTX-2.0.*missing/i)
+    assert.equal(h.companions().vae, "")
+})
+test("LTX-2.5 is not treated as 2.0 or 2.3", () => {
+    const h = harness({catalog:ltxCatalog}); h.select("video/ltx-2.5-dev")
+    assert.equal(h.elements.get("native-video-ltx23-resources").classList.contains("displayNone"), true)
+    assert.equal(h.task().reqBody.embeddings_connectors_model, undefined)
 })

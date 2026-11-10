@@ -236,6 +236,146 @@ def flush_model_changes(context):
         )
 
 
+def _add_latent_interposer_options(
+    cmd,
+    *,
+    enabled,
+    source,
+    selected_model,
+    furception_vae,
+    source_seed,
+    phase_x,
+    phase_y,
+    width,
+    height,
+):
+    if not enabled:
+        return
+    if not USE_SDKIT3_API:
+        raise RuntimeError("Latent Interposer requires the sdkit3 backend")
+
+    source = str(source).lower()
+    if source not in ("v1", "xl", "v3", "fx"):
+        raise ValueError("Latent Interposer source must be v1, xl, v3, or fx")
+
+    checkpoint = str(curr_models.get("stable-diffusion") or "").lower()
+    if "flux" in checkpoint:
+        target = "fx"
+    elif "sd3" in checkpoint or "stable-diffusion-3" in checkpoint:
+        target = "v3"
+    elif "sdxl" in checkpoint or "/xl" in checkpoint or checkpoint.startswith("xl"):
+        target = "xl"
+    else:
+        target = "v1"
+
+    if source != target and target not in ("v1", "xl", "v3"):
+        raise ValueError(f"city96 v4.0 has no {source}-to-{target} converter")
+
+    interposer_path = ""
+    if source != target:
+        expected_model = f"{source}-to-{target}_interposer-v4.0.safetensors"
+        selected_model = selected_model or expected_model
+        if not os.path.basename(str(selected_model)).startswith(f"{source}-to-{target}_interposer-v4.0"):
+            raise ValueError(
+                f"Selected converter does not match the required {source}-to-{target} conversion"
+            )
+        interposer_path = resolve_model_to_use(selected_model, "latent-interposer")
+
+    cmd["latent_interposer"] = {
+        "enabled": True,
+        "source": source,
+        "model_path": interposer_path,
+        "phase_x": int(phase_x),
+        "phase_y": int(phase_y),
+    }
+    if source == "v1":
+        furception_path = resolve_model_to_use(furception_vae, "furception-vae")
+        rng = np.random.default_rng(max(0, int(source_seed)))
+        pixels = rng.integers(0, 256, (int(height), int(width), 3), dtype=np.uint8)
+        cmd["latent_interposer"]["furception_vae_path"] = furception_path
+        cmd["latent_interposer"]["source_image"] = img_to_base64_str(Image.fromarray(pixels, "RGB"))
+
+
+def _add_vae_interposer_options(
+    context,
+    cmd,
+    *,
+    init_image,
+    encode_enabled,
+    decode_enabled,
+    encode_model,
+    decode_model,
+):
+    if encode_enabled and not init_image:
+        encode_enabled = False
+    if not encode_enabled and not decode_enabled:
+        return
+    if not USE_SDKIT3_API:
+        raise RuntimeError("VAE Encode/Decode Interpose requires the sdkit3 backend")
+
+    from easydiffusion.utils.model_identifier import (
+        identify_model_type,
+        identify_vae_latent_family,
+        model_type_to_latent_family,
+    )
+
+    checkpoint_path = context.model_paths.get("stable-diffusion")
+    if not checkpoint_path:
+        raise ValueError("Cannot detect the destination latent standard without a checkpoint")
+    model_family = model_type_to_latent_family(identify_model_type(checkpoint_path))
+    if model_family not in ("v1", "xl", "v3", "fx"):
+        raise ValueError("The selected checkpoint does not use a supported city96 latent standard")
+
+    vae_path = context.model_paths.get("vae")
+    vae_family = identify_vae_latent_family(vae_path) if vae_path else model_family
+    if vae_family not in ("v1", "xl", "v3", "fx"):
+        raise ValueError("The selected VAE does not use a supported city96 latent standard")
+    if vae_family == model_family:
+        raise ValueError("Encode/Decode Interpose is unnecessary when the VAE and checkpoint standards match")
+
+    available_conversions = {
+        ("v1", "xl"), ("v1", "v3"),
+        ("xl", "v1"), ("xl", "v3"),
+        ("v3", "v1"), ("v3", "xl"),
+        ("fx", "v1"), ("fx", "xl"), ("fx", "v3"),
+    }
+
+    def resolve_interposer(enabled, source, destination, selected, stage):
+        if not enabled:
+            return ""
+        if (source, destination) not in available_conversions:
+            raise ValueError(f"city96 v4.0 has no {source}-to-{destination} {stage} converter")
+        expected = f"{source}-to-{destination}_interposer-v4.0"
+        selected = str(selected or expected)
+        if not os.path.basename(selected).startswith(expected):
+            raise ValueError(
+                f"Selected {stage} converter does not match the required {source}-to-{destination} direction"
+            )
+        return resolve_model_to_use(selected, "latent-interposer")
+
+    encode_path = resolve_interposer(
+        encode_enabled,
+        vae_family,
+        model_family,
+        encode_model,
+        "encode",
+    )
+    decode_path = resolve_interposer(
+        decode_enabled,
+        model_family,
+        vae_family,
+        decode_model,
+        "decode",
+    )
+    cmd["vae_interposer"] = {
+        "enabled": True,
+        "vae_family": vae_family,
+        "model_family": model_family,
+        "encode_model_path": encode_path,
+        "decode_model_path": decode_path,
+    }
+
+
 def generate_images(
     context: Context,
     backend_assignment: str = "",
@@ -288,6 +428,8 @@ def generate_images(
     sampler_params={},
     callback=None,
     output_type="pil",
+    tome_ratio: float = 0.0,
+    negative_guidance_min_sigma: float = 0.0,
 ):
 
     task_id = str(uuid.uuid4())
@@ -311,6 +453,12 @@ def generate_images(
     }
     if backend_assignment:
         cmd["backend"] = str(backend_assignment)
+
+    if tome_ratio or negative_guidance_min_sigma:
+        if not USE_SDKIT3_API:
+            raise ValueError("Native token merging and NGMS require the sdkit3 backend")
+        from easydiffusion.sampling_optimizations import native_sampling_options
+        cmd.update(native_sampling_options(tome_ratio, negative_guidance_min_sigma))
 
     if init_image:
         cmd["init_images"] = [normalize_base64_image(init_image, "initial image")]
@@ -357,121 +505,27 @@ def generate_images(
             "end_percent": max(raw_start, raw_end),
         }
 
-    if latent_interposer_enabled:
-        if not USE_SDKIT3_API:
-            raise RuntimeError("Latent Interposer requires the sdkit3 backend")
-        source = str(latent_interposer_source).lower()
-        if source not in ("v1", "xl", "v3", "fx"):
-            raise ValueError("Latent Interposer source must be v1, xl, v3, or fx")
-
-        checkpoint = str(curr_models.get("stable-diffusion") or "").lower()
-        if "flux" in checkpoint:
-            target = "fx"
-        elif "sd3" in checkpoint or "stable-diffusion-3" in checkpoint:
-            target = "v3"
-        elif "sdxl" in checkpoint or "/xl" in checkpoint or checkpoint.startswith("xl"):
-            target = "xl"
-        else:
-            target = "v1"
-
-        if source != target and target not in ("v1", "xl", "v3"):
-            raise ValueError(f"city96 v4.0 has no {source}-to-{target} converter")
-
-        interposer_path = ""
-        if source != target:
-            expected_model = f"{source}-to-{target}_interposer-v4.0.safetensors"
-            selected_model = latent_interposer_model or expected_model
-            if not os.path.basename(str(selected_model)).startswith(f"{source}-to-{target}_interposer-v4.0"):
-                raise ValueError(
-                    f"Selected converter does not match the required {source}-to-{target} conversion"
-                )
-            interposer_path = resolve_model_to_use(selected_model, "latent-interposer")
-
-        cmd["latent_interposer"] = {
-            "enabled": True,
-            "source": source,
-            "model_path": interposer_path,
-            "phase_x": int(latent_interposer_phase_x),
-            "phase_y": int(latent_interposer_phase_y),
-        }
-        if source == "v1":
-            furception_path = resolve_model_to_use(latent_interposer_furception_vae, "furception-vae")
-            source_seed = max(0, int(latent_interposer_source_seed))
-            rng = np.random.default_rng(source_seed)
-            pixels = rng.integers(0, 256, (int(height), int(width), 3), dtype=np.uint8)
-            cmd["latent_interposer"]["furception_vae_path"] = furception_path
-            cmd["latent_interposer"]["source_image"] = img_to_base64_str(Image.fromarray(pixels, "RGB"))
-
-    if latent_interposer_encode_enabled and not init_image:
-        latent_interposer_encode_enabled = False
-
-    if latent_interposer_encode_enabled or latent_interposer_decode_enabled:
-        if not USE_SDKIT3_API:
-            raise RuntimeError("VAE Encode/Decode Interpose requires the sdkit3 backend")
-        from easydiffusion.utils.model_identifier import (
-            identify_model_type,
-            identify_vae_latent_family,
-            model_type_to_latent_family,
-        )
-
-        checkpoint_path = context.model_paths.get("stable-diffusion")
-        if not checkpoint_path:
-            raise ValueError("Cannot detect the destination latent standard without a checkpoint")
-        model_family = model_type_to_latent_family(identify_model_type(checkpoint_path))
-        if model_family not in ("v1", "xl", "v3", "fx"):
-            raise ValueError("The selected checkpoint does not use a supported city96 latent standard")
-
-        vae_path = context.model_paths.get("vae")
-        vae_family = identify_vae_latent_family(vae_path) if vae_path else model_family
-        if vae_family not in ("v1", "xl", "v3", "fx"):
-            raise ValueError("The selected VAE does not use a supported city96 latent standard")
-        if vae_family == model_family:
-            raise ValueError("Encode/Decode Interpose is unnecessary when the VAE and checkpoint standards match")
-
-        available_conversions = {
-            ("v1", "xl"), ("v1", "v3"),
-            ("xl", "v1"), ("xl", "v3"),
-            ("v3", "v1"), ("v3", "xl"),
-            ("fx", "v1"), ("fx", "xl"), ("fx", "v3"),
-        }
-
-        def resolve_interposer(enabled, source, destination, selected, stage):
-            if not enabled:
-                return ""
-            if (source, destination) not in available_conversions:
-                raise ValueError(f"city96 v4.0 has no {source}-to-{destination} {stage} converter")
-            expected = f"{source}-to-{destination}_interposer-v4.0"
-            selected = str(selected or expected)
-            if not os.path.basename(selected).startswith(expected):
-                raise ValueError(
-                    f"Selected {stage} converter does not match the required {source}-to-{destination} direction"
-                )
-            return resolve_model_to_use(selected, "latent-interposer")
-
-        # Encode takes selected-VAE latents into the checkpoint's standard.
-        encode_path = resolve_interposer(
-            latent_interposer_encode_enabled,
-            vae_family,
-            model_family,
-            latent_interposer_encode_model,
-            "encode",
-        )
-        # Decode is intentionally flipped: checkpoint latents return to the VAE standard.
-        decode_path = resolve_interposer(
-            latent_interposer_decode_enabled,
-            model_family,
-            vae_family,
-            latent_interposer_decode_model,
-            "decode",
-        )
-        cmd["vae_interposer"] = {
-            "enabled": True,
-            "vae_family": vae_family,
-            "model_family": model_family,
-            "encode_model_path": encode_path,
-            "decode_model_path": decode_path,
-        }
-
+    _add_latent_interposer_options(
+        cmd,
+        enabled=latent_interposer_enabled,
+        source=latent_interposer_source,
+        selected_model=latent_interposer_model,
+        furception_vae=latent_interposer_furception_vae,
+        source_seed=latent_interposer_source_seed,
+        phase_x=latent_interposer_phase_x,
+        phase_y=latent_interposer_phase_y,
+        width=width,
+        height=height,
+    )
+    _add_vae_interposer_options(
+        context,
+        cmd,
+        init_image=init_image,
+        encode_enabled=latent_interposer_encode_enabled,
+        decode_enabled=latent_interposer_decode_enabled,
+        encode_model=latent_interposer_encode_model,
+        decode_model=latent_interposer_decode_model,
+    )
     if context.model_paths.get("lora"):
         lora_model = context.model_paths["lora"]
         lora_model = lora_model if isinstance(lora_model, list) else [lora_model]
@@ -537,6 +591,7 @@ def generate_images(
                 num_inference_steps,
                 progress_stop,
             ),
+            kwargs={"with_step_metadata": USE_SDKIT3_API},
             daemon=True,
         )
         progress_thread.start()
@@ -598,12 +653,37 @@ def generate_video(
     cache_threshold=None,
     cache_start_percent: float = 15.0,
     cache_end_percent: float = 95.0,
+    motion_module_model: str = None,
     audio_vae_model: str = None,
     embeddings_connectors_model: str = None,
+    latent_interposer_model=None,
+    latent_interposer_enabled: bool = False,
+    latent_interposer_source: str = "fx",
+    latent_interposer_furception_vae: str = "furception_vae_1-0",
+    latent_interposer_source_seed: int = 1,
+    latent_interposer_phase_x: int = 0,
+    latent_interposer_phase_y: int = 0,
+    latent_interposer_encode_enabled: bool = False,
+    latent_interposer_decode_enabled: bool = False,
+    latent_interposer_encode_model=None,
+    latent_interposer_decode_model=None,
     callback=None,
+    tome_ratio: float = 0.0,
+    negative_guidance_min_sigma: float = 0.0,
 ):
     if not USE_SDKIT3_API:
         raise RuntimeError("Native video generation requires the sdkit3 backend")
+
+    import math
+
+    if cache_mode not in ("disabled", "easycache", "teacache"):
+        raise ValueError("Select one video cache: disabled, easycache, or teacache")
+    if negative_guidance_min_sigma > 0 and cache_mode != "disabled":
+        raise ValueError("Negative guidance minimum sigma requires video caching to be disabled")
+    if not 0 <= cache_start_percent < cache_end_percent <= 100:
+        raise ValueError("Cache range must satisfy 0 <= start < end <= 100 percent")
+    if cache_threshold is not None and (not math.isfinite(cache_threshold) or cache_threshold < 0):
+        raise ValueError("Cache threshold must be finite and non-negative")
 
     task_id = str(uuid.uuid4())
     cmd = {
@@ -623,14 +703,17 @@ def generate_video(
         "moe_boundary": float(moe_boundary),
         "cache": {
             "mode": str(cache_mode),
-            "start_percent": float(cache_start_percent),
-            "end_percent": float(cache_end_percent),
+            "start_percent": float(cache_start_percent) / 100.0,
+            "end_percent": float(cache_end_percent) / 100.0,
         },
     }
     if backend_assignment:
         cmd["backend"] = str(backend_assignment)
     if flow_shift is not None:
         cmd["flow_shift"] = float(flow_shift)
+    if tome_ratio or negative_guidance_min_sigma:
+        from easydiffusion.sampling_optimizations import native_sampling_options
+        cmd.update(native_sampling_options(tome_ratio, negative_guidance_min_sigma))
     if cache_threshold is not None:
         cmd["cache"]["threshold"] = float(cache_threshold)
     if init_image:
@@ -638,33 +721,64 @@ def generate_video(
     if end_image:
         cmd["end_image"] = end_image
 
+    if motion_module_model:
+        cmd["motion_module_path"] = motion_module_model
     if audio_vae_model:
         cmd["audio_vae_path"] = audio_vae_model
     if embeddings_connectors_model:
         cmd["embeddings_connectors_path"] = embeddings_connectors_model
 
+    _add_latent_interposer_options(
+        cmd,
+        enabled=latent_interposer_enabled,
+        source=latent_interposer_source,
+        selected_model=latent_interposer_model,
+        furception_vae=latent_interposer_furception_vae,
+        source_seed=latent_interposer_source_seed,
+        phase_x=latent_interposer_phase_x,
+        phase_y=latent_interposer_phase_y,
+        width=width,
+        height=height,
+    )
+    _add_vae_interposer_options(
+        context,
+        cmd,
+        init_image=init_image,
+        encode_enabled=latent_interposer_encode_enabled,
+        decode_enabled=latent_interposer_decode_enabled,
+        encode_model=latent_interposer_encode_model,
+        decode_model=latent_interposer_decode_model,
+    )
+
     operation = "img2video" if init_image else "txt2video"
     progress_thread = None
+    progress_stop = Event() if callback is not None else None
     if callback is not None:
         progress_thread = Thread(
             target=image_progress_thread,
-            args=(task_id, callback, False, 1, num_inference_steps),
+            args=(task_id, callback, False, 1, num_inference_steps, progress_stop),
+            kwargs={"with_step_metadata": True, "with_phase_metadata": True},
             daemon=True,
         )
         progress_thread.start()
 
-    print_request(operation, cmd)
-    res = webui_post(f"/sdapi/v1/{operation}", json=cmd)
-    if res.status_code != 200:
-        try:
-            message = res.json().get("message", res.text)
-        except Exception:
-            message = res.text
-        raise RuntimeError(f"Native video backend failed: {message}")
-    result = res.json()
-    if progress_thread is not None:
-        progress_thread.join(timeout=2)
-    return result
+    try:
+        print_request(operation, cmd)
+        res = webui_post(f"/sdapi/v1/{operation}", json=cmd)
+        if res.status_code != 200:
+            try:
+                message = res.json().get("message", res.text)
+            except Exception:
+                message = res.text
+            raise RuntimeError(f"Native video backend failed: {message}")
+        result = res.json()
+        if progress_thread is not None:
+            progress_thread.join(timeout=1.5)
+        return result
+    finally:
+        if progress_thread is not None:
+            progress_stop.set()
+            progress_thread.join(timeout=2.5)
 
 
 def filter_images(context: Context, images, filters, filter_params={}, input_type="pil"):
@@ -854,12 +968,37 @@ def image_progress_thread(
     total_images,
     total_steps,
     stop_event=None,
+    with_step_metadata=False,
+    with_phase_metadata=False,
 ):
     from PIL import Image
 
     last_preview_id = -1
     last_step = -1
+    last_total_steps = -1
+    last_phase = None
+    last_phase_current = -1
+    last_phase_total = -1
     reported_total_steps = max(1, int(total_steps))
+    reported_phase = "sampling"
+    reported_phase_current = 0
+    reported_phase_total = 0
+
+    def notify(images, step, completed=False):
+        if with_phase_metadata:
+            callback(
+                images,
+                step,
+                reported_total_steps,
+                completed,
+                reported_phase,
+                reported_phase_current,
+                reported_phase_total,
+            )
+        elif with_step_metadata:
+            callback(images, step, reported_total_steps, completed)
+        else:
+            callback(images, step)
 
     EMPTY_IMAGE = Image.new("RGB", (1, 1))
 
@@ -886,6 +1025,8 @@ def image_progress_thread(
                     return
                 continue
 
+            if stop_event.is_set():
+                return
             if response.status_code == 200:
                 res = response.json()
             elif response.status_code == 404:
@@ -905,6 +1046,9 @@ def image_progress_thread(
             last_preview_id = res["id_live_preview"]
 
             if res["progress"] is not None:
+                reported_phase = str(res.get("phase") or reported_phase)
+                reported_phase_current = max(0, int(res.get("phase_current") or 0))
+                reported_phase_total = max(0, int(res.get("phase_total") or 0))
                 backend_total_steps = int(res.get("total_steps") or 0)
                 if backend_total_steps > 0:
                     reported_total_steps = backend_total_steps
@@ -926,13 +1070,27 @@ def image_progress_thread(
                 # The progress endpoint is polled more often than many samplers
                 # advance. Do not flood Easy Diffusion with duplicate JSON events,
                 # but keep a new live preview even when the step did not change.
-                if step_num != last_step or images is not None:
-                    callback(images, step_num)
+                phase_changed = (
+                    reported_phase != last_phase
+                    or reported_phase_current != last_phase_current
+                    or reported_phase_total != last_phase_total
+                )
+                if not res["completed"] and (
+                    step_num != last_step or reported_total_steps != last_total_steps or phase_changed or images is not None
+                ):
+                    notify(images, step_num)
                     last_step = step_num
+                    last_total_steps = reported_total_steps
+                    last_phase = reported_phase
+                    last_phase_current = reported_phase_current
+                    last_phase_total = reported_phase_total
 
             if res["completed"] == True:
-                if last_step < reported_total_steps:
-                    callback(None, reported_total_steps)
+                reported_phase = str(res.get("phase") or "finalizing")
+                reported_phase_current = max(0, int(res.get("phase_current") or reported_phase_current))
+                reported_phase_total = max(0, int(res.get("phase_total") or reported_phase_total))
+                if last_step < reported_total_steps or with_step_metadata:
+                    notify(None, reported_total_steps, completed=True)
                 print("Complete!")
                 return
 

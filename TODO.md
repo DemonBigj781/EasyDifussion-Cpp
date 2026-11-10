@@ -5,6 +5,7 @@ Every objective has a standalone implementation document under `docs/todo/`. The
 ## Runtime / architecture
 - [ ] [01 — Migrate Python to 3.13](docs/todo/01-python-3.13-migration.md)
 - [ ] [02 — Additional video model compatibility](docs/todo/02-video-model-compatibility.md)
+  - Deferred: AnimateDiff SD2 support and AnimateHYBRID evaluation; see the linked document's deferred follow-ups. Not part of the current SD1.5/SDXL video-toggle, cache-selection, and GIF work.
 - [ ] [03 — YOLO integration](docs/todo/03-yolo-integration.md)
 - [ ] [04 — Pascal/Volta/Turing compatible Flash Attention](docs/todo/04-legacy-nvidia-flash-attention.md)
 - [ ] [05 — aarch64 support](docs/todo/05-aarch64-support.md)
@@ -40,6 +41,9 @@ Every objective has a standalone implementation document under `docs/todo/`. The
 - [ ] [31 — Validate oneAPI/SYCL on H3C XG310](docs/todo/31-xg310-oneapi-validation.md)
 - [ ] [32 — Merge llama.cpp into stable-diffusion.cpp safely](docs/todo/32-merge-llama-stable-diffusion.md)
 - [ ] [33 — Cosmo Main/Theory parity and native one-executable completion](docs/todo/33-cosmo-main-theory-parity.md)
+
+## Performance follow-ups
+- [ ] [33 — Evaluate native token merging, then negative-guidance minimum sigma](docs/todo/33-token-merging-and-negative-guidance.md)
 
 ## Related architecture notes
 - [Native Hugging Face + LoRA to GGUF plan](docs/native-hf-lora-gguf-plan.md)

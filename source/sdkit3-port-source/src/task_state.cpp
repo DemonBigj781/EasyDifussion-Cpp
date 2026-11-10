@@ -13,11 +13,32 @@ void TaskStateManager::createTask(const std::string& task_id) {
     state.progress = 0.0f;
     state.current_step = 0;
     state.total_steps = 0;
+    state.phase = "preparing";
+    state.phase_current = 0;
+    state.phase_total = 0;
     state.live_preview = "";
     state.id_live_preview = 0;
     state.interrupted = false;
 
     tasks_[task_id] = state;
+}
+
+void TaskStateManager::updateTaskPhase(const std::string& task_id, const std::string& phase,
+                                       int phase_current, int phase_total) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = tasks_.find(task_id);
+    if (it == tasks_.end()) {
+        return;
+    }
+    if (!phase.empty()) {
+        it->second.phase = phase;
+    }
+    if (phase_current >= 0) {
+        it->second.phase_current = phase_current;
+    }
+    if (phase_total >= 0) {
+        it->second.phase_total = phase_total;
+    }
 }
 
 void TaskStateManager::updateTaskProgress(const std::string& task_id, float progress, const std::string& live_preview,
@@ -51,6 +72,10 @@ void TaskStateManager::completeTask(const std::string& task_id, const std::vecto
         if (it->second.total_steps > 0) {
             it->second.current_step = it->second.total_steps;
         }
+        it->second.phase = "finalizing";
+        if (it->second.phase_total > 0) {
+            it->second.phase_current = it->second.phase_total;
+        }
         it->second.result_images = images;
         it->second.info = info;
     }
@@ -80,6 +105,9 @@ TaskState TaskStateManager::getTaskState(const std::string& task_id) {
     empty_state.progress = 0.0f;
     empty_state.current_step = 0;
     empty_state.total_steps = 0;
+    empty_state.phase = "";
+    empty_state.phase_current = 0;
+    empty_state.phase_total = 0;
     empty_state.id_live_preview = 0;
     empty_state.interrupted = false;
 
@@ -103,6 +131,9 @@ TaskState TaskStateManager::getTaskProgressState(const std::string& task_id,
     progress_state.progress = stored.progress;
     progress_state.current_step = stored.current_step;
     progress_state.total_steps = stored.total_steps;
+    progress_state.phase = stored.phase;
+    progress_state.phase_current = stored.phase_current;
+    progress_state.phase_total = stored.phase_total;
     progress_state.id_live_preview = stored.id_live_preview;
     progress_state.interrupted = stored.interrupted;
     if (include_live_preview && known_live_preview_id != stored.id_live_preview) {

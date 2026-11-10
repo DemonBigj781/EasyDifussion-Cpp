@@ -48,14 +48,14 @@ def _launcher_path() -> Path:
 
     candidates = (
         ED_ROOT / "bin" / "perchance",
-        Path.home() / ".local" / "bin" / "perchance",
-        Path.home() / "bin" / "perchance",
         ED_ROOT / "tools" / "perchance" / PERCHANCE_APPIMAGE_NAME,
         ED_ROOT / "perchance" / PERCHANCE_APPIMAGE_NAME,
         ED_ROOT / PERCHANCE_APPIMAGE_NAME,
         Path.home() / "AppImages" / "perchance.AppImage",
         Path.home() / "AppImages" / PERCHANCE_APPIMAGE_NAME,
         Path.home() / "Downloads" / PERCHANCE_APPIMAGE_NAME,
+        Path.home() / ".local" / "bin" / "perchance",
+        Path.home() / "bin" / "perchance",
     )
     executable = next(
         (candidate for candidate in candidates if candidate.is_file() and os.access(candidate, os.X_OK)),

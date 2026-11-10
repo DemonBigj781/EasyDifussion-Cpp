@@ -1681,6 +1681,23 @@ static __inline__ void ggml_cuda_kernel_launch(Kernel kernel, const ggml_cuda_ke
 #endif //defined(GGML_CUDA_USE_PDL)
 
     kernel<<<launch_params.block_nums, launch_params.block_dims, launch_params.shmem, launch_params.stream>>>(std::forward<Args>(args)... );
-    CUDA_CHECK(cudaGetLastError());
+    const cudaError_t launch_error = cudaGetLastError();
+    if (launch_error != cudaSuccess) {
+        const char * kernel_name = nullptr;
+        const cudaError_t name_error = cudaFuncGetName(
+            &kernel_name, reinterpret_cast<const void *>(kernel));
+        fprintf(stderr,
+                "ggml_cuda_kernel_launch failed: kernel=%s grid=(%u,%u,%u) "
+                "block=(%u,%u,%u) shmem=%zu error=%s\n",
+                name_error == cudaSuccess && kernel_name != nullptr ? kernel_name : "<unknown>",
+                launch_params.block_nums.x,
+                launch_params.block_nums.y,
+                launch_params.block_nums.z,
+                launch_params.block_dims.x,
+                launch_params.block_dims.y,
+                launch_params.block_dims.z,
+                launch_params.shmem,
+                cudaGetErrorString(launch_error));
+    }
+    CUDA_CHECK(launch_error);
 }
-
