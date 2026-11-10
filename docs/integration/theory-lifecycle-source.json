@@ -1,0 +1,17 @@
+{
+  "source_commit": "4755b7abe48b49207e33bbff786dc3e2a7032491",
+  "scope": "experimental CPU byte-resource contract only; not production inference",
+  "files": {
+    "source/DiffUser.cpp/common/api.hpp": "5ad4420dcad68f840cbbc192d49ffa3cce7af0e9668409e8d23cc528c72b12fa",
+    "source/DiffUser.cpp/features/load/common/devices/load.hpp": "2ba71b35254a9dfc53b70c6abee7db3c4b01d06dc2ba716cc43f7ecb7c94200d",
+    "source/DiffUser.cpp/features/load/common/devices/load.cpp": "b6dc9073f9fde11d2631d0806b7cfaf97529fb0509b004849161781bdf341926",
+    "source/DiffUser.cpp/features/load/cpu/definition/cpu/model.hpp": "8b8342a3a0b3ad1502f98ef9a247387de85b02f1a9c0c6660043205720d26c76",
+    "source/DiffUser.cpp/features/load/cpu/definition/cpu/model.cpp": "a118a5e46ac6c843a27253140722e0dd66e47a16b51f3901589a7c51a7ef2eb6",
+    "source/DiffUser.cpp/features/load/cpu/translation/cpu/model.cpp": "529665a5d64128bcd06de965d680a4af79618faaa4603e55c21a9fd63198b0b4",
+    "source/DiffUser.cpp/features/unload/common/devices/unload.hpp": "7a33c47e1161d245d6e4d60cbbd38748943b51fedf4d0dc7d4ac8fcacc670a8c",
+    "source/DiffUser.cpp/features/unload/common/devices/unload.cpp": "88fb7c96b470d15b0f547ff56b10d5569d7ebed59ec5ab6d17f1d022ba59f3df",
+    "source/DiffUser.cpp/features/unload/cpu/cpu/definition/model.hpp": "6bc1210fb53b4ad1ee5443a9ccc4c92a29b2fadce48b938b9ce856c091ec3bd5",
+    "source/DiffUser.cpp/features/unload/cpu/cpu/definition/model.cpp": "16bef611bb243059a0402bcdaaad837de4eb31243612955c7f4def02695b7506",
+    "source/DiffUser.cpp/features/unload/cpu/cpu/translation/model.cpp": "10aa211e2b4a3cb09bc0dc053263fafbb29cf270cbb2bf41a3df014a20f57c3a"
+  }
+}
