@@ -65,8 +65,8 @@ endif()
 # Include stable-diffusion.cpp
 add_subdirectory(stable-diffusion.cpp)
 # Keep internal parser linkage inside its runtime, including Windows DLL builds.
-target_sources(stable-diffusion PRIVATE runtime_adapters/prompt_validation.cpp)
-target_include_directories(stable-diffusion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+include(cmake/runtime-adapters.cmake)
+sdkit_add_runtime_adapters(stable-diffusion "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(SDKIT_BUILD_TESTS)
     enable_testing()
