@@ -50,7 +50,7 @@
 +#define ASIO_OS_DEF_enable_connection_aborted_option ::asio::detail::enable_connection_aborted_option
 +#define ASIO_OS_DEF_always_fail_option ::asio::detail::always_fail_option
 +#define ASIO_OS_DEF_IPV6_V6ONLY IPV6_V6ONLY
-+#define ASIO_SOCKET_OPTION_ARG(name) ASIO_OS_DEF(name)
++#define ASIO_SOCKET_OPTION_ARG(name) ASIO_OS_DEF_##name
 +#define ASIO_SOCKET_OPTION_VALUE(name) name
 +#endif
 +#endif
