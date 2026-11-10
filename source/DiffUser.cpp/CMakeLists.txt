@@ -11,7 +11,11 @@ add_library(theory-cpu-resources STATIC
     features/unload/cpu/cpu/definition/model.cpp
     features/unload/cpu/cpu/translation/model.cpp
     native/cpu/byte_storage.cpp
-    library/src/cpu_byte_buffer.cpp)
+    library/src/cpu_byte_buffer.cpp
+    library/src/gguf_cpu_weights.cpp
+    features/weights/common/weights.cpp
+    features/weights/cpu/translation/weights.cpp
+    native/cpu/gguf_weights.cpp)
 target_compile_features(theory-cpu-resources PUBLIC cxx_std_17)
 target_compile_definitions(theory-cpu-resources PRIVATE EDCPP_USE_GGML_CPU_RESOURCE=1)
 target_include_directories(theory-cpu-resources
@@ -31,3 +35,8 @@ endforeach()
 add_custom_target(theory-cpu-resource-tests
     DEPENDS theory-cpu-resource-test theory-cpu_lifecycle-test
             theory-cpu_ownership-test theory-malformed_load-test)
+add_executable(theory-gguf-weights-test tests/gguf_cpu_weights.cpp)
+target_include_directories(theory-gguf-weights-test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(theory-gguf-weights-test PRIVATE theory-cpu-resources ggml ggml-cpu)
+add_test(NAME theory-gguf-weights COMMAND theory-gguf-weights-test "${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(theory-cpu-resource-tests theory-gguf-weights-test)

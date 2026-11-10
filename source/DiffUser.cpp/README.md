@@ -44,3 +44,8 @@ remaining boundaries. The unusual unload layout remains for source provenance.
 
 See ../../docs/integration/theory-ggml-cpu-2026-11-10.md for the real CPU backend-buffer
 execution evidence and its limits. No model inference is claimed.
+
+The same optional target also provides GgufCpuWeights: a bounded GGUF tensor
+container owner through Common and the CPU translation. It proves tensor
+materialization/readback, not model-family inference. See
+../../docs/integration/theory-gguf-weights-2026-11-10.md.
