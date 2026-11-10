@@ -21,20 +21,35 @@ class TheoryCpuLifecycleTests(unittest.TestCase):
         self.assertEqual(len(manifest["files"]), 11)
         for path, digest in manifest["files"].items():
             with self.subTest(path=path):
-                self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest)
+                self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(),
+                                 manifest.get("integrated_sha256", {}).get(path, digest))
 
     @unittest.skipUnless(CXX, "host C++ compiler is required")
     def test_cpu_contract_compiles_and_runs(self):
+        self.compile_and_run("cpu_lifecycle.cpp", "32 cycles and unsupported-route checks passed")
+
+    @unittest.skipUnless(CXX, "host C++ compiler is required")
+    def test_exclusive_ownership_and_concurrent_registry(self):
+        self.compile_and_run("cpu_ownership.cpp", "1024 concurrent cycles passed")
+
+    def compile_and_run(self, fixture, expected):
         manifest = json.loads(MANIFEST.read_text())
         sources = [str(ROOT / path) for path in manifest["files"] if path.endswith(".cpp")]
+        sources.append(str(SOURCE / "library/src/cpu_byte_buffer.cpp"))
+        flags = ["-pthread"]
+        sanitizers = os.environ.get("THEORY_TEST_SANITIZERS")
+        if sanitizers:
+            flags += ["-fsanitize=" + sanitizers, "-fno-omit-frame-pointer"]
         with tempfile.TemporaryDirectory(prefix="theory-cpu-contract-") as temporary:
             binary = Path(temporary) / "cpu-lifecycle"
-            subprocess.run([CXX, "-std=c++17", "-Wall", "-Wextra", "-Werror",
-                            "-I", str(SOURCE), *sources,
-                            str(SOURCE / "tests/cpu_lifecycle.cpp"), "-o", str(binary)],
-                           check=True, capture_output=True, text=True, timeout=120)
-            result = subprocess.run([str(binary)], check=True, capture_output=True, text=True, timeout=15)
-            self.assertIn("32 cycles and unsupported-route checks passed", result.stdout)
+            compiled = subprocess.run([CXX, "-std=c++17", "-Wall", "-Wextra", "-Werror",
+                            "-I", str(SOURCE), "-I", str(SOURCE / "library/include"), *flags, *sources,
+                            str(SOURCE / "tests" / fixture), "-o", str(binary)],
+                           check=False, capture_output=True, text=True, timeout=120)
+            self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            result = subprocess.run([str(binary)], check=False, capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(expected, result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

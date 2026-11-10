@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <mutex>
 #include <utility>
 
 namespace edcpp::api::load {
@@ -9,6 +10,10 @@ namespace {
 constexpr std::size_t backend_slots = static_cast<std::size_t>(Backend::directml) + 1;
 constexpr std::size_t resource_slots = static_cast<std::size_t>(ResourceType::count);
 using TranslationTable = std::array<std::array<TranslationFn, resource_slots>, backend_slots>;
+std::mutex& translation_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
 TranslationTable& translations() {
     static TranslationTable table{};
     return table;
@@ -21,21 +26,30 @@ bool register_translation(Backend backend, ResourceType resource_type,
     const auto resource_index = static_cast<std::size_t>(resource_type);
     if (backend == Backend::none || backend_index >= backend_slots ||
         resource_index >= resource_slots || translation == nullptr) return false;
-    translations()[backend_index][resource_index] = translation;
+    // A route is immutable after first registration: changing an unload
+    // implementation while resources are alive could release with the wrong owner.
+    std::lock_guard<std::mutex> lock(translation_mutex());
+    auto& slot = translations()[backend_index][resource_index];
+    if (slot != nullptr) return false;
+    slot = translation;
     return true;
 }
 
 Result load_resource(Backend backend, const Request& request) {
     const auto backend_index = static_cast<std::size_t>(backend);
     const auto resource_index = static_cast<std::size_t>(request.resource_type);
-    if (backend == Backend::none || backend_index >= backend_slots ||
-        resource_index >= resource_slots ||
-        translations()[backend_index][resource_index] == nullptr) {
+    TranslationFn selected = nullptr;
+    if (backend != Backend::none && backend_index < backend_slots && resource_index < resource_slots) {
+        std::lock_guard<std::mutex> lock(translation_mutex());
+        selected = translations()[backend_index][resource_index];
+    }
+    if (selected == nullptr) {
         Result result;
         result.diagnostic = "Common load has no registered translation for the requested backend and resource type";
         return normalize(std::move(result));
     }
-    return normalize(translations()[backend_index][resource_index](request));
+    // Do not hold a registry lock while invoking backend code.
+    return normalize(selected(request));
 }
 
 bool register_model_translation(Backend backend, ModelTranslationFn translation) noexcept {

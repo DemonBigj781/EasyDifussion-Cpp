@@ -13,5 +13,9 @@
     "source/DiffUser.cpp/features/unload/cpu/cpu/definition/model.hpp": "6bc1210fb53b4ad1ee5443a9ccc4c92a29b2fadce48b938b9ce856c091ec3bd5",
     "source/DiffUser.cpp/features/unload/cpu/cpu/definition/model.cpp": "16bef611bb243059a0402bcdaaad837de4eb31243612955c7f4def02695b7506",
     "source/DiffUser.cpp/features/unload/cpu/cpu/translation/model.cpp": "10aa211e2b4a3cb09bc0dc053263fafbb29cf270cbb2bf41a3df014a20f57c3a"
+  },
+  "integrated_sha256": {
+    "source/DiffUser.cpp/features/load/common/devices/load.cpp": "74ac83f46497b6937034c1eed11264b927159ade718d72eed6f8be96bbfdd636",
+    "source/DiffUser.cpp/features/unload/common/devices/unload.cpp": "4787357ef55980a15f2f40ccb724ed2cfbf534ba7caf932a0b5b31247b94e315"
   }
 }
