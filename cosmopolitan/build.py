@@ -495,6 +495,7 @@ def build_application(args, out, cache):
          "-DCMAKE_CXX_COMPILER_LAUNCHER=" + (cache.launcher or ""),
          "-DCOSMO_SOURCE_ROOT=" + str(source), "-DCOSMO_SHARED_GGML=" + str(shared),
          "-DCOSMO_SOFTWARE_WEBGPU_METADATA=" + str(software_metadata),
+         "-DCOSMO_FOUNDATION_LINK_SHA256=" + (selected["link_view_sha256"] if selected else ""),
          "-DCOSMO_BUILD_APP=" + ("OFF" if args.libraries_only else "ON")], env=env)
     targets = ["llama", "stable-diffusion", "easy-diffusion-ui"] if args.libraries_only else ["easy-diffusion"]
     with cache.phase("compile_application"):

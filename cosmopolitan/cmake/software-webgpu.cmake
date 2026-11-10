@@ -1,10 +1,40 @@
 # Static dependency closure produced from the reviewed foundation pin. Every
-# archive/object is validated by software-webgpu/prepare.py before configuring.
+# archive/object is validated by software-webgpu/prepare.py or the explicit
+# source-runtime consumer before configuring.
 set(COSMO_SOFTWARE_WEBGPU_METADATA "" CACHE FILEPATH "Completed portable WGPU dependency manifest")
+set(COSMO_FOUNDATION_LINK_SHA256 "" CACHE STRING "Verified source-runtime CMake view SHA256")
 if(NOT EXISTS "${COSMO_SOFTWARE_WEBGPU_METADATA}")
     message(FATAL_ERROR "Missing static software WebGPU dependencies; run cosmopolitan/build.py")
 endif()
 file(READ "${COSMO_SOFTWARE_WEBGPU_METADATA}" _cosmo_wgpu_json)
+string(JSON _cosmo_wgpu_path_mode ERROR_VARIABLE _cosmo_wgpu_path_error GET "${_cosmo_wgpu_json}" path_mode)
+if(NOT _cosmo_wgpu_path_error AND NOT _cosmo_wgpu_path_mode STREQUAL "absolute")
+    message(FATAL_ERROR "Dependency paths require a verified absolute view; run cosmopolitan/build.py")
+endif()
+string(JSON _cosmo_wgpu_runtime_kind ERROR_VARIABLE _cosmo_wgpu_runtime_error GET "${_cosmo_wgpu_json}" runtime kind)
+string(JSON _cosmo_wgpu_view_type ERROR_VARIABLE _cosmo_wgpu_view_error TYPE "${_cosmo_wgpu_json}" consumer_view)
+if(NOT COSMO_FOUNDATION_LINK_SHA256 STREQUAL "")
+    string(LENGTH "${COSMO_FOUNDATION_LINK_SHA256}" _cosmo_wgpu_digest_length)
+    if(NOT _cosmo_wgpu_digest_length EQUAL 64 OR NOT COSMO_FOUNDATION_LINK_SHA256 MATCHES "^[0-9a-f]+$")
+        message(FATAL_ERROR "Invalid source-runtime dependency view SHA256")
+    endif()
+    file(SHA256 "${COSMO_SOFTWARE_WEBGPU_METADATA}" _cosmo_wgpu_actual_sha256)
+    if(NOT _cosmo_wgpu_actual_sha256 STREQUAL COSMO_FOUNDATION_LINK_SHA256)
+        message(FATAL_ERROR "Source-runtime dependency view changed before CMake configuration")
+    endif()
+    if(_cosmo_wgpu_path_error OR NOT _cosmo_wgpu_path_mode STREQUAL "absolute" OR
+            _cosmo_wgpu_runtime_error OR NOT _cosmo_wgpu_runtime_kind STREQUAL "source-built-cosmopolitan-runtime" OR
+            _cosmo_wgpu_view_error OR NOT _cosmo_wgpu_view_type STREQUAL "OBJECT")
+        message(FATAL_ERROR "Source-runtime dependency SHA256 requires a generated verified consumer view")
+    endif()
+    string(JSON _cosmo_wgpu_view_schema GET "${_cosmo_wgpu_json}" consumer_view schema_version)
+    if(NOT _cosmo_wgpu_view_schema STREQUAL "1")
+        message(FATAL_ERROR "Unsupported source-runtime consumer view schema")
+    endif()
+elseif(NOT _cosmo_wgpu_view_error OR
+        (NOT _cosmo_wgpu_runtime_error AND _cosmo_wgpu_runtime_kind STREQUAL "source-built-cosmopolitan-runtime"))
+    message(FATAL_ERROR "Source-runtime dependencies require the verified view SHA256 from cosmopolitan/build.py")
+endif()
 string(JSON _cosmo_wgpu_static GET "${_cosmo_wgpu_json}" static)
 if(NOT _cosmo_wgpu_static)
     message(FATAL_ERROR "The software WebGPU foundation must be statically linked")

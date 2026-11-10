@@ -29,8 +29,10 @@ not a smaller replacement scope.
   declared compiler, header, CRT, C++ ABI and
   component identities to exported artifact bytes; it does not select a new
   toolchain or establish runtime correctness. Python bytecode compilation,
-  whitespace checks and 91 non-model handoff/consumer/routing tests pass.
-  These synthetic and mocked cases do not invoke a real SDK or model.
+  whitespace checks and 107 non-model handoff/consumer/routing/CMake tests
+  pass. These synthetic and mocked cases do not invoke a real SDK or model.
+  Host compile/link fixtures exercise the real CMake dependency bridge, but
+  do not launch their generated executables.
 - The [explicit source-runtime build consumer](CONSUMER.md) is implemented
   behind a complete-export selection. It leaves the default SDK and pin
   unchanged and refuses incomplete/mixed inputs. No compatible export has
