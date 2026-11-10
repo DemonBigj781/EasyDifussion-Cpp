@@ -15,6 +15,13 @@ sd_image_t createSolidImage(int width, int height, int channels, uint8_t value);
 // Image memory management
 void freeImage(sd_image_t& image);
 
+// Bound the separable Gaussian's per-pixel work (321 taps at sigma 64).
+constexpr float kMaxMaskBlur = 64.0f;
+
+// Gaussian sigma in output-image pixels; zero is an exact no-op.
+// Requires a one-channel image; returns false without changing pixels on failure.
+bool blurMaskImage(sd_image_t& image, float sigma);
+
 // Image manipulation
 bool resizeImage(sd_image_t& image, int target_width, int target_height, bool clamp_to_8 = false);
 

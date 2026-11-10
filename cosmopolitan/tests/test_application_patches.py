@@ -145,6 +145,9 @@ class ApplicationPatchTests(unittest.TestCase):
                 preflight = body.index("validate_generation_prompts(json_body)")
                 self.assertLess(preflight, body.index("GenerationRequestGuard request(*this)"))
                 self.assertLess(preflight, body.index("reset_sd_generation_error()"))
+                options = body.index("validate_generation_options(json_body,")
+                self.assertLess(options, body.index("GenerationRequestGuard request(*this)"))
+                self.assertLess(options, body.index("reset_sd_generation_error()"))
 
     def test_transport_uses_shared_services_instead_of_duplicate_handlers(self):
         server = (self.directory / "sdkit3-port-source/src/server.cpp").read_text()

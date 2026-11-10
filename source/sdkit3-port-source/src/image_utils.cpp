@@ -1,6 +1,9 @@
 #include "image_utils.h"
 
 #include <cctype>
+#include <algorithm>
+#include <new>
+#include <stdexcept>
 #include <limits>
 #include <cmath>
 #include <initializer_list>
@@ -349,4 +352,51 @@ bool resizeImage(sd_image_t& image, int target_width, int target_height, bool cl
 
     LOG_DEBUG("Resized image to %dx%d", final_width, final_height);
     return true;
+}
+
+bool blurMaskImage(sd_image_t& image, float sigma) {
+    size_t pixels = 0;
+    if (!image.data || image.channel != 1 ||
+        !checked_image_bytes(image.width, image.height, image.channel, pixels) ||
+        !std::isfinite(sigma) || sigma < 0 || sigma > kMaxMaskBlur) return false;
+    if (sigma == 0) return true;
+    try {
+        const int radius = std::max(1, static_cast<int>(std::ceil(2.5 * sigma)));
+        std::vector<double> kernel(2 * radius + 1);
+        double sum = 0;
+        for (int k = -radius; k <= radius; ++k) {
+            const double scaled = static_cast<double>(k) / sigma;
+            kernel[k + radius] = std::exp(-0.5 * scaled * scaled);
+            sum += kernel[k + radius];
+        }
+        for (auto& value : kernel) value /= sum;
+        std::vector<float> horizontal(pixels);
+        const int64_t width = image.width, height = image.height;
+        for (int64_t y = 0; y < height; ++y) {
+            for (int64_t x = 0; x < width; ++x) {
+                double value = 0;
+                for (int k = -radius; k <= radius; ++k) {
+                    const auto sx = std::clamp<int64_t>(x + k, 0, width - 1);
+                    value += image.data[y * width + sx] * kernel[k + radius];
+                }
+                horizontal[y * width + x] = static_cast<float>(value);
+            }
+        }
+        // All allocations and the horizontal read complete before mutating input.
+        for (int64_t y = 0; y < height; ++y) {
+            for (int64_t x = 0; x < width; ++x) {
+                double value = 0;
+                for (int k = -radius; k <= radius; ++k) {
+                    const auto sy = std::clamp<int64_t>(y + k, 0, height - 1);
+                    value += horizontal[sy * width + x] * kernel[k + radius];
+                }
+                image.data[y * width + x] = static_cast<uint8_t>(std::clamp(value, 0.0, 255.0) + 0.5);
+            }
+        }
+        return true;
+    } catch (const std::bad_alloc&) {
+        return false;
+    } catch (const std::length_error&) {
+        return false;
+    }
 }

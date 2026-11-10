@@ -21,6 +21,7 @@
 #include "base64.hpp"
 #include "crow.h"
 #include "image_utils.h"
+#include "generation_options.h"
 #include "image_generation_resources.h"
 #include "logging.h"
 #include "model_detection.h"
@@ -365,6 +366,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     gen_params.sample_params.scheduler         = params.scheduler;
     gen_params.sample_params.sample_steps      = params.steps;
     gen_params.sample_params.guidance.txt_cfg  = params.cfg_scale;
+    apply_distilled_guidance(gen_params.sample_params, params.distilled_cfg_scale);
     const auto optimization_args = sampling_optimization_args(params.tome_ratio, params.negative_guidance_min_sigma);
     gen_params.sample_params.extra_sample_args = optimization_args.empty() ? nullptr : optimization_args.c_str();
     if (std::isfinite(params.flow_shift)) {
@@ -626,6 +628,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     gen_params.sample_params.scheduler = params.scheduler;
     gen_params.sample_params.sample_steps = params.steps;
     gen_params.sample_params.guidance.txt_cfg = params.cfg_scale;
+    apply_distilled_guidance(gen_params.sample_params, params.distilled_cfg_scale);
     const auto optimization_args = sampling_optimization_args(params.tome_ratio, params.negative_guidance_min_sigma);
     gen_params.sample_params.extra_sample_args = optimization_args.empty() ? nullptr : optimization_args.c_str();
 
@@ -839,6 +842,10 @@ sd_image_t ImageGenerator::createMaskImage(const ImageGenerationParams& params) 
         }
     }
 
+    if (!blurMaskImage(mask_image, params.mask_blur)) {
+        freeImage(mask_image);
+        throw std::runtime_error("Failed to blur mask image");
+    }
     return mask_image;
 }
 

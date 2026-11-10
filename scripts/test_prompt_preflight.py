@@ -66,6 +66,20 @@ class PromptPreflightTests(unittest.TestCase):
         with response:
             return response.status, json.load(response)
 
+    def test_invalid_generation_options_fail_before_task_creation(self):
+        cases = [("distilled_cfg_scale", value) for value in (None, "3.5", True, 1e100)]
+        for route in ("txt2img", "img2img"):
+            route_cases = cases + ([("mask_blur", value) for value in (-1, 65, None, "4", True)]
+                                   if route == "img2img" else [])
+            for index, (field, value) in enumerate(route_cases):
+                task = f"options-{route}-{index}"
+                with self.subTest(route=route, field=field, value=value):
+                    status, body = self.post(f"/v1/sdapi/v1/{route}", {field: value, "force_task_id": task})
+                    self.assertEqual(status, 400)
+                    self.assertTrue(body["message"].startswith(field + " "))
+                    status, _ = self.post("/v1/internal/progress", {"id_task": task})
+                    self.assertEqual(status, 404, "Rejected request created a task")
+
     def test_invalid_prompts_fail_before_task_creation(self):
         for route in ("txt2img", "img2img"):
             for field in ("prompt", "negative_prompt"):

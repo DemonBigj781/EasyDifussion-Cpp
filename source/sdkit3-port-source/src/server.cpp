@@ -13,6 +13,7 @@
 #include "image_utils.h"
 #include "logging.h"
 #include "prompt_validation.h"
+#include "generation_options.h"
 
 // Custom log handler for Crow that filters out /ping requests
 class FilteredLogHandler : public crow::ILogHandler {
@@ -545,6 +546,12 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
         error["message"] = prompt_error;
         return crow::response(400, error);
     }
+    const auto option_error = validate_generation_options(json_body, false);
+    if (!option_error.empty()) {
+        crow::json::wvalue error;
+        error["message"] = option_error;
+        return crow::response(400, error);
+    }
     reset_sd_generation_error();
     std::string task_id = json_body.has("force_task_id")
                               ? std::string(json_body["force_task_id"].s())
@@ -593,6 +600,7 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
         params.augmentation_level = json_body.has("augmentation_level")
                                         ? static_cast<float>(json_body["augmentation_level"].d())
                                         : 0.0f;
+        params.distilled_cfg_scale = parse_distilled_guidance(json_body);
         params.cfg_scale = json_body.has("cfg_scale") ? static_cast<float>(json_body["cfg_scale"].d()) : 5.0f;
         params.strength  = json_body.has("denoising_strength")
                                ? static_cast<float>(json_body["denoising_strength"].d())
@@ -731,6 +739,12 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
         error["message"] = prompt_error;
         return crow::response(400, error);
     }
+    const auto option_error = validate_generation_options(json_body, is_img2img);
+    if (!option_error.empty()) {
+        crow::json::wvalue error;
+        error["message"] = option_error;
+        return crow::response(400, error);
+    }
     reset_sd_generation_error();
     // Extract task_id
     std::string task_id = "default_task";
@@ -766,6 +780,7 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
         params.width = json_body.has("width") ? json_body["width"].i() : 512;
         params.height = json_body.has("height") ? json_body["height"].i() : 512;
         params.steps = json_body.has("steps") ? json_body["steps"].i() : 20;
+        params.distilled_cfg_scale = parse_distilled_guidance(json_body);
         params.cfg_scale = json_body.has("cfg_scale") ? json_body["cfg_scale"].d() : 7.0f;
         params.seed = json_body.has("seed") ? json_body["seed"].i() : -1;
         params.batch_count = json_body.has("batch_size") ? json_body["batch_size"].i() : 1;
@@ -792,6 +807,7 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
             if (json_body.has("mask")) {
                 params.mask_base64 = std::string(json_body["mask"].s());
             }
+            params.mask_blur = json_body.has("mask_blur") ? static_cast<float>(json_body["mask_blur"].d()) : 0.0f;
             params.strength = json_body.has("denoising_strength") ? json_body["denoising_strength"].d() : 0.75f;
         }
 
@@ -946,6 +962,8 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
         info_json["negative_prompt"] = params.negative_prompt;
         info_json["steps"] = params.steps;
         info_json["cfg_scale"] = params.cfg_scale;
+        if (params.distilled_cfg_scale) info_json["distilled_cfg_scale"] = *params.distilled_cfg_scale;
+        if (is_img2img) info_json["mask_blur"] = params.mask_blur;
         info_json["seed"] = params.seed;
         info_json["width"] = params.width;
         info_json["height"] = params.height;

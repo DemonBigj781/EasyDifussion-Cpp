@@ -4,6 +4,7 @@
 #include <cmath>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,7 @@ struct ImageGenerationParams {
     int width = 512;
     int height = 512;
     int steps = 20;
+    std::optional<float> distilled_cfg_scale;
     float cfg_scale = 7.0f;
     int64_t seed = -1;
     int batch_count = 1;
@@ -39,6 +41,7 @@ struct ImageGenerationParams {
     // img2img specific
     std::string init_image_base64;
     std::string mask_base64;
+    float mask_blur = 0.0f;
     float strength = 0.75f;
 
     // ControlNet specific
@@ -119,6 +122,7 @@ struct VideoGenerationParams {
     int fps = 8;
     int motion_bucket_id = 127;
     float augmentation_level = 0.0f;
+    std::optional<float> distilled_cfg_scale;
     float cfg_scale = 5.0f;
     float strength = 0.75f;
     float flow_shift = INFINITY;

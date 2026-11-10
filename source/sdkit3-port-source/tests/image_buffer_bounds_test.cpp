@@ -12,6 +12,37 @@ static void require(bool ok, const char* message) {
 }
 int main() {
     try {
+        for (uint8_t value : {0, 127, 255}) {
+            auto mask = createSolidImage(5, 3, 1, value);
+            auto* original = mask.data;
+            for (float sigma : {0.0f, 0.01f, 1.0f, 4.0f, 64.0f}) {
+                require(blurMaskImage(mask, sigma), "solid mask blur failed");
+                require(mask.data == original && mask.width == 5 && mask.height == 3, "blur replaced image ownership");
+                for (size_t i = 0; i < 15; ++i) require(mask.data[i] == value, "solid mask changed");
+            }
+            freeImage(mask);
+        }
+        auto impulse = createSolidImage(3, 3, 1, 0);
+        impulse.data[4] = 255;
+        require(blurMaskImage(impulse, 0) && impulse.data[4] == 255 && impulse.data[0] == 0,
+                "zero blur changed pixels");
+        require(!blurMaskImage(impulse, -1) && !blurMaskImage(impulse, 65) &&
+                !blurMaskImage(impulse, std::numeric_limits<float>::infinity()), "bad blur accepted");
+        require(impulse.data[4] == 255 && impulse.data[0] == 0, "failed blur mutated mask");
+        require(blurMaskImage(impulse, 1), "impulse blur failed");
+        const uint8_t expected[] = {15, 25, 15, 25, 41, 25, 15, 25, 15};
+        require(std::memcmp(impulse.data, expected, 9) == 0, "Gaussian impulse kernel changed");
+        freeImage(impulse);
+        auto edge = createSolidImage(8, 1, 1, 0);
+        for (size_t i = 0; i < 4; ++i) edge.data[i] = 255;
+        require(blurMaskImage(edge, 1), "edge blur failed");
+        require(edge.data[0] == 255 && edge.data[7] == 0 && edge.data[3] == 178 && edge.data[4] == 77,
+                "edge clamp or Gaussian transition changed");
+        freeImage(edge);
+        auto color = createSolidImage(2, 2, 3, 255);
+        require(!blurMaskImage(color, 1), "multichannel mask accepted");
+        freeImage(color);
+
         for (uint32_t channels : {1u, 2u, 3u, 4u}) {
             sd_image_t image = createSolidImage(2, 2, channels, 127);
             require(image.data != nullptr, "fixture allocation failed");

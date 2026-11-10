@@ -143,7 +143,7 @@
  #include <thread>
  #include <unordered_map>
  #include <vector>
-@@ -307,6 +309,109 @@
+@@ -308,6 +310,109 @@
      return std::round(static_cast<double>(dimension) / 64.0) * 64;
  }
  
@@ -253,7 +253,7 @@
  Server::Server(const ServerParams& params)
      : params_(params), port_(params.port), model_manager_(params.model_manager), should_stop_(false) {
      // Set up custom logger to filter out unnecessary requests
-@@ -337,6 +442,10 @@
+@@ -338,6 +443,10 @@
  
      CROW_ROUTE(app_, "/v1/sdapi/v1/backend-devices").methods("GET"_method)([this]() {
          return handleBackendDevices();
@@ -264,7 +264,7 @@
      });
  
      // Options endpoints
-@@ -442,7 +551,7 @@
+@@ -443,7 +552,7 @@
  
  crow::response Server::handleGetOptions() {
      try {
@@ -273,7 +273,7 @@
          return crow::response(200, options);
      } catch (const std::exception& e) {
          crow::json::wvalue error;
-@@ -452,14 +561,21 @@
+@@ -453,14 +562,21 @@
  }
  
  crow::response Server::handlePostOptions(const crow::request& req) {
@@ -296,7 +296,7 @@
          if (options_manager_->setOptions(json_body)) {
              return crow::response(200, "OK");
          } else {
-@@ -467,10 +583,28 @@
+@@ -468,10 +584,28 @@
              error["message"] = "Failed to save options";
              return crow::response(500, error);
          }
@@ -325,8 +325,8 @@
      }
  }
  
-@@ -547,13 +681,13 @@
-         error["message"] = prompt_error;
+@@ -554,13 +688,13 @@
+         error["message"] = option_error;
          return crow::response(400, error);
      }
 -    reset_sd_generation_error();
@@ -346,7 +346,7 @@
          VideoGenerationParams params;
          parse_native_sampling_optimizations(json_body, params.tome_ratio, params.negative_guidance_min_sigma);
          if (json_body.has("audio_vae_path")) {
-@@ -713,9 +847,14 @@
+@@ -721,9 +855,14 @@
          task_state_manager_->completeTask(task_id, {}, info.dump());
          crow::json::wvalue response;
          response["frames"] = frames;
@@ -361,8 +361,8 @@
      } catch (const std::exception& e) {
          const std::string message = sd_generation_error_message(std::string("Video generation failed: ") + e.what());
          LOG_ERROR("%s", message.c_str());
-@@ -733,17 +872,13 @@
-         error["message"] = prompt_error;
+@@ -747,17 +886,13 @@
+         error["message"] = option_error;
          return crow::response(400, error);
      }
 -    reset_sd_generation_error();
@@ -386,7 +386,7 @@
          // Parse generation parameters
          ImageGenerationParams params;
          parse_native_sampling_optimizations(json_body, params.tome_ratio, params.negative_guidance_min_sigma);
-@@ -962,10 +1097,15 @@
+@@ -980,10 +1115,15 @@
          // Return response
          crow::json::wvalue response;
          response["images"] = images;
@@ -402,7 +402,7 @@
      } catch (const std::exception& e) {
          const std::string message = sd_generation_error_message(std::string("Generation failed: ") + e.what());
          LOG_ERROR("%s", message.c_str());
-@@ -1018,6 +1158,7 @@
+@@ -1036,6 +1176,7 @@
  
          crow::json::wvalue response;
          response["completed"] = state.completed;
@@ -410,7 +410,7 @@
          response["progress"] = state.progress;
          response["current_step"] = state.current_step;
          response["total_steps"] = state.total_steps;
-@@ -1037,12 +1178,25 @@
+@@ -1055,12 +1196,25 @@
  
  crow::response Server::handleInterrupt(const crow::request& req) {
      try {
