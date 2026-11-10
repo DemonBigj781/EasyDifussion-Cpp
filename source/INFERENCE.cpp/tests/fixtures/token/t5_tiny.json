@@ -1,0 +1,18 @@
+{
+  "pre_tokenizer": {
+    "type": "Metaspace",
+    "replacement": "\u2581",
+    "prepend_scheme": "always"
+  },
+  "model": {
+    "type": "Unigram",
+    "unk_id": 2,
+    "vocab": [
+      ["<pad>", 0.0],
+      ["</s>", 0.0],
+      ["<unk>", -10.0],
+      ["\u2581", -1.0],
+      ["\u2581hello", 5.0]
+    ]
+  }
+}

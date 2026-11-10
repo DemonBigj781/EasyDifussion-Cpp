@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -10,6 +11,9 @@
 namespace edcpp::inference {
 
 using TokenId = std::int32_t;
+
+enum class Pretokenizer : std::uint8_t { simple, clip };
+enum class ByteEncoding : std::uint8_t { raw, clip };
 
 struct TokenizerConfig {
     TokenId unknown_token = -1;
@@ -20,6 +24,8 @@ struct TokenizerConfig {
     bool add_end = true;
     bool lowercase_ascii = true;
     bool use_end_of_word_suffix = true;
+    Pretokenizer pretokenizer = Pretokenizer::simple;
+    ByteEncoding byte_encoding = ByteEncoding::raw;
     std::size_t maximum_tokens = 0;
 };
 
@@ -54,6 +60,25 @@ class BpeTokenizer final : public Tokenizer {
     Vocabulary vocabulary_;
     std::unordered_map<std::string, std::size_t> merge_ranks_;
     TokenizerConfig config_;
+};
+
+class ClipTokenizer final : public Tokenizer {
+  public:
+    explicit ClipTokenizer(const std::string& serialized_merges,
+                           std::size_t maximum_tokens = 0,
+                           TokenId padding_token = -1);
+
+    TokenizationResult encode(const std::string& text) const override;
+
+    TokenId beginning_token() const { return beginning_token_; }
+    TokenId end_token() const { return end_token_; }
+    TokenId padding_token() const { return padding_token_; }
+
+  private:
+    std::unique_ptr<BpeTokenizer> tokenizer_;
+    TokenId beginning_token_ = -1;
+    TokenId end_token_ = -1;
+    TokenId padding_token_ = -1;
 };
 
 } // namespace edcpp::inference

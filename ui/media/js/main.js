@@ -42,6 +42,7 @@ const taskConfigSetup = {
             label: "Negative Prompt",
             visible: ({ reqBody }) => reqBody?.negative_prompt !== undefined && reqBody?.negative_prompt.trim() !== "",
         },
+        prompt_mode: "Prompt interpretation",
         prompt_strength: 'Prompt Strength <small>(<abbr title="Common name in other UIs">Denoising Strength</abbr>)</small>',
         use_face_correction: "Fix Faces",
         upscale: {
@@ -81,6 +82,7 @@ let imageCounter = 0
 let imageRequest = []
 
 let promptField = document.querySelector("#prompt")
+let promptModeField = document.querySelector("#prompt_mode")
 let promptsFromFileSelector = document.querySelector("#prompt_from_file")
 let promptsFromFileBtn = document.querySelector("#promptsFromFileBtn")
 let negativePromptField = document.querySelector("#negative_prompt")
@@ -1491,6 +1493,7 @@ function getCurrentUserRequest() {
         reqBody: {
             seed,
             used_random_seed: randomSeedField.checked,
+            prompt_mode: promptModeField.value,
             negative_prompt: negativePromptField.value.trim(),
             num_outputs: numOutputsParallel,
             num_inference_steps: parseInt(numInferenceStepsField.value),

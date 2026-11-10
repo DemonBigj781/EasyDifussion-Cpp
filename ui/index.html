@@ -61,6 +61,17 @@
         <div id="editor">
             <div id="editor-inputs">
                 <div id="editor-inputs-prompt" class="row">
+                    <div id="prompt-mode-control">
+                        <label for="prompt_mode"><b>Interpret prompt as</b>
+                            <i class="fa-solid fa-circle-question help-btn"><span class="simple-tooltip right">
+                                In either mode, (tag) is 1.1x, tag:1.2 is an explicit weight, tag++ is 1.21x, and BREAK starts a new chunk. Tags mode also fuses relations such as white:color:fur and treats uppercase AND as a required-clause separator.
+                            </span></i>
+                        </label>
+                        <select id="prompt_mode" name="prompt_mode" title="Natural language preserves prose. Tags fuse colon-related concepts and normalize tag weights.">
+                            <option value="natural" selected>Natural language</option>
+                            <option value="tags">Tags</option>
+                        </select>
+                    </div>
                     <div id="prompt-toolbar" class="split-toolbar">
                         <div id="prompt-toolbar-left" class="toolbar-left">
                             <label for="prompt"><b>Enter Prompt</b>

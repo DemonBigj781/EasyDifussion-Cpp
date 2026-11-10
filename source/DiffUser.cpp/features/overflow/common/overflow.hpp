@@ -61,16 +61,6 @@ struct ReleaseResult {
     std::string diagnostic;
 };
 
-using AllocateFn = Result (*)(const Request&);
-using ReleaseFn = ReleaseResult (*)(const Resource&) noexcept;
-
-struct Translation {
-    Backend backend = Backend::none;
-    const char* name = "unknown";
-    AllocateFn allocate = nullptr;
-    ReleaseFn release = nullptr;
-};
-
 struct SecondaryDevice {
     Backend backend = Backend::none;
     int device_index = -1;
@@ -85,6 +75,7 @@ struct PlanInput {
     bool gpu_zram_available = false;
     bool managed_memory_available = false;
     bool mapped_host_available = false;
+    bool system_ram_available = false;
     bool zram_available = false;
     bool swap_available = false;
 };
@@ -94,6 +85,7 @@ enum class CandidateKind : std::uint8_t {
     device,
     managed,
     mapped_host,
+    host,
     gpu_zram,
     zram,
     swap,
@@ -104,6 +96,24 @@ struct Candidate {
     Tier tier = Tier::none;
     CandidateKind kind = CandidateKind::none;
     int device_index = -1;
+};
+
+struct PlanningResult {
+    bool ready = false;
+    PlanInput input{};
+    std::string diagnostic{};
+};
+
+using PrepareFn = PlanningResult (*)(const Request&);
+using AllocateFn = Result (*)(const Request&, const Candidate&);
+using ReleaseFn = ReleaseResult (*)(const Resource&) noexcept;
+
+struct Translation {
+    Backend backend = Backend::none;
+    const char* name = "unknown";
+    PrepareFn prepare = nullptr;
+    AllocateFn allocate = nullptr;
+    ReleaseFn release = nullptr;
 };
 
 std::vector<Candidate> plan(const PlanInput& input, std::uint64_t size);

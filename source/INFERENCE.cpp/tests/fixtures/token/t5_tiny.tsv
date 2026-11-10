@@ -1,0 +1,3 @@
+# expected token IDs<TAB>literal prompt
+4,1	hello
+4,4,1	hello hello

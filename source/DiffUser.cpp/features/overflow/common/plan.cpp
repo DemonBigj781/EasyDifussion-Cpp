@@ -41,6 +41,10 @@ std::vector<Candidate> plan(const PlanInput& input, std::uint64_t size) {
             {input.active_backend, Tier::system_ram, CandidateKind::mapped_host,
              input.active_device_index});
     }
+    if (input.system_ram_available) {
+        result.push_back(
+            {input.active_backend, Tier::system_ram, CandidateKind::host, -1});
+    }
     if (input.zram_available) {
         result.push_back({Backend::none, Tier::zram, CandidateKind::zram, -1});
     }

@@ -81,14 +81,23 @@ jobs:
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/softmax.cpp -o build/001/xformers-common-softmax.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/av.cpp -o build/001/xformers-common-av.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/common/forward.cpp -o build/001/xformers-common-forward.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/definition/cpu/qkt.cpp -o build/001/xformers-cpu-definition-qkt.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/definition/cpu/mask.cpp -o build/001/xformers-cpu-definition-mask.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/definition/cpu/softmax.cpp -o build/001/xformers-cpu-definition-softmax.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/definition/cpu/av.cpp -o build/001/xformers-cpu-definition-av.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/definition/cpu/forward.cpp -o build/001/xformers-cpu-definition-forward.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/qkt.cpp -o build/001/xformers-cpu-qkt.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/mask.cpp -o build/001/xformers-cpu-mask.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/softmax.cpp -o build/001/xformers-cpu-softmax.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/av.cpp -o build/001/xformers-cpu-av.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/xformers/cpu/translation/cpu/forward.cpp -o build/001/xformers-cpu-forward.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/flash/common/flash_attention.cpp -o build/001/flash-attention-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/flash/cpu/definition/cpu/flash_attention_cpu.cpp -o build/001/flash-attention-cpu-definition.o
           c++ "${flags[@]}" -c source/API.cpp/features/attention/flash/cpu/translation/cpu/flash_attention_cpu.cpp -o build/001/flash-attention-cpu.o
-          echo '[001] CPU API/xFormers/FlashAttention routes compiled successfully'
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/flex/common/flex_attention.cpp -o build/001/flex-attention-common.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/flex/cpu/definition/cpu/flex_attention.cpp -o build/001/flex-attention-cpu-definition.o
+          c++ "${flags[@]}" -c source/API.cpp/features/attention/flex/cpu/translation/cpu/flex_attention.cpp -o build/001/flex-attention-cpu-translation.o
+          echo '[001] CPU API/xFormers/FlashAttention/Flex routes compiled successfully'
       - name: Compile CPU test applications
         if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
         shell: bash
@@ -97,18 +106,18 @@ jobs:
           make -C source/API.test \
             BUILD_DIR="$GITHUB_WORKSPACE/build/001" \
             cpu load-cpu unload-cpu overflow-cpu \
-            xformers-cpu xformers-cpu-gen
+            xformers-cpu flex-cpu
           install -m 0644 \
             source/API.test/MODELS/lifecycle-model.fixture \
             build/001/lifecycle-model.fixture
           test -x build/001/xformers-load-unload-cpu-test
-          test -x build/001/xformers-cpu-gen
+          test -x build/001/flex-attention-cpu-test
           test -x build/001/detect-cpu
           test -x build/001/load-cpu
           test -x build/001/unload-cpu
           test -x build/001/overflow-cpu
-          echo '[001] CPU Detect, lifecycle, Overflow, xFormers cycle, and generation tests compiled and linked; not executed on GitHub'
-      - name: Compile and run normalized FlashAttention CPU route test
+          echo '[001] CPU Detect, lifecycle, Overflow, xFormers cycle, and Flex tests compiled and linked; not executed on GitHub'
+      - name: Run normalized FlashAttention and Flex CPU route tests
         if: ${{ inputs.mode == 'Compile Test Code' || inputs.mode == 'Test, Vast AI' }}
         shell: bash
         run: |
@@ -120,9 +129,11 @@ jobs:
           c++ "${flags[@]}" \
             source/API.test/Feature/Attention/Flash/Cpu/Main.cpp \
             source/API.cpp/features/attention/flash/common/flash_attention.cpp \
+            source/API.cpp/features/attention/flash/cpu/definition/cpu/flash_attention_cpu.cpp \
             source/API.cpp/features/attention/flash/cpu/translation/cpu/flash_attention_cpu.cpp \
             -o build/001/flash-attention-cpu-test
           build/001/flash-attention-cpu-test
+          build/001/flex-attention-cpu-test
       - name: Stage minimal CPU runtime artifact
         if: ${{ inputs.mode == 'Test, Vast AI' }}
         shell: bash

@@ -8,4 +8,7 @@
 - `av.cpp`: V/output pointers, extents, head mapping, output shape, and the 512-value-dimension limit;
 - `forward.cpp`: composed validation and advertised CUDA capabilities.
 
-Definitions contain no Common registration and perform no launch. `translation/gpu/forward.cu` is the only Common adapter and fused-launch owner.
+Definitions contain no Common registration. `definition/gpu/forward.cu` owns
+the fused kernel, CUDA validation, launch, synchronization, and native result.
+`translation/gpu/forward.cu` remains the only Common adapter and registration
+owner.

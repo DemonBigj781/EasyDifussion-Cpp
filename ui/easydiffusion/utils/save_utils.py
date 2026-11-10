@@ -24,8 +24,11 @@ img_number_regex = re.compile("([0-9]{5,})")
 
 # keep in sync with `ui/media/js/dnd.js`
 TASK_TEXT_MAPPING = {
+    "original_prompt": "Original Prompt",
     "prompt": "Prompt",
+    "prompt_mode": "Prompt Mode",
     "negative_prompt": "Negative Prompt",
+    "original_negative_prompt": "Original Negative Prompt",
     "seed": "Seed",
     "use_stable_diffusion_model": "Stable Diffusion model",
     "clip_skip": "Clip Skip",

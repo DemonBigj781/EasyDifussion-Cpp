@@ -273,9 +273,15 @@ int run(int argc, char** argv, const BackendConfiguration& backend) {
         ? 0
         : backend.attention_launch_count();
     const auto generation_start = std::chrono::steady_clock::now();
-    sd_image_t* images = generate_image(context.get(), &generation);
+    sd_image_t* images = nullptr;
+    int image_count = 0;
+    const bool generated = generate_image(
+        context.get(), &generation, &images, &image_count);
     const auto generation_stop = std::chrono::steady_clock::now();
-    if (images == nullptr) {
+    if (!generated || images == nullptr || image_count < 1) {
+        if (images != nullptr) {
+            free_sd_images(images, image_count);
+        }
         std::cerr << "DDIM image generation failed\n";
         return EXIT_FAILURE;
     }
@@ -285,14 +291,14 @@ int run(int argc, char** argv, const BackendConfiguration& backend) {
         : backend.attention_launch_count();
     if (backend.attention_launch_count != nullptr &&
         launches_after <= launches_before) {
-        free_sd_images(images, 1);
+        free_sd_images(images, image_count);
         std::cerr << "CUDA generation completed without launching "
                   << backend.attention_name << '\n';
         return EXIT_FAILURE;
     }
 
     const bool saved = write_ppm(options.output_path, images[0]);
-    free_sd_images(images, 1);
+    free_sd_images(images, image_count);
     if (!saved) {
         std::cerr << "failed to save output image: "
                   << options.output_path << '\n';

@@ -39,6 +39,14 @@ function parseBoolean(stringValue) {
 
 // keep in sync with `ui/easydiffusion/utils/save_utils.py`
 const TASK_MAPPING = {
+    original_prompt: {
+        name: "Original Prompt",
+        setUI: (prompt) => {
+            promptField.value = prompt
+        },
+        readUI: () => promptField.value,
+        parse: (val) => val,
+    },
     prompt: {
         name: "Prompt",
         setUI: (prompt) => {
@@ -54,6 +62,22 @@ const TASK_MAPPING = {
         },
         readUI: () => negativePromptField.value,
         parse: (val) => val,
+    },
+    original_negative_prompt: {
+        name: "Original Negative Prompt",
+        setUI: (prompt) => {
+            negativePromptField.value = prompt
+        },
+        readUI: () => negativePromptField.value,
+        parse: (val) => val,
+    },
+    prompt_mode: {
+        name: "Prompt Mode",
+        setUI: (mode) => {
+            promptModeField.value = mode === "tags" ? "tags" : "natural"
+        },
+        readUI: () => promptModeField.value,
+        parse: (val) => val.toLowerCase() === "tags" ? "tags" : "natural",
     },
     active_tags: {
         name: "Image Modifiers",
@@ -672,7 +696,9 @@ function getModelPath(filename, extensions) {
 }
 
 const TASK_TEXT_MAPPING = {
+    original_prompt: "Original Prompt",
     prompt: "Prompt",
+    prompt_mode: "Prompt Mode",
     width: "Width",
     height: "Height",
     seed: "Seed",
@@ -686,6 +712,7 @@ const TASK_TEXT_MAPPING = {
     sampler_name: "Sampler",
     scheduler_name: "Scheduler",
     negative_prompt: "Negative Prompt",
+    original_negative_prompt: "Original Negative Prompt",
     use_stable_diffusion_model: "Stable Diffusion model",
     use_hypernetwork_model: "Hypernetwork model",
     hypernetwork_strength: "Hypernetwork Strength",

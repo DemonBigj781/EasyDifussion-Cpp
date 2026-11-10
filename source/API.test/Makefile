@@ -113,6 +113,11 @@ XFORMERS_COMMON_SOURCES := \
 	$(API_ROOT)/features/attention/xformers/common/forward.cpp
 XFORMERS_CPU_RUNTIME_SOURCES := \
 	$(XFORMERS_COMMON_SOURCES) \
+	$(API_ROOT)/features/attention/xformers/cpu/definition/cpu/qkt.cpp \
+	$(API_ROOT)/features/attention/xformers/cpu/definition/cpu/mask.cpp \
+	$(API_ROOT)/features/attention/xformers/cpu/definition/cpu/softmax.cpp \
+	$(API_ROOT)/features/attention/xformers/cpu/definition/cpu/av.cpp \
+	$(API_ROOT)/features/attention/xformers/cpu/definition/cpu/forward.cpp \
 	$(API_ROOT)/features/attention/xformers/cpu/translation/cpu/qkt.cpp \
 	$(API_ROOT)/features/attention/xformers/cpu/translation/cpu/mask.cpp \
 	$(API_ROOT)/features/attention/xformers/cpu/translation/cpu/softmax.cpp \
@@ -125,7 +130,13 @@ XFORMERS_CPU_CYCLE_SOURCES := \
 FLASH_CPU_SOURCES := \
 	Feature/Attention/Flash/Cpu/Main.cpp \
 	$(API_ROOT)/features/attention/flash/common/flash_attention.cpp \
+	$(API_ROOT)/features/attention/flash/cpu/definition/cpu/flash_attention_cpu.cpp \
 	$(API_ROOT)/features/attention/flash/cpu/translation/cpu/flash_attention_cpu.cpp
+FLEX_CPU_SOURCES := \
+	Feature/Attention/Flex/Cpu/Main.cpp \
+	$(API_ROOT)/features/attention/flex/common/flex_attention.cpp \
+	$(API_ROOT)/features/attention/flex/cpu/definition/cpu/flex_attention.cpp \
+	$(API_ROOT)/features/attention/flex/cpu/translation/cpu/flex_attention.cpp
 XFORMERS_IMAGE_DIR := MultiTest/xformers/generate-image
 XFORMERS_IMAGE_SOURCES := \
 	$(XFORMERS_IMAGE_DIR)/CMakeLists.txt \
@@ -144,7 +155,8 @@ XFORMERS_CUDA_DEFINITION_SOURCES := \
 	$(API_ROOT)/features/attention/xformers/cuda/definition/gpu/mask.cpp \
 	$(API_ROOT)/features/attention/xformers/cuda/definition/gpu/softmax.cpp \
 	$(API_ROOT)/features/attention/xformers/cuda/definition/gpu/av.cpp \
-	$(API_ROOT)/features/attention/xformers/cuda/definition/gpu/forward.cpp
+	$(API_ROOT)/features/attention/xformers/cuda/definition/gpu/forward.cpp \
+	$(API_ROOT)/features/attention/xformers/cuda/definition/gpu/forward.cu
 XFORMERS_CUDA_RUNTIME_SOURCES := \
 	$(XFORMERS_COMMON_SOURCES) \
 	$(XFORMERS_CUDA_DEFINITION_SOURCES) \
@@ -156,6 +168,7 @@ XFORMERS_CUDA_CYCLE_SOURCES := \
 FLASH_CUDA_RUNTIME_SOURCES := \
 	$(API_ROOT)/features/attention/flash/common/flash_attention.cpp \
 	$(API_ROOT)/features/attention/flash/cuda/definition/gpu/flash_attention_cuda.cpp \
+	$(API_ROOT)/features/attention/flash/cuda/definition/gpu/forward.cu \
 	$(API_ROOT)/features/attention/flash/cuda/translation/gpu/forward.cu
 FLASH_CUDA_SOURCES := \
 	Feature/Attention/Flash/Cuda/Main.cu \
@@ -173,13 +186,13 @@ SAGE_CUDA_SUPPORT_SOURCES := \
 .PHONY: all cpu cuda opencl vulkan opengl mesa \
 	load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda \
 	xformers-cpu xformers-cuda xformers-cpu-gen xformers-cuda-gen \
-	flash-cpu flash-cuda flash-cuda-roundtrip flash-cuda-gen sage-cuda-support \
+	flash-cpu flash-cuda flash-cuda-roundtrip flash-cuda-gen flex-cpu sage-cuda-support \
 	run-cpu run-cuda run-opencl run-vulkan run-opengl run-mesa \
 	run-load-cpu run-load-cuda \
 	run-unload-cpu run-unload-cuda run-overflow-cpu run-overflow-cuda \
 	run-overflow-cuda-stress run-xformers-cpu run-xformers-cuda \
-	run-flash-cpu run-flash-cuda run-flash-cuda-roundtrip run-sage-cuda-support \
-	check check-xformers check-flash check-sage clean
+	run-flash-cpu run-flash-cuda run-flash-cuda-roundtrip run-flex-cpu run-sage-cuda-support \
+	check check-xformers check-flash check-flex check-sage clean
 
 all: cpu cuda load-cpu load-cuda unload-cpu unload-cuda overflow-cpu overflow-cuda
 
@@ -216,6 +229,8 @@ flash-cpu: $(BUILD_DIR)/flash-attention-cpu-test
 flash-cuda: $(BUILD_DIR)/flash-attention-cuda-test
 
 flash-cuda-roundtrip: $(BUILD_DIR)/flash-api-roundtrip-cuda-test
+
+flex-cpu: $(BUILD_DIR)/flex-attention-cpu-test
 
 sage-cuda-support: $(BUILD_DIR)/sage-cuda-support-test
 
@@ -300,6 +315,9 @@ run-flash-cuda: flash-cuda
 run-flash-cuda-roundtrip: flash-cuda-roundtrip
 	$(BUILD_DIR)/flash-api-roundtrip-cuda-test
 
+run-flex-cpu: flex-cpu
+	$(BUILD_DIR)/flex-attention-cpu-test
+
 run-sage-cuda-support: sage-cuda-support
 	$(BUILD_DIR)/sage-cuda-support-test
 
@@ -309,6 +327,8 @@ check: run-cpu run-cuda run-load-cpu run-load-cuda \
 check-xformers: run-xformers-cpu run-xformers-cuda
 
 check-flash: run-flash-cpu run-flash-cuda
+
+check-flex: run-flex-cpu
 
 check-sage: run-sage-cuda-support
 
@@ -384,6 +404,10 @@ $(BUILD_DIR)/flash-attention-cuda-test: $(FLASH_CUDA_SOURCES)
 $(BUILD_DIR)/flash-api-roundtrip-cuda-test: $(FLASH_CUDA_ROUNDTRIP_SOURCES)
 	@mkdir -p $(dir $@)
 	$(NVCC) -O2 -std=c++17 $(CUDA_CPPFLAGS) $(INCLUDES) $^ -o $@
+
+$(BUILD_DIR)/flex-attention-cpu-test: $(FLEX_CPU_SOURCES)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
 $(BUILD_DIR)/sage-cuda-support-test: $(SAGE_CUDA_SUPPORT_SOURCES)
 	@mkdir -p $(dir $@)

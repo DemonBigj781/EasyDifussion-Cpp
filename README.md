@@ -5,6 +5,22 @@
 >
 > In practical terms: `Theory` is a coding/design workspace, not a runnable release branch. Do not assume that a successful compile, installer path, backend option, or documented feature on this branch means the feature is ready for use.
 
+> [!NOTE]
+> **Python remains required.** Complete Python removal is not a plausible goal:
+> several required integrations depend on Python-only APIs and workflows with
+> no easy, feature-equivalent C++ alternatives. Native development can replace
+> individual operations, but cannot remove Python while preserving the required
+> functionality. Prefer **uv-managed environments with pinned Python versions
+> and lockfiles** for consistency and reproducible frozen dependency sets,
+> rather than manual venv/pip setup. See the [Python runtime policy](docs/python-runtime-policy.md),
+> which supersedes earlier promises of eventual Python removal.
+
+The [Cosmopolitan autolauncher](source/autolauncher/README.md) selects and
+supervises manifest-defined executable bundles. It is experimental and does
+not replace the current startup script, switch GPU backend compilers, or remove
+retained Python workers. See the [compiler migration](docs/cosmopolitan-compiler-migration.md).
+Windows ARM work is deferred until viable, without an explicit platform block.
+
 This local Easy Diffusion customization project adds native sdkit3 image-generation features
 and local model tooling:
 

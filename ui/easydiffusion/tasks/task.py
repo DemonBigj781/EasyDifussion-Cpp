@@ -10,6 +10,7 @@ class Task:
         self.id = id(self)
         self.session_id = session_id
         self.render_device = None  # Select the task affinity. (Not used to change active devices).
+        self.render_context = None  # Set only while a render worker owns this task.
         self.error: Exception = None
         self.lock: Lock = Lock()  # Locks at task start and unlocks when task is completed
         self.buffer_queue: Queue = Queue()  # Queue of JSON string segments

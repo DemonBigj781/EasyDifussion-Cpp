@@ -820,6 +820,7 @@
     }
     const TASK_OPTIONAL = {
         device: "string",
+        prompt_mode: "string",
         init_image: "string",
         mask: "string",
         save_to_disk_path: "string",

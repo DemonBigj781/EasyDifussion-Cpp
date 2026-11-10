@@ -13,7 +13,9 @@ int main() {
     GenerationRequest text_to_image;
     text_to_image.model = &model;
     text_to_image.prompt = "test prompt";
+    text_to_image.prompt_mode = PromptMode::tags;
     const auto basic = make_plan(text_to_image);
+    assert(basic.request.prompt_mode == PromptMode::tags);
     assert(basic.stages.size() == 6);
     assert(basic.stages.front() == Stage::tokenize);
     assert(basic.stages.back() == Stage::assemble_result);

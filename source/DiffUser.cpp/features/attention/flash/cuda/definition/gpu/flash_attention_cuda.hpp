@@ -33,6 +33,8 @@ struct NativeMutableTensor4D {
 };
 
 struct NativeExecutionContext {
+    std::int32_t thread_index = 0;
+    std::int32_t thread_count = 1;
     void* stream = nullptr;
     bool synchronize = true;
     int device_index = -1;
@@ -71,5 +73,7 @@ struct NativeResult {
 
 NativeCapabilities capabilities() noexcept;
 NativeResult validate_forward(const NativeRequest& request) noexcept;
+NativeResult validate_execution(const NativeRequest& request) noexcept;
+NativeResult forward(const NativeRequest& request) noexcept;
 
 } // namespace edcpp::api::attention::flash::cuda::definition::gpu

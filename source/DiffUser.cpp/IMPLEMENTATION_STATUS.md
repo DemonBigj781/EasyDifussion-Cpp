@@ -11,6 +11,14 @@ supersedes topology conclusions in the older audits. Existing runtime marks
 record behavioral history only where that re-audit identifies execution in the
 wrong layer; they must not be read as definition/translation/Common conformance.
 
+The post-audit ownership correction moves CPU/CUDA xFormers and Flash execution
+into definitions, moves Flex CPU execution out of Common, and moves CUDA
+Overflow planning ahead of dispatch. Current post-correction validation reaches
+runtime-tested maturity for the CPU/CUDA xFormers, FlashAttention, and Overflow
+routes and for CPU Flex selection. See the
+[ownership-correction record](../../Audit/2026-09-08/OWNERSHIP_CORRECTION.md)
+for the exact source moves, commands, hardware, and end-to-end boundary.
+
 `TODO_GRID.md` is retained as a legacy planning grid and must not be used for
 current support or validation claims.
 
@@ -79,11 +87,13 @@ currently registered; blank rows remain unsupported.
 | `allocate` | `R` | `R` |  |  |  |  |  |  |  |  |
 | `release` | `R` | `R` |  |  |  |  |  |  |  |  |
 
-CPU allocation, ownership rejection, release, and a synthetic mixed-backend
-plan passed locally. CUDA validation on an RTX 3060 (`sm_86`, driver 580.94.18,
-CUDA toolkit 12.4) covered Managed Memory, a bounded real VRAM OOM, GPU access
-to the fallback allocation, CPU verification, and cleanup. The mapped-host path
-builds as the fallback when concurrent Managed Memory is absent.
+After the ownership correction, CPU allocation, ownership rejection, release,
+and a synthetic mixed-backend Common plan passed locally. CUDA validation on an
+RTX 3060 (`sm_86`, driver 580.94.18, CUDA toolkit 12.4) covered the regular
+forced system-RAM route and a bounded real VRAM OOM. The stress test recorded a
+2048 MiB CUDA-managed fallback, verified GPU access, and released the fallback
+and reservations. The mapped-host path builds as the fallback when concurrent
+Managed Memory is absent.
 
 CUDA secondary placement covers runtime-visible CUDA GPUs only. Mixed-vendor
 secondary devices, `gpu-zram`, zram, and swap remain unimplemented. H3C XG310
@@ -94,26 +104,32 @@ contiguous 32 GB allocation. CPU/CUDA Library handlers now route through Common.
 
 | Feature/method | CPU | CUDA | ROCm | oneAPI | Other backends |
 | --- | --- | --- | --- | --- | --- |
-| xFormers feature | `R` | `E` |  |  |  |
+| xFormers feature | `R` | `R` |  |  |  |
 | xFormers `qkt` | `R` | `N/A` |  |  |  |
 | xFormers `mask` | `R` | `N/A` |  |  |  |
 | xFormers `softmax` | `R` | `N/A` |  |  |  |
 | xFormers `av` | `R` | `N/A` |  |  |  |
-| xFormers `forward` | `R` | `E` |  |  |  |
+| xFormers `forward` | `R` | `R` |  |  |  |
 | Sage feature |  | `R` |  |  |  |
 | Sage `support` |  | `R` |  |  |  |
 | Sage `forward` |  | `R` |  |  |  |
-| FlashAttention | `R` | `E` |  |  |  |
-| Flex Attention | `I` |  |  |  |  |
+| FlashAttention | `R` | `R` |  |  |  |
+| Flex Attention | `R` |  |  |  |  |
 | Split Attention | `I` |  |  |  |  |
 
-xFormers CPU uses registered materialized stages. CUDA registers only fused
-`forward`; QKT, mask, softmax, and AV semantics execute inside that kernel.
-Both have Common runtime evidence, including 32 model-byte lifecycle cycles.
-The CUDA path additionally records an RTX 3060 Compute Sanitizer memcheck.
-Stable-diffusion.cpp now translates GGML tensors into the same Common request;
-a 512x512 one-step generation completed through it with 20 native CUDA
-xFormers launches. There is no separate production GGML xFormers backend path.
+xFormers CPU now uses registered materialized adapters backed by CPU
+definitions. CUDA registers only a fused `forward` adapter backed by its GPU
+definition; QKT, mask, softmax, and AV semantics execute inside that native
+kernel. Both corrected routes pass their Common semantic suites and 32
+model-byte lifecycle cycles. The CUDA path also passes Compute Sanitizer
+memcheck with zero errors on the RTX 3060.
+
+The historical pre-isolation stable-diffusion.cpp adapter completed a 512x512
+one-step generation with 20 Common CUDA xFormers launches. Commit `d883d6e`
+removed that GGML bridge while isolating DiffUser from the engine. The current
+snapshot therefore has no application adapter or launch-counter symbol and
+does not retain `E` maturity. The stale generator builds the full current
+stable-diffusion/ggml CUDA libraries, but cannot link its old observation hook.
 
 Sage CUDA now registers a normalized Common `support` translation and uses it
 from stable-diffusion.cpp's GGML selector. Its build-only test covers
@@ -131,21 +147,23 @@ GGML-native SM80 compatibility kernel rather than a normalized Common `forward`
 request, and numerical parity plus Compute Sanitizer coverage remain open.
 
 FlashAttention CUDA registers a separate fused `forward` translation behind
-the normalized Common contract. The online-softmax kernel supports F32, F16,
+the normalized Common contract, with native execution owned by its CUDA
+definition. The online-softmax kernel supports F32, F16,
 and BF16 Q/K/V inputs, F32 output, additive masks, GGML-style max-bias/ALiBi
 mask scaling, logit soft-capping, grouped-query attention, byte strides, and an
-opaque CUDA stream. An RTX 3060 (`sm_86`, driver 580.94.18, CUDA 12.4) passed
-deterministic numerical tests and Compute Sanitizer memcheck with zero errors.
-The Flash MultiTest also completed 32 model-byte load/return, Flash
-forward/result, and model-unload API roundtrips through Common.
-Stable-diffusion.cpp now has a GGML application adapter selected by
-`SD_CUDA_FLASH_COMMON=1`. A 512x512 one-step SD 1.5 generation completed in
-26.7 seconds with 40 normalized Common Flash launches. The generator samples
-the adapter counter and fails if execution silently falls back. The optimized
-GGML `fattn` implementation remains available when Common is unselected or
-cannot represent an operation, so its remaining direct route is still routing
-debt rather than Common proof. The Nouveau Quadro K2000 is not a CUDA device
-and its Kepler `sm_30` architecture is below the Common route's Pascal minimum.
+opaque CUDA stream. After relocation, an RTX 3060 (`sm_86`, driver 580.94.18,
+CUDA 12.4) passed deterministic numerical tests and Compute Sanitizer memcheck
+with zero errors. The Flash MultiTest also completed 32 model-byte load/return,
+Flash forward/result, and model-unload API roundtrips through Common under
+memcheck.
+
+The historical pre-isolation GGML application adapter completed a 512x512
+one-step SD 1.5 generation in 26.7 seconds with 40 normalized Common Flash
+launches. That adapter and counter were removed by `d883d6e`, so the current
+route is `R`, not `E`. The upstream optimized GGML `fattn` implementation is an
+engine path and does not establish Common validation. The Nouveau Quadro K2000
+is not a CUDA device, and its Kepler `sm_30` architecture is below the Common
+route's Pascal minimum.
 
 The planned normalized method inventories are:
 
@@ -162,16 +180,17 @@ Blank feature rows remain blank even where source or prototypes exist; build
 and runtime maturity must be established explicitly.
 
 Detailed CPU family and semantic coverage is recorded in the
-[dated CPU attention audit](../../Audit/2026-09-08/CPU_ATTENTION_AUDIT.md). In
-particular, `R` for Flash records its current
-baseline runtime test, not complete validation of every advertised capability
-or a complete definition/translation ownership split.
+[dated CPU attention audit](../../Audit/2026-09-08/CPU_ATTENTION_AUDIT.md).
+Post-correction xFormers and Flash tests re-establish the runtime marks above;
+they do not add coverage for every open capability listed by that audit.
 
 ### CPU Flex, Split, and Sage accounting
 
-Flex CPU is `I`, not `B` or `R`. The current backend-neutral Common-host source
-contains the selection algorithm, but there is no CPU definition, registered
-CPU translation, or API.test runtime coverage for the planned methods.
+Flex CPU is `R`. Common owns the normalized contract and registry, the CPU
+translation adapts requests and results, and the CPU definition owns the
+selection algorithm. A public Common-only API.test covers translated
+capabilities, deterministic 2x2-to-4x4 selection and expansion, compatibility
+wrappers, insufficient capacity, and rejection of an unregistered backend.
 
 Split CPU is also `I`, not `B` or `R`. A backend-neutral exploratory prototype
 implements planning and forward execution, including exact query and K/V split

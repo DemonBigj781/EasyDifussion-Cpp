@@ -22,6 +22,12 @@ device must be executed through its ROCm, OpenCL, Vulkan, or oneAPI translation.
 Common owns the order; each backend translation owns only allocations that its
 native runtime can prove usable.
 
+Each translation first adapts native capability discovery into a normalized
+`PlanningResult`. Common then constructs and walks the ordered candidate list
+before dispatching exactly one candidate at a time. A backend translation may
+invoke only its definition for that selected candidate; it must not call the
+Common planner.
+
 ## CUDA system-memory replica
 
 The implemented CUDA path is:

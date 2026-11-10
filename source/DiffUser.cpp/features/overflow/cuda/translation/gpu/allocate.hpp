@@ -4,6 +4,7 @@
 
 namespace edcpp::api::overflow::cuda::translation::gpu {
 
-Result allocate(const Request& request);
+PlanningResult prepare(const Request& request);
+Result allocate(const Request& request, const Candidate& candidate);
 
 } // namespace edcpp::api::overflow::cuda::translation::gpu

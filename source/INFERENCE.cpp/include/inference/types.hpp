@@ -1,5 +1,6 @@
 #pragma once
 
+#include "features/conditioning/common/prompt_mode.hpp"
 #include "features/load/common/devices/load.hpp"
 
 #include <cstdint>
@@ -15,6 +16,7 @@ struct GenerationRequest {
     MediaKind media = MediaKind::image;
     std::string prompt{};
     std::string negative_prompt{};
+    PromptMode prompt_mode = PromptMode::natural_language;
     const edcpp::api::load::Resource* model = nullptr;
     std::uint32_t width = 512;
     std::uint32_t height = 512;

@@ -1,8 +1,11 @@
 # INFERENCE.cpp to DiffUser Common gap audit
 
 Audited on 2026-09-08 against the first INFERENCE.cpp execution-plan and token
-feature. This is a moving gate: it must be updated before each SDKIT3 inference
-area is reimplemented in INFERENCE.cpp.
+feature, with the host token and conditioning-policy routes updated on
+2026-09-12 for independent CLIP and T5-style tokenization, caller-owned
+tokenizer resources, prompt-attention parsing, and weighted sequence shaping.
+This is a moving gate: it must be updated before each SDKIT3 inference area is
+reimplemented in INFERENCE.cpp.
 
 ## Admission rule
 
@@ -29,7 +32,8 @@ model logic or deliver the finished result, it belongs to INFERENCE.cpp.
 | Inference need | Common contract | CPU route | GPU translation | Current decision |
 | --- | --- | --- | --- | --- |
 | model byte resource load/unload | yes | runtime tested | CUDA runtime tested; other GPU backends absent | usable only for proven backends |
-| tokenization | not required | INFERENCE host implementation | not required | keep in `features/token/common` |
+| tokenization | not required | INFERENCE host BPE, CLIP, T5-style Unigram, serialized tokenizer loader, caller-owned byte-resource factory, and external golden-vector runner | not required | keep in `features/token/common`; bundled production vocabularies and checked-in family vectors remain |
+| prompt attention and token-sequence policy | not required | INFERENCE host parser, weights, special-token envelope, padding, truncation, chunking, and masks | not required | keep in `features/conditioning/common`; no backend execution |
 | text-conditioning tensor/resource | no | no | no | block conditioning migration |
 | latent creation and ownership | no | no | no | block latent initialization execution |
 | deterministic noise fill | no | no | no | add before sampler execution |

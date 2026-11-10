@@ -39,6 +39,10 @@ ed_info = {
     "type": "backend",
 }
 
+# The native server owns one process-global loaded checkpoint/options set.
+# Model reload and generation must therefore be one queue transaction.
+SERIALIZE_MODEL_STATE = True
+
 BACKENDS_ROOT_DIR = os.path.abspath(os.path.join(ROOT_DIR, "backends"))
 SDKIT3_BACKEND_DIR = os.path.join(BACKENDS_ROOT_DIR, "sdkit3")
 os.makedirs(BACKENDS_ROOT_DIR, exist_ok=True)

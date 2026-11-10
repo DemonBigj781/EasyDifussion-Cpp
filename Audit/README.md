@@ -12,6 +12,7 @@ chronologically.
 ## 2026-09-08
 
 - [Full Common contract re-audit](2026-09-08/FULL_COMMON_CONTRACT_REAUDIT.md)
+- [Definition ownership correction](2026-09-08/OWNERSHIP_CORRECTION.md)
 - [CPU attention coverage audit](2026-09-08/CPU_ATTENTION_AUDIT.md)
 - [INFERENCE.cpp to DiffUser Common gap audit](2026-09-08/INFERENCE_COMMON_GAP_AUDIT.md)
 - [Project-wide inference primitive audit](2026-09-08/INFERENCE_PRIMITIVE_AUDIT.md)

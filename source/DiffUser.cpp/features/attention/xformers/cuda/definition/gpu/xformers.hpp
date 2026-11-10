@@ -104,5 +104,8 @@ NativeValidationResult validate_mask(const NativeRequest& request) noexcept;
 NativeValidationResult validate_softmax(const NativeRequest& request) noexcept;
 NativeValidationResult validate_av(const NativeRequest& request) noexcept;
 NativeValidationResult validate_forward(const NativeRequest& request) noexcept;
+NativeValidationResult validate_execution(
+    const NativeRequest& request) noexcept;
+bool forward(const NativeRequest& request) noexcept;
 
 } // namespace edcpp::api::attention::xformers::cuda::definition::gpu

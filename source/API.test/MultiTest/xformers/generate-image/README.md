@@ -1,6 +1,22 @@
-# xFormers image-generation test
+# Retained xFormers image-generation integration harness
 
-These executables generate one 512x512 image with xFormers-compatible memory-efficient attention. They use only the `ddim_trailing` sampler and its canonical `simple` schedule; sampler and scheduler overrides are intentionally not exposed.
+## Current status
+
+The source is retained for a future explicit API.test-owned GGML adapter, but
+the current isolated stable-diffusion.cpp snapshot does not export the former
+`ggml_cuda_xformers_attn_launch_count()` observation hook or compile the former
+GGML-to-DiffUser adapter. `make xformers-cuda-gen` therefore is not a passing
+current build target and must not be used as end-to-end evidence. The shared
+harness has been updated for upstream's `generate_image` out-parameter API.
+
+The commands and behavior below describe the historical adapter-enabled test
+and the intended contract if an integration adapter is reintroduced explicitly
+under API.test.
+
+When adapter-enabled, these executables generate one 512x512 image with
+xFormers-compatible memory-efficient attention. They use only the
+`ddim_trailing` sampler and its canonical `simple` schedule; sampler and
+scheduler overrides are intentionally not exposed.
 
 ## Build
 

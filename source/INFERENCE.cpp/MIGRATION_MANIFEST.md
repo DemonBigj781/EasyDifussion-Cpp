@@ -72,10 +72,20 @@ input planning is deferred until those resource routes exist.
 1. Stable request/result and execution-plan contracts.
 2. Independent tokenizer layer under `features/token/common/` with
    golden-vector tests. **In progress:** the generic vocabulary/merge BPE
-   contract and deterministic unit tests exist;
-   CLIP byte encoding, model vocab loaders, T5 Unigram, and family-specific
-   golden vectors remain.
-3. Conditioning and guidance policy.
+   contract, CLIP byte encoding and token splitting, construction of a CLIP
+   vocabulary from serialized merge rules, T5-style Unigram metaspace and
+   scored segmentation over injected pieces, caller-provided T5 tokenizer JSON
+   loading, a caller-owned byte-resource construction boundary, deterministic
+   unit tests, and an opt-in external golden-vector runner exist; bundled
+   production vocabulary resources and checked-in family-specific vectors
+   remain.
+3. Conditioning and guidance policy. **Host-only foundation in progress:**
+   prompt-attention parsing, natural/tag modes, colon-linked fusion groups,
+   bare and shorthand attention weights, `AND` branch boundaries, and
+   tokenizer-neutral weighted sequence, padding, truncation, chunking, and
+   attention-mask policy exist. Text-encoder embedding execution and fusion
+   remain blocked on the missing DiffUser Common text-conditioning resource
+   contract.
 4. Scheduler and sampler math using backend-neutral scalar/state contracts.
 5. Denoising loop expressed as abstract model operations and resource IDs.
 6. Model-family orchestration and image/video result assembly.

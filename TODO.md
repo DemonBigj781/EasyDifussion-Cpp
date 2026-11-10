@@ -2,8 +2,16 @@
 
 Every objective has a standalone implementation document under `docs/todo/`. The checkbox here is the project-level status; the linked document defines the implementation approach, dependencies, validation, fallback behavior, and completion criteria.
 
+Python is a retained dependency, not a temporary stage awaiting complete
+removal. Required Python-only APIs without practical C++ alternatives prevent
+that outcome. Native objectives must follow the
+[Python runtime policy](docs/python-runtime-policy.md).
+Prefer uv-managed, version-pinned environments and committed lockfiles for
+consistent setup and the ability to freeze tested Python dependency sets.
+
 ## Runtime / architecture
-- [ ] [01 — Migrate Python to 3.13](docs/todo/01-python-3.13-migration.md)
+
+- [ ] [01 — Python 3.13 and reproducible uv-managed application/worker environments](docs/todo/01-python-3.13-migration.md)
 - [ ] [02 — Additional video model compatibility](docs/todo/02-video-model-compatibility.md)
 - [ ] [03 — YOLO integration](docs/todo/03-yolo-integration.md)
 - [ ] [04 — Pascal/Volta/Turing compatible Flash Attention](docs/todo/04-legacy-nvidia-flash-attention.md)
@@ -43,6 +51,9 @@ Every objective has a standalone implementation document under `docs/todo/`. The
 - [ ] [34 — Legacy GPU VRAM swap / memory tier](docs/todo/34-legacy-gpu-vram-swap-tier.md)
 
 ## Related architecture notes
+
+- [Cosmopolitan compiler migration and portable launcher](docs/cosmopolitan-compiler-migration.md)
+- [Python runtime policy — Python must remain](docs/python-runtime-policy.md)
 - [Native Hugging Face + LoRA to GGUF plan](docs/native-hf-lora-gguf-plan.md)
 - [Easy Diffusion oneAPI/SYCL expansion plan](docs/easy-diffusion-oneapi-plan.md)
 

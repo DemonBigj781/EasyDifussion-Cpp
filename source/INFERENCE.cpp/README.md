@@ -20,10 +20,36 @@ contract under `Feature/vae/common/`. Backend/device function files are added
 only when a real implementation exists.
 
 The initial build contains the independent request/execution-plan layer and a
-generic BPE tokenizer foundation. The tokenizer is not yet CLIP- or T5-complete.
-The VAE feature owns validated encode/decode shape and tiling plans but not yet
-execution. See [MIGRATION_MANIFEST.md](MIGRATION_MANIFEST.md) for the SDKIT3
-disposition map and remaining migration order.
+generic BPE tokenizer foundation. The tokenizer now also owns CLIP byte-to-Unicode
+encoding, CLIP-compatible token splitting, and construction of the canonical
+CLIP vocabulary from serialized merge rules. T5-style Unigram metaspace
+pretokenization and scored segmentation are also independent and accept an
+injected model vocabulary. A standard-library loader extracts that vocabulary,
+its scores, special-token IDs, and metaspace policy from caller-provided
+tokenizer JSON. The tokenizer resource boundary constructs CLIP or T5/UMT5
+tokenizers from caller-owned byte views and reports their special-token policy;
+it performs no filesystem or network access. Bundled production vocabulary
+resources and checked-in family-specific golden vectors remain. The VAE feature
+owns validated encode/decode shape and tiling plans but not yet execution. See
+[MIGRATION_MANIFEST.md](MIGRATION_MANIFEST.md) for the SDKIT3 disposition map
+and remaining migration order.
+
+The host-only conditioning foundation under `features/conditioning/common/`
+parses nested prompt attention, explicit weights, escapes, and `BREAK`
+boundaries. Requests select natural-language or tag interpretation. Natural
+language preserves prose; tag interpretation treats colon-linked fields such
+as `red:fur` as one fusion group and emits `AND` clauses as distinct
+conditioning branches. Both modes accept a final numeric field such as
+`fur:1.2` and compound each trailing `+` by 1.1 (`fur++` is 1.21). Numeric
+prose such as `16:9` remains literal. Parentheses retain their usual 1.1
+multiplier and `BREAK` retains its fixed-chunk boundary behavior.
+
+The tokenizer-neutral sequence policy attaches weights and per-token fusion
+group IDs, records `AND` branch offsets, adds one declared special-token
+envelope per chunk, pads or truncates, expands overflow into fixed chunks, and
+emits binary or additive attention masks. It does not construct or combine
+embeddings and does not call a backend; that execution remains gated on a
+DiffUser Common text-conditioning resource contract.
 
 ## Dependency rule
 
@@ -52,3 +78,17 @@ cmake -S source/INFERENCE.cpp -B build/inference
 cmake --build build/inference
 ctest --test-dir build/inference --output-on-failure
 ```
+
+External authoritative tokenizer fixtures can be checked without adding their
+vocabularies to this repository. Each non-comment TSV line contains
+comma-separated expected token IDs, a tab, and the literal prompt:
+
+```sh
+build/inference/edcpp_inference_tokenizer_golden_runner \
+  t5-json /path/to/tokenizer.json /path/to/vectors.tsv
+```
+
+Use `clip-merges` in place of `t5-json` for a CLIP merge resource. CTest
+smoke-tests both runner modes with tiny synthetic fixtures; authoritative
+resources and vectors remain caller-supplied and are never accessed by the
+default test suite.

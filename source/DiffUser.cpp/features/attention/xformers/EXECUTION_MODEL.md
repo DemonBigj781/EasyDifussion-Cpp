@@ -172,7 +172,11 @@ These are possibilities, not current validation claims.
 
 Current implementation status: **reserved only where represented in backend trees**.
 
-An NPU must not be forced to imitate GPU kernel structure. If an NPU exposes one graph/operator that semantically performs attention, its translation should advertise a fused execution plan to Common. If only smaller primitives are available, its translation can advertise staged execution.
+An NPU must not be forced to imitate GPU kernel structure. If an NPU exposes
+one graph/operator that semantically performs attention, its definition should
+own that fused execution and its translation should map the fused capability
+to Common. If only smaller primitives are available, the definition may expose
+staged execution through its translation.
 
 ---
 
@@ -229,7 +233,8 @@ XformersRequest
 
 Common validates and normalizes that request once.
 
-The selected backend translation then exposes an execution description such as:
+The selected backend translation then exposes the definition's translated
+execution description, such as:
 
 ```text
 XformersExecutionPlan
@@ -331,20 +336,21 @@ Common must **not** contain:
 
 ## What a translation owns
 
-Each translation answers two questions:
-
-1. **Can this backend/device satisfy this normalized request?**
-2. **If yes, which execution plan should Common interpret?**
+Each translation answers one question: **How does this normalized request map
+to and from the selected definition's native contract?**
 
 A translation may therefore perform:
 
-- capability checks;
-- dtype/layout compatibility checks specific to the backend;
 - conversion from normalized metadata to native parameter structures;
-- native context/stream/queue adaptation;
-- selection among backend-native kernels;
-- callback registration for staged execution;
-- fused/native operator dispatch.
+- opaque context/stream/queue value adaptation without interpreting the native
+  object;
+- definition invocation;
+- conversion of native validation and execution results back to Common;
+- callback registration with Common.
+
+Capability checks, dtype/layout rules, native stream interpretation, kernel
+selection, algorithms, driver calls, and fused/native dispatch belong to the
+definition.
 
 The translation must not redefine what xFormers attention means.
 

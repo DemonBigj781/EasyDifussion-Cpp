@@ -199,17 +199,27 @@ image-object detection are outside this feature.
 
 ### Definition
 
-`[backend]/definition/[device-type]/[method].cpp` records the backend API's native meaning, supported shapes/dtypes, capability constraints, synchronization, fallbacks, and equivalent procedure. A definition does not become the application API.
+`[backend]/definition/[device-type]/[method].cpp` owns the backend API's
+native meaning, supported shapes/dtypes, capability constraints,
+synchronization, fallbacks, algorithms, driver/runtime calls, kernels, launches,
+and equivalent procedure. A definition does not become the application API.
 
 ### Translation
 
-`[backend]/translation/[device-type]/[method].cpp` adapts that backend/device definition to the feature's normalized common contract. Backend SDK calls, kernels, layouts, workarounds, and compatibility bridges stay here.
+`[backend]/translation/[device-type]/[method].cpp` adapts that backend/device
+definition to the feature's normalized Common contract. It converts Common
+values into native values, invokes one definition, and converts native results
+back to Common. It owns no algorithms, driver/runtime calls, kernels, launches,
+or calls back into Common.
 
-Production CUDA attention sources therefore live in:
+Production CUDA attention translations remain in:
 
 - `features/attention/flash/cuda/translation/gpu/`
 - `features/attention/sage/cuda/translation/gpu/`
 - `features/attention/xformers/cuda/translation/gpu/`
+
+The corresponding native CUDA execution sources live in each feature's
+`cuda/definition/gpu/` directory.
 
 ### Common
 
@@ -314,7 +324,9 @@ peer.
 
 1. Keep feature and method names lowercase.
 2. Put native backend semantics in `definition/[device-type]`.
-3. Put backend-to-common adapters and kernels in `translation/[device-type]`.
+3. Put only backend-to-Common conversion, definition invocation, and result
+   conversion in `translation/[device-type]`; put algorithms, kernels, and
+   runtime calls in `definition/[device-type]`.
 4. Put only normalized cross-backend behavior in feature `common/`.
 5. Do not place method source files directly in a backend, `definition`, or `translation` directory.
 6. Keep prototype code out of production CMake targets.
@@ -331,7 +343,10 @@ peer.
   directories moved into feature/backend layers. The unused
   `library/backends/` documentation/compatibility tree was removed.
 - Root `include/api` and `src` moved to `library/include/api` and `library/src`.
-- CUDA attention implementation ownership moved from `DiffUser.cpp/cuda/attention/*` to each feature's `cuda/translation/gpu`.
+- CUDA attention implementation ownership moved from
+  `DiffUser.cpp/cuda/attention/*` to each feature's
+  `cuda/definition/gpu/`; the matching `cuda/translation/gpu/` path remains
+  the authoritative Common adapter.
 - The Theory-only `source/API.bridge/sdkit3-ggml` xFormers and Flash adapters
   convert GGML tensors to their Common requests and never call CUDA
   translations directly. Keeping them outside the moving sdkit3 snapshot makes

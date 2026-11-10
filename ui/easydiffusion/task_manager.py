@@ -159,10 +159,12 @@ render_threads = []
 current_state = ServerStates.Init
 current_state_error: Exception = None
 tasks_queue = []
+active_tasks = set()
 session_cache = DataCache()
 task_cache = DataCache()
 weak_thread_data = weakref.WeakKeyDictionary()
 idle_event: threading.Event = threading.Event()
+backend_execution_lock = threading.Lock()
 
 
 class SessionState:
@@ -226,6 +228,7 @@ def thread_get_next_task():
             break
         if task is not None:
             del tasks_queue[tasks_queue.index(task)]
+            active_tasks.add(task)
         return task
     finally:
         manager_lock.release()
@@ -239,11 +242,11 @@ def thread_render(device):
     from requests import ConnectionError
 
     try:
-        runtime.init(device)
+        context = runtime.init(device)
 
         weak_thread_data[threading.current_thread()] = {
-            "device": runtime.context.device,
-            "device_name": runtime.context.device_name,
+            "device": context.device,
+            "device_name": context.device_name,
             "alive": True,
         }
 
@@ -258,9 +261,10 @@ def thread_render(device):
             except (TimeoutError, ConnectionError):
                 time.sleep(1)
 
-        model_manager.load_default_models(runtime.context)
+        model_manager.load_default_models(context)
         current_state = ServerStates.Online
     except Exception as e:
+        runtime.release_context()
         log.error(traceback.format_exc())
         weak_thread_data[threading.current_thread()] = {"error": e, "alive": False}
         return
@@ -269,52 +273,73 @@ def thread_render(device):
         session_cache.clean()
         task_cache.clean()
         if not weak_thread_data[threading.current_thread()]["alive"]:
-            log.info(f"Shutting down thread for device {runtime.context.device}")
-            model_manager.unload_all(runtime.context)
+            log.info(f"Shutting down thread for device {context.device}")
+            model_manager.unload_all(context)
+            runtime.release_context(context)
             return
         if isinstance(current_state_error, SystemExit):
             current_state = ServerStates.Unavailable
+            runtime.release_context(context)
             return
+        serialize_model_state = getattr(backend, "SERIALIZE_MODEL_STATE", False)
+        if serialize_model_state and not backend_execution_lock.acquire(timeout=0.1):
+            continue
+
         task = thread_get_next_task()
         if task is None:
+            if serialize_model_state:
+                backend_execution_lock.release()
             idle_event.clear()
             idle_event.wait(timeout=1)
             continue
-        if task.error is not None:
-            log.error(task.error)
-            task.response = {"status": "failed", "detail": str(task.error)}
-            task.buffer_queue.put(json.dumps(task.response))
-            continue
-        if current_state_error:
-            task.error = current_state_error
-            task.response = {"status": "failed", "detail": str(task.error)}
-            task.buffer_queue.put(json.dumps(task.response))
-            continue
-        log.info(f"Session {task.session_id} starting task {task.id} on {runtime.context.device_name}")
-        if not task.lock.acquire(blocking=False):
-            raise Exception("Got locked task from queue.")
         try:
-            task.run()
+            if task.error is not None:
+                log.error(task.error)
+                task.response = {"status": "failed", "detail": str(task.error)}
+                task.buffer_queue.put(json.dumps(task.response))
+                continue
+            if current_state_error:
+                task.error = current_state_error
+                task.response = {"status": "failed", "detail": str(task.error)}
+                task.buffer_queue.put(json.dumps(task.response))
+                continue
+            log.info(f"Session {task.session_id} starting task {task.id} on {context.device_name}")
+            if not task.lock.acquire(blocking=False):
+                raise Exception("Got locked task from queue.")
+            try:
+                task.render_context = context
+                task.run()
 
-            # Before looping back to the generator, mark cache as still alive.
+                # Before looping back to the generator, mark cache as still alive.
+                keep_task_alive(task)
+            except Exception as e:
+                task.error = str(e)
+                task.response = {"status": "failed", "detail": str(task.error)}
+                task.buffer_queue.put(json.dumps(task.response))
+                log.error(traceback.format_exc())
+            finally:
+                task.render_context = None
+                task.lock.release()
+
             keep_task_alive(task)
-        except Exception as e:
-            task.error = str(e)
-            task.response = {"status": "failed", "detail": str(task.error)}
-            task.buffer_queue.put(json.dumps(task.response))
-            log.error(traceback.format_exc())
+
+            if isinstance(task.error, StopAsyncIteration):
+                log.info(f"Session {task.session_id} task {task.id} cancelled!")
+            elif task.error is not None:
+                log.info(f"Session {task.session_id} task {task.id} failed!")
+            else:
+                log.info(f"Session {task.session_id} task {task.id} completed by {context.device_name}.")
+            current_state = ServerStates.Online
         finally:
-            task.lock.release()
-
-        keep_task_alive(task)
-
-        if isinstance(task.error, StopAsyncIteration):
-            log.info(f"Session {task.session_id} task {task.id} cancelled!")
-        elif task.error is not None:
-            log.info(f"Session {task.session_id} task {task.id} failed!")
-        else:
-            log.info(f"Session {task.session_id} task {task.id} completed by {runtime.context.device_name}.")
-        current_state = ServerStates.Online
+            if manager_lock.acquire(blocking=True, timeout=LOCK_TIMEOUT):
+                try:
+                    active_tasks.discard(task)
+                finally:
+                    manager_lock.release()
+            else:
+                log.error("active task cleanup" + ERR_LOCK_FAILED)
+            if serialize_model_state:
+                backend_execution_lock.release()
 
 
 def get_cached_task(task_id: str, update_ttl: bool = False):
@@ -492,6 +517,27 @@ def update_render_threads(render_devices, active_devices):
 def shutdown_event():  # Signal render thread to close on shutdown
     global current_state_error
     current_state_error = SystemExit("Application shutting down.")
+
+
+def stop_all_tasks():
+    if not manager_lock.acquire(blocking=True, timeout=LOCK_TIMEOUT):
+        raise Exception("stop_all_tasks" + ERR_LOCK_FAILED)
+    try:
+        for task in list(tasks_queue) + list(active_tasks):
+            if task.error is None:
+                task.error = StopAsyncIteration(f"Task {task.id} stop requested.")
+        idle_event.set()
+    finally:
+        manager_lock.release()
+
+
+def has_pending_tasks():
+    if not manager_lock.acquire(blocking=True, timeout=LOCK_TIMEOUT):
+        raise Exception("has_pending_tasks" + ERR_LOCK_FAILED)
+    try:
+        return bool(tasks_queue or active_tasks)
+    finally:
+        manager_lock.release()
 
 
 def enqueue_task(task: Task):

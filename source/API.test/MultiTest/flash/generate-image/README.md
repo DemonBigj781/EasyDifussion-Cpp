@@ -1,8 +1,19 @@
-# FlashAttention image-generation end-to-end test
+# Retained FlashAttention image-generation integration harness
 
-`flash-cuda-gen.cpp` is active and built with `make flash-cuda-gen` from
-`source/API.test`. It generates one 512x512 image through stable-diffusion.cpp
-and the normalized Flash Common CUDA route. Sampling is fixed to
+The source is retained for a future explicit API.test-owned GGML adapter. The
+current isolated stable-diffusion.cpp snapshot no longer exports
+`ggml_cuda_flash_common_attn_launch_count()` or compiles the former
+GGML-to-DiffUser adapter, so `make flash-cuda-gen` is not a passing current
+build target and must not be used as end-to-end evidence. The shared generator
+harness is updated for upstream's `generate_image` out-parameter API.
+
+The remaining description records the historical adapter-enabled test and the
+intended behavior if an integration adapter is restored explicitly under
+API.test.
+
+Historically, `flash-cuda-gen.cpp` was built with `make flash-cuda-gen` from
+`source/API.test` and generated one 512x512 image through stable-diffusion.cpp
+and the normalized Flash Common CUDA route. Sampling was fixed to
 `ddim_trailing` with the `simple` schedule.
 
 The executable selects CUDA device 0 by default, enables

@@ -1,10 +1,10 @@
 # CPU xFormers definitions
 
-This is a structure-only placeholder for a future CPU-native definition layer.
-Definitions will describe native CPU capability and request semantics; they will
-not perform Common translation.
+This directory owns the CPU-native request, validation, staged attention
+operations, and fused forward sequencing. It does not include or register with
+Common.
 
-No functional definition is implemented here yet. The current registered CPU
-implementation is active under `../translation/cpu/` and talks directly to the
-normalized Common contract. This missing intermediate definition layer is
-layout debt, not evidence that the CPU route is unimplemented.
+The matching translation under `../translation/cpu/` converts the normalized
+request and score buffers, invokes these definitions, converts results, and
+registers the route with Common. Compilation and runtime revalidation remain
+pending after this ownership correction.

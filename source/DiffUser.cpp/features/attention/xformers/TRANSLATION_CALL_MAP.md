@@ -159,10 +159,10 @@ Therefore:
 Common
   -> xformers_forward(normalized request)
        |
-       +-> CPU translation: staged implementation
-       +-> CUDA translation: fused kernel
-       +-> ROCm translation: future HIP/native implementation
-       +-> oneAPI translation: future SYCL/native implementation
+       +-> CPU translation -> CPU definition: staged implementation
+       +-> CUDA translation -> GPU definition: fused kernel
+       +-> ROCm translation -> future HIP/native definition
+       +-> oneAPI translation -> future SYCL/native definition
 ```
 
 The Common call remains the same even when backend mechanics differ.
@@ -269,7 +269,14 @@ conformance-tested
 
 ## Current xFormers direction
 
-Common now exposes an implemented normalized request and two execution plans: the CPU translation supplies the staged callbacks, while the CUDA translation supplies only `forward` and internally performs one fused online-softmax launch. CUDA definition files own its dtype, shape, feature, architecture, and launch-limit rules. The CUDA translation owns Common-to-native request conversion, CUDA pointer validation, launch, synchronization, and error conversion. Common neither includes CUDA headers nor inspects CUDA streams or pointers.
+Common exposes a normalized request and two execution plans: the CPU
+translation supplies staged callbacks backed by CPU definitions, while the
+CUDA translation supplies only `forward` backed by one fused definition
+launch. CUDA definitions own dtype, shape, feature, architecture, pointer,
+runtime, kernel, launch, and synchronization behavior. The CUDA translation
+owns only Common-to-native request conversion, definition invocation, and
+native-result conversion. Common and translations neither include CUDA headers
+nor inspect CUDA streams or pointers.
 
 The native-operation table above remains design vocabulary rather than a requirement that every translation wrap individual intrinsics. It is useful when a later ROCm or oneAPI implementation needs to compare execution primitives, but the implemented Common ABI is the request/capability/callback contract in `common/xformers.hpp`.
 

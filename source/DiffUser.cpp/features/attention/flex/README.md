@@ -5,9 +5,16 @@ does not own SDKIT3 graph construction, inference orchestration, or sampling.
 
 ## Current CPU source
 
-The current CPU/host implementation lives in `common/flex_attention.hpp` and
-`common/flex_attention.cpp`. It implements a monolithic high-resolution token
-selection route derived from these logical stages:
+The CPU/host implementation now follows the normalized route:
+
+```text
+Common -> cpu/translation/cpu -> cpu/definition/cpu
+```
+
+Common owns request/result validation, backend dispatch, and compatibility
+overloads. The CPU translation converts between Common and native values. The
+CPU definition owns the high-resolution token-selection algorithm derived from
+these logical stages:
 
 - `mask_size`
 - `validate`
@@ -19,15 +26,10 @@ selection route derived from these logical stages:
 - `expand`
 - `select`
 
-This is implementation evidence, not a completed registered Common contract.
-The source is self-contained under `edcpp::api::attention::flex`, but it is
-still one host algorithm rather than an accommodated CPU route. Before CPU
-support can advance beyond `I`, it must be separated into:
-
-1. a backend-neutral Common request and result;
-2. a CPU definition containing native host behavior;
-3. a CPU translation registered with Common;
-4. deterministic CPU validation for the logical selection semantics;
-5. API.test coverage that exercises each advertised selection semantic.
+The CPU translation is registered with Common in source. The public Common-only
+`source/API.test/Feature/Attention/Flex/Cpu/Main.cpp` target validates translated
+capabilities, deterministic 2x2-to-4x4 selection and expansion, compatibility
+wrappers, insufficient output capacity, and rejection of an unregistered
+backend. Run it from `source/API.test` with `make run-flex-cpu`.
 
 See `native-calls/cpu.md` for the present inventory.

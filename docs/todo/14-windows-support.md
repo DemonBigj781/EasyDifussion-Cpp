@@ -3,6 +3,13 @@
 ## Objective
 Provide a native Windows EasyDifussion-Cpp build and runtime without WSL or Wine.
 
+Initial development and validation target Windows x86-64. Windows ARM is
+deferred until viable, not explicitly rejected or blocked. A possible x86-64
+emulation path does not establish native Windows ARM support.
+
+The [Cosmopolitan launcher plan](../cosmopolitan-compiler-migration.md) can
+provide a portable bootstrap while Windows backends keep their native builds.
+
 ## Implementation
 1. Audit POSIX dependencies: signals, `fork`/process handling, paths, executable permissions, mmap, sockets, symlinks, shell scripts, environment variables, and filesystem semantics.
 2. Extend existing `_WIN32` code in sdkit rather than adding duplicate platform layers.

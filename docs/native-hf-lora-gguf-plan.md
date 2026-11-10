@@ -6,9 +6,16 @@ Design notes / implementation plan only. This document does not represent comple
 
 ## Goal
 
-Replace the current Python-dependent Hugging Face and PEFT LoRA conversion path with a native C++ conversion layer integrated into EasyDifussion-Cpp, while preserving the existing Python llama.cpp converters as a fallback until native coverage is broad enough.
+Add a native C++ conversion layer for explicitly supported Hugging Face and
+PEFT LoRA inputs, integrated into EasyDifussion-Cpp. Preserve the existing
+Python llama.cpp converters for inputs and behavior without validated native
+equivalents.
 
-The native path should avoid runtime dependencies on Python, PyTorch, and Transformers.
+The supported native conversion path should avoid runtime dependencies on
+Python, PyTorch, and Transformers. This is a per-operation goal, not a promise
+to remove Python from the application. Required Python-only APIs and workflows
+have no easy, feature-equivalent C++ alternatives, so Python must remain under
+the [Python runtime policy](python-runtime-policy.md).
 
 ## Existing integration point
 
@@ -22,7 +29,10 @@ EasyDifussion-Cpp already exposes native model conversion through the `sdkit` bi
 
 The preferred architecture is to extend this existing native conversion entry point instead of introducing another conversion executable.
 
-The Model Tools UI already manages conversion jobs, temporary outputs, logging, exclusivity, and completion state. That job system can remain largely unchanged. The main change is replacing the Hugging Face branch that currently launches llama.cpp's Python conversion scripts.
+The Model Tools UI already manages conversion jobs, temporary outputs, logging,
+exclusivity, and completion state. That job system can remain largely unchanged.
+Route supported Hugging Face conversions to the native path while keeping the
+existing Python script path for remaining inputs.
 
 ## Proposed source layout
 
@@ -817,17 +827,29 @@ transformers
 google.protobuf
 ```
 
-Once native HF/LoRA conversion is usable, Hugging Face model folders no longer need to be classified as a Python-only conversion source.
+Once native HF/LoRA conversion is validated for a particular input, that input
+can be classified as native-capable. Do not apply this classification to every
+Hugging Face model folder or tokenizer.
 
-The final readiness model can become centered on the native `sdkit` binary instead of maintaining separate native and llama/Python readiness states.
+Maintain separate native `sdkit` and llama/Python readiness states. Select the
+required checks for each operation, and retain Python/package checks for
+fallbacks and other Python-dependent APIs even as native coverage grows.
+
+Prefer uv-managed environments for retained Python conversion paths, with
+declared Python versions and committed dependency lockfiles. Conversion workers
+must use their configured environment consistently and support frozen,
+reproducible dependency sets; a native conversion milestone does not remove
+this requirement.
 
 The existing job thread, temporary file, logging, output collision prevention, and completion handling should remain intact.
 
 ## Compatibility fallback
 
-Do not remove the existing llama.cpp Python converters immediately.
+Retain the existing llama.cpp Python converters wherever native equivalents are
+unavailable or unvalidated. They are a supported compatibility path, not a
+fallback with an assumed retirement date.
 
-Recommended transition:
+Capability-based routing:
 
 ```text
 Native C++ supports architecture/input?
@@ -883,7 +905,7 @@ After the first native path is validated:
 5. Add parity tests against llama.cpp's Python converter.
 6. Compare GGUF metadata and tensor names between native and Python outputs.
 7. Run logits/perplexity validation for language models where practical.
-8. Remove Python conversion dependencies only after native coverage is considered sufficient.
+8. Audit dependencies per environment and remove only packages with no remaining consumers after validating the relevant native replacement. Keep dependencies required by Python converters, training, plugins, or other APIs; broad native conversion coverage does not authorize complete Python removal.
 
 ## Optional oneAPI / SYCL acceleration path
 
@@ -1183,12 +1205,11 @@ Only the final state should enable oneAPI acceleration automatically.
 
 ### Why this fits the native converter
 
-The native Hugging Face/LoRA converter and oneAPI solve different parts of the same dependency problem:
+For an input with validated native conversion support, the converter and oneAPI
+address separate layers:
 
 ```text
-Python / Transformers / Torch
-           |
-           X remove
+Supported HF / LoRA input
            |
 Native C++ parser + GGUF writer
            |
@@ -1197,6 +1218,10 @@ Native C++ parser + GGUF writer
            +--> oneAPI/SYCL tensor backend
 ```
 
-This avoids replacing a Python dependency with a vendor runtime dependency at the architecture level. oneAPI is an accelerator backend, not the definition of the converter.
+This specific conversion route can run without Python or a mandatory vendor
+runtime. Other inputs continue through the retained Python converters, and
+Python-dependent application APIs remain supported. oneAPI is an accelerator
+backend, not the definition of the converter or a means of removing Python
+from the project.
 
 The result should still build and convert models on machines with no Intel GPU at all, while a system containing the XG310 can use its four SG1 devices to parallelize conversion work where that actually provides a benefit.

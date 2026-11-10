@@ -1,13 +1,59 @@
-"""
-(OUTDATED DOC)
-A runtime that runs on a specific device (in a thread).
+"""Per-render-thread backend contexts and their active-device registry."""
 
-It can run various tasks like image generation, image filtering, model merge etc by using that thread-local context.
+import threading
 
-This creates an `sdkit.Context` that's bound to the device specified while calling the `init()` function.
-"""
 
-context = None
+_thread_context = threading.local()
+_contexts_lock = threading.RLock()
+_contexts_by_device = {}
+
+
+def bind_context(context):
+    """Bind an initialized context only to the calling render thread."""
+
+    _thread_context.value = context
+    device = getattr(context, "device", None)
+    if device is not None:
+        with _contexts_lock:
+            _contexts_by_device[device] = context
+    return context
+
+
+def current_context():
+    context = getattr(_thread_context, "value", None)
+    if context is None:
+        raise RuntimeError("No Easy Diffusion runtime context is bound to this thread.")
+    return context
+
+
+def get_contexts():
+    """Return a stable snapshot for control-plane operations such as Stop All."""
+
+    with _contexts_lock:
+        return list(_contexts_by_device.values())
+
+
+def get_context(device):
+    with _contexts_lock:
+        return _contexts_by_device.get(device)
+
+
+def release_context(context=None):
+    context = context or getattr(_thread_context, "value", None)
+    if context is None:
+        return
+    device = getattr(context, "device", None)
+    with _contexts_lock:
+        if _contexts_by_device.get(device) is context:
+            del _contexts_by_device[device]
+    if getattr(_thread_context, "value", None) is context:
+        del _thread_context.value
+
+
+def __getattr__(name):
+    if name == "context":
+        return current_context()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def init(device):
@@ -15,11 +61,8 @@ def init(device):
     Initializes the fields that will be bound to this runtime's context, and sets the current torch device
     """
 
-    global context
-
     from easydiffusion import device_manager
     from easydiffusion.backend_manager import backend
-    from easydiffusion.app import getConfig
 
     context = backend.create_context()
 
@@ -30,6 +73,7 @@ def init(device):
     context.enable_codeformer = True
 
     device_manager.device_init(context, device)
+    return bind_context(context)
 
 
 def set_vram_optimizations(context):

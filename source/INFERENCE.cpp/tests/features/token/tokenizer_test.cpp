@@ -1,6 +1,8 @@
 #include "features/token/common/tokenizer.hpp"
 
 #include <cassert>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 int main() {
@@ -41,4 +43,46 @@ int main() {
     BpeTokenizer missing({{"a</w>", 20}}, {}, TokenizerConfig{});
     const auto failed = missing.encode("b");
     assert(!failed.ok);
+
+    const std::string clip_merges =
+        "#version: 0.2\r\n"
+        "h e\r\n"
+        "he l\r\n"
+        "hel l\r\n"
+        "hell o</w>\r\n";
+    ClipTokenizer clip(clip_merges);
+    assert(clip.beginning_token() == 516);
+    assert(clip.end_token() == 517);
+    assert(clip.padding_token() == clip.end_token());
+
+    const auto clip_word = clip.encode("  HELLO\n");
+    assert(clip_word.ok && !clip_word.truncated);
+    assert((clip_word.tokens == std::vector<TokenId>{516, 515, 517}));
+
+    const auto contraction = clip.encode("can't 12");
+    assert(contraction.ok);
+    assert((contraction.tokens ==
+            std::vector<TokenId>{516, 66, 64, 333, 6, 339, 272, 273, 517}));
+
+    const auto unicode = clip.encode("\xc3\xa9");
+    assert(unicode.ok);
+    assert((unicode.tokens == std::vector<TokenId>{516, 127, 358, 517}));
+
+    const std::string control(1, '\0');
+    const auto encoded_control = clip.encode(control);
+    assert(encoded_control.ok);
+    assert((encoded_control.tokens == std::vector<TokenId>{516, 444, 517}));
+
+    ClipTokenizer clipped(clip_merges, 3);
+    const auto clipped_result = clipped.encode("hello hello");
+    assert(clipped_result.ok && clipped_result.truncated);
+    assert((clipped_result.tokens == std::vector<TokenId>{516, 515, 517}));
+
+    bool rejected_invalid_merges = false;
+    try {
+        ClipTokenizer invalid("one-field\n");
+    } catch (const std::invalid_argument&) {
+        rejected_invalid_merges = true;
+    }
+    assert(rejected_invalid_merges);
 }

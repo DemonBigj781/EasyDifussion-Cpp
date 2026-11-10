@@ -117,6 +117,9 @@ class TaskData(BaseModel):
     request_id: str = None
     session_id: str = "session"
     temporary_output: bool = False
+    prompt_mode: str = "natural"
+    original_prompt: str = None
+    original_negative_prompt: str = None
 
 
 class RenderTaskData(TaskData):

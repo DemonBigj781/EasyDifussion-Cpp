@@ -3,13 +3,13 @@
 
 #include "features/overflow/cuda/definition/gpu/allocate.hpp"
 
-#include <string>
 #include <utility>
 
 namespace edcpp::api::overflow::cuda::translation::gpu {
 namespace {
 
-MemoryKind translate_kind(definition::gpu::NativeMemoryKind kind) noexcept {
+MemoryKind translate_kind(
+    definition::gpu::NativeMemoryKind kind) noexcept {
     using Native = definition::gpu::NativeMemoryKind;
     switch (kind) {
         case Native::device: return MemoryKind::cuda_device;
@@ -21,14 +21,16 @@ MemoryKind translate_kind(definition::gpu::NativeMemoryKind kind) noexcept {
 }
 
 Result translate_allocation(
-    definition::gpu::NativeAllocation native, Tier tier,
-    bool primary_out_of_memory) {
+    definition::gpu::NativeAllocation native,
+    const Candidate& candidate) {
     Result result;
     result.allocated = native.allocated;
-    result.overflowed = native.allocated && tier != Tier::active_vram;
-    result.primary_out_of_memory = primary_out_of_memory;
+    result.overflowed =
+        native.allocated && candidate.tier != Tier::active_vram;
+    result.primary_out_of_memory =
+        candidate.tier == Tier::active_vram && native.out_of_memory;
     result.resource.backend = Backend::cuda;
-    result.resource.tier = tier;
+    result.resource.tier = candidate.tier;
     result.resource.memory_kind = translate_kind(native.memory_kind);
     result.resource.host_handle = native.host_handle;
     result.resource.device_handle = native.device_handle;
@@ -36,25 +38,31 @@ Result translate_allocation(
     result.resource.owner_device_index = native.owner_device_index;
     result.resource.access_device_index = native.access_device_index;
     result.diagnostic = std::move(native.diagnostic);
-    return result;
-}
 
-void append_failure(std::string& failures, const std::string& message) {
-    if (message.empty()) {
-        return;
+    if (result.allocated) {
+        if (candidate.tier == Tier::active_vram) {
+            result.diagnostic = "allocated in active CUDA VRAM";
+        } else if (candidate.tier == Tier::secondary_vram) {
+            result.diagnostic =
+                "active CUDA VRAM unavailable; allocated in secondary GPU VRAM";
+        } else if (candidate.kind == CandidateKind::managed) {
+            result.diagnostic =
+                "CUDA VRAM unavailable; using cudaMallocManaged with CPU-preferred residency";
+        } else if (candidate.kind == CandidateKind::mapped_host) {
+            result.diagnostic =
+                "CUDA VRAM and managed allocation unavailable; using CUDA-mapped host RAM";
+        }
     }
-    if (!failures.empty()) {
-        failures += "; ";
-    }
-    failures += message;
+    return result;
 }
 
 } // namespace
 
-Result allocate(const Request& request) {
-    Result result;
+PlanningResult prepare(const Request& request) {
+    PlanningResult result;
     if (request.size == 0 || request.device_index < 0) {
-        result.diagnostic = "CUDA overflow allocation requires a valid device and non-zero size";
+        result.diagnostic =
+            "CUDA overflow allocation requires a valid device and non-zero size";
         return result;
     }
 
@@ -67,77 +75,59 @@ Result allocate(const Request& request) {
         return result;
     }
 
-    PlanInput plan_input;
-    plan_input.active_backend = Backend::cuda;
-    plan_input.active_device_index = request.device_index;
-    plan_input.include_active_vram = !request.force_overflow;
-    plan_input.managed_memory_available = capabilities.managed_memory;
-    plan_input.mapped_host_available = capabilities.mapped_host_memory;
+    result.ready = true;
+    result.input.active_backend = Backend::cuda;
+    result.input.active_device_index = request.device_index;
+    result.input.include_active_vram = !request.force_overflow;
+    result.input.managed_memory_available =
+        capabilities.managed_memory;
+    result.input.mapped_host_available =
+        capabilities.mapped_host_memory;
     for (const auto& native_device : capabilities.secondary_devices) {
-        plan_input.secondary_devices.push_back(
-            {Backend::cuda, native_device.device_index, native_device.free_memory});
+        result.input.secondary_devices.push_back(
+            {Backend::cuda, native_device.device_index,
+             native_device.free_memory});
     }
-
-    bool primary_out_of_memory = false;
-    std::string failures;
-    for (const auto& candidate : plan(plan_input, request.size)) {
-        if (candidate.backend != Backend::cuda) {
-            append_failure(failures, "secondary GPU requires another backend translation");
-            continue;
-        }
-        definition::gpu::NativeAllocation native;
-        switch (candidate.kind) {
-            case CandidateKind::device:
-                native = definition::gpu::allocate_device(
-                    request.data, request.size, candidate.device_index);
-                break;
-            case CandidateKind::managed:
-                native = definition::gpu::allocate_managed(
-                    request.data, request.size, request.device_index,
-                    request.host_reserve);
-                break;
-            case CandidateKind::mapped_host:
-                native = definition::gpu::allocate_mapped_host(
-                    request.data, request.size, request.device_index,
-                    request.host_reserve);
-                break;
-            case CandidateKind::none:
-            case CandidateKind::gpu_zram:
-            case CandidateKind::zram:
-            case CandidateKind::swap:
-                continue;
-        }
-
-        if (native.allocated) {
-            auto translated = translate_allocation(
-                std::move(native), candidate.tier, primary_out_of_memory);
-            if (candidate.tier == Tier::active_vram) {
-                translated.diagnostic = "allocated in active CUDA VRAM";
-            } else if (candidate.tier == Tier::secondary_vram) {
-                translated.diagnostic = "active CUDA VRAM unavailable; allocated in secondary GPU VRAM";
-            } else if (candidate.kind == CandidateKind::managed) {
-                translated.diagnostic = "CUDA VRAM unavailable; using cudaMallocManaged with CPU-preferred residency";
-            } else if (candidate.kind == CandidateKind::mapped_host) {
-                translated.diagnostic = "CUDA VRAM and managed allocation unavailable; using CUDA-mapped host RAM";
-            }
-            return translated;
-        }
-
-        append_failure(failures, native.diagnostic);
-        if (candidate.tier == Tier::active_vram) {
-            primary_out_of_memory = native.out_of_memory;
-            if (!native.out_of_memory) {
-                result.diagnostic = failures;
-                return result;
-            }
-        }
-    }
-
-    result.primary_out_of_memory = primary_out_of_memory;
-    result.diagnostic = failures.empty()
-        ? "no implemented CUDA overflow tier is available"
-        : failures;
     return result;
+}
+
+Result allocate(
+    const Request& request, const Candidate& candidate) {
+    if (candidate.backend != Backend::cuda) {
+        Result result;
+        result.diagnostic =
+            "CUDA overflow translation received a non-CUDA Common candidate";
+        return result;
+    }
+
+    definition::gpu::NativeAllocation native;
+    switch (candidate.kind) {
+        case CandidateKind::device:
+            native = definition::gpu::allocate_device(
+                request.data, request.size, candidate.device_index);
+            break;
+        case CandidateKind::managed:
+            native = definition::gpu::allocate_managed(
+                request.data, request.size, request.device_index,
+                request.host_reserve);
+            break;
+        case CandidateKind::mapped_host:
+            native = definition::gpu::allocate_mapped_host(
+                request.data, request.size, request.device_index,
+                request.host_reserve);
+            break;
+        case CandidateKind::none:
+        case CandidateKind::host:
+        case CandidateKind::gpu_zram:
+        case CandidateKind::zram:
+        case CandidateKind::swap: {
+            Result result;
+            result.diagnostic =
+                "CUDA overflow translation received an unsupported Common candidate";
+            return result;
+        }
+    }
+    return translate_allocation(std::move(native), candidate);
 }
 
 namespace {
@@ -145,6 +135,7 @@ namespace {
 const Translation cuda_translation = {
     Backend::cuda,
     "cuda",
+    &prepare,
     &allocate,
     &release,
 };

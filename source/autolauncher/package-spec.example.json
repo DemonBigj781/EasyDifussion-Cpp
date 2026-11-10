@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "bundles": [
+    {
+      "id": "linux-x64-cuda-sm86",
+      "os": "linux",
+      "arch": "x64",
+      "backend": "cuda",
+      "priority": 100,
+      "cpu_features": [],
+      "assets": ["python/cuda/pyproject.toml", "python/cuda/uv.lock", "python/cuda/main.py"],
+      "env": {"CUDA_VISIBLE_DEVICES": "0"},
+      "probe": {
+        "id": "cuda-driver",
+        "executable": "native/linux-x64/cuda-probe",
+        "args": ["--sm", "86", "--min-driver", "12040"],
+        "timeout_ms": 5000
+      },
+      "programs": [
+        {
+          "id": "application",
+          "role": "main",
+          "executable": "runtime/linux-x64/uv",
+          "args": ["run", "--locked", "--offline", "--project", "python/cuda", "python", "{root}/python/cuda/main.py"],
+          "cwd": "."
+        }
+      ]
+    },
+    {
+      "id": "linux-x64-cpu",
+      "os": "linux",
+      "arch": "x64",
+      "backend": "cpu",
+      "priority": 0,
+      "assets": ["python/cpu/pyproject.toml", "python/cpu/uv.lock", "python/cpu/main.py"],
+      "programs": [
+        {
+          "id": "application",
+          "role": "main",
+          "executable": "runtime/linux-x64/uv",
+          "args": ["run", "--locked", "--offline", "--project", "python/cpu", "python", "{root}/python/cpu/main.py"],
+          "cwd": "."
+        }
+      ]
+    }
+  ]
+}

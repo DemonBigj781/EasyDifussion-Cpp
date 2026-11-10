@@ -8,6 +8,7 @@ const SETTINGS_KEY = "user_settings_v2"
 const SETTINGS = {} // key=id. dict initialized in initSettings. { element, default, value, ignore }
 const SETTINGS_IDS_LIST = [
     "prompt",
+    "prompt_mode",
     "seed",
     "random_seed",
     "num_outputs_total",

@@ -4,16 +4,20 @@ This tree contains standalone executables for normalized DiffUser.cpp routes. A 
 
 ## xFormers test layout
 
-The xFormers suite has two complementary groups under `MultiTest/xformers/`:
+The xFormers suite has two groups under `MultiTest/xformers/`:
 
 - `cycle/` validates registration, capabilities, analytical results, rejected inputs, GQA/MQA head mapping, masks, ALiBi, soft-cap behavior, and repeated custom Common model load/forward/unload cycles.
-- `generate-image/` builds real CPU/CUDA image-generation programs around stable-diffusion.cpp. They generate one 512x512 image, request memory-efficient attention, and lock sampling to DDIM trailing with the Simple scheduler. The CUDA program additionally fails unless the native xFormers kernel actually launches.
+- `generate-image/` retains the historical stable-diffusion.cpp integration
+  harness. The current isolated engine snapshot no longer contains the
+  GGML-to-DiffUser adapters or CUDA observation hooks, so its CUDA generators
+  are not current build or end-to-end targets. The CPU generator is an engine
+  smoke program and does not exercise DiffUser Common.
 
-Build the four programs without running them:
+Build the current Common cycle programs without running them:
 
 ```sh
-make xformers-cpu xformers-cpu-gen
-make xformers-cuda xformers-cuda-gen
+make xformers-cpu
+make xformers-cuda
 ```
 
 Run the cycle programs:
@@ -29,7 +33,10 @@ Or build and run both cycle programs:
 make check-xformers
 ```
 
-The canonical cycle artifacts are `build/xformers-load-unload-cpu-test` and `build/xformers-load-unload-cuda-test`. The image-generation artifacts are `build/xformers-cpu-gen` and `build/xformers-cuda-gen`; they require `-m` and `-p` arguments and are documented in `MultiTest/xformers/generate-image/README.md`.
+The canonical cycle artifacts are `build/xformers-load-unload-cpu-test` and
+`build/xformers-load-unload-cuda-test`. The retained image harness and its
+historical options are documented in
+`MultiTest/xformers/generate-image/README.md`.
 
 The CUDA Common route requires an NVIDIA Pascal-or-newer device, CUDA
 development headers, `nvcc`, the CUDA runtime, and device access. It accepts
@@ -48,7 +55,9 @@ Detect programs use `make cpu`, `cuda`, `opencl`, `vulkan`, `opengl`, or
 Backend-specific test directories or blank files are reservations until an
 actual target selects them. This currently applies to Mesa/OpenGL/Vulkan
 load/unload and xFormers placeholders, Mesa/OpenGL Overflow directories, and
-the unwired Flash/Flex/Sage/Split `MultiTest` families.
+the unwired Flash/Sage/Split `MultiTest` families. CPU Flex has a public Common
+feature test under `Feature/Attention/Flex/Cpu`; build or run it with
+`make flex-cpu` or `make run-flex-cpu`.
 
 Load/unload programs read `MODELS/lifecycle-model.fixture` by default. Pass another model or binary payload as the first argument to exercise a larger local fixture.
 

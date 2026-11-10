@@ -1,28 +1,65 @@
-# 01 — Python 3.13 Migration
+# 01 — Python 3.13 and uv-Managed Environments
 
 ## Objective
-Move every Python-dependent EasyDifussion-Cpp workflow onto Python 3.13 before removing Python from core paths. This is a stabilization phase, not the final architecture.
+
+Maintain the main EasyDifussion-Cpp application on Python 3.13 as a lasting
+supported runtime. Python cannot be removed while preserving required features:
+several integrations use Python-only APIs without easy C++ alternatives. This
+work stabilizes retained Python support; it is not preparation for complete
+removal. Follow the [Python runtime policy](../python-runtime-policy.md).
+Prefer uv over manual venv/pip setup so application and worker dependencies are
+managed consistently and tested environments can be frozen and reproduced.
 
 ## Implementation
+
 1. Inventory every Python entry point in `ui/`, `scripts/`, plugins, installers, model tools, startup helpers, tests, and subprocess launchers.
-2. Inventory imported packages and mark each as: Python-3.13-ready, upgrade required, replacement required, or scheduled for native removal.
-3. Make the installer create one authoritative 3.13 environment and stop silently falling back to another system interpreter.
-4. Replace hard-coded interpreter paths with one runtime resolver. Preserve the virtual-environment path rather than resolving its symlink to the base interpreter.
-5. Add a readiness command that reports Python version plus missing/incompatible packages before the UI starts a dependent feature.
-6. Update tests to launch through the same interpreter resolver used in production.
-7. Once a Python subsystem gains a native replacement, remove its dependency from the 3.13 environment rather than leaving dead packages installed.
+2. Inventory imported packages and mark each as: Python-3.13-ready, upgrade required, isolated worker environment required, or candidate for a validated native replacement. Record required Python-only API consumers explicitly.
+3. Prefer uv for creating and syncing the authoritative 3.13 application environment. Declare dependencies in `pyproject.toml`, commit `uv.lock`, and pin the Python version. Give incompatible workers separate uv projects and locks; never silently fall back to a system interpreter.
+4. Replace hard-coded interpreter paths with an explicit resolver for the application and each worker environment. Preserve virtual-environment paths rather than resolving their symlinks to base interpreters.
+5. Add readiness checks that report each selected runtime's Python version and missing/incompatible packages before the UI starts a dependent feature.
+6. Update tests to launch through the same application/worker resolvers used in production.
+7. After validating a native replacement, remove only packages that have no remaining consumers in that environment. Retain dependencies used by training, plugins, model tools, or compatibility paths.
+8. Use locked installation/execution in development, installers, and CI. Support frozen deployments from validated lockfiles without dependency updates; make version upgrades explicit, reviewed lockfile changes.
+9. When freezing a controller into a distributable executable, build it from its locked uv environment and document any separate Python worker runtime. Packaging does not remove Python dependencies.
 
 ## Likely code areas
-`install.sh`, `start.sh`, `ui/easydiffusion/`, `ui/plugins/server/`, `scripts/`, and any subprocess code that launches `python` or `python3`.
+
+`install.sh`, `start.sh`, `ui/easydiffusion/`, `ui/plugins/server/`, `scripts/`,
+application/worker `pyproject.toml` and `uv.lock` files, and any subprocess code
+that launches Python or uv. Existing `.venv` directories may remain as
+uv-managed environments; this objective changes how they are managed.
 
 ## Dependencies / ordering
-Do this before complete Python removal. Native HF/LoRA conversion can proceed in parallel and should eventually eliminate its own Python package set.
+
+Maintain Python support alongside native development. Native HF/LoRA conversion
+can proceed in parallel, but only reduces dependencies for operations with
+validated native coverage. It does not eliminate Python or the package sets
+needed by other APIs and retained conversion paths.
 
 ## Failure behavior
-A missing 3.13 runtime must produce a clear readiness error. Do not silently run an older Python version because that creates environment-dependent bugs.
+
+A missing 3.13 application runtime must produce a clear readiness error. A worker
+must use its explicitly configured compatible environment and report when that
+environment is missing or incompatible. Do not substitute an arbitrary older
+system interpreter.
 
 ## Validation
-Test clean install, upgrade from an existing venv, model tools, plugins, API startup, and test suite on Python 3.13.
+
+Test clean install, upgrade from an existing venv, model tools, plugins, API
+startup, and the application test suite on Python 3.13. Validate worker
+environments independently, including their readiness checks and coexistence
+with the application environment.
+Check that a clean uv sync recreates the locked dependency set, that locked
+operations reject stale project/lock metadata, and that frozen deployments do
+not update dependencies. Verify any frozen executable with its declared worker
+environment.
 
 ## Complete when
-No supported Python workflow requires an older interpreter, the installer/readiness checks agree on one runtime, and unsupported packages are either replaced or explicitly documented.
+
+The application runs on its declared Python 3.13 environment, each supported
+worker has a declared compatible runtime, and installers, resolvers, and
+readiness checks agree. Required Python APIs remain available. No completion
+criterion requires removal of Python or forces incompatible workers into the
+application environment.
+The environments use the documented uv management path, with committed locks,
+declared interpreter versions, and reproducible frozen dependency sets.

@@ -13,6 +13,7 @@ from typing import List, Union
 
 from easydiffusion import app, task_manager
 from easydiffusion.backend_args import parse_backend_commandline_args
+from easydiffusion.prompt_interpreter import interpret_prompt, normalize_prompt_mode
 from ui.plugins.server import gallery, model_manager, package_manager, perchance
 from ui.plugins.server.tasks import RenderTask, FilterTask, VideoTask
 from easydiffusion.types import (
@@ -636,6 +637,14 @@ def render_internal(req: dict):
         output_format: OutputFormatData = OutputFormatData.parse_obj(req)
         save_data: SaveToDiskData = SaveToDiskData.parse_obj(req)
 
+        task_data.prompt_mode = normalize_prompt_mode(task_data.prompt_mode)
+        task_data.original_prompt = render_req.prompt
+        task_data.original_negative_prompt = render_req.negative_prompt
+        render_req.prompt = interpret_prompt(render_req.prompt, task_data.prompt_mode)
+        render_req.negative_prompt = interpret_prompt(
+            render_req.negative_prompt, task_data.prompt_mode
+        )
+
         # Overwrite user specified save path
         config = app.getConfig()
         if "force_save_path" in config:
@@ -667,6 +676,14 @@ def video_internal(req: dict):
         task_data = TaskData.parse_obj(req)
         models_data = ModelsData.parse_obj(req)
         output_format = OutputFormatData.parse_obj(req)
+
+        task_data.prompt_mode = normalize_prompt_mode(task_data.prompt_mode)
+        task_data.original_prompt = video_req.prompt
+        task_data.original_negative_prompt = video_req.negative_prompt
+        video_req.prompt = interpret_prompt(video_req.prompt, task_data.prompt_mode)
+        video_req.negative_prompt = interpret_prompt(
+            video_req.negative_prompt, task_data.prompt_mode
+        )
 
         if not models_data.model_paths.get("stable-diffusion"):
             raise ValueError("Select a native SVD, Wan, or LTX video checkpoint")
@@ -760,12 +777,17 @@ def stream_internal(task_id: int):
     return StreamingResponse(task.read_buffer_generator(), media_type="application/json")
 
 
-def _interrupt_active_backend():
+def _interrupt_active_backend(task=None):
     """Forward a UI stop immediately instead of waiting for a progress poll."""
     try:
         from easydiffusion import backend_manager, runtime
 
-        backend_manager.backend.stop_rendering(runtime.context)
+        task_context = getattr(task, "render_context", None) if task else None
+        contexts = [task_context] if task_context else ([] if task else runtime.get_contexts())
+        if getattr(backend_manager.backend, "SERIALIZE_MODEL_STATE", False):
+            contexts = contexts[:1]
+        for context in contexts:
+            backend_manager.backend.stop_rendering(context)
     except Exception as e:
         # The task's StopAsyncIteration flag remains authoritative, so a
         # backend that has already finished must not turn Stop into an error.
@@ -775,11 +797,14 @@ def _interrupt_active_backend():
 def stop_internal(task: int):
     if not task:
         if (
-            task_manager.current_state == task_manager.ServerStates.Online
+            (
+                task_manager.current_state == task_manager.ServerStates.Online
+                and not task_manager.has_pending_tasks()
+            )
             or task_manager.current_state == task_manager.ServerStates.Unavailable
         ):
             raise HTTPException(status_code=409, detail="Not currently running any tasks.")  # HTTP409 Conflict
-        task_manager.current_state_error = StopAsyncIteration("")
+        task_manager.stop_all_tasks()
         _interrupt_active_backend()
         return {"OK"}
     task_id = task
@@ -790,7 +815,7 @@ def stop_internal(task: int):
         raise HTTPException(status_code=409, detail=f"Task {task_id} is already stopped.")  # HTTP409 Conflict
     task.error = StopAsyncIteration(f"Task {task_id} stop requested.")
     if task.lock.locked():
-        _interrupt_active_backend()
+        _interrupt_active_backend(task)
     return {"OK"}
 
 
