@@ -125,7 +125,7 @@ static void image_print_stage(const char *stage, bool webgpu, bool succeeded,
 }
 
 static void image_usage(void) {
-    puts("Usage: image --model PATH --prompt TEXT --output PATH [OPTIONS]\n"
+    puts("Usage: image (--model PATH | --diffusion-model PATH) --prompt TEXT --output PATH [OPTIONS]\n"
          "  --backend cpu|webgpu   Compute backend (default: saved configuration)\n"
          "  --device NAME          auto, listed selector, or an available stable ID\n"
          "  --width N --height N   Multiples of 64, 64..4096 (default: 512)\n"
@@ -136,6 +136,10 @@ static void image_usage(void) {
          "  --negative-prompt TEXT  Negative conditioning (default: empty)\n"
          "  --sampler NAME        Native sampler (default: model default)\n"
          "  --scheduler NAME      Native scheduler (default: model default)\n"
+         "  --diffusion-model PATH  Separate diffusion weights instead of --model\n"
+         "  --clip-l PATH         Separate CLIP-L text encoder weights\n"
+         "  --clip-g PATH         Separate CLIP-G text encoder weights\n"
+         "  --t5xxl PATH          Separate T5 text encoder weights\n"
          "  --vae PATH            Optional separate VAE weights\n"
          "Saves one PNG. Model and output paths must be explicit.\n"
          "WebGPU uses the configured Vulkan provider and permits GGML CPU fallback\n"
@@ -234,7 +238,8 @@ int cosmo_image_generate(int argc, char **argv) {
     static const char *const names[] = {
         "--model", "--prompt", "--output", "--backend", "--width", "--height",
         "--steps", "--seed", "--threads", "--cfg-scale", "--negative-prompt",
-        "--sampler", "--scheduler", "--vae", "--device"
+        "--sampler", "--scheduler", "--vae", "--device",
+        "--diffusion-model", "--clip-l", "--clip-g", "--t5xxl"
     };
     bool seen[sizeof(names) / sizeof(names[0])] = {false};
     bool webgpu = !strcmp(cosmo_config_backend(), "webgpu");
@@ -308,32 +313,55 @@ int cosmo_image_generate(int argc, char **argv) {
                 if (!*value) goto bad_value;
                 requested_device = value;
                 break;
+            case 15: context_params.diffusion_model_path = value; break;
+            case 16: context_params.clip_l_path = value; break;
+            case 17: context_params.clip_g_path = value; break;
+            case 18: context_params.t5xxl_path = value; break;
         }
         continue;
 bad_value:
         fprintf(stderr, "image: invalid value for %s: %s\n", argv[i], value);
         return 2;
     }
-    if (!context_params.model_path || !*context_params.model_path || !seen[1] || !output || !*output ||
-        (context_params.vae_path && !*context_params.vae_path)) {
-        fputs("image: --model PATH, --prompt TEXT, and --output PATH are required\n", stderr);
+    if (seen[0] == seen[15] || !seen[1] || !output || !*output) {
+        fputs("image: exactly one of --model or --diffusion-model, --prompt, and --output are required\n", stderr);
         return 2;
+    }
+    const char *inputs[] = {
+        context_params.model_path, context_params.diffusion_model_path,
+        context_params.vae_path, context_params.clip_l_path,
+        context_params.clip_g_path, context_params.t5xxl_path
+    };
+    /* Defaults may be empty strings in the engine. Only explicitly supplied
+       paths are inputs; never silently discard an empty component option. */
+    const bool supplied[] = {seen[0], seen[15], seen[13], seen[16], seen[17], seen[18]};
+    for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); ++i) {
+        if (supplied[i] && (!inputs[i] || !*inputs[i])) {
+            fputs("image: model component paths must not be empty\n", stderr);
+            return 2;
+        }
     }
     if (strnlen(params.prompt, 1048577) > 1048576 || strnlen(params.negative_prompt, 1048577) > 1048576) {
         fputs("image: prompts must not exceed 1 MiB each\n", stderr);
         return 2;
     }
-    struct stat model_info, vae_info, output_info;
-    if (!image_input_file(context_params.model_path, &model_info) ||
-        (context_params.vae_path && !image_input_file(context_params.vae_path, &vae_info))) return 1;
-    if (!stat(output, &output_info) &&
-        (!S_ISREG(output_info.st_mode) || image_same_file(&model_info, &output_info) ||
-         (context_params.vae_path && image_same_file(&vae_info, &output_info)))) {
-        fputs("image: output must be a regular file distinct from model/VAE inputs\n", stderr);
+    struct stat output_info;
+    const bool output_exists = !stat(output, &output_info);
+    if (output_exists && !S_ISREG(output_info.st_mode)) {
+        fputs("image: output must be a regular file distinct from all model inputs\n", stderr);
         return 2;
     }
+    for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); ++i) {
+        struct stat input_info;
+        if (!supplied[i]) continue;
+        if (!image_input_file(inputs[i], &input_info)) return 1;
+        if (output_exists && image_same_file(&input_info, &output_info)) {
+            fputs("image: output must be a regular file distinct from all model inputs\n", stderr);
+            return 2;
+        }
+    }
 #ifdef COSMO_WEBGPU_BACKEND
-    if (cosmo_webgpu_initialize()) {
+    if (webgpu && cosmo_webgpu_initialize()) {
         fputs("image: WebGPU provider initialization failed\n", stderr);
         return 1;
     }

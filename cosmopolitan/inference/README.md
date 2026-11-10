@@ -57,6 +57,45 @@ file is accepted only if both size and SHA-256 match the pin. Model downloads
 and generated images are excluded from Git. Users can obtain compatible
 weights independently; Python is not required to run the executable.
 
+## Separate diffusion and text-encoder weights
+
+The low-level `image` command also accepts a split model. Supply exactly one
+of `--model` (a bundled checkpoint) or `--diffusion-model` (diffusion-only
+weights). Separate components are passed directly to the shared engine using
+`--clip-l`, `--clip-g`, `--t5xxl`, and `--vae`. A typical SD 1.5 split package is:
+
+```sh
+./easy-diffusion image --backend webgpu --device auto \
+  --diffusion-model /models/sd15_unet-Q4_K_M.gguf \
+  --clip-l /models/clip.safetensors --vae /models/vae.safetensors \
+  --prompt "A small lighthouse" --output /outputs/lighthouse.png \
+  --width 256 --height 256 --steps 2 --seed 42
+```
+
+Select the native Vulkan provider in the existing configuration for physical
+GPU testing; WebGPU alone does not imply physical GPU execution. Review the
+reported adapter/provider and execution counters. This interface does not
+change attention defaults, enable CUDA, or establish a performance result.
+The engine remains responsible for model-family and tensor compatibility.
+Components required by the chosen family must be supplied; the frontend does
+not invent missing weights or infer architecture from filenames.
+
+Every explicit component must be a nonempty regular file. The output cannot
+alias any input, including through hard links or symbolic links. Empty,
+duplicate, or conflicting options fail before context creation. The existing
+pinned inference verifier still covers its bundled checkpoint; it does not
+validate this split package automatically.
+
+Run the model-free frontend regression tests with:
+
+```sh
+python3 cosmopolitan/tests/test_image_components.py
+```
+
+These compile the real C frontend against its public headers and a stub engine,
+verify component argument forwarding and rejection paths, and deliberately stop
+before loading weights. They are not an inference or physical GPU validation.
+
 ## Command line
 
 On Linux, from the repository root after building:
