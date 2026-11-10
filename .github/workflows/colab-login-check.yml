@@ -1,0 +1,95 @@
+name: Colab credential login check
+run-name: Login-only check of stored COLAB_KEY
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: colab-credential-login-check
+  cancel-in-progress: false
+
+jobs:
+  login:
+    if: github.repository == 'DemonBigj781/EasyDifussion-Cpp' && github.ref == 'refs/heads/dev/colab-login-check'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Test login without retaining credentials
+        shell: bash
+        env:
+          COLAB_KEY: ${{ secrets.COLAB_KEY }}
+        run: |
+          set +x
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import shutil
+          import subprocess
+          import sys
+          import tempfile
+
+          # No repository checkout, external action, artifact, model, or GPU.
+          # The secret is sent only through stdin, never through argv or logs.
+          # Google's raw output may contain authentication data: never print it.
+          def check():
+              secret = os.environ.pop('COLAB_KEY', '')
+              if not secret:
+                  return 'COLAB_KEY is not available to this job.', 2
+              gcloud = shutil.which('gcloud')
+              if not gcloud:
+                  return 'Google Cloud CLI is not installed on this runner.', 2
+              os.umask(0o077)
+              with tempfile.TemporaryDirectory(prefix='colab-login-', dir=os.environ['RUNNER_TEMP']) as directory:
+                  root = Path(directory)
+                  config = root / 'gcloud'
+                  config.mkdir(mode=0o700)
+                  environment = {
+                      'PATH': os.environ['PATH'],
+                      'HOME': str(root),
+                      'TMPDIR': str(root),
+                      'LANG': 'C.UTF-8',
+                      'CLOUDSDK_CONFIG': str(config),
+                      'CLOUDSDK_CORE_DISABLE_USAGE_REPORTING': 'true',
+                  }
+                  try:
+                      result = subprocess.run(
+                          [gcloud, 'auth', 'application-default', 'login', '--no-launch-browser'],
+                          input=(secret + '\n').encode(),
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
+                          env=environment,
+                          timeout=90,
+                          check=False,
+                      )
+                  except subprocess.TimeoutExpired:
+                      return 'Login did not finish within 90 seconds.', 1
+                  except OSError:
+                      return 'The runner could not execute Google Cloud CLI.', 2
+                  finally:
+                      secret = None
+                  if result.returncode != 0:
+                      # Report fixed classifications only, never captured text.
+                      output = result.stdout.lower()
+                      if b'invalid_grant' in output:
+                          reason = 'Google rejected the authorization grant (invalid_grant).'
+                      elif b'invalid_request' in output:
+                          reason = 'Google rejected the authorization request (invalid_request).'
+                      elif b'eoferror' in output or b'eof when reading' in output:
+                          reason = 'Login required more interactive input.'
+                      else:
+                          reason = 'Google Cloud CLI reported a login failure.'
+                      return reason, 1
+                  adc = config / 'application_default_credentials.json'
+                  if not adc.is_file() or adc.stat().st_size == 0:
+                      return 'Login returned success but no ADC file was produced.', 1
+                  return 'Login succeeded; the temporary ADC file was removed. No runtime was started.', 0
+
+          try:
+              message, status = check()
+          except Exception:
+              message, status = 'Login check encountered an internal error; raw diagnostics are suppressed.', 2
+          print(message)
+          sys.exit(status)
+          PY
