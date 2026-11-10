@@ -2,14 +2,22 @@ import base64
 import io
 from pathlib import Path
 import unittest
+import sys
+import tempfile
+from types import ModuleType
 from unittest import mock
 
 from PIL import Image
 
-from ui.plugins.server.native_image_tools import native_image_tools
-
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "ui"))
+fake_app = ModuleType("easydiffusion.app")
+fake_app.ROOT_DIR = str(ROOT)
+fake_app.MODELS_DIR = str(ROOT / "models")
+sys.modules.setdefault("easydiffusion.app", fake_app)
+
+from ui.plugins.server.native_image_tools import native_image_tools
 
 
 def image_data_url(width=4, height=3):
@@ -59,7 +67,7 @@ class SamSegmentationContractTests(unittest.TestCase):
 
         def write_mask(command, timeout):
             output_path = command[command.index("--out") + 1]
-            Path(output_path).write_bytes(output.getvalue())
+            Path(str(output_path) + ".png").write_bytes(output.getvalue())
 
         with mock.patch.object(native_image_tools, "_sam_binary", return_value="/tmp/sam"), \
              mock.patch.object(native_image_tools, "_sam_model_path", return_value="/models/sam.bin"), \
@@ -70,6 +78,48 @@ class SamSegmentationContractTests(unittest.TestCase):
         self.assertEqual((result["width"], result["height"]), (4, 3))
         run_sam.assert_called_once()
         self.assertIn("-p", run_sam.call_args.args[0])
+
+    def test_cli_prefix_outputs_are_cleaned_up_and_missing_masks_reported(self):
+        for multimask, suffixes in ((False, [".png"]), (True, ["1.png", "2.png"]), (False, [])):
+            with self.subTest(multimask=multimask, suffixes=suffixes):
+                request = native_image_tools.SAMSegmentationRequest(
+                    image=image_data_url(), model="sam.bin", prompt_type="point",
+                    point={"x": 2, "y": 1}, multimask=multimask)
+                output = io.BytesIO()
+                Image.new("L", (4, 3), 255).save(output, format="PNG")
+                paths = []
+                def write_masks(command, timeout):
+                    prefix = Path(command[command.index("--out") + 1])
+                    paths.append(prefix.parent)
+                    for suffix in suffixes:
+                        Path(str(prefix) + suffix).write_bytes(output.getvalue())
+                with mock.patch.object(native_image_tools, "_sam_binary", return_value="/tmp/sam"), \
+                     mock.patch.object(native_image_tools, "_sam_model_path", return_value="/models/sam.bin"), \
+                     mock.patch.object(native_image_tools, "_run_sam", side_effect=write_masks):
+                    if suffixes:
+                        result = native_image_tools.segment_sam(request)
+                        if multimask:
+                            self.assertEqual(len(result["masks"]), 2)
+                            self.assertEqual(result["mask"], result["masks"][0])
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "produced no mask"):
+                            native_image_tools.segment_sam(request)
+                self.assertTrue(paths)
+                self.assertTrue(all(not path.exists() for path in paths))
+
+    def test_model_format_guard_uses_signature_not_extension(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "model.bin"
+            for header in (b"GGUF", b"PK\x03\x04", b"", b"bad!"):
+                path.write_bytes(header)
+                with self.subTest(header=header), self.assertRaisesRegex(ValueError, "converted legacy GGML"):
+                    native_image_tools._validate_sam_model_format(path)
+            path.write_bytes((0x67676D6C).to_bytes(4, "little"))
+            native_image_tools._validate_sam_model_format(path)
+
+    def test_default_sdkit_build_includes_sam_helper(self):
+        cmake = (ROOT / "source/sdkit3-port-source/CMakeLists.txt").read_text()
+        self.assertIn("add_dependencies(sdkit sam)", cmake)
 
     def test_server_imports_the_implementation_used_by_the_route(self):
         server = (ROOT / "ui/easydiffusion/server.py").read_text(encoding="utf-8")

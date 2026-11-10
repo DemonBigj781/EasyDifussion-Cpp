@@ -317,11 +317,27 @@ def _sam_model_path(model: str) -> Path:
     for model_dir in get_model_dirs("sam"):
         root = Path(os.path.realpath(model_dir))
         try:
-            if os.path.commonpath((str(root), str(candidate))) == str(root):
-                return candidate
+            contained = os.path.commonpath((str(root), str(candidate))) == str(root)
         except ValueError:
             continue
+        if contained:
+            _validate_sam_model_format(candidate)
+            return candidate
     raise ValueError("SAM model must be selected from a configured SAM model directory")
+
+
+def _validate_sam_model_format(path: Path) -> None:
+    # This CLI loads the original little-endian GGML SAM format, not GGUF or
+    # PyTorch checkpoints. Read only the signature, never the full weights.
+    with path.open("rb") as model:
+        magic = model.read(4)
+    if magic != (0x67676D6C).to_bytes(4, "little"):
+        raise ValueError(
+            "The bundled SAM helper requires a converted legacy GGML SAM model "
+            "(.bin). GGUF and PyTorch .pth checkpoints cannot be used directly. "
+            "Convert a supported SAM checkpoint with the bundled "
+            "ggml/examples/sam/convert-pth-to-ggml.py tool first."
+        )
 
 
 def _coordinate(value, name: str) -> float:
@@ -380,43 +396,48 @@ def segment_sam(request: SAMSegmentationRequest) -> Dict[str, Any]:
     binary = _sam_binary()
     model = _sam_model_path(request.model)
     prompt_arguments = _sam_prompt_arguments(request, width, height)
-    source_path = None
-    output_path = None
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as source:
-            source.write(image)
-            source_path = source.name
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as output:
-            output_path = output.name
+    # The bundled CLI treats --out as a prefix, not a PNG filename.
+    # Keep every output (including filtered multi-mask results) in one private
+    # directory so successful calls and failures both clean up completely.
+    with tempfile.TemporaryDirectory(prefix="ed-sam-") as temporary:
+        root = Path(temporary)
+        source_path = root / "input.png"
+        output_prefix = root / "mask"
+        source_path.write_bytes(image)
         _run_sam(
             [
                 binary,
                 "--model", model,
                 "--inp", source_path,
-                "--out", output_path,
+                "--out", output_prefix,
                 *prompt_arguments,
             ],
             timeout=300,
         )
-        with open(output_path, "rb") as output:
-            mask = output.read()
-        if not mask:
-            raise RuntimeError("SAM helper returned an empty mask")
-        try:
-            with Image.open(BytesIO(mask)) as opened:
-                if opened.format != "PNG":
-                    raise RuntimeError("SAM helper returned a non-PNG mask")
-                opened.verify()
-        except (OSError, ValueError) as exc:
-            raise RuntimeError("SAM helper returned an invalid PNG mask") from exc
-        return {"mask": _png_data_url(mask), "width": width, "height": height}
-    finally:
-        for path in (source_path, output_path):
-            if path:
-                try:
-                    os.unlink(path)
-                except FileNotFoundError:
-                    pass
+        outputs = ([root / f"mask{index}.png" for index in range(3)]
+                   if request.multimask else [root / "mask.png"])
+        outputs = [path for path in outputs if path.is_file()]
+        if not outputs:
+            raise RuntimeError("SAM helper produced no mask; the prompt may have been filtered by its quality thresholds")
+        masks = []
+        for output_path in outputs:
+            mask = output_path.read_bytes()
+            if not mask:
+                raise RuntimeError("SAM helper returned an empty mask")
+            try:
+                with Image.open(BytesIO(mask)) as opened:
+                    if opened.format != "PNG":
+                        raise RuntimeError("SAM helper returned a non-PNG mask")
+                    if opened.size != (width, height):
+                        raise RuntimeError("SAM helper returned a mask with incorrect dimensions")
+                    opened.verify()
+            except (OSError, ValueError) as exc:
+                raise RuntimeError("SAM helper returned an invalid PNG mask") from exc
+            masks.append(_png_data_url(mask))
+        result = {"mask": masks[0], "width": width, "height": height}
+        if request.multimask:
+            result["masks"] = masks
+        return result
 
 
 def _detector_model(kind: str) -> Path:

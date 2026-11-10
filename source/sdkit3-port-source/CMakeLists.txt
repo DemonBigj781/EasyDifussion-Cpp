@@ -106,6 +106,8 @@ target_include_directories(sam PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/src
     ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
 target_link_libraries(sam PRIVATE ggml Threads::Threads)
+# The default sdkit build/deploy must include the helper used by /sam/segment.
+add_dependencies(sdkit sam)
 if(UNIX AND NOT APPLE)
     set_target_properties(sam PROPERTIES BUILD_RPATH "$ORIGIN:$ORIGIN/../lib" INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
 endif()
