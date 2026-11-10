@@ -5,6 +5,7 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 
 static void require(bool ok, const char* message) {
     if (!ok) throw std::runtime_error(message);
@@ -60,6 +61,25 @@ int main() {
         } catch (const std::runtime_error&) {}
         require(decoded_init && rejected_mask, "real malformed-mask fixture did not execute");
         require(!request.init_image.data && !request.mask_image.data, "real malformed mask retained init image");
+        // Raw pixels fit int, but stb's ring or total workspace would overflow.
+        auto scratch_source = createSolidImage(2, 2, 3, 127);
+        auto* scratch_original = scratch_source.data;
+        require(!resizeImage(scratch_source, 100000000, 1), "overflowing ring workspace accepted");
+        require(scratch_source.data == scratch_original && scratch_source.width == 2,
+                "workspace rejection changed ownership");
+        freeImage(scratch_source);
+        auto total_source = createSolidImage(2, 2, 1, 127);
+        require(!resizeImage(total_source, 40000000, 1), "overflowing workspace sum accepted");
+        freeImage(total_source);
+        for (int channels : {1, 2, 3, 4}) {
+            auto mixed = createSolidImage(8, 4, channels, 127);
+            for (const auto dimensions : {std::pair<int, int>{16, 2}, {1, 1}, {3, 7}, {1, 4}}) {
+                require(resizeImage(mixed, dimensions.first, dimensions.second), "ordinary mixed-scale resize rejected");
+                for (size_t i = 0; i < static_cast<size_t>(mixed.width) * mixed.height * mixed.channel; ++i)
+                    require(mixed.data[i] == 127, "mixed-scale resize changed solid pixels");
+            }
+            freeImage(mixed);
+        }
         uint8_t pixel = 0;
         for (auto invalid : {sd_image_t{std::numeric_limits<uint32_t>::max(), 1, 3, &pixel},
                              sd_image_t{65536, 65536, 4, &pixel}, sd_image_t{1, 1, 5, &pixel},
@@ -68,6 +88,9 @@ int main() {
             require(imageToBase64(invalid).empty(), "invalid PNG descriptor accepted");
             require(invalid.data == &pixel, "invalid source was freed");
         }
+        sd_image_t extreme_downsample{1, 1000000000, 1, &pixel};
+        require(!resizeImage(extreme_downsample, 1, 1), "unsafe filter-width cast accepted");
+        require(extreme_downsample.data == &pixel, "rejected downsample released source");
         // The pixel bytes fit int, but PNG's extra filter byte per row does not.
         sd_image_t png_overflow{1, static_cast<uint32_t>(std::numeric_limits<int>::max()), 1, &pixel};
         require(imageToBase64(png_overflow).empty(), "PNG row-filter arithmetic overflow accepted");

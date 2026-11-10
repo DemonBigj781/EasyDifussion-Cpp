@@ -49,7 +49,8 @@ coefficient and ring-buffer scratch allocations with signed ints; raw pixel
 bounds do not prove those calculations safe for extreme aspect/scale ratios.
 PNG filter scoring and compression output arithmetic have their own limits.
 These pre-existing vendor-internal issues are not fixed by this raw-buffer
-increment. Do not treat INT_MAX raw bytes as a guaranteed supported image size.
+increment. The later native-resize-workspace-2026-11-10.md increment adds
+checked resize scratch sizing; the PNG internals remain separate work. Do not treat INT_MAX raw bytes as a guaranteed supported image size.
 
 Validation on 2026-11-10: full CPU application build succeeded; eight native
 contracts passed in Release and ASan/UBSan, including the real image operations.

@@ -2,6 +2,8 @@
 
 #include <cctype>
 #include <limits>
+#include <cmath>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,64 @@ bool checked_image_bytes(uint32_t width, uint32_t height, uint32_t channels, siz
     const size_t stride = static_cast<size_t>(width) * channels;
     if (height > limit / stride) return false;
     bytes = stride * height;
+    return true;
+}
+
+// Mirror the bundled stb default-filter workspace layout in checked arithmetic.
+// Raw pixel bounds alone do not cover coefficient, decode or ring buffers.
+// Keep this beside the included implementation and review when stb is updated.
+bool checked_resize_workspace(int input_w, int input_h, int output_w, int output_h, int channels) {
+    const uint64_t limit = static_cast<uint64_t>(std::numeric_limits<int>::max());
+    struct Axis {
+        uint64_t pixels;
+        uint64_t coefficients;
+        uint64_t contributors;
+        bool up;
+    };
+    auto axis = [limit](int input, int output, Axis& result) {
+        const float scale = static_cast<float>(output) / input;
+        result.up = scale > 1;
+        const auto filter = result.up ? STBIR_DEFAULT_FILTER_UPSAMPLE : STBIR_DEFAULT_FILTER_DOWNSAMPLE;
+        const float support = stbir__filter_info_table[filter].support(result.up ? 1 / scale : scale);
+        // Preserve stb's float arithmetic before ceil, but check before casts.
+        const double pixels = std::ceil(result.up ? support * 2 : support * 2 / scale);
+        const double coefficients = std::ceil(support * 2);
+        if (!std::isfinite(pixels) || !std::isfinite(coefficients) ||
+            pixels < 1 || coefficients < 1 || pixels > limit || coefficients > limit) return false;
+        result.pixels = static_cast<uint64_t>(pixels);
+        result.coefficients = static_cast<uint64_t>(coefficients);
+        result.contributors = result.up ? static_cast<uint64_t>(output)
+            : static_cast<uint64_t>(input) + (result.pixels / 2) * 2;
+        return result.contributors <= limit;
+    };
+    Axis horizontal{}, vertical{};
+    if (!axis(input_w, output_w, horizontal) || !axis(input_h, output_h, vertical)) return false;
+    auto product = [limit](uint64_t& value, std::initializer_list<uint64_t> factors) {
+        value = 1;
+        for (auto factor : factors) {
+            if (factor && value > limit / factor) return false;
+            value *= factor;
+        }
+        return true;
+    };
+    uint64_t sizes[8]{};
+    if (!product(sizes[0], {horizontal.contributors, sizeof(stbir__contributors)}) ||
+        !product(sizes[1], {horizontal.contributors, horizontal.coefficients, sizeof(float)}) ||
+        !product(sizes[2], {vertical.contributors, sizeof(stbir__contributors)}) ||
+        !product(sizes[3], {vertical.contributors, vertical.coefficients, sizeof(float)}) ||
+        !product(sizes[4], {static_cast<uint64_t>(input_w) + (horizontal.pixels / 2) * 2,
+                            static_cast<uint64_t>(channels), sizeof(float)}) ||
+        !product(sizes[5], {static_cast<uint64_t>(output_w), static_cast<uint64_t>(channels), sizeof(float)}) ||
+        !product(sizes[6], {static_cast<uint64_t>(output_w), static_cast<uint64_t>(channels),
+                            vertical.pixels, sizeof(float)}) ||
+        !product(sizes[7], {static_cast<uint64_t>(output_w), static_cast<uint64_t>(channels), sizeof(float)})) return false;
+    // stb computes both fields before zeroing the unused horizontal/encode one.
+    sizes[vertical.up ? 5 : 7] = 0;
+    uint64_t total = 0;
+    for (auto size : sizes) {
+        if (total > limit - size) return false;
+        total += size;
+    }
     return true;
 }
 
@@ -256,6 +316,12 @@ bool resizeImage(sd_image_t& image, int target_width, int target_height, bool cl
     if (image.width == final_width && image.height == final_height) {
         // Already at target size
         return true;
+    }
+
+    if (!checked_resize_workspace(static_cast<int>(image.width), static_cast<int>(image.height),
+                                  final_width, final_height, static_cast<int>(image.channel))) {
+        LOG_ERROR("Resize workspace exceeds the supported integer range");
+        return false;
     }
 
     // Allocate new buffer for resized image
