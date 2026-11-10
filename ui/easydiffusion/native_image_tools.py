@@ -283,13 +283,25 @@ def _backend_tool(name: str, override: str) -> Path:
 
 
 def _detector_model(kind: str) -> Path:
+    normalized = (kind or "objects").strip().lower().replace("-", "_")
+    aliases = {
+        "object": "objects",
+        "objects": "objects",
+        "object_detection": "objects",
+        "coco": "objects",
+        "yolo": "objects",
+        "face": "face",
+        "faces": "face",
+        "face_detection": "face",
+    }
+    canonical = aliases.get(normalized)
+    if canonical is None:
+        raise ValueError("model must be 'objects' or 'face'")
     filenames = {
         "objects": "yolov8s.torchscript",
         "face": "face_yolov8n.torchscript",
     }
-    if kind not in filenames:
-        raise ValueError("model must be 'objects' or 'face'")
-    filename = filenames[kind]
+    filename = filenames[canonical]
     roots = []
     if os.getenv("SDKIT_VISION_MODELS"):
         roots.append(Path(os.environ["SDKIT_VISION_MODELS"]))
@@ -298,6 +310,8 @@ def _detector_model(kind: str) -> Path:
             Path(app.MODELS_DIR) / "Ultralytics" / "cpp",
             Path(app.MODELS_DIR) / "ultralytics-cpp",
             Path(app.ROOT_DIR) / "models" / "ultralytics-cpp",
+            Path(app.ROOT_DIR).parent / "easy-diffusion-offline" / "models" / "ultralytics-cpp",
+            Path(app.ROOT_DIR).parent / "easy-diffusion-offline" / "models" / "Ultralytics" / "cpp",
         ]
     )
     for root in roots:

@@ -24,6 +24,7 @@
     let imageBrushPreview
     let imageCanvas
     const configuredCanvases = new WeakSet()
+    window.inpaintColorGuidanceImage = window.inpaintColorGuidanceImage || null
 
     function getEditorForCanvas(canvas) {
         return canvas.closest("#image-inpainter") ? imageInpainter : imageEditor
@@ -82,28 +83,101 @@
     }
 
     // The stock editor opens immediately while its background image is still
-    // being copied by an asynchronous Image.onload callback.  That long-lived
-    // race is what occasionally presents a completely white Draw canvas.  Use
+    // being copied by an asynchronous Image.onload callback. That long-lived
+    // race is what occasionally presents a completely white Draw canvas. Use
     // the already-decoded preview as the source and paint it synchronously
     // before showing the editor.
-    document.getElementById("init_image_button_draw").addEventListener("click", (event) => {
-        if (!initImagePreviewContainer.classList.contains("has-image") || !initImagePreview.naturalWidth) {
+    function decodePreviewImage() {
+        if (!initImagePreview.src) return Promise.resolve(null)
+        if (initImagePreview.complete && initImagePreview.naturalWidth && initImagePreview.naturalHeight) {
+            return Promise.resolve(initImagePreview)
+        }
+        return new Promise((resolve) => {
+            const source = new Image()
+            source.onload = () => resolve(source)
+            source.onerror = () => resolve(null)
+            source.src = initImagePreview.src
+        })
+    }
+
+    function paintEditorBackground(editor, source) {
+        const width = source.naturalWidth || source.width
+        const height = source.naturalHeight || source.height
+        editor.setSize(width, height)
+        editor.layers.background.ctx.clearRect(0, 0, width, height)
+        editor.layers.background.ctx.drawImage(source, 0, 0, width, height)
+        editor.layers.drawing.ctx.clearRect(0, 0, width, height)
+        return { width, height }
+    }
+
+    async function openDrawEditor(event) {
+        const source = initImagePreviewContainer.classList.contains("has-image") ? await decodePreviewImage() : null
+        if (!source) {
             setupCanvas('#image-editor')
             return
         }
         event.preventDefault()
         event.stopImmediatePropagation()
-        const width = initImagePreview.naturalWidth
-        const height = initImagePreview.naturalHeight
-        imageEditor.setSize(width, height)
-        imageEditor.layers.background.ctx.clearRect(0, 0, width, height)
-        imageEditor.layers.background.ctx.drawImage(initImagePreview, 0, 0, width, height)
+        paintEditorBackground(imageEditor, source)
         setupCanvas('#image-editor')
         imageEditor.show()
+    }
+
+    async function openColorGuideEditor(event) {
+        const source = initImagePreviewContainer.classList.contains("has-image") ? await decodePreviewImage() : null
+        if (!source) throw new Error("Choose an initial image first.")
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        paintEditorBackground(imageEditor, source)
+        imageEditor.colorGuidanceMode = true
+        setupCanvas('#image-editor')
+        imageEditor.show()
+    }
+
+    const originalImageEditorSaveImage = imageEditor.saveImage.bind(imageEditor)
+    imageEditor.saveImage = function saveImageWithColorGuidance() {
+        if (!this.colorGuidanceMode) {
+            originalImageEditorSaveImage()
+            return
+        }
+        const pixels = this.layers.drawing.ctx.getImageData(0, 0, this.width, this.height).data
+        const hasGuidance = pixels.some((channel) => channel !== 0)
+        window.inpaintColorGuidanceImage = hasGuidance ? this.layers.drawing.canvas.toDataURL("image/png") : null
+        this.colorGuidanceMode = false
+        document.dispatchEvent(new CustomEvent("inpaint-color-guidance-change", { detail: { hasGuidance } }))
+        this.hide()
+    }
+
+    document.getElementById("init_image_button_draw").addEventListener("click", (event) => {
+        openDrawEditor(event).catch((error) => console.error("Could not open draw editor", error))
+    }, true)
+
+    const colorGuideButton = document.createElement("button")
+    colorGuideButton.id = "init_image_button_color_guide"
+    colorGuideButton.className = "secondaryButton"
+    colorGuideButton.type = "button"
+    colorGuideButton.title = "Paint optional color guidance for inpaint; brush opacity controls guidance strength"
+    colorGuideButton.innerHTML = '<i class="fa-solid fa-palette"></i> Color guide'
+    document.getElementById("init_image_buttons").appendChild(colorGuideButton)
+    colorGuideButton.addEventListener("click", (event) => {
+        openColorGuideEditor(event).catch((error) => console.error("Could not open color guide editor", error))
     }, true)
 
     document.getElementById("init_image_button_inpaint").addEventListener("click", () => {
         setupCanvas('#image-inpainter')
+    })
+
+    initImagePreview.addEventListener("load", () => {
+        window.inpaintColorGuidanceImage = null
+        document.dispatchEvent(new CustomEvent("inpaint-color-guidance-change", { detail: { hasGuidance: false } }))
+    })
+
+    PLUGINS.TASK_BUILD.push(({ reqBody }) => {
+        if (window.inpaintColorGuidanceImage) {
+            reqBody.inpaint_color_guidance = window.inpaintColorGuidanceImage
+        } else {
+            delete reqBody.inpaint_color_guidance
+        }
     })
 
     // The dedicated editor tab can be opened without either legacy button.
@@ -352,7 +426,7 @@
             }
         })
         activeTags = []
-        document.dispatchEvent(new Event('refreshImageModifiers')) // notify the 
+        document.dispatchEvent(new Event('refreshImageModifiers')) // notify the
     }
 
     /* PNG METADATA EXTRACTION */
@@ -551,6 +625,40 @@
             value.textContent = threshold.value
             localStorage.setItem("inpainting_magic_wand_threshold", threshold.value)
         })
+
+        const invertControls = document.createElement("section")
+        invertControls.className = "image_editor_invert_selection"
+        const title = document.createElement("h4")
+        title.textContent = "Selection"
+        const invertButton = document.createElement("button")
+        invertButton.id = "inpainting-invert-selection"
+        invertButton.className = "image-editor-button button"
+        invertButton.type = "button"
+        invertButton.innerHTML = '<i class="fa-solid fa-mask"></i>Invert selection'
+        invertControls.append(title, invertButton)
+        imageInpainter.popup.querySelector(".editor-controls-left").appendChild(invertControls)
+        if (!IMAGE_EDITOR_ACTIONS.some((action) => action.id === "invert_selection")) {
+            IMAGE_EDITOR_ACTIONS.push({
+                id: "invert_selection",
+                name: "Invert selection",
+                icon: "fa-solid fa-mask",
+                trackHistory: true,
+                handler: (editor) => {
+                    const pixels = editor.layers.drawing.ctx.getImageData(0, 0, editor.width, editor.height)
+                    for (let index = 0; index < pixels.data.length; index += 4) {
+                        pixels.data[index] = 255 - pixels.data[index]
+                        pixels.data[index + 1] = 255 - pixels.data[index + 1]
+                        pixels.data[index + 2] = 255 - pixels.data[index + 2]
+                        pixels.data[index + 3] = 255
+                    }
+                    editor.layers.drawing.ctx.putImageData(pixels, 0, 0)
+                    maskSetting.checked = true
+                    maskSetting.dispatchEvent(new Event("change"))
+                    editor.setBrush()
+                },
+            })
+        }
+        invertButton.addEventListener("click", () => imageInpainter.runAction("invert_selection"))
     }
 
     installMagicWand()
