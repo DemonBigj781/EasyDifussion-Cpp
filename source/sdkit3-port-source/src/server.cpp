@@ -807,6 +807,7 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
             if (json_body.has("mask")) {
                 params.mask_base64 = std::string(json_body["mask"].s());
             }
+            params.inpainting_mask_invert = parse_mask_invert(json_body);
             params.mask_blur = json_body.has("mask_blur") ? static_cast<float>(json_body["mask_blur"].d()) : 0.0f;
             params.strength = json_body.has("denoising_strength") ? json_body["denoising_strength"].d() : 0.75f;
         }
@@ -963,7 +964,10 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
         info_json["steps"] = params.steps;
         info_json["cfg_scale"] = params.cfg_scale;
         if (params.distilled_cfg_scale) info_json["distilled_cfg_scale"] = *params.distilled_cfg_scale;
-        if (is_img2img) info_json["mask_blur"] = params.mask_blur;
+        if (is_img2img) {
+            info_json["mask_blur"] = params.mask_blur;
+            info_json["inpainting_mask_invert"] = params.inpainting_mask_invert;
+        }
         info_json["seed"] = params.seed;
         info_json["width"] = params.width;
         info_json["height"] = params.height;

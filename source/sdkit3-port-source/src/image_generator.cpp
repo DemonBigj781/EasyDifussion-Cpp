@@ -816,37 +816,8 @@ sd_image_t ImageGenerator::createInitImage(const ImageGenerationParams& params) 
 }
 
 sd_image_t ImageGenerator::createMaskImage(const ImageGenerationParams& params) {
-    sd_image_t mask_image = {0, 0, 0, nullptr};
-
-    if (params.mask_base64.empty()) {
-        // Create a default mask for img2img (all white = no masking)
-        mask_image = createSolidImage(params.width, params.height, 1, 255);
-        if (!mask_image.data) {
-            throw std::runtime_error("Failed to allocate mask image: invalid dimensions or insufficient memory");
-        }
-
-        return mask_image;
-    }
-
-    // Decode provided mask
-    mask_image = base64ToImage(params.mask_base64, 1);
-    if (!mask_image.data) {
-        throw std::runtime_error("Failed to decode mask image");
-    }
-
-    // Resize mask to match init image dimensions if needed
-    if (mask_image.width != params.width || mask_image.height != params.height) {
-        if (!resizeImage(mask_image, params.width, params.height, true)) {
-            freeImage(mask_image);
-            throw std::runtime_error("Failed to resize mask image");
-        }
-    }
-
-    if (!blurMaskImage(mask_image, params.mask_blur)) {
-        freeImage(mask_image);
-        throw std::runtime_error("Failed to blur mask image");
-    }
-    return mask_image;
+    return prepareMaskImage(params.mask_base64, params.width, params.height,
+                            params.mask_blur, params.inpainting_mask_invert);
 }
 
 sd_image_t ImageGenerator::createControlImage(const ImageGenerationParams& params) {

@@ -22,6 +22,11 @@ constexpr float kMaxMaskBlur = 64.0f;
 // Requires a one-channel image; returns false without changing pixels on failure.
 bool blurMaskImage(sd_image_t& image, float sigma);
 
+// Production mask preparation; caller owns returned image. Throws on decode/resize/blur failure.
+// Inversion applies only to a supplied mask, after resize and before blur.
+sd_image_t prepareMaskImage(const std::string& encoded_mask, int width, int height,
+                            float sigma = 0.0f, bool invert = false);
+
 // Image manipulation
 bool resizeImage(sd_image_t& image, int target_width, int target_height, bool clamp_to_8 = false);
 

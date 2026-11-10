@@ -12,6 +12,44 @@ static void require(bool ok, const char* message) {
 }
 int main() {
     try {
+        // Exercise the same encoded-mask path called by ImageGenerator, without a model.
+        auto fixture = createSolidImage(4, 4, 1, 0);
+        for (size_t i = 0; i < 16; ++i) fixture.data[i] = (i % 4 < 2) ? 255 : 0;
+        const auto fixture_png = imageToBase64(fixture);
+        freeImage(fixture);
+        auto normal = prepareMaskImage(fixture_png, 8, 8);
+        auto inverted = prepareMaskImage(fixture_png, 8, 8, 0, true);
+        require(normal.width == 8 && normal.height == 8 && normal.channel == 1,
+                "production mask did not decode and resize to grayscale");
+        for (size_t i = 0; i < 64; ++i)
+            require(inverted.data[i] == 255 - normal.data[i], "production inversion changed mask convention");
+        // Independent expected sequence locks down resize -> invert -> blur ordering.
+        auto expected_mask = base64ToImage(fixture_png, 1);
+        require(resizeImage(expected_mask, 8, 8, true), "expected_mask mask resize failed");
+        for (size_t i = 0; i < 64; ++i) expected_mask.data[i] = 255 - expected_mask.data[i];
+        require(blurMaskImage(expected_mask, 1), "expected_mask mask blur failed");
+        auto prepared = prepareMaskImage(fixture_png, 8, 8, 1, true);
+        require(std::memcmp(expected_mask.data, prepared.data, 64) == 0, "production mask preparation order changed");
+        require(prepared.data[3] > 0 && prepared.data[3] < 255, "production mask edge was not softened");
+        freeImage(normal); freeImage(inverted); freeImage(expected_mask); freeImage(prepared);
+        auto default_mask = prepareMaskImage("", 8, 8, 4, true);
+        for (size_t i = 0; i < 64; ++i) require(default_mask.data[i] == 255, "inversion changed absent-mask behavior");
+        freeImage(default_mask);
+        auto white = createSolidImage(8, 8, 1, 255);
+        const auto white_png = imageToBase64(white);
+        freeImage(white);
+        auto black = prepareMaskImage(white_png, 8, 8, 4, true);
+        for (size_t i = 0; i < 64; ++i) require(black.data[i] == 0, "explicit white mask was not inverted");
+        freeImage(black);
+        for (int failure = 0; failure < 3; ++failure) {
+            bool rejected = false;
+            try {
+                auto invalid = prepareMaskImage(failure == 0 ? "invalid-mask" : fixture_png,
+                                                failure == 1 ? -1 : 8, 8, failure == 2 ? 65 : 0, true);
+                freeImage(invalid);
+            } catch (const std::runtime_error&) { rejected = true; }
+            require(rejected, "production mask failure did not report an error");
+        }
         for (uint8_t value : {0, 127, 255}) {
             auto mask = createSolidImage(5, 3, 1, value);
             auto* original = mask.data;

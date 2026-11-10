@@ -69,7 +69,8 @@ class PromptPreflightTests(unittest.TestCase):
     def test_invalid_generation_options_fail_before_task_creation(self):
         cases = [("distilled_cfg_scale", value) for value in (None, "3.5", True, 1e100)]
         for route in ("txt2img", "img2img"):
-            route_cases = cases + ([("mask_blur", value) for value in (-1, 65, None, "4", True)]
+            route_cases = cases + ([("mask_blur", value) for value in (-1, 65, None, "4", True)] +
+                                   [("inpainting_mask_invert", value) for value in (None, "1", 0.5)]
                                    if route == "img2img" else [])
             for index, (field, value) in enumerate(route_cases):
                 task = f"options-{route}-{index}"

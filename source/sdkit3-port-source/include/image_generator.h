@@ -42,6 +42,7 @@ struct ImageGenerationParams {
     std::string init_image_base64;
     std::string mask_base64;
     float mask_blur = 0.0f;
+    bool inpainting_mask_invert = false;
     float strength = 0.75f;
 
     // ControlNet specific

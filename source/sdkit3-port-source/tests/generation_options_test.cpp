@@ -39,6 +39,19 @@ int main() {
             require(!validate_generation_options(crow::json::load(json), true).empty(), "bad mask blur accepted");
             require(validate_generation_options(crow::json::load(json), false).empty(), "unused mask field changed txt2img/video compatibility");
         }
+        for (const auto* json : {"{}", "{\"inpainting_mask_invert\":0}", "{\"inpainting_mask_invert\":false}"}) {
+            const auto body = crow::json::load(json);
+            require(validate_generation_options(body, true).empty() && !parse_mask_invert(body), "default inversion changed");
+        }
+        for (const auto* json : {"{\"inpainting_mask_invert\":1}", "{\"inpainting_mask_invert\":-2}", "{\"inpainting_mask_invert\":true}"}) {
+            const auto body = crow::json::load(json);
+            require(validate_generation_options(body, true).empty() && parse_mask_invert(body), "nonzero inversion lost");
+        }
+        for (const auto* json : {"{\"inpainting_mask_invert\":null}", "{\"inpainting_mask_invert\":\"1\"}", "{\"inpainting_mask_invert\":0.5}"}) {
+            const auto body = crow::json::load(json);
+            require(!validate_generation_options(body, true).empty(), "invalid inversion accepted");
+            require(validate_generation_options(body, false).empty(), "unused inversion changed txt2img/video");
+        }
         std::cout << "Guidance forwarding, native defaults, and mask request contracts passed\n";
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

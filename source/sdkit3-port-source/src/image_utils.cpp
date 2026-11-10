@@ -400,3 +400,42 @@ bool blurMaskImage(sd_image_t& image, float sigma) {
         return false;
     }
 }
+
+sd_image_t prepareMaskImage(const std::string& encoded_mask, int width, int height,
+                            float sigma, bool invert) {
+    sd_image_t mask_image = {0, 0, 0, nullptr};
+
+    if (encoded_mask.empty()) {
+        // Create a default mask for img2img (all white = no masking)
+        mask_image = createSolidImage(width, height, 1, 255);
+        if (!mask_image.data) {
+            throw std::runtime_error("Failed to allocate mask image: invalid dimensions or insufficient memory");
+        }
+
+        return mask_image;
+    }
+
+    // Decode provided mask
+    mask_image = base64ToImage(encoded_mask, 1);
+    if (!mask_image.data) {
+        throw std::runtime_error("Failed to decode mask image");
+    }
+
+    // Resize mask to match init image dimensions if needed
+    if (mask_image.width != width || mask_image.height != height) {
+        if (!resizeImage(mask_image, width, height, true)) {
+            freeImage(mask_image);
+            throw std::runtime_error("Failed to resize mask image");
+        }
+    }
+
+    if (invert) {
+        const size_t pixels = static_cast<size_t>(mask_image.width) * mask_image.height;
+        for (size_t i = 0; i < pixels; ++i) mask_image.data[i] = 255 - mask_image.data[i];
+    }
+    if (!blurMaskImage(mask_image, sigma)) {
+        freeImage(mask_image);
+        throw std::runtime_error("Failed to blur mask image");
+    }
+    return mask_image;
+}
