@@ -393,3 +393,12 @@ if(SDKIT_BUILD_WD14_TAGGER)
                 "$<TARGET_FILE_DIR:sdkit-wd14-tagger>/libonnxruntime.so.1")
     endif()
 endif()
+
+# Experimental ownership adapter, off by default. Reuses this build's CPU GGML
+# allocator; does not replace SDKit model/inference ownership.
+option(SDKIT_BUILD_THEORY_CPU_RESOURCES "Build isolated Theory GGML CPU resource contract" OFF)
+if(SDKIT_BUILD_THEORY_CPU_RESOURCES)
+    enable_testing()
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../DiffUser.cpp"
+                     "${CMAKE_CURRENT_BINARY_DIR}/theory-cpu-resources")
+endif()

@@ -1,8 +1,9 @@
 # Experimental Theory CPU resource contract
 
-This is a selective source import from Theory commit
-4755b7abe48b49207e33bbff786dc3e2a7032491. It is deliberately **not connected**
-to the application build or any inference backend. See
+This began as a selective source import from Theory commit
+4755b7abe48b49207e33bbff786dc3e2a7032491. It remains outside production inference. An opt-in
+SDKIT_BUILD_THEORY_CPU_RESOURCES target now tests the facade against the existing
+GGML CPU allocator; default builds are unchanged. See
 ../../docs/integration/theory-lifecycle-source.json for the original source hashes and explicit integrated-file overrides.
 
 The admitted slice covers Common dispatch keyed by backend and resource type,
@@ -30,12 +31,16 @@ guessing an allocator in Common.
 Before production admission:
 - Migrate consumers to the facade; raw Common descriptors remain internal-style
   contracts, not safe copyable ownership objects for application callers.
-- Define module lifetime and plugin admission. Registered implementations and
-  rollback callbacks currently live for the process lifetime.
-- Require allocator-valid pointers, strong exception safety and truthful unload
-  status from every translation.
+- Dynamic callbacks must supply a module guard; immutable registrations retain
+  it. Hot unload is not supported. Real plugin admission remains unimplemented.
+- Translations must publish provisional ownership before throwing. Native CPU
+  allocation identities reject stale/foreign unloads; every additional provider
+  must establish equivalent truthful ownership semantics.
 - Preserve foundation/runtime boundaries and prove actual inference-resource,
   model and backend integration separately.
 
 See ../../docs/integration/theory-runtime-gates-2026-11-10.md for evidence and
 remaining boundaries. The unusual unload layout remains for source provenance.
+
+See ../../docs/integration/theory-ggml-cpu-2026-11-10.md for the real CPU backend-buffer
+execution evidence and its limits. No model inference is claimed.

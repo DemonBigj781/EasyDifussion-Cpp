@@ -6,8 +6,8 @@
 
 using namespace edcpp::api;
 static int mode = 0, allocations = 0, rollbacks = 0;
-static load::Result produce(const load::Request& request) {
-    load::Result result;
+static void produce(const load::Request& request, load::Result& result) {
+    if (mode == 8) throw std::runtime_error("failure before allocation");
     result.loaded = true;
     auto* pointer = std::malloc(request.size);
     if (!pointer) throw std::bad_alloc();
@@ -21,8 +21,9 @@ static load::Result produce(const load::Request& request) {
         case 3: result.resource.size += 1; break;
         case 4: result.resource.device_index += 1; break;
         case 5: result.resource.size = 0; break;
+        case 6: throw std::runtime_error("failure after publishing ownership");
+        case 7: throw 42;
     }
-    return result;
 }
 static void rollback(load::Resource& resource) noexcept {
     std::free(resource.native_handle);
@@ -37,11 +38,11 @@ int main() {
     auto over_budget = request;
     over_budget.max_bytes = sizeof(bytes) - 1;
     if (load::load_resource(Backend::mesa, over_budget).loaded || allocations != 0) return 5;
-    for (mode = 0; mode < 6; ++mode) {
+    for (mode = 0; mode < 9; ++mode) {
         auto result = load::load_resource(Backend::mesa, request);
         if (result.loaded || result.resource.native_handle || result.diagnostic.empty()) return 3;
         if (rollbacks != allocations) return 4;
     }
-    std::cout << "Malformed load: six metadata/failure cases rolled back exactly once\n";
+    std::cout << "Malformed load: nine malformed/throwing cases cleaned up without lost ownership\n";
     return 0;
 }

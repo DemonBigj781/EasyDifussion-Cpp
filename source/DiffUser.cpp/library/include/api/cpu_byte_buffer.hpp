@@ -23,6 +23,7 @@ public:
     std::size_t size() const noexcept;
     bool empty() const noexcept;
     void reset() noexcept;
+    static const char* storage_backend() noexcept;
 
 private:
     struct State;

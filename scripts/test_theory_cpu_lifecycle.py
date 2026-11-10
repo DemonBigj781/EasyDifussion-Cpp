@@ -38,12 +38,12 @@ class TheoryCpuLifecycleTests(unittest.TestCase):
 
     @unittest.skipUnless(CXX, "host C++ compiler is required")
     def test_malformed_load_results_release_through_originating_translation(self):
-        self.compile_and_run("malformed_load.cpp", "six metadata/failure cases rolled back exactly once")
+        self.compile_and_run("malformed_load.cpp", "nine malformed/throwing cases cleaned up without lost ownership")
 
     def compile_and_run(self, fixture, expected, archived=False):
         manifest = json.loads(MANIFEST.read_text())
         sources = [str(ROOT / path) for path in manifest["files"] if path.endswith(".cpp")]
-        sources.append(str(SOURCE / "library/src/cpu_byte_buffer.cpp"))
+        sources.extend(str(SOURCE / path) for path in ("library/src/cpu_byte_buffer.cpp", "native/cpu/byte_storage.cpp"))
         flags = ["-pthread"]
         sanitizers = os.environ.get("THEORY_TEST_SANITIZERS")
         if sanitizers:

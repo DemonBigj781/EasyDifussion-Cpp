@@ -13,7 +13,7 @@ Result unload_model(const load::Resource& resource) {
         result.diagnostic = "CPU unload cannot release a resource owned by another backend";
         return result;
     }
-    auto native = definition::unload_model(resource.native_handle);
+    auto native = definition::unload_model(resource.native_handle, resource.allocation_id);
     result.unloaded = native.unloaded;
     result.diagnostic = std::move(native.diagnostic);
     return result;

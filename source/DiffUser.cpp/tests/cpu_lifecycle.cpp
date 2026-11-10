@@ -33,12 +33,18 @@ int main() {
             require(loaded.resource.backend == Backend::cpu && loaded.resource.device_index == 0, "wrong owner");
             require(loaded.resource.size == bytes.size(), "wrong allocation size");
             require(std::memcmp(loaded.resource.native_handle, bytes.data(), bytes.size()) == 0, "bytes changed");
+            auto stale = loaded.resource;
+            auto forged = loaded.resource;
+            ++forged.allocation_id;
+            require(!unload::unload_resource(forged).unloaded, "wrong allocation identity released memory");
+            require(std::memcmp(loaded.resource.native_handle, bytes.data(), bytes.size()) == 0, "wrong identity changed live bytes");
             loaded.resource.resource_type = load::ResourceType::mask;
             auto rejected = unload::unload_resource(loaded.resource);
             require(!rejected.unloaded && loaded.resource.loaded(), "typed unload lost ownership");
             loaded.resource.resource_type = load::ResourceType::model;
             require(unload::unload_resource(loaded.resource).unloaded, "CPU unload failed");
             require(!loaded.resource.loaded() && loaded.resource.native_handle == nullptr, "resource not cleared");
+            require(!unload::unload_resource(stale).unloaded, "stale descriptor released memory");
             auto twice = unload::unload_resource(loaded.resource);
             require(!twice.unloaded && !twice.diagnostic.empty(), "double unload accepted");
         }

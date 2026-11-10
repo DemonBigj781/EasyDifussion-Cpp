@@ -2,6 +2,7 @@
 #include "features/load/common/devices/load.hpp"
 #include "features/unload/common/devices/unload.hpp"
 #include <exception>
+#include "native/cpu/byte_storage.hpp"
 #include <stdexcept>
 #include <utility>
 
@@ -45,4 +46,5 @@ std::size_t CpuByteBuffer::size() const noexcept {
 }
 bool CpuByteBuffer::empty() const noexcept { return !state_; }
 void CpuByteBuffer::reset() noexcept { state_.reset(); }
+const char* CpuByteBuffer::storage_backend() noexcept { return edcpp::native::cpu::allocator_name(); }
 } // namespace easyapi

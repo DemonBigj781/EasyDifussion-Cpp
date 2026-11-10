@@ -2,21 +2,20 @@
 #include "features/load/cpu/definition/cpu/model.hpp"
 
 #include <utility>
+#include <exception>
 
 namespace edcpp::api::load::cpu::translation::cpu {
 namespace {
 
-Result load_model(const Request& request) {
+void load_model(const Request& request, Result& result) {
     auto native = definition::cpu::load_model(request.data, request.size, request.max_bytes);
-    Result result;
     result.loaded = native.loaded;
-    result.resource = {Backend::cpu, native.handle, native.size, 0, ResourceType::model};
+    result.resource = {Backend::cpu, native.handle, native.size, 0, ResourceType::model, native.allocation_id};
     result.diagnostic = std::move(native.diagnostic);
-    return result;
 }
 
 void rollback(Resource& resource) noexcept {
-    definition::cpu::discard_model(resource.native_handle);
+    if (!definition::cpu::discard_model(resource.native_handle, resource.allocation_id)) std::terminate();
     resource = {};
 }
 

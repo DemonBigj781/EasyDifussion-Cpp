@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <memory>
 
 namespace edcpp::api::load {
 
@@ -35,6 +36,7 @@ struct Resource {
     std::uint64_t size = 0;
     int device_index = -1;
     ResourceType resource_type = ResourceType::model;
+    std::uint64_t allocation_id = 0;
     bool loaded() const noexcept { return backend != Backend::none && native_handle != nullptr && size != 0; }
 };
 
@@ -44,15 +46,18 @@ struct Result {
     std::string diagnostic;
 };
 
-using TranslationFn = Result (*)(const Request&);
+// Publish provisional ownership before any later operation that can throw.
+using TranslationFn = void (*)(const Request&, Result& output);
 // Roll back only through the translation that created the resource.
 using RollbackFn = void (*)(Resource&) noexcept;
+// Pass a module lifetime guard for callbacks not linked for process lifetime.
+// Immutable registration pins that guard; plugin unloading is not supported.
 bool register_translation(Backend backend, ResourceType resource_type,
-                          TranslationFn translation, RollbackFn rollback) noexcept;
+                          TranslationFn translation, RollbackFn rollback, std::shared_ptr<const void> module_guard = {}) noexcept;
 Result load_resource(Backend backend, const Request& request);
 
 using ModelTranslationFn = TranslationFn;
-bool register_model_translation(Backend backend, ModelTranslationFn translation, RollbackFn rollback) noexcept;
+bool register_model_translation(Backend backend, ModelTranslationFn translation, RollbackFn rollback, std::shared_ptr<const void> module_guard = {}) noexcept;
 Result load_model(Backend backend, const Request& request);
 
 } // namespace edcpp::api::load

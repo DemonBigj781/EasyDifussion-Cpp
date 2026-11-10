@@ -1,6 +1,6 @@
 #include "features/load/cpu/definition/cpu/model.hpp"
 
-#include <cstdlib>
+#include "native/cpu/byte_storage.hpp"
 #include <cstring>
 #include <limits>
 #include <cstddef>
@@ -18,17 +18,16 @@ NativeResult load_model(const void* data, std::uint64_t size, std::uint64_t max_
         result.diagnostic = "CPU byte allocation exceeds its budget or addressable size";
         return result;
     }
-    result.handle = std::malloc(static_cast<std::size_t>(size));
-    if (result.handle == nullptr) {
-        result.diagnostic = "CPU model allocation failed";
-        return result;
-    }
-    std::memcpy(result.handle, data, static_cast<std::size_t>(size));
+    auto allocation = edcpp::native::cpu::copy_bytes(data, static_cast<std::size_t>(size));
+    result.handle = allocation.data;
+    result.allocation_id = allocation.identity;
     result.loaded = true;
     result.size = size;
     return result;
 }
 
-void discard_model(void* handle) noexcept { std::free(handle); }
+bool discard_model(void* handle, std::uint64_t allocation_id) noexcept {
+    return edcpp::native::cpu::release_bytes(handle, allocation_id);
+}
 
 } // namespace edcpp::api::load::cpu::definition::cpu

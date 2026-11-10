@@ -1,9 +1,11 @@
 #include "api/cpu_byte_buffer.hpp"
+#include "native/cpu/byte_storage.hpp"
 #include "features/unload/common/devices/unload.hpp"
 #include <array>
 #include <atomic>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <thread>
 #include <type_traits>
@@ -19,7 +21,7 @@ static void require(bool value, const char *message) {
     if (!value) throw std::runtime_error(message);
 }
 static void noop_rollback(load::Resource&) noexcept {}
-static load::Result reject_load(const load::Request&) { return {}; }
+static void reject_load(const load::Request&, load::Result&) {}
 static unload::Result reject_unload(const load::Resource&) { return {}; }
 
 int main() {
@@ -46,6 +48,16 @@ int main() {
         catch (const std::invalid_argument&) { rejected = true; }
         require(rejected, "empty payload was accepted");
 
+        auto module = std::make_shared<int>(42);
+        std::weak_ptr<int> module_lifetime = module;
+        require(load::register_model_translation(Backend::mesa, &reject_load, &noop_rollback, module), "module load registration failed");
+        require(unload::register_model_translation(Backend::mesa, &reject_unload, module), "module unload registration failed");
+        module.reset();
+        require(!module_lifetime.expired(), "registry released module callbacks too soon");
+        load::Request dummy{bytes.data(), bytes.size(), 0, load::ResourceType::model};
+        require(!load::load_resource(Backend::mesa, dummy).loaded, "fixture backend unexpectedly allocated");
+        require(!module_lifetime.expired(), "dispatch released module lifetime");
+
         std::atomic<int> failures{0}, cycles{0};
         std::vector<std::thread> threads;
         for (int worker = 0; worker < 8; ++worker) {
@@ -67,6 +79,7 @@ int main() {
         }
         for (auto& thread : threads) thread.join();
         require(failures == 0 && cycles == 1024, "concurrent ownership/registry failure");
+        require(edcpp::native::cpu::live_allocations() == 0, "owned allocations leaked");
         std::cout << "CPU exclusive ownership: moves, reset and 1024 concurrent cycles passed\n";
         return 0;
     } catch (const std::exception &error) {

@@ -1,6 +1,7 @@
 #include "load.hpp"
 
 #include <array>
+#include <exception>
 #include <cstddef>
 #include <mutex>
 #include <utility>
@@ -11,7 +12,7 @@ namespace edcpp::api::load {
 namespace {
 constexpr std::size_t backend_slots = static_cast<std::size_t>(Backend::directml) + 1;
 constexpr std::size_t resource_slots = static_cast<std::size_t>(ResourceType::count);
-struct Translation { TranslationFn invoke = nullptr; RollbackFn rollback = nullptr; };
+struct Translation { TranslationFn invoke = nullptr; RollbackFn rollback = nullptr; std::shared_ptr<const void> module_guard; };
 using TranslationTable = std::array<std::array<Translation, resource_slots>, backend_slots>;
 std::mutex& translation_mutex() {
     static std::mutex mutex;
@@ -24,7 +25,7 @@ TranslationTable& translations() {
 }
 
 bool register_translation(Backend backend, ResourceType resource_type,
-                          TranslationFn translation, RollbackFn rollback) noexcept {
+                          TranslationFn translation, RollbackFn rollback, std::shared_ptr<const void> module_guard) noexcept {
     const auto backend_index = static_cast<std::size_t>(backend);
     const auto resource_index = static_cast<std::size_t>(resource_type);
     if (backend == Backend::none || backend_index >= backend_slots ||
@@ -34,7 +35,7 @@ bool register_translation(Backend backend, ResourceType resource_type,
     std::lock_guard<std::mutex> lock(translation_mutex());
     auto& slot = translations()[backend_index][resource_index];
     if (slot.invoke != nullptr) return false;
-    slot = {translation, rollback};
+    slot = {translation, rollback, std::move(module_guard)};
     return true;
 }
 
@@ -59,7 +60,20 @@ Result load_resource(Backend backend, const Request& request) {
         return result;
     }
     // Do not hold a registry lock while invoking backend code.
-    auto result = selected.invoke(request);
+    Result result;
+    try {
+        selected.invoke(request, result);
+    } catch (const std::exception& error) {
+        if (result.resource.native_handle != nullptr) selected.rollback(result.resource);
+        result = {};
+        result.diagnostic = std::string("load translation failed: ") + error.what();
+        return result;
+    } catch (...) {
+        if (result.resource.native_handle != nullptr) selected.rollback(result.resource);
+        result = {};
+        result.diagnostic = "load translation failed with an unknown exception";
+        return result;
+    }
     const bool valid = result.loaded && result.resource.loaded() &&
         result.resource.backend == backend &&
         result.resource.resource_type == request.resource_type &&
@@ -77,8 +91,8 @@ Result load_resource(Backend backend, const Request& request) {
     return result;
 }
 
-bool register_model_translation(Backend backend, ModelTranslationFn translation, RollbackFn rollback) noexcept {
-    return register_translation(backend, ResourceType::model, translation, rollback);
+bool register_model_translation(Backend backend, ModelTranslationFn translation, RollbackFn rollback, std::shared_ptr<const void> module_guard) noexcept {
+    return register_translation(backend, ResourceType::model, translation, rollback, std::move(module_guard));
 }
 
 Result load_model(Backend backend, const Request& request) {

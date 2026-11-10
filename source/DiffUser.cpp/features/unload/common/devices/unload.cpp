@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <mutex>
+#include <utility>
 
 namespace edcpp::api::unload::cpu::cpu::translation { void ensure_registered(); }
 
@@ -10,7 +11,8 @@ namespace edcpp::api::unload {
 namespace {
 constexpr std::size_t backend_slots = static_cast<std::size_t>(Backend::directml) + 1;
 constexpr std::size_t resource_slots = static_cast<std::size_t>(load::ResourceType::count);
-using TranslationTable = std::array<std::array<TranslationFn, resource_slots>, backend_slots>;
+struct Translation { TranslationFn invoke = nullptr; std::shared_ptr<const void> module_guard; };
+using TranslationTable = std::array<std::array<Translation, resource_slots>, backend_slots>;
 std::mutex& translation_mutex() {
     static std::mutex mutex;
     return mutex;
@@ -22,7 +24,7 @@ TranslationTable& translations() {
 }
 
 bool register_translation(Backend backend, load::ResourceType resource_type,
-                          TranslationFn translation) noexcept {
+                          TranslationFn translation, std::shared_ptr<const void> module_guard) noexcept {
     const auto backend_index = static_cast<std::size_t>(backend);
     const auto resource_index = static_cast<std::size_t>(resource_type);
     if (backend == Backend::none || backend_index >= backend_slots ||
@@ -31,8 +33,8 @@ bool register_translation(Backend backend, load::ResourceType resource_type,
     // implementation while resources are alive could release with the wrong owner.
     std::lock_guard<std::mutex> lock(translation_mutex());
     auto& slot = translations()[backend_index][resource_index];
-    if (slot != nullptr) return false;
-    slot = translation;
+    if (slot.invoke != nullptr) return false;
+    slot = {translation, std::move(module_guard)};
     return true;
 }
 
@@ -41,23 +43,23 @@ Result unload_resource(load::Resource& resource) {
     if (resource.backend == Backend::cpu) cpu::cpu::translation::ensure_registered();
     const auto backend_index = static_cast<std::size_t>(resource.backend);
     const auto resource_index = static_cast<std::size_t>(resource.resource_type);
-    TranslationFn selected = nullptr;
+    Translation selected;
     if (resource.backend != Backend::none && backend_index < backend_slots && resource_index < resource_slots) {
         std::lock_guard<std::mutex> lock(translation_mutex());
         selected = translations()[backend_index][resource_index];
     }
-    if (selected == nullptr) {
+    if (selected.invoke == nullptr) {
         Result result;
         result.backend = resource.backend;
         result.diagnostic = "Common unload has no registered translation for the resource backend and type";
         return normalize(result, resource);
     }
     // Do not hold a registry lock while invoking backend code.
-    return normalize(selected(resource), resource);
+    return normalize(selected.invoke(resource), resource);
 }
 
-bool register_model_translation(Backend backend, ModelTranslationFn translation) noexcept {
-    return register_translation(backend, load::ResourceType::model, translation);
+bool register_model_translation(Backend backend, ModelTranslationFn translation, std::shared_ptr<const void> module_guard) noexcept {
+    return register_translation(backend, load::ResourceType::model, translation, std::move(module_guard));
 }
 
 Result unload_model(load::Resource& resource) {
