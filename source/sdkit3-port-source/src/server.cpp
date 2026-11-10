@@ -12,6 +12,7 @@
 
 #include "image_utils.h"
 #include "logging.h"
+#include "prompt_validation.h"
 
 // Custom log handler for Crow that filters out /ping requests
 class FilteredLogHandler : public crow::ILogHandler {
@@ -538,6 +539,12 @@ crow::response Server::handleImg2Video(const crow::request& req) {
 }
 
 crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool is_img2video) {
+    const auto prompt_error = validate_generation_prompts(json_body);
+    if (!prompt_error.empty()) {
+        crow::json::wvalue error;
+        error["message"] = prompt_error;
+        return crow::response(400, error);
+    }
     reset_sd_generation_error();
     std::string task_id = json_body.has("force_task_id")
                               ? std::string(json_body["force_task_id"].s())
@@ -718,6 +725,12 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
 }
 
 crow::response Server::generateImage(const crow::json::rvalue& json_body, bool is_img2img) {
+    const auto prompt_error = validate_generation_prompts(json_body);
+    if (!prompt_error.empty()) {
+        crow::json::wvalue error;
+        error["message"] = prompt_error;
+        return crow::response(400, error);
+    }
     reset_sd_generation_error();
     // Extract task_id
     std::string task_id = "default_task";

@@ -64,6 +64,9 @@ endif()
 
 # Include stable-diffusion.cpp
 add_subdirectory(stable-diffusion.cpp)
+# Keep internal parser linkage inside its runtime, including Windows DLL builds.
+target_sources(stable-diffusion PRIVATE runtime_adapters/prompt_validation.cpp)
+target_include_directories(stable-diffusion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if(SDKIT_BUILD_TESTS)
     enable_testing()
@@ -401,4 +404,13 @@ if(SDKIT_BUILD_THEORY_CPU_RESOURCES)
     enable_testing()
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../DiffUser.cpp"
                      "${CMAKE_CURRENT_BINARY_DIR}/theory-cpu-resources")
+endif()
+
+# Also exercise the production prompt guard in ordinary application test builds.
+if(SDKIT_BUILD_TESTS OR SDKIT_BUILD_THEORY_APPLICATION_CONTRACTS)
+    enable_testing()
+    add_executable(prompt-validation-test tests/prompt_validation_test.cpp src/prompt_validation.cpp)
+    target_include_directories(prompt-validation-test PRIVATE include third_party)
+    target_link_libraries(prompt-validation-test PRIVATE stable-diffusion)
+    add_test(NAME prompt-validation COMMAND prompt-validation-test)
 endif()
