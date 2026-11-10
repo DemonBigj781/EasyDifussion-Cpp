@@ -263,11 +263,11 @@ bool ImageGenerator::isInitialized() const { return initialized_ && sd_ctx_ != n
 
 std::string ImageGenerator::getCurrentModelPath() const { return current_model_path_; }
 
-void ImageGenerator::interrupt() {
+bool ImageGenerator::interrupt() {
     std::lock_guard<std::mutex> lock(interrupt_mutex_);
     if (active_generation_ctx_ == nullptr && !video_generation_pending_) {
         LOG_INFO("No active generation to interrupt");
-        return;
+        return false;
     }
 
     cancel_requested_ = true;
@@ -277,6 +277,7 @@ void ImageGenerator::interrupt() {
     } else {
         LOG_INFO("Generation interrupt requested while native video was preparing");
     }
+    return true;
 }
 
 std::vector<std::string> ImageGenerator::generateTxt2Img(const ImageGenerationParams& params,

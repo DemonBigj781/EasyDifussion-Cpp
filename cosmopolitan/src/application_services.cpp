@@ -1217,7 +1217,8 @@ crow::response ApplicationServices::handleInterrupt(const crow::request& req) {
         if (state.completed || (active_task_kind_ != "text" && state.current_step <= 0)) {
             return request_error(409, "Generation is preparing or already finished; cancellation is unavailable");
         }
-        if (active_task_kind_ != "text") image_generator_->interrupt();
+        if (active_task_kind_ != "text" && !image_generator_->interrupt())
+            return request_error(409, "Generation is preparing or already finished; cancellation is unavailable");
         task_state_manager_->interruptTask(task_id);
         LOG_INFO("Matched image or video generation interrupt forwarded");
         return crow::response(200, "OK");
@@ -1229,6 +1230,9 @@ crow::response ApplicationServices::handleInterrupt(const crow::request& req) {
 }
 
 crow::response ApplicationServices::handleExtraBatchImages(const crow::request& req) {
+    if (inference_dispatcher_.busy()) return request_error(409, "A native operation is active");
+    std::unique_lock<std::mutex> generation_lock(generation_mutex_, std::try_to_lock);
+    if (!generation_lock.owns_lock()) return request_error(409, "A native operation is active");
     if (cosmo_native_main_required())
         return request_error(501, "Native Vulkan HTTP upscaling is not routed through the main-thread executor");
     try {
@@ -1296,6 +1300,9 @@ crow::response ApplicationServices::handleExtraBatchImages(const crow::request& 
 }
 
 crow::response ApplicationServices::handleControlNetDetect(const crow::request& req) {
+    if (inference_dispatcher_.busy()) return request_error(409, "A native operation is active");
+    std::unique_lock<std::mutex> generation_lock(generation_mutex_, std::try_to_lock);
+    if (!generation_lock.owns_lock()) return request_error(409, "A native operation is active");
     try {
         auto json_body = crow::json::load(req.body);
         if (!json_body) {
@@ -1334,6 +1341,9 @@ crow::response ApplicationServices::handleControlNetDetect(const crow::request& 
 }
 
 crow::response ApplicationServices::handleRefreshCheckpoints() {
+    if (inference_dispatcher_.busy()) return request_error(409, "A native operation is active");
+    std::unique_lock<std::mutex> generation_lock(generation_mutex_, std::try_to_lock);
+    if (!generation_lock.owns_lock()) return request_error(409, "A native operation is active");
     try {
         LOG_INFO("Refreshing checkpoints...");
         if (model_manager_) {
@@ -1348,6 +1358,9 @@ crow::response ApplicationServices::handleRefreshCheckpoints() {
 }
 
 crow::response ApplicationServices::handleRefreshVaeAndTextEncoders() {
+    if (inference_dispatcher_.busy()) return request_error(409, "A native operation is active");
+    std::unique_lock<std::mutex> generation_lock(generation_mutex_, std::try_to_lock);
+    if (!generation_lock.owns_lock()) return request_error(409, "A native operation is active");
     try {
         LOG_INFO("Refreshing VAE and text encoders...");
         if (model_manager_) {

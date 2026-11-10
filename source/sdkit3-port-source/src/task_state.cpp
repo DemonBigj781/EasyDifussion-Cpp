@@ -68,9 +68,11 @@ void TaskStateManager::completeTask(const std::string& task_id, const std::vecto
     auto it = tasks_.find(task_id);
     if (it != tasks_.end()) {
         it->second.completed = true;
-        it->second.progress = 1.0f;
-        if (it->second.total_steps > 0) {
-            it->second.current_step = it->second.total_steps;
+        if (!it->second.interrupted) {
+            it->second.progress = 1.0f;
+            if (it->second.total_steps > 0) {
+                it->second.current_step = it->second.total_steps;
+            }
         }
         it->second.phase = "finalizing";
         if (it->second.phase_total > 0) {

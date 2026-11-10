@@ -161,7 +161,8 @@ class ImageGenerator {
     std::vector<std::string> generateVideo(const VideoGenerationParams& params, const std::string& task_id = "");
 
     // Interrupt current generation
-    void interrupt();
+    // Returns true only when cancellation was accepted by the active context.
+    bool interrupt();
 
    private:
     // Create init image from base64 string

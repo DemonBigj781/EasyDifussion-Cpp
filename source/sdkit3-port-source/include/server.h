@@ -10,6 +10,7 @@
 #include "model_manager.h"
 #include "options_manager.h"
 #include "task_state.h"
+#include "generation_admission.h"
 
 struct ServerParams {
     int port = 8188;
@@ -85,6 +86,7 @@ class Server {
     std::unique_ptr<ImageGenerator> image_generator_;
     std::shared_ptr<ImageFilters> image_filters_;
     bool should_stop_;
+    GenerationAdmission generation_admission_;
 };
 
 #endif  // __SERVER_H__

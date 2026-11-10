@@ -11,6 +11,7 @@ from threading import Event, Lock, Thread
 import uuid
 import time
 from copy import deepcopy
+from contextlib import contextmanager
 import atexit
 import numpy as np
 from PIL import Image, ImageOps
@@ -61,6 +62,56 @@ curr_models = {
     "vae": None,
     "text-encoder": None,
 }
+
+
+# Context is threading.local in production, so its attributes cannot carry task
+# identity from the render thread to HTTP/progress threads. Keep ownership here.
+_native_task_lock = Lock()
+_native_tasks = {}
+_native_callback_task = local()
+
+
+@contextmanager
+def _native_task_scope(context, task_id, enabled):
+    if not enabled:
+        yield
+        return
+    key = id(context)
+    with _native_task_lock:
+        if key in _native_tasks:
+            raise RuntimeError("A native generation request is already active for this context")
+        _native_tasks[key] = (context, task_id)
+    try:
+        yield
+    finally:
+        with _native_task_lock:
+            current = _native_tasks.get(key)
+            if current is not None and current[0] is context and current[1] == task_id:
+                del _native_tasks[key]
+
+
+def _bind_native_task_callback(context, task_id, callback):
+    if callback is None or not USE_SDKIT3_API:
+        return callback
+
+    def bound(*args, **kwargs):
+        previous = getattr(_native_callback_task, "owner", None)
+        _native_callback_task.owner = (context, task_id)
+        try:
+            return callback(*args, **kwargs)
+        finally:
+            _native_callback_task.owner = previous
+    return bound
+
+
+def _native_task_id(context):
+    # A delayed callback belongs to its original task, never a newer request.
+    owner = getattr(_native_callback_task, "owner", None)
+    if owner is not None and owner[0] is context:
+        return owner[1]
+    with _native_task_lock:
+        owner = _native_tasks.get(id(context))
+        return owner[1] if owner is not None and owner[0] is context else None
 
 
 def normalize_base64_image(image, field_name="image"):
@@ -576,58 +627,60 @@ def generate_images(
 
     operation_to_apply = "img2img" if init_image else "txt2img"
 
-    stream_image_progress = webui_opts.get("live_previews_enable", False)
+    with _native_task_scope(context, task_id, USE_SDKIT3_API):
+        callback = _bind_native_task_callback(context, task_id, callback)
+        stream_image_progress = webui_opts.get("live_previews_enable", False)
 
-    progress_stop = Event()
-    progress_thread = None
-    if callback is not None:
-        progress_thread = Thread(
-            target=image_progress_thread,
-            args=(
-                task_id,
-                callback,
-                stream_image_progress,
-                num_outputs,
-                num_inference_steps,
-                progress_stop,
-            ),
-            kwargs={"with_step_metadata": USE_SDKIT3_API},
-            daemon=True,
-        )
-        progress_thread.start()
+        progress_stop = Event()
+        progress_thread = None
+        if callback is not None:
+            progress_thread = Thread(
+                target=image_progress_thread,
+                args=(
+                    task_id,
+                    callback,
+                    stream_image_progress,
+                    num_outputs,
+                    num_inference_steps,
+                    progress_stop,
+                ),
+                kwargs={"with_step_metadata": USE_SDKIT3_API},
+                daemon=True,
+            )
+            progress_thread.start()
 
-    print(f"task id: {task_id}")
-    print_request(operation_to_apply, cmd)
+        print(f"task id: {task_id}")
+        print_request(operation_to_apply, cmd)
 
-    try:
-        res = webui_post(f"/sdapi/v1/{operation_to_apply}", json=cmd)
-    finally:
-        if progress_thread is not None:
-            # The native task is marked complete before the blocking generation
-            # response returns, so normally the poller exits during this join.
-            # A backend crash/reload must not leave an orphan polling thread.
-            progress_thread.join(timeout=1.5)
-            progress_stop.set()
-            progress_thread.join(timeout=2.5)
-    if res.status_code == 200:
-        res = res.json()
-    else:
-        if res.status_code == 500:
+        try:
+            res = webui_post(f"/sdapi/v1/{operation_to_apply}", json=cmd)
+        finally:
+            if progress_thread is not None:
+                # The native task is marked complete before the blocking generation
+                # response returns, so normally the poller exits during this join.
+                # A backend crash/reload must not leave an orphan polling thread.
+                progress_thread.join(timeout=1.5)
+                progress_stop.set()
+                progress_thread.join(timeout=2.5)
+        if res.status_code == 200:
             res = res.json()
-            log.error(f"Server error: {res}")
-            raise Exception(f"{res['message']}. Please check the logs in the command-line window for more details.")
+        else:
+            if res.status_code == 500:
+                res = res.json()
+                log.error(f"Server error: {res}")
+                raise Exception(f"{res['message']}. Please check the logs in the command-line window for more details.")
 
-        raise Exception(
-            f"HTTP Status {res.status_code}. The engine failed while generating this image. Please check the logs in the command-line window for more details."
-        )
+            raise Exception(
+                f"HTTP Status {res.status_code}. The engine failed while generating this image. Please check the logs in the command-line window for more details."
+            )
 
-    images = res["images"]
-    if output_type == "pil":
-        images = [base64_str_to_img(img) for img in images]
-    elif output_type == "base64":
-        images = [base64_buffer_to_base64_img(img) for img in images]
+        images = res["images"]
+        if output_type == "pil":
+            images = [base64_str_to_img(img) for img in images]
+        elif output_type == "base64":
+            images = [base64_buffer_to_base64_img(img) for img in images]
 
-    return images
+        return images
 
 
 def generate_video(
@@ -750,35 +803,37 @@ def generate_video(
         decode_model=latent_interposer_decode_model,
     )
 
-    operation = "img2video" if init_image else "txt2video"
-    progress_thread = None
-    progress_stop = Event() if callback is not None else None
-    if callback is not None:
-        progress_thread = Thread(
-            target=image_progress_thread,
-            args=(task_id, callback, False, 1, num_inference_steps, progress_stop),
-            kwargs={"with_step_metadata": True, "with_phase_metadata": True},
-            daemon=True,
-        )
-        progress_thread.start()
+    with _native_task_scope(context, task_id, True):
+        callback = _bind_native_task_callback(context, task_id, callback)
+        operation = "img2video" if init_image else "txt2video"
+        progress_thread = None
+        progress_stop = Event() if callback is not None else None
+        if callback is not None:
+            progress_thread = Thread(
+                target=image_progress_thread,
+                args=(task_id, callback, False, 1, num_inference_steps, progress_stop),
+                kwargs={"with_step_metadata": True, "with_phase_metadata": True},
+                daemon=True,
+            )
+            progress_thread.start()
 
-    try:
-        print_request(operation, cmd)
-        res = webui_post(f"/sdapi/v1/{operation}", json=cmd)
-        if res.status_code != 200:
-            try:
-                message = res.json().get("message", res.text)
-            except Exception:
-                message = res.text
-            raise RuntimeError(f"Native video backend failed: {message}")
-        result = res.json()
-        if progress_thread is not None:
-            progress_thread.join(timeout=1.5)
-        return result
-    finally:
-        if progress_thread is not None:
-            progress_stop.set()
-            progress_thread.join(timeout=2.5)
+        try:
+            print_request(operation, cmd)
+            res = webui_post(f"/sdapi/v1/{operation}", json=cmd)
+            if res.status_code != 200:
+                try:
+                    message = res.json().get("message", res.text)
+                except Exception:
+                    message = res.text
+                raise RuntimeError(f"Native video backend failed: {message}")
+            result = res.json()
+            if progress_thread is not None:
+                progress_thread.join(timeout=1.5)
+            return result
+        finally:
+            if progress_thread is not None:
+                progress_stop.set()
+                progress_thread.join(timeout=2.5)
 
 
 def filter_images(context: Context, images, filters, filter_params={}, input_type="pil"):
@@ -844,7 +899,13 @@ def get_url():
 
 def stop_rendering(context):
     try:
-        res = webui_post("/sdapi/v1/interrupt")
+        if USE_SDKIT3_API:
+            task_id = _native_task_id(context)
+            if task_id is None:
+                return  # Never cancel an unrelated native request.
+            res = webui_post("/sdapi/v1/interrupt", json={"id_task": task_id})
+        else:
+            res = webui_post("/sdapi/v1/interrupt")
         if res.status_code != 200:
             raise Exception(res.text)
     except Exception as e:
@@ -858,10 +919,18 @@ def refresh_models():
         except:
             pass
 
+    def refresh_native_models():
+        # The native server admits one model mutation at a time. Keep both
+        # indexes refreshed instead of racing sibling calls into a busy 409.
+        for model_type in ("checkpoints", "vae-and-text-encoders"):
+            make_refresh_call(model_type)
+
     try:
-        for type in ("checkpoints", "vae-and-text-encoders"):
-            t = Thread(target=make_refresh_call, args=(type,))
-            t.start()
+        if USE_SDKIT3_API:
+            Thread(target=refresh_native_models).start()
+        else:
+            for model_type in ("checkpoints", "vae-and-text-encoders"):
+                Thread(target=make_refresh_call, args=(model_type,)).start()
     except Exception as e:
         print(f"Error refreshing models: {e}")
 

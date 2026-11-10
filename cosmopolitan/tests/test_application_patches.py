@@ -171,6 +171,23 @@ class ApplicationPatchTests(unittest.TestCase):
                 result = subprocess.run(command + [str(source)], text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_shared_resource_mutations_require_admission(self):
+        native = (SDKIT / "src/server.cpp").read_text()
+        for name in ("handlePostOptions", "handleExtraBatchImages", "handleControlNetDetect",
+                     "handleRefreshCheckpoints", "handleRefreshVaeAndTextEncoders"):
+            for code, owner, acquire in ((native, "Server", "generation_admission_.tryAcquire()"),
+                                         (self.services, "ApplicationServices", "generation_mutex_")):
+                with self.subTest(handler=name, owner=owner):
+                    start = code.index("crow::response " + owner + "::" + name + "(")
+                    body = code[start:code.index("    try {", start)]
+                    self.assertIn(acquire, body)
+                    self.assertIn("409", body)
+        for name in ("generateImage", "generateVideo"):
+            start = native.index("crow::response Server::" + name + "(")
+            body = native[start:native.index("    try {", native.index("admission.bind(task_id)", start))]
+            self.assertLess(body.index("generation_admission_.tryAcquire()"), body.index("createTask(task_id)"))
+            self.assertLess(body.index("admission.bind(task_id)"), body.index("reset_sd_generation_error()"))
+
     def test_completion_preserves_interruption_and_phase_progress(self):
         compiler = self.host_compiler()
         probe = self.directory / "task-state-probe.cpp"
@@ -201,8 +218,11 @@ int main() {
 }
 ''')
         executable = self.directory / "task-state-probe"
+        task_source = self.directory / "sdkit3-port-source/src/task_state.cpp"
+        if not task_source.exists():
+            task_source = SDKIT / "src/task_state.cpp"
         commands = [compiler + ["-std=c++17", "-pthread", "-I" + str(SDKIT / "include"),
-                    str(self.directory / "sdkit3-port-source/src/task_state.cpp"),
+                    str(task_source),
                     str(probe), "-o", str(executable)], [str(executable)]]
         for command in commands:
             result = subprocess.run(command, text=True, capture_output=True)

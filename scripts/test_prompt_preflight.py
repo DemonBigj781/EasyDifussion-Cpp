@@ -64,7 +64,41 @@ class PromptPreflightTests(unittest.TestCase):
         except urllib.error.HTTPError as error:
             response = error
         with response:
-            return response.status, json.load(response)
+            text = response.read().decode()
+            try:
+                body = json.loads(text)
+            except ValueError:
+                body = text
+            return response.status, body
+
+    def test_scoped_and_legacy_idle_interrupt(self):
+        route = "/v1/sdapi/v1/interrupt"
+        for body in ({"id_task": "stale"}, {"id_task": "default_task"}):
+            self.assertEqual(self.post(route, body)[0], 409)
+        for body in ({"id_task": ""}, {"id_task": 1}, {"id_task": None}, [], {"id_task": "bad\0id"}):
+            self.assertEqual(self.post(route, body)[0], 400)
+        self.assertEqual(self.post(route, {})[0], 200)
+        request = urllib.request.Request(self.url + route, b"", {"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+
+    def test_bad_task_identity_fails_before_model_loading(self):
+        for task in (None, 1, "", "x" * 129):
+            status, body = self.post("/v1/sdapi/v1/txt2img", {"force_task_id": task})
+            self.assertEqual(status, 400)
+            self.assertTrue(body["message"].startswith("force_task_id "))
+
+    def test_failed_admitted_request_releases_identity_and_gate(self):
+        # Invalid LoRA type fails parameter parsing before any model lookup.
+        # Reusing the legacy ID sequentially remains supported.
+        task = "default_task"
+        for _ in range(2):
+            status, _ = self.post("/v1/sdapi/v1/txt2img", {"force_task_id": task, "lora_paths": [False]})
+            self.assertEqual(status, 500)
+            status, state = self.post("/v1/internal/progress", {"id_task": task})
+            self.assertEqual(status, 200)
+            self.assertTrue(state["completed"])
+            self.assertEqual(self.post("/v1/sdapi/v1/interrupt", {"id_task": task})[0], 409)
 
     def test_invalid_generation_options_fail_before_task_creation(self):
         cases = [("distilled_cfg_scale", value) for value in (None, "3.5", True, 1e100)]
