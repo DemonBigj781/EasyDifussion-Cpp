@@ -189,6 +189,50 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
         self.assertIn('model: "u2net"', editor)
         self.assertNotIn("const thresholdSquared = threshold * threshold\n    const background", editor)
 
+    def test_native_image_tools_keep_mask_creators_and_mask_consumer_separate(self):
+        plugin = (self.plugin_root / "image_plugin" / "native-image-tools.plugin.js").read_text(encoding="utf-8")
+        self.assertIn('id="native-text-mask"', plugin)
+        self.assertIn('Text remove mask', plugin)
+        self.assertIn('async function textMask()', plugin)
+        self.assertIn('post("/image-tools/text-mask"', plugin)
+        self.assertIn('id="native-object-mask"', plugin)
+        self.assertIn('detectionMask("objects")', plugin)
+        self.assertIn('id="native-remove-object"', plugin)
+        self.assertIn('mask: imageInpainter.getImg()', plugin)
+        self.assertIn('post("/image-tools/remove-object"', plugin)
+        self.assertIn('id="native-preview-mask"', plugin)
+        self.assertIn('function previewMask', plugin)
+
+    def test_inpaint_editor_exposes_invert_selection_action(self):
+        plugin = (self.plugin_root / "inpaint_plugin" / "inpainting.plugin.js").read_text(encoding="utf-8")
+        self.assertIn('id = "inpainting-invert-selection"', plugin)
+        self.assertIn('Invert selection', plugin)
+        self.assertIn('imageInpainter.popup.querySelector(".editor-controls-left").appendChild(invertControls)', plugin)
+        self.assertIn('const pixels = editor.layers.drawing.ctx.getImageData', plugin)
+        self.assertIn('pixels.data[index] = 255 - pixels.data[index]', plugin)
+
+    def test_draw_open_preserves_preview_source_when_dimensions_are_pending(self):
+        plugin = (self.plugin_root / "inpaint_plugin" / "inpainting.plugin.js").read_text(encoding="utf-8")
+        self.assertIn('async function openDrawEditor(event)', plugin)
+        self.assertIn('await decodePreviewImage()', plugin)
+        self.assertNotIn('!initImagePreview.naturalWidth) {\n            setupCanvas', plugin)
+        self.assertIn('paintEditorBackground(imageEditor, source)', plugin)
+        self.assertIn('editor.layers.background.ctx.drawImage(source, 0, 0, width, height)', plugin)
+
+
+    def test_color_guided_inpaint_uses_separate_guidance_image(self):
+        plugin = (self.plugin_root / "inpaint_plugin" / "inpainting.plugin.js").read_text(encoding="utf-8")
+        native_tools = (self.plugin_root / "image_plugin" / "native-image-tools.plugin.js").read_text(encoding="utf-8")
+        self.assertIn('id = "init_image_button_color_guide"', plugin)
+        self.assertIn('Color guide', plugin)
+        self.assertIn('window.inpaintColorGuidanceImage', plugin)
+        self.assertIn('imageEditor.colorGuidanceMode', plugin)
+        self.assertIn('PLUGINS.TASK_BUILD.push(({ reqBody }) =>', plugin)
+        self.assertIn('reqBody.inpaint_color_guidance = window.inpaintColorGuidanceImage', plugin)
+        self.assertIn('delete reqBody.inpaint_color_guidance', plugin)
+        self.assertIn('window.inpaintColorGuidanceImage', native_tools)
+        self.assertIn('Previewing the current inpaint mask and color guide', native_tools)
+
     def test_perchance_features_are_independently_toggleable(self):
         self.assertIn('id: "perchance-image"', self.preferences)
         self.assertIn('id: "perchance-text"', self.preferences)

@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 from io import BytesIO
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -13,6 +13,11 @@ from PIL import Image
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "ui"))
+
+fake_app = ModuleType("easydiffusion.app")
+fake_app.ROOT_DIR = str(REPO_ROOT)
+fake_app.MODELS_DIR = str(REPO_ROOT / "models")
+sys.modules.setdefault("easydiffusion.app", fake_app)
 
 from ui.plugins.server.native_image_tools import native_image_tools
 
@@ -101,6 +106,43 @@ class TestNativeImageTools(unittest.TestCase):
         self.assertEqual(session.test_shape, (1, 400, 400, 3))
         self.assertEqual((result["width"], result["height"]), (16, 12))
         self.assertEqual(result["model"], "VPanjeta/Deep-Object-Removal")
+
+
+    def test_detector_model_accepts_ui_aliases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            model_dir = root / "models" / "Ultralytics" / "cpp"
+            model_dir.mkdir(parents=True)
+            object_model = model_dir / "yolov8s.torchscript"
+            face_model = model_dir / "face_yolov8n.torchscript"
+            object_model.write_bytes(b"objects")
+            face_model.write_bytes(b"face")
+            with (
+                patch.object(native_image_tools.app, "MODELS_DIR", str(root / "models")),
+                patch.object(native_image_tools.app, "ROOT_DIR", str(root)),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                self.assertEqual(native_image_tools._detector_model("objects"), object_model)
+                self.assertEqual(native_image_tools._detector_model("object"), object_model)
+                self.assertEqual(native_image_tools._detector_model("object-detection"), object_model)
+                self.assertEqual(native_image_tools._detector_model("faces"), face_model)
+
+    def test_detector_model_finds_sibling_offline_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = pathlib.Path(directory)
+            repo_root = workspace / "Easy-Difussion-Cpp-Cosmo"
+            offline_models = workspace / "easy-diffusion-offline" / "models" / "ultralytics-cpp"
+            repo_models = repo_root / "models"
+            offline_models.mkdir(parents=True)
+            repo_models.mkdir(parents=True)
+            object_model = offline_models / "yolov8s.torchscript"
+            object_model.write_bytes(b"objects")
+            with (
+                patch.object(native_image_tools.app, "MODELS_DIR", str(repo_models)),
+                patch.object(native_image_tools.app, "ROOT_DIR", str(repo_root)),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                self.assertEqual(native_image_tools._detector_model("objects"), object_model)
 
     def test_object_model_prefers_requested_source_directory(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -26,7 +26,9 @@ Both projects vendor/use GGML but may pin different revisions and compile overla
 A shared native GGUF/conversion layer should avoid importing another copy of GGML. Keep conversion metadata/tensor parsing modular.
 
 ## Validation
-Linker symbol audit, ABI/header consistency, CPU generation + LLM inference, GPU backend initialization for both, alternating workloads, simultaneous contexts if supported, unload/reload, quantized models, and sanitizers where feasible.
+- Source-only shared-GGML audit: run `python cosmopolitan/tests/audit_shared_ggml_sources.py --format markdown` before building. This checks `PIN.json`, the authoritative stable-diffusion GGML tree hash, pinned llama donor files, shared-GGML patch hashes, tracked GGML roots, required compile-definition markers, and the known differing GGML API/kernel files without compiling or running model/GPU workloads.
+- Build/link audit: run `cosmopolitan/tests/audit_symbols.py --out <build-out>` after a packaged build to prove only the authoritative shared GGML implementation was compiled and exported.
+- Runtime coverage: ABI/header consistency, CPU generation + LLM inference, GPU backend initialization for both, alternating workloads, simultaneous contexts if supported, unload/reload, quantized models, and sanitizers where feasible.
 
 ## Complete when
 One process can use both llama and diffusion functionality against a deliberately-defined GGML architecture with no duplicate symbols, no version-dependent undefined behavior, and regression coverage. Until then, process isolation remains the supported fallback.

@@ -752,86 +752,39 @@ async def civitai_global_images(request: Request):
     start = time.perf_counter()
     try:
         qp = request.query_params
-        search_key = _resolve_search_key(request)
-
-        created_from, created_to = _created_at_range(request)
         query = qp.get("query") or qp.get("q") or ""
         limit = int(qp.get("limit", "51") or "51")
         page = max(1, int(qp.get("page", "1") or "1"))
         nsfw = civ._to_bool(qp.get("nsfw"))
         sort = qp.get("sort")
         period = qp.get("period")
-        post_id = civ._to_int(qp.get("postId"))
-        username = qp.get("username") or qp.get("user") or qp.get("users")
+        model_sort = qp.get("modelSort") or "Newest"
+        if model_sort not in civ.ALLOWED_SORT_MODELS:
+            model_sort = "Newest"
 
-        # The public images API is authoritative for a normal gallery browse and
-        # implements the image-specific sort and period controls itself.  Use
-        # images_v6 only when its full-text/faceted search is actually needed.
-        index_filters = {
-            "query": query,
-            "tag": qp.get("tag") or qp.get("tags"),
-            "technique": qp.get("technique") or qp.get("techniques"),
-            "tool": qp.get("tool") or qp.get("tools"),
-            "aspect_ratio": qp.get("aspectRatio"),
-            "base_model": qp.get("baseModel"),
-            "media_type": qp.get("mediaType") or qp.get("type"),
-            "created_from": created_from,
-            "created_to": created_to,
-        }
-        try:
-            if any(str(value or "").strip() for value in index_filters.values()):
-                result = civ._global_images_civitai(
-                    query=query,
-                    search_key=search_key,
-                    limit=limit,
-                    page=page,
-                    nsfw=nsfw,
-                    tag=index_filters["tag"],
-                    technique=index_filters["technique"],
-                    tool=index_filters["tool"],
-                    aspect_ratio=index_filters["aspect_ratio"],
-                    base_model=index_filters["base_model"],
-                    media_type=index_filters["media_type"],
-                    username=username,
-                    created_from=created_from,
-                    created_to=created_to,
-                    sort=sort,
-                    period=period,
-                )
-            else:
-                result = civ._images_civitai(
-                    query="",
-                    api_key=_resolve_key(request),
-                    limit=limit,
-                    page=page,
-                    nsfw=nsfw,
-                    sort=sort,
-                    period=period,
-                    post_id=post_id,
-                    username=username,
-                )
-                result.setdefault("metadata", {})["searchBackend"] = "public-images-api"
-        except Exception as search_error:
-            _logger.warning(
-                "CivitAI images_v6 search unavailable; using public API fallback: %s",
-                _safe_error(search_error),
-            )
-            fallback_query = query or qp.get("tag") or qp.get("technique") or qp.get("tool") or ""
-            result = civ._images_civitai(
-                query=fallback_query,
-                api_key=_resolve_key(request),
-                limit=limit,
-                page=page,
-                nsfw=nsfw,
-                sort=sort,
-                model_sort=civ._map_image_sort_to_model_sort(sort),
-                period=period,
-                post_id=post_id,
-                username=username,
-            )
-            result.setdefault("metadata", {})["searchBackend"] = "public-api-fallback"
+        result = civ._search_civitai(
+            query=query,
+            page=page,
+            api_key=_resolve_key(request),
+            cursor=qp.get("cursor"),
+            nsfw=nsfw,
+            sort=model_sort,
+            period=period,
+            limit=limit,
+            types=qp.get("types") or qp.get("modelType"),
+            base_models=qp.get("baseModels") or qp.get("baseModel"),
+            model_id=civ._to_int(qp.get("modelId")),
+            model_version_id=(
+                civ._to_int(qp.get("modelVersionId"))
+                if civ._to_int(qp.get("modelVersionId")) is not None
+                else civ._to_int(qp.get("versionId"))
+            ),
+        )
+        metadata = result.setdefault("metadata", {})
+        metadata["searchBackend"] = "model-locations"
+        metadata["imageListing"] = "select-model-first"
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        _logger.info("GET /civitai/global-images -> 200 (%.1fms)", elapsed_ms)
+        _logger.info("GET /civitai/global-images model locations -> 200 (%.1fms)", elapsed_ms)
         return result
     except HTTPException:
         raise

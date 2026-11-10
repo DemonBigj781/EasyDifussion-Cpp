@@ -5,7 +5,8 @@
   const API_ROOT = "/civitai-api/civitai"
   const SEARCH_ENDPOINT = `${API_ROOT}/search`
   const ENUMS_ENDPOINT = `${API_ROOT}/enums`
-  const IMAGES_ENDPOINT = `${API_ROOT}/global-images`
+  const MODEL_IMAGE_LOCATIONS_ENDPOINT = `${API_ROOT}/global-images`
+  const IMAGES_ENDPOINT = `${API_ROOT}/images`
   const DOWNLOAD_ENDPOINT = `${API_ROOT}/download`
   const HF_API_ROOT = "/huggingface-api"
   const LS_SETTINGS_KEY = "civitaiSettings"
@@ -143,7 +144,7 @@
         : "Search term or Civitai URN (blank browses)"
       helpEl.textContent = isHuggingFace
         ? "Browse Hugging Face model repositories and download supported weight files into your configured models folder."
-        : "Image search uses Civitai's images-v6 query when available and falls back to the public image API."
+        : "Civitai images are model-scoped: search/select a model location first, then list images inside that model."
       applyModeUI()
     }
 
@@ -368,7 +369,7 @@
         }
 
         const urn = parseUrn(q)
-        const endpoint = mode === "images" ? IMAGES_ENDPOINT : SEARCH_ENDPOINT
+          const endpoint = mode === "images" ? MODEL_IMAGE_LOCATIONS_ENDPOINT : SEARCH_ENDPOINT
 
         // build base url
         let url = `${endpoint}?limit=${encodeURIComponent(mode === "images" ? 60 : 20)}`
@@ -376,7 +377,7 @@
         if (mode === "images") {
           const useCursor = cursorOverride !== undefined ? cursorOverride : currentCursor
           if (useCursor) url += `&cursor=${encodeURIComponent(useCursor)}`
-          else url += `&page=${encodeURIComponent(String(currentPage))}`
+          else if (!(q || "").trim()) url += `&page=${encodeURIComponent(String(currentPage))}`
         } else {
           // models:
           // - If query is blank => page-based browse is allowed
@@ -421,12 +422,6 @@
           url += `&query=${encodeURIComponent(q || "")}`
         }
 
-        // Images extra filters (only meaningful in images mode)
-        if (mode === "images") {
-          if (search.postId) url += `&postId=${encodeURIComponent(search.postId)}`
-          if (search.username) url += `&username=${encodeURIComponent(search.username)}`
-        }
-
         const requestOptions = { headers: headersForRequest(search.apiKey, search.provider) }
         if (controller) requestOptions.signal = controller.signal
         const res = await fetch(url, requestOptions)
@@ -435,13 +430,13 @@
         if (!json.ok) throw new Error(json.error || "Search failed")
 
         if (mode === "images") {
-          renderImages(json.items || [])
-          const totalPages = json.metadata?.pages || null
-          prevBtn.disabled = currentPage <= 1
-          nextBtn.disabled = totalPages ? currentPage >= totalPages : (json.items || []).length === 0
-          statusEl.textContent = `${json.items?.length || 0} images`
+          renderModels(json.items || [], { imageLocationMode: true })
           nextCursor = extractCursor(json.metadata?.nextCursor || json.metadata?.nextPage) || null
-          if (nextCursor) nextBtn.disabled = false
+          const totalPages = json.metadata?.pages || null
+          prevBtn.disabled = currentPage <= 1 && prevCursorStack.length === 0
+          const qTrim = (q || "").trim()
+          nextBtn.disabled = nextCursor ? false : (qTrim ? true : (totalPages ? currentPage >= totalPages : false))
+          statusEl.textContent = `${json.items?.length || 0} model locations. Choose a model to list its images.`
         } else {
           renderModels(json.items || [])
           nextCursor = extractCursor(json.metadata?.nextCursor || json.metadata?.nextPage) || null
@@ -474,7 +469,8 @@
       }
     }
 
-    function renderModels(items) {
+    function renderModels(items, options = {}) {
+      const imageLocationMode = Boolean(options.imageLocationMode)
       resultsEl.innerHTML = ""
       items.forEach((item) => {
         // IMPORTANT: server returns item.modelVersion (singular)
@@ -534,6 +530,11 @@
               ${
                 safeExternalUrl(item.pageUrl)
                   ? `<a class="secondaryButton" href="${safeExternalUrl(item.pageUrl)}" target="_blank" rel="noopener">Model page</a>`
+                  : ""
+              }
+              ${
+                item.provider !== "huggingface" && item.id
+                  ? `<button class="secondaryButton" data-action="show-images" type="button">${imageLocationMode ? "Open folder" : "Show images"}</button>`
                   : ""
               }
             </div>
@@ -605,12 +606,60 @@
           })
         }
 
+        const showImagesBtn = card.querySelector("[data-action=show-images]")
+        if (showImagesBtn) {
+          showImagesBtn.addEventListener("click", () => listModelImages(item, showImagesBtn))
+        }
+
         resultsEl.appendChild(card)
       })
     }
 
-    function renderImages(items) {
+    async function listModelImages(item, button) {
+      const previousText = button.textContent
+      const mv = item.modelVersion || (Array.isArray(item.modelVersions) ? item.modelVersions[0] : {}) || {}
+      button.disabled = true
+      button.textContent = "Loading images…"
+      statusEl.textContent = `Listing images inside ${item.name || "selected model"}…`
+      try {
+        let url = `${IMAGES_ENDPOINT}?limit=60&modelId=${encodeURIComponent(String(item.id))}`
+        if (mv.id) url += `&modelVersionId=${encodeURIComponent(String(mv.id))}`
+        if (activeSearch?.nsfw) url += `&nsfw=true`
+        if (activeSearch?.sort) url += `&sort=${encodeURIComponent(activeSearch.sort)}`
+        if (activeSearch?.period) url += `&period=${encodeURIComponent(activeSearch.period)}`
+        if (activeSearch?.postId) url += `&postId=${encodeURIComponent(activeSearch.postId)}`
+        if (activeSearch?.username) url += `&username=${encodeURIComponent(activeSearch.username)}`
+        const response = await fetch(url, { headers: headersForRequest(activeSearch?.apiKey, "civitai") })
+        const result = await safeJson(response)
+        if (!response.ok || !result.ok) throw new Error(result.detail || result.error || "Image listing failed")
+        renderImages(result.items || [], item)
+        statusEl.textContent = `${result.items?.length || 0} images inside ${item.name || "selected model"}.`
+        prevBtn.disabled = true
+        nextBtn.disabled = true
+      } catch (error) {
+        console.error(error)
+        statusEl.textContent = "Image listing error: " + (error && error.message ? error.message : "Server Error")
+      } finally {
+        button.disabled = false
+        button.textContent = previousText
+      }
+    }
+
+    function renderImages(items, model = null) {
       resultsEl.innerHTML = ""
+
+      if (model) {
+        const header = document.createElement("div")
+        header.style = "display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;"
+        header.innerHTML = `
+          <strong>Images in ${escapeHTML(model.name || `model ${model.id}`)}</strong>
+          <button class="secondaryButton" type="button" data-action="back-to-models">Back to model locations</button>
+        `
+        header.querySelector("[data-action=back-to-models]").addEventListener("click", () => {
+          if (activeSearch) runSearch(activeSearch, currentCursor)
+        })
+        resultsEl.appendChild(header)
+      }
 
       const grid = document.createElement("div")
       grid.style = "display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px;"

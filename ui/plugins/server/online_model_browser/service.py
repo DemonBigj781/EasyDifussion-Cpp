@@ -895,6 +895,11 @@ def _global_images_civitai(
     sort: Optional[str] = None,
     period: Optional[str] = None,
 ) -> Dict[str, Any]:
+    raise ValueError(
+        "Civitai global image search is unavailable. Search models first, "
+        "choose a model location, then list images inside that selected model."
+    )
+
     clean_search_key = str(search_key or "").strip()
     if clean_search_key:
         search_host = str(
@@ -940,7 +945,7 @@ def _global_images_civitai(
         return int(timestamp)
 
     created_from_unix = unix_milliseconds(created_from)
-    # images_v6 does not accept the public API's period enum.  Translate it to
+    # The removed website image index did not accept the public API's period enum. Translate it to
     # the index's creation timestamp so the date-range control still constrains
     # full-text image searches.
     if created_from_unix is None and selected_period in _PERIOD_SECONDS:
@@ -974,7 +979,7 @@ def _global_images_civitai(
         "queries": [
             {
                 "q": str(query or ""),
-                "indexUid": "images_v6",
+                "indexUid": "removed-global-image-index",
                 "facets": [
                     "aspectRatio",
                     "baseModel",
@@ -1049,7 +1054,7 @@ def _global_images_civitai(
             }
         )
 
-    # images_v6 ranks text relevance.  Preserve that candidate selection, then
+    # The removed website image index ranked text relevance. Preserve that candidate selection, then
     # honor the gallery's requested image ordering for the returned page.
     items = _sort_unified_images(items, selected_sort)
 
@@ -1071,8 +1076,8 @@ def _global_images_civitai(
             "prevPage": page - 1 if page > 1 else None,
             "processingTimeMs": first.get("processingTimeMs"),
             "facets": first.get("facetDistribution") or {},
-            "searchBackend": "website-images_v6",
-            "searchIndex": "images_v6",
+            "searchBackend": "removed-global-image-index",
+            "searchIndex": "removed-global-image-index",
             "gallerySource": gallery_origin,
             "sort": selected_sort,
             "period": selected_period,
@@ -1485,6 +1490,12 @@ def _images_civitai(
 ) -> Dict[str, Any]:
     url = "https://civitai.com/api/v1/images"
 
+    if str(query or "").strip() and model_id is None and model_version_id is None:
+        raise ValueError(
+            "Select a model first. Civitai image search is model-scoped; "
+            "search models, choose a model location, then list images inside it."
+        )
+
     limit = max(1, min(int(limit or 50), 200))
     bridge_key = _bridge_cache_key(
         query=query,
@@ -1558,110 +1569,14 @@ def _images_civitai(
         _bridge_cache_set(bridge_key, result)
         return result
 
-    # Always bridge image searches through model-search, then unify images by modelId.
-    # This keeps image discovery consistent with model relevance/search controls.
-    mapped_model_sort = model_sort or _map_image_sort_to_model_sort(sort) or "Newest"
-    model_search = _search_civitai(
-        query=(str(query or "").strip()),
-        page=max(1, int(page or 1)),
-        api_key=api_key,
-        cursor=cursor,
-        nsfw=nsfw,
-        sort=mapped_model_sort,
-        period=period,
-        limit=20,
-        model_id=model_id,
-        model_version_id=model_version_id,
+    # Text queries are intentionally not bridged to global image search here.
+    # Civitai no longer has the old global image search as a reliable source;
+    # callers must first search/select a model location and then list images with
+    # modelId/modelVersionId through the public images endpoint above.
+    raise ValueError(
+        "Select a model first. Civitai image search is model-scoped; "
+        "search models, choose a model location, then list images inside it."
     )
-    model_items = model_search.get("items", []) or []
-
-    merged: list[Dict[str, Any]] = []
-    seen_ids: set[int] = set()
-    max_total_images = 4000
-
-    for model in model_items:
-        mid = model.get("id")
-        if mid is None:
-            continue
-        try:
-            model_id_int = int(mid)
-        except Exception:
-            continue
-
-        image_cursor: Optional[str] = None
-        seen_image_cursors: set[str] = set()
-        while True:
-            image_params: Dict[str, Any] = {
-                "limit": 200,
-                "modelId": model_id_int,
-                "withMeta": "true",
-            }
-            if image_cursor:
-                image_params["cursor"] = image_cursor
-            if model_version_id is not None:
-                image_params["modelVersionId"] = int(model_version_id)
-            if post_id is not None:
-                image_params["postId"] = int(post_id)
-            if username:
-                image_params["username"] = username
-            if nsfw is not None:
-                image_params["nsfw"] = str(bool(nsfw)).lower()
-            if sort in ALLOWED_SORT_IMAGES:
-                image_params["sort"] = sort
-            if period:
-                image_params["period"] = period
-
-            data = _request_with_retries("GET", url, params=_clean_params(image_params), api_key=api_key)
-            items = data.get("items", []) or []
-
-            for raw in items:
-                trimmed = _trim_image_item(raw)
-                iid = trimmed.get("id")
-                if isinstance(iid, int):
-                    if iid in seen_ids:
-                        continue
-                    seen_ids.add(iid)
-                merged.append(trimmed)
-
-            if len(merged) >= max_total_images:
-                break
-
-            meta = data.get("metadata", {}) or {}
-            next_image_cursor = _normalize_cursor(
-                meta.get("nextCursor") or meta.get("nextPageCursor")
-            )
-            if (
-                not next_image_cursor
-                or next_image_cursor in seen_image_cursors
-            ):
-                break
-            seen_image_cursors.add(next_image_cursor)
-            image_cursor = next_image_cursor
-
-        if len(merged) >= max_total_images:
-            break
-
-    merged = _sort_unified_images(merged, sort)
-    unified_total = len(merged)
-    merged = merged[:limit]
-
-    result = {
-        "ok": True,
-        "items": merged,
-        "metadata": {
-            "page": model_search.get("metadata", {}).get("page", page),
-            "pages": model_search.get("metadata", {}).get("pages"),
-            "total": unified_total,
-            "returned": len(merged),
-            "modelsMatched": len(model_items),
-            "nextPage": model_search.get("metadata", {}).get("nextPage"),
-            "prevPage": model_search.get("metadata", {}).get("prevPage"),
-            "nextCursor": model_search.get("metadata", {}).get("nextCursor"),
-            "prevCursor": model_search.get("metadata", {}).get("prevCursor"),
-        },
-    }
-    _bridge_cache_set(bridge_key, result)
-    return result
 
 
 # ----------------------------
