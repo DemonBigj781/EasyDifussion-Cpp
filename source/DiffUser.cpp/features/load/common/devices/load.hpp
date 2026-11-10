@@ -25,6 +25,8 @@ struct Request {
     std::uint64_t size = 0;
     int device_index = 0;
     ResourceType resource_type = ResourceType::model;
+    // Conservative prototype default; callers may supply a reviewed byte budget.
+    std::uint64_t max_bytes = 256ull * 1024 * 1024;
 };
 
 struct Resource {
@@ -43,13 +45,14 @@ struct Result {
 };
 
 using TranslationFn = Result (*)(const Request&);
+// Roll back only through the translation that created the resource.
+using RollbackFn = void (*)(Resource&) noexcept;
 bool register_translation(Backend backend, ResourceType resource_type,
-                          TranslationFn translation) noexcept;
+                          TranslationFn translation, RollbackFn rollback) noexcept;
 Result load_resource(Backend backend, const Request& request);
 
 using ModelTranslationFn = TranslationFn;
-bool register_model_translation(Backend backend, ModelTranslationFn translation) noexcept;
+bool register_model_translation(Backend backend, ModelTranslationFn translation, RollbackFn rollback) noexcept;
 Result load_model(Backend backend, const Request& request);
-Result normalize(Result result);
 
 } // namespace edcpp::api::load

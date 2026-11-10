@@ -5,11 +5,14 @@
 #include <mutex>
 #include <utility>
 
+namespace edcpp::api::load::cpu::translation::cpu { void ensure_registered(); }
+
 namespace edcpp::api::load {
 namespace {
 constexpr std::size_t backend_slots = static_cast<std::size_t>(Backend::directml) + 1;
 constexpr std::size_t resource_slots = static_cast<std::size_t>(ResourceType::count);
-using TranslationTable = std::array<std::array<TranslationFn, resource_slots>, backend_slots>;
+struct Translation { TranslationFn invoke = nullptr; RollbackFn rollback = nullptr; };
+using TranslationTable = std::array<std::array<Translation, resource_slots>, backend_slots>;
 std::mutex& translation_mutex() {
     static std::mutex mutex;
     return mutex;
@@ -21,57 +24,67 @@ TranslationTable& translations() {
 }
 
 bool register_translation(Backend backend, ResourceType resource_type,
-                          TranslationFn translation) noexcept {
+                          TranslationFn translation, RollbackFn rollback) noexcept {
     const auto backend_index = static_cast<std::size_t>(backend);
     const auto resource_index = static_cast<std::size_t>(resource_type);
     if (backend == Backend::none || backend_index >= backend_slots ||
-        resource_index >= resource_slots || translation == nullptr) return false;
+        resource_index >= resource_slots || translation == nullptr || rollback == nullptr) return false;
     // A route is immutable after first registration: changing an unload
     // implementation while resources are alive could release with the wrong owner.
     std::lock_guard<std::mutex> lock(translation_mutex());
     auto& slot = translations()[backend_index][resource_index];
-    if (slot != nullptr) return false;
-    slot = translation;
+    if (slot.invoke != nullptr) return false;
+    slot = {translation, rollback};
     return true;
 }
 
 Result load_resource(Backend backend, const Request& request) {
+    // Explicit symbol reference retains CPU translation objects in static archives.
+    if (backend == Backend::cpu) cpu::translation::cpu::ensure_registered();
+    if (request.data == nullptr || request.size == 0 || request.size > request.max_bytes) {
+        Result rejected;
+        rejected.diagnostic = "load requires non-empty bytes within the requested allocation budget";
+        return rejected;
+    }
     const auto backend_index = static_cast<std::size_t>(backend);
     const auto resource_index = static_cast<std::size_t>(request.resource_type);
-    TranslationFn selected = nullptr;
+    Translation selected;
     if (backend != Backend::none && backend_index < backend_slots && resource_index < resource_slots) {
         std::lock_guard<std::mutex> lock(translation_mutex());
         selected = translations()[backend_index][resource_index];
     }
-    if (selected == nullptr) {
+    if (selected.invoke == nullptr) {
         Result result;
         result.diagnostic = "Common load has no registered translation for the requested backend and resource type";
-        return normalize(std::move(result));
+        return result;
     }
     // Do not hold a registry lock while invoking backend code.
-    return normalize(selected(request));
+    auto result = selected.invoke(request);
+    const bool valid = result.loaded && result.resource.loaded() &&
+        result.resource.backend == backend &&
+        result.resource.resource_type == request.resource_type &&
+        result.resource.size == request.size &&
+        result.resource.size <= request.max_bytes &&
+        result.resource.device_index == (backend == Backend::cpu ? 0 : request.device_index);
+    if (!valid) {
+        // The originating translation owns allocator knowledge, even when its
+        // reported metadata is malformed. Never guess an allocator here.
+        if (result.resource.native_handle != nullptr) selected.rollback(result.resource);
+        result.loaded = false;
+        result.resource = {};
+        if (result.diagnostic.empty()) result.diagnostic = "load translation returned an invalid resource identity or size";
+    }
+    return result;
 }
 
-bool register_model_translation(Backend backend, ModelTranslationFn translation) noexcept {
-    return register_translation(backend, ResourceType::model, translation);
+bool register_model_translation(Backend backend, ModelTranslationFn translation, RollbackFn rollback) noexcept {
+    return register_translation(backend, ResourceType::model, translation, rollback);
 }
 
 Result load_model(Backend backend, const Request& request) {
     Request model_request = request;
     model_request.resource_type = ResourceType::model;
     return load_resource(backend, model_request);
-}
-
-Result normalize(Result result) {
-    const bool valid_resource = result.resource.backend != Backend::none &&
-        result.resource.native_handle != nullptr && result.resource.size != 0 &&
-        result.resource.device_index >= 0;
-    if (!result.loaded || !valid_resource) {
-        result.loaded = false;
-        result.resource = {};
-        if (result.diagnostic.empty()) result.diagnostic = "load did not produce a valid owned resource";
-    }
-    return result;
 }
 
 } // namespace edcpp::api::load

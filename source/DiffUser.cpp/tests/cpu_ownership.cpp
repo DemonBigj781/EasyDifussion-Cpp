@@ -18,6 +18,7 @@ static_assert(std::is_nothrow_move_assignable_v<easyapi::CpuByteBuffer>);
 static void require(bool value, const char *message) {
     if (!value) throw std::runtime_error(message);
 }
+static void noop_rollback(load::Resource&) noexcept {}
 static load::Result reject_load(const load::Request&) { return {}; }
 static unload::Result reject_unload(const load::Resource&) { return {}; }
 
@@ -53,7 +54,7 @@ int main() {
                     for (int i = 0; i < 128; ++i) {
                         // Re-registration must never replace the release operation
                         // of a concurrently alive resource.
-                        if (load::register_model_translation(Backend::cpu, &reject_load)) ++failures;
+                        if (load::register_model_translation(Backend::cpu, &reject_load, &noop_rollback)) ++failures;
                         if (unload::register_model_translation(Backend::cpu, &reject_unload)) ++failures;
                         auto buffer = easyapi::CpuByteBuffer::copy_from(bytes.data(), bytes.size());
                         auto moved = std::move(buffer);

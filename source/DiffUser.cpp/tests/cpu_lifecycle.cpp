@@ -13,7 +13,7 @@ int main() {
     try {
         const std::array<unsigned char, 6> bytes{0, 1, 2, 127, 254, 255};
         load::Request request{bytes.data(), bytes.size(), 0, load::ResourceType::model};
-        require(!load::register_translation(Backend::none, load::ResourceType::model, nullptr), "invalid registration");
+        require(!load::register_translation(Backend::none, load::ResourceType::model, nullptr, nullptr), "invalid registration");
         require(!unload::register_translation(Backend::cpu, load::ResourceType::count, nullptr), "invalid unload registration");
         for (auto backend : {Backend::none, Backend::cuda, Backend::oneapi,
                              static_cast<Backend>(255)}) {

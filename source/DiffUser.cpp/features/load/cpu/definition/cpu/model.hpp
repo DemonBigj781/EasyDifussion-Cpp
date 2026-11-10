@@ -12,6 +12,8 @@ struct NativeResult {
     std::string diagnostic{};
 };
 
-NativeResult load_model(const void* data, std::uint64_t size);
+NativeResult load_model(const void* data, std::uint64_t size, std::uint64_t max_bytes);
+
+void discard_model(void* handle) noexcept;
 
 } // namespace edcpp::api::load::cpu::definition::cpu

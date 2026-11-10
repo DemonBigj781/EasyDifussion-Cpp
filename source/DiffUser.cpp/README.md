@@ -21,18 +21,21 @@ owners can run concurrently; the same owner must not be mutated concurrently.
 Common registration and lookup are mutex-protected, and registered routes cannot
 be replaced. Backend callbacks run outside registry locks.
 
-Before production admission:
-- Migrate all prospective consumers to the ownership facade. The low-level
-  Theory Resource remains an internal-style raw handle and must not be copied
-  by application consumers.
-- Define a frozen registration phase for a production plugin system and explicit
-  module lifetime; current immutable routes assume linked implementations live
-  for the process lifetime.
-- Define allocator/size limits and 32-bit behavior.
-- Normalize backend result identity and error cleanup before adding plugins.
-- Preserve foundation/runtime boundaries; do not replace current GGML or model
-  ownership with this test-only prototype.
-- Validate each additional typed resource and backend separately. Enum labels
-  and empty directories are not implemented capabilities.
+The public header now uses opaque private state. Common dispatch retains CPU
+registration explicitly when linked from a static archive. Byte allocations
+have a configurable 256 MiB default budget and addressability checks. Malformed
+load results are rolled back through the originating translation, never by
+guessing an allocator in Common.
 
-The unusual unload directory layout is retained verbatim for provenance.
+Before production admission:
+- Migrate consumers to the facade; raw Common descriptors remain internal-style
+  contracts, not safe copyable ownership objects for application callers.
+- Define module lifetime and plugin admission. Registered implementations and
+  rollback callbacks currently live for the process lifetime.
+- Require allocator-valid pointers, strong exception safety and truthful unload
+  status from every translation.
+- Preserve foundation/runtime boundaries and prove actual inference-resource,
+  model and backend integration separately.
+
+See ../../docs/integration/theory-runtime-gates-2026-11-10.md for evidence and
+remaining boundaries. The unusual unload layout remains for source provenance.

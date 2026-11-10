@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <mutex>
 
+namespace edcpp::api::unload::cpu::cpu::translation { void ensure_registered(); }
+
 namespace edcpp::api::unload {
 namespace {
 constexpr std::size_t backend_slots = static_cast<std::size_t>(Backend::directml) + 1;
@@ -35,6 +37,8 @@ bool register_translation(Backend backend, load::ResourceType resource_type,
 }
 
 Result unload_resource(load::Resource& resource) {
+    // Explicit symbol reference retains CPU translation objects in static archives.
+    if (resource.backend == Backend::cpu) cpu::cpu::translation::ensure_registered();
     const auto backend_index = static_cast<std::size_t>(resource.backend);
     const auto resource_index = static_cast<std::size_t>(resource.resource_type);
     TranslationFn selected = nullptr;

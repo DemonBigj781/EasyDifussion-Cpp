@@ -15,7 +15,12 @@
     "source/DiffUser.cpp/features/unload/cpu/cpu/translation/model.cpp": "10aa211e2b4a3cb09bc0dc053263fafbb29cf270cbb2bf41a3df014a20f57c3a"
   },
   "integrated_sha256": {
-    "source/DiffUser.cpp/features/load/common/devices/load.cpp": "74ac83f46497b6937034c1eed11264b927159ade718d72eed6f8be96bbfdd636",
-    "source/DiffUser.cpp/features/unload/common/devices/unload.cpp": "4787357ef55980a15f2f40ccb724ed2cfbf534ba7caf932a0b5b31247b94e315"
+    "source/DiffUser.cpp/features/load/common/devices/load.hpp": "c144373f256f464436740de143eba6a6915726166906821a2681a558e9ab8793",
+    "source/DiffUser.cpp/features/load/common/devices/load.cpp": "ef6e101803c816c1e7efb96387b5cca46bea8d65548dc5b80d108bef6149c6b6",
+    "source/DiffUser.cpp/features/load/cpu/definition/cpu/model.hpp": "51e313338cc2797bf8e54fb83a0cc5ca433eb45130d6fa0b1aa1910a0465e6f8",
+    "source/DiffUser.cpp/features/load/cpu/definition/cpu/model.cpp": "688d62c7cea34b958da7d20c2bbe1c4f5558c694bcba844ec5ea123eb11df5bf",
+    "source/DiffUser.cpp/features/load/cpu/translation/cpu/model.cpp": "e8385689fcbae786f024c159239a9380701b3ce8a49f6809e282f2a98b53ad13",
+    "source/DiffUser.cpp/features/unload/common/devices/unload.cpp": "cf7522b14adeab338f99a8ad0429811d7c5938cf64aad717a5890850d43d3b1d",
+    "source/DiffUser.cpp/features/unload/cpu/cpu/translation/model.cpp": "cec5b8146274145e4986585d7de741b065f18e77c605efb31b3469936a365cdd"
   }
 }

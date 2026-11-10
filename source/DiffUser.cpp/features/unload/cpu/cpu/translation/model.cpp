@@ -19,8 +19,12 @@ Result unload_model(const load::Resource& resource) {
     return result;
 }
 
-[[maybe_unused]] const bool registered =
-    register_translation(Backend::cpu, load::ResourceType::model, &unload_model);
-
 } // namespace
+
+void ensure_registered() {
+    // Function-local static initialization is thread-safe.
+    static const bool registered = register_translation(Backend::cpu, load::ResourceType::model, &unload_model);
+    (void) registered;
+}
+
 } // namespace edcpp::api::unload::cpu::cpu::translation

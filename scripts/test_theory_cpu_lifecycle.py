@@ -32,7 +32,15 @@ class TheoryCpuLifecycleTests(unittest.TestCase):
     def test_exclusive_ownership_and_concurrent_registry(self):
         self.compile_and_run("cpu_ownership.cpp", "1024 concurrent cycles passed")
 
-    def compile_and_run(self, fixture, expected):
+    @unittest.skipUnless(CXX and shutil.which("ar"), "host C++ compiler and ar are required")
+    def test_public_facade_survives_static_archive_linking(self):
+        self.compile_and_run("cpu_facade.cpp", "static archive retention and bounded allocation passed", archived=True)
+
+    @unittest.skipUnless(CXX, "host C++ compiler is required")
+    def test_malformed_load_results_release_through_originating_translation(self):
+        self.compile_and_run("malformed_load.cpp", "six metadata/failure cases rolled back exactly once")
+
+    def compile_and_run(self, fixture, expected, archived=False):
         manifest = json.loads(MANIFEST.read_text())
         sources = [str(ROOT / path) for path in manifest["files"] if path.endswith(".cpp")]
         sources.append(str(SOURCE / "library/src/cpu_byte_buffer.cpp"))
@@ -42,9 +50,29 @@ class TheoryCpuLifecycleTests(unittest.TestCase):
             flags += ["-fsanitize=" + sanitizers, "-fno-omit-frame-pointer"]
         with tempfile.TemporaryDirectory(prefix="theory-cpu-contract-") as temporary:
             binary = Path(temporary) / "cpu-lifecycle"
+            if archived:
+                objects = []
+                for index, source in enumerate(sources):
+                    obj = str(Path(temporary) / f"{index}.o")
+                    compiled = subprocess.run(
+                        [CXX, "-std=c++17", "-Wall", "-Wextra", "-Werror",
+                         "-ffunction-sections", "-fdata-sections", *flags,
+                         "-I", str(SOURCE), "-I", str(SOURCE / "library/include"),
+                         "-c", source, "-o", obj], capture_output=True, text=True, timeout=120)
+                    self.assertEqual(compiled.returncode, 0, compiled.stderr)
+                    objects.append(obj)
+                archive = str(Path(temporary) / "libtheory-cpu.a")
+                subprocess.run([shutil.which("ar"), "rcs", archive, *objects], check=True, timeout=30)
+                # No whole-archive or forced undefined symbols: public references
+                # must retain every required registration object themselves.
+                sources = []
+                flags += ["-Wl,--gc-sections"]
+                trailing = [archive]
+            else:
+                trailing = []
             compiled = subprocess.run([CXX, "-std=c++17", "-Wall", "-Wextra", "-Werror",
                             "-I", str(SOURCE), "-I", str(SOURCE / "library/include"), *flags, *sources,
-                            str(SOURCE / "tests" / fixture), "-o", str(binary)],
+                            str(SOURCE / "tests" / fixture), *trailing, "-o", str(binary)],
                            check=False, capture_output=True, text=True, timeout=120)
             self.assertEqual(compiled.returncode, 0, compiled.stderr)
             result = subprocess.run([str(binary)], check=False, capture_output=True, text=True, timeout=15)
