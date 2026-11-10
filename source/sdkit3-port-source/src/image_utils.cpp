@@ -1,6 +1,7 @@
 #include "image_utils.h"
 
 #include <cctype>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,18 @@
 #include "logging.h"
 
 namespace {
+
+// The bundled stb interfaces and their row offsets use signed int arithmetic.
+// Validate before narrowing sd_image_t's unsigned fields or multiplying sizes.
+bool checked_image_bytes(uint32_t width, uint32_t height, uint32_t channels, size_t& bytes) {
+    const size_t limit = static_cast<size_t>(std::numeric_limits<int>::max());
+    if (!width || !height || channels < 1 || channels > 4 ||
+        width > limit || height > limit || width > limit / channels) return false;
+    const size_t stride = static_cast<size_t>(width) * channels;
+    if (height > limit / stride) return false;
+    bytes = stride * height;
+    return true;
+}
 
 bool starts_with_data_uri(const std::string& value) {
     static constexpr char prefix[] = "data:";
@@ -98,7 +111,13 @@ bool normalizeBase64Image(const std::string& input, std::string& output) {
 }  // namespace
 
 std::string imageToBase64(const sd_image_t& image) {
-    if (!image.data || image.width == 0 || image.height == 0) {
+    size_t bytes = 0;
+    if (!image.data || !checked_image_bytes(image.width, image.height, image.channel, bytes)) {
+        return "";
+    }
+    const size_t stride_bytes = static_cast<size_t>(image.width) * image.channel;
+    // PNG adds one filter byte to every row before passing an int length to zlib.
+    if (image.height > static_cast<size_t>(std::numeric_limits<int>::max()) / (stride_bytes + 1)) {
         return "";
     }
 
@@ -113,7 +132,7 @@ std::string imageToBase64(const sd_image_t& image) {
     };
 
     // Write PNG to buffer (stride is width * channels for tightly packed data)
-    int stride = image.width * image.channel;
+    int stride = static_cast<int>(stride_bytes);
     int result = stbi_write_png_to_func(write_callback, &png_buffer, image.width, image.height, image.channel,
                                         image.data, stride);
 
@@ -129,7 +148,7 @@ std::string imageToBase64(const sd_image_t& image) {
 sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
     sd_image_t image = {0, 0, 0, nullptr};
 
-    if (base64_data.empty()) {
+    if (desired_channels < 0 || desired_channels > 4 || base64_data.empty()) {
         return image;
     }
 
@@ -146,10 +165,15 @@ sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
         return image;
     }
 
+    if (decoded_data.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        LOG_ERROR("Encoded image exceeds the decoder's supported byte range");
+        return image;
+    }
+
     // Load image using stb_image
     int width, height, channels;
     unsigned char* img_data =
-        stbi_load_from_memory(decoded_data.data(), decoded_data.size(), &width, &height, &channels, desired_channels);
+        stbi_load_from_memory(decoded_data.data(), static_cast<int>(decoded_data.size()), &width, &height, &channels, desired_channels);
 
     if (!img_data) {
         LOG_ERROR("Failed to load image from memory: %s", stbi_failure_reason());
@@ -159,6 +183,13 @@ sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
     // Use the desired channels if specified, otherwise use the actual channels
     int final_channels = desired_channels > 0 ? desired_channels : channels;
 
+    size_t bytes = 0;
+    if (width <= 0 || height <= 0 || !checked_image_bytes(width, height, final_channels, bytes)) {
+        stbi_image_free(img_data);
+        LOG_ERROR("Decoded image dimensions exceed the supported byte range");
+        return image;
+    }
+
     image.width = width;
     image.height = height;
     image.channel = final_channels;
@@ -166,6 +197,21 @@ sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
 
     LOG_DEBUG("Decoded image: %dx%d, %d channels", width, height, final_channels);
 
+    return image;
+}
+
+sd_image_t createSolidImage(int width, int height, int channels, uint8_t value) {
+    sd_image_t image = {0, 0, 0, nullptr};
+    size_t bytes = 0;
+    if (width <= 0 || height <= 0 || channels <= 0 ||
+        !checked_image_bytes(width, height, channels, bytes)) return image;
+    auto* data = static_cast<uint8_t*>(malloc(bytes));
+    if (!data) return image;
+    memset(data, value, bytes);
+    image.width = static_cast<uint32_t>(width);
+    image.height = static_cast<uint32_t>(height);
+    image.channel = static_cast<uint32_t>(channels);
+    image.data = data;
     return image;
 }
 
@@ -180,7 +226,8 @@ void freeImage(sd_image_t& image) {
 }
 
 bool resizeImage(sd_image_t& image, int target_width, int target_height, bool clamp_to_8) {
-    if (!image.data || image.width == 0 || image.height == 0) {
+    size_t source_bytes = 0;
+    if (!image.data || !checked_image_bytes(image.width, image.height, image.channel, source_bytes)) {
         LOG_ERROR("Cannot resize invalid image");
         return false;
     }
@@ -200,13 +247,18 @@ bool resizeImage(sd_image_t& image, int target_width, int target_height, bool cl
         if (final_height <= 0) final_height = 8;
     }
 
+    size_t new_size = 0;
+    if (!checked_image_bytes(final_width, final_height, image.channel, new_size)) {
+        LOG_ERROR("Target image dimensions exceed the supported byte range");
+        return false;
+    }
+
     if (image.width == final_width && image.height == final_height) {
         // Already at target size
         return true;
     }
 
     // Allocate new buffer for resized image
-    int new_size = final_width * final_height * image.channel;
     unsigned char* resized_data = (unsigned char*)malloc(new_size);
     if (!resized_data) {
         LOG_ERROR("Failed to allocate memory for resized image");

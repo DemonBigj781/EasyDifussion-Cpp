@@ -836,14 +836,10 @@ sd_image_t ImageGenerator::createMaskImage(const ImageGenerationParams& params) 
 
     if (params.mask_base64.empty()) {
         // Create a default mask for img2img (all white = no masking)
-        mask_image.width = params.width;
-        mask_image.height = params.height;
-        mask_image.channel = 1;
-        mask_image.data = static_cast<uint8_t*>(malloc(params.width * params.height * 1));
+        mask_image = createSolidImage(params.width, params.height, 1, 255);
         if (!mask_image.data) {
-            throw std::runtime_error("Failed to allocate mask image");
+            throw std::runtime_error("Failed to allocate mask image: invalid dimensions or insufficient memory");
         }
-        memset(mask_image.data, 255, params.width * params.height * 1);  // Fill with 255 (white)
 
         return mask_image;
     }
