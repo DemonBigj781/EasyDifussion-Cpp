@@ -15,6 +15,7 @@ struct Limits {
 struct TensorInfo {
     std::string name;
     std::string type;
+    // Serialized storage dimensions, not application-restored logical shapes.
     std::vector<std::int64_t> shape;
     std::size_t bytes = 0;
 };
