@@ -1,4 +1,5 @@
 #include "image_utils.h"
+#include "image_generation_resources.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -44,6 +45,21 @@ int main() {
         require(mask.data != nullptr, "default mask allocation failed");
         for (size_t i = 0; i < 64; ++i) require(mask.data[i] == 255, "default mask not white");
         freeImage(mask);
+        sd_img_gen_params_t request{};
+        auto source = createSolidImage(8, 8, 3, 127);
+        const auto source_png = imageToBase64(source);
+        freeImage(source);
+        bool decoded_init = false, rejected_mask = false;
+        try {
+            sdkit::ImageInputResources resources(request);
+            request.init_image = base64ToImage(source_png);
+            decoded_init = request.init_image.data != nullptr;
+            request.mask_image = base64ToImage("invalid-mask", 1);
+            rejected_mask = !request.mask_image.data;
+            if (rejected_mask) throw std::runtime_error("malformed mask");
+        } catch (const std::runtime_error&) {}
+        require(decoded_init && rejected_mask, "real malformed-mask fixture did not execute");
+        require(!request.init_image.data && !request.mask_image.data, "real malformed mask retained init image");
         uint8_t pixel = 0;
         for (auto invalid : {sd_image_t{std::numeric_limits<uint32_t>::max(), 1, 3, &pixel},
                              sd_image_t{65536, 65536, 4, &pixel}, sd_image_t{1, 1, 5, &pixel},

@@ -21,6 +21,7 @@
 #include "base64.hpp"
 #include "crow.h"
 #include "image_utils.h"
+#include "image_generation_resources.h"
 #include "logging.h"
 #include "model_detection.h"
 #include "server.h"
@@ -519,6 +520,17 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
 
     std::unique_lock<std::mutex> lock(mutex_);
 
+    sdkit::ImageGenerationStateGuard generation_state_guard{[this]() {
+        {
+            std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
+            active_generation_ctx_ = nullptr;
+        }
+        std::lock_guard<std::mutex> cb_lock(g_callback_mutex);
+        if (g_callback_data.generator == this) {
+            g_callback_data = {};
+        }
+    }};
+
     current_task_id_ = task_id;
 
     // Set up callbacks
@@ -595,6 +607,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     // Initialize generation parameters
     sd_img_gen_params_t gen_params;
     sd_img_gen_params_init(&gen_params);
+    sdkit::ImageInputResources input_resources(gen_params);
 
     // Set loras
     gen_params.loras = lora_vec.empty() ? nullptr : lora_vec.data();
@@ -618,11 +631,8 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
 
     // img2img specific
     if (is_img2img && !params.init_image_base64.empty()) {
-        sd_image_t init_image = createInitImage(params);
-        sd_image_t mask_image = createMaskImage(params);
-
-        gen_params.init_image = init_image;
-        gen_params.mask_image = mask_image;
+        gen_params.init_image = createInitImage(params);
+        gen_params.mask_image = createMaskImage(params);
         gen_params.strength = params.strength;
     }
 
@@ -688,7 +698,8 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     }
 
     // Reference images for vision-based models (Qwen, etc.)
-    std::vector<sd_image_t> ref_images_vec = createRefImages(params);
+    input_resources.references = createRefImages(params);
+    auto& ref_images_vec = input_resources.references;
     std::string ref_image_args;
     if (!ref_images_vec.empty()) {
         gen_params.ref_images = ref_images_vec.data();
@@ -719,8 +730,9 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         active_generation_ctx_ = sd_ctx_;
         cancel_requested_ = false;
     }
-    sd_image_t* result = nullptr;
-    int result_count = 0;
+    sdkit::ImageResultResources output_resources;
+    auto& result = output_resources.images;
+    auto& result_count = output_resources.count;
     const bool generation_succeeded = generate_image(sd_ctx_, &gen_params, &result, &result_count);
     const auto generation_finished_at = std::chrono::steady_clock::now();
     const double generation_seconds =
@@ -737,42 +749,12 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         active_generation_ctx_ = nullptr;
     }
 
-    // Free init image if used
-    if (gen_params.init_image.data) {
-        freeImage(gen_params.init_image);
-    }
-    if (gen_params.mask_image.data) {
-        freeImage(gen_params.mask_image);
-    }
-    // Free control image if used
-    if (control_image.data) {
-        freeImage(control_image);
-    }
-    if (control_net_lllite_image.data) {
-        freeImage(control_net_lllite_image);
-    }
-    if (ip_adapter_image.data) {
-        freeImage(ip_adapter_image);
-    }
-    if (latent_interposer_source_image.data) {
-        freeImage(latent_interposer_source_image);
-    }
-
-    // Free reference images if used
-    for (auto& ref_image : ref_images_vec) {
-        if (ref_image.data) {
-            freeImage(ref_image);
-        }
-    }
+    input_resources.reset();
 
     if (!generation_succeeded || !result || result_count <= 0) {
-        free_sd_images(result, result_count);
+        output_resources.reset();
 
-        // Clear callbacks
-        {
-            std::lock_guard<std::mutex> cb_lock(g_callback_mutex);
-            g_callback_data.task_id.clear();
-        }
+        generation_state_guard.reset();
 
         if (generation_cancelled) {
             LOG_INFO("Image generation cancelled");
@@ -801,16 +783,15 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     result_images.reserve(static_cast<size_t>(result_count));
     for (int i = 0; i < result_count; i++) {
         std::string img_base64 = imageToBase64(result[i]);
-        result_images.push_back(img_base64);
+        if (img_base64.empty()) {
+            throw std::runtime_error("Failed to encode generated image at index " + std::to_string(i));
+        }
+        result_images.push_back(std::move(img_base64));
     }
 
-    free_sd_images(result, result_count);
+    output_resources.reset();
 
-    // Clear callbacks
-    {
-        std::lock_guard<std::mutex> cb_lock(g_callback_mutex);
-        g_callback_data.task_id.clear();
-    }
+    generation_state_guard.reset();
 
     LOG_INFO("Generated %zu images successfully", result_images.size());
 
@@ -923,6 +904,7 @@ sd_image_t ImageGenerator::createLatentInterposerSourceImage(const std::string& 
 
 std::vector<sd_image_t> ImageGenerator::createRefImages(const ImageGenerationParams& params) {
     std::vector<sd_image_t> ref_images;
+    sdkit::ImageListGuard refs_guard(ref_images);
 
     if (params.ref_images_base64.empty()) {
         return ref_images;  // Return empty vector if no ref images
@@ -938,12 +920,9 @@ std::vector<sd_image_t> ImageGenerator::createRefImages(const ImageGenerationPar
 
         // Decode reference image from base64
         sd_image_t ref_image = base64ToImage(params.ref_images_base64[i]);
+        sdkit::ImageBufferGuard current_guard(ref_image);
         if (!ref_image.data) {
             LOG_ERROR("Failed to decode reference image at index %zu", i);
-            // Free previously decoded images before throwing
-            for (auto& img : ref_images) {
-                freeImage(img);
-            }
             throw std::runtime_error("Failed to decode reference image at index " + std::to_string(i));
         }
 
@@ -951,11 +930,6 @@ std::vector<sd_image_t> ImageGenerator::createRefImages(const ImageGenerationPar
         if (params.auto_resize_ref_image) {
             if (!resizeImage(ref_image, params.width, params.height, true)) {
                 LOG_ERROR("Failed to resize reference image at index %zu", i);
-                freeImage(ref_image);
-                // Free previously decoded images
-                for (auto& img : ref_images) {
-                    freeImage(img);
-                }
                 throw std::runtime_error("Failed to resize reference image at index " + std::to_string(i));
             }
         }
@@ -963,9 +937,11 @@ std::vector<sd_image_t> ImageGenerator::createRefImages(const ImageGenerationPar
         LOG_DEBUG("Loaded reference image %zu: %ux%u channels", i, ref_image.width, ref_image.height,
                   ref_image.channel);
         ref_images.push_back(ref_image);
+        ref_image = {}; // Ownership moved to the guarded list.
     }
 
     LOG_INFO("Successfully loaded %zu reference image(s)", ref_images.size());
+    refs_guard.dismiss();
     return ref_images;
 }
 
