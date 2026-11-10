@@ -89,7 +89,8 @@ void cosmo_register_ui_routes(crow::SimpleApp &app) {
         capabilities["kiosk_supported"] = false;
         capabilities["kiosk_enabled"] = false;
         capabilities["txt2img"] = true;
-        capabilities["img2img_ui"] = false;
+        capabilities["img2img_ui"] = true;
+        capabilities["uploaded_mask_inpainting_ui"] = true;
         capabilities["full_checkpoint_required"] = true;
         capabilities["companion_models_ui"] = false;
         capabilities["generation_plugins_ui"] = false;

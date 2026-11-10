@@ -13,13 +13,13 @@ const {webcrypto} = require('crypto');
 const scripts = path.resolve(__dirname, '../resources/cpp-ui/scripts');
 const generate = fs.readFileSync(path.join(scripts, 'generate.js'), 'utf8');
 const kiosk = fs.readFileSync(path.join(scripts, 'kiosk.js'), 'utf8');
-const caps = {protocol:1,mode:'native-single-user',kiosk_supported:false,kiosk_enabled:false,txt2img:true,max_concurrent_generations:1};
+const caps = {protocol:1,mode:'native-single-user',kiosk_supported:false,kiosk_enabled:false,txt2img:true,img2img_ui:true,uploaded_mask_inpainting_ui:true,max_concurrent_generations:1};
 const flush = async () => { for (let i=0;i<12;i++) await new Promise(r=>setImmediate(r)); };
 function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'auto'}, savedCheckpoint='') {
     const ids = new Map(), timers = new Map(), calls = [];
     let timerId=0, resolveGeneration, progressState={current_step:0,total_steps:4,completed:false};
     class Element {
-        constructor(tag='div') { this.tag=tag;this.children=[];this.handlers={};this.dataset={};this._value='';this.disabled=false;this.attributes={}; }
+        constructor(tag='div') { this.tag=tag;this.children=[];this.handlers={};this.dataset={};this._value='';this.disabled=false;this.attributes={};this.style={}; }
         set id(v) { this._id=v;ids.set(v,this); }
         get id() { return this._id; }
         set value(v) { this._value=String(v); }
@@ -50,7 +50,7 @@ function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'
         const body=options.body?JSON.parse(options.body):undefined;calls.push({path,body});
         if(path.endsWith('cosmopolitan-capabilities')) {
             if(mode==='unavailable-capabilities')return response({message:'Unavailable'},503);
-            return response(mode==='bad-capabilities'?{...caps,kiosk_enabled:true}:caps);
+            return response(mode==='bad-capabilities'?{...caps,kiosk_enabled:true}:mode==='old-capabilities'?{...caps,img2img_ui:false}:mode==='img2img-only'?{...caps,uploaded_mask_inpainting_ui:false}:caps);
         }
         if(path.endsWith('/config'))return response({saved,effective:{compute,...saved}});
         if(path.endsWith('/options'))return response(saved.options);
@@ -66,7 +66,7 @@ function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'
             {backend:'CPU',selector:'CPU',provider:'builtin',software:true,type:'cpu',memory_known:true,memory_total:8589934592},
         ]});
         if(path.endsWith('checkpoints'))return response({models:[{name:'model.safetensors'}]});
-        if(path.endsWith('txt2img')) {
+        if(path.endsWith('txt2img')||path.endsWith('img2img')) {
             if(mode==='conflict')return response({message:'Another generation is active'},409);
             if(mode==='network')throw new TypeError('network disconnected');
             return new Promise(resolve=>{resolveGeneration=value=>resolve(response(value));});
@@ -77,13 +77,23 @@ function harness(mode='success', compute={backend:'cpu',provider:'auto',device:'
     }
     const window={addEventListener(){}};
     const context=vm.createContext({window,document,fetch,crypto:webcrypto,Uint32Array,console,
+        FileReader:class{readAsDataURL(file){file.read(this);}},
+        Image:class{set src(value){this.naturalWidth=8;this.naturalHeight=8;setImmediate(()=>value.includes('broken')?this.onerror():this.onload());}},
         Option:class extends Element{constructor(text,value){super('option');this.textContent=text;this.value=value;}},
         localStorage:{getItem(){throw Error('Generate must read native settings');},setItem(){throw Error('Generate must save native settings');}},
         setTimeout(fn){const id=++timerId;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}
     });
     vm.runInContext(kiosk,context);
     vm.runInContext(generate,context);
-    return {ids,calls,window,async click(id){await ids.get(id).handlers.click?.();await flush();},
+    return {ids,calls,window,async upload(kind, data='data:image/png;base64,iVBORw0KGgo=') {
+            const input=ids.get(`cosmo-${kind}-file`);
+            input.files=[{type:'image/png',size:32,read(reader){reader.result=data;setImmediate(()=>reader.onload());}}];
+            await input.handlers.change();await flush();
+        }, beginUpload(kind) {
+            let complete;const input=ids.get(`cosmo-${kind}-file`);
+            input.files=[{type:'image/png',size:32,read(reader){complete=data=>{reader.result=data;reader.onload();};}}];
+            input.handlers.change();return complete;
+        },async click(id){await ids.get(id).handlers.click?.();await flush();},
         async start(){const promise=ids.get('makeImage').handlers.click();await flush();return {promise};},
         async tick(state){if(state)progressState=state;const first=timers.entries().next().value;if(first){timers.delete(first[0]);await first[1]();}await flush();},
         async finish(value){resolveGeneration(value);await flush();}};
@@ -171,6 +181,42 @@ const watchdog = setTimeout(() => {
     assert.equal(conflict.ids.get('makeImage').disabled,false);
     assert.match(conflict.ids.get('generation-queue-status').textContent,/Another generation/);
 
+    const uploaded=harness();await flush();
+    await uploaded.upload('initial');await uploaded.upload('mask');
+    uploaded.ids.get('cosmo-image-strength').value='0.45';
+    uploaded.ids.get('cosmo-mask-blur').value='2';uploaded.ids.get('cosmo-mask-invert').checked=true;
+    await uploaded.click('cosmo-save-generation-defaults');
+    const imageDefaults=uploaded.calls.find(c=>c.path.endsWith('/settings'));
+    assert(!JSON.stringify(imageDefaults.body).includes('iVBOR'),'uploaded pixels persisted in recipe');
+    const masked=await uploaded.start();
+    const maskedCall=uploaded.calls.find(c=>c.path.endsWith('/img2img'));
+    assert.equal(maskedCall.body.init_images[0],'iVBORw0KGgo=');
+    assert.equal(maskedCall.body.mask,'iVBORw0KGgo=');
+    assert.equal(maskedCall.body.denoising_strength,.45);assert.equal(maskedCall.body.mask_blur,2);
+    assert.equal(maskedCall.body.inpainting_mask_invert,1);
+    assert(uploaded.ids.get('cosmo-initial-file').disabled);
+    await uploaded.finish({images:['iVBORw0KGgoAAAANSUhEUg==']});await masked.promise;
+    await uploaded.click('cosmo-initial-clear');assert(uploaded.ids.get('cosmo-mask-preview').hidden);
+    assert(uploaded.ids.get('cosmo-mask-file').disabled);
+    const stale=uploaded.beginUpload('initial');assert(uploaded.ids.get('makeImage').disabled);
+    await uploaded.upload('initial','data:image/png;base64,newimage');
+    stale('data:image/png;base64,oldimage');await flush();
+    assert.equal(uploaded.ids.get('cosmo-initial-preview').src,'data:image/png;base64,newimage');
+    const cleared=uploaded.beginUpload('initial');await uploaded.click('cosmo-initial-clear');
+    cleared('data:image/png;base64,oldimage');await flush();
+    assert(uploaded.ids.get('cosmo-initial-preview').hidden,'cleared upload resurrected');
+    await uploaded.upload('initial','data:image/png;base64,broken');
+    assert(uploaded.ids.get('cosmo-initial-preview').hidden);
+    assert.match(uploaded.ids.get('generation-queue-status').textContent,/not a decodable/);
+    const plain=await uploaded.start();assert(uploaded.calls.some(c=>c.path.endsWith('/txt2img')));
+    await uploaded.finish({images:[]});await plain.promise;
+    const imgOnly=harness('img2img-only');await flush();await imgOnly.upload('initial');
+    assert(imgOnly.ids.get('cosmo-mask-file').disabled);
+    assert(imgOnly.ids.get('cosmo-mask-blur-label').hidden);
+    const oldServer=harness('old-capabilities');await flush();
+    assert(oldServer.ids.get('cosmo-image-inputs').hidden);
+    assert(oldServer.ids.get('cosmo-initial-file').disabled);
+
     const denied=harness('bad-capabilities');await flush();
     assert.equal(denied.ids.get('makeImage').disabled,true);
     assert.equal(denied.calls.length,1,'failed policy capability must not fall through to generation setup');
@@ -180,5 +226,5 @@ const watchdog = setTimeout(() => {
     assert.equal(unavailable.calls.length,1,'HTTP capability failure must not initialize generation');
     assert.equal(normal.ids.get('kiosk-mode-save').disabled,true);
     assert(!normal.calls.some(c=>c.path==='/render'));
-    console.log('UI_DOM_MOCK PASS: native checkpoint/recipe defaults, atomic explicit save and save conflict, missing saved checkpoint, temporary generation overrides, capability failure, CPU default, distinct hardware/software adapters, stable-ID default, missing-device rejection, exact device request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict');
+    console.log('UI_DOM_MOCK PASS: img2img/mask payload, image input clear/replace/decode-error, stale-read rejection, older-server capability gating, pixel-free defaults; native checkpoint/recipe defaults, atomic explicit save and save conflict, missing saved checkpoint, temporary generation overrides, capability failure, CPU default, distinct hardware/software adapters, stable-ID default, missing-device rejection, exact device request mapping, unsupported controls, progress, cancellation identity, PNG preview URI, lost connection until completion, busy conflict');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>clearTimeout(watchdog));

@@ -9,6 +9,7 @@
     const status = byId("generation-queue-status"), progress = byId("generation-progress");
     const preview = byId("preview-content"), modelStatus = byId("generation-model-status");
     const editable = ["prompt", "negative_prompt", "seed", "width", "height", "steps", "guidance_scale", "sampler"];
+    let imageInputsSupported = false, maskInputsSupported = false;
     let ready = false, active = null, loadingModels = false, savingDefaults = false, models = new Set();
     const devices = new Map();
 
@@ -24,7 +25,7 @@
         byId(id).placeholder = "Use a complete checkpoint";
         byId(id).title = "Separate companion models are not supported by this native form.";
     }
-    byId("generation-companion-status").textContent = "Use a complete checkpoint with its text encoder and VAE. Separate components, LoRAs, ControlNet, image-to-image and generation plugins are not connected to this form.";
+    byId("generation-companion-status").textContent = "Use a complete checkpoint with its text encoder and VAE. Separate components, LoRAs, ControlNet, generation plugins are not connected to this form.";
     byId("cpp-modifier-status").textContent = "Image modifier presets are unavailable here. Describe the style in the prompt.";
     byId("cpp-modifier-grid").setAttribute("aria-busy", "false");
     byId("lora_model").textContent = "LoRA selection is unavailable in this native form.";
@@ -70,12 +71,94 @@
         update();
     }
 
+    // Inputs stay browser-local until Generate. Never save image data in defaults.
+    const imagePanel = document.createElement("fieldset");
+    imagePanel.id = "cosmo-image-inputs";
+    imagePanel.hidden = true;
+    const imageLegend = document.createElement("legend");
+    imageLegend.textContent = "Image-to-image / uploaded-mask inpainting";
+    const imageHelp = document.createElement("p");
+    imageHelp.textContent = "Optional PNG or JPEG initial image. Output uses the selected width and height. An optional mask uses white to repaint and black to preserve. Painting and automatic mask editors remain available in the Python UI.";
+    imagePanel.append(imageLegend, imageHelp);
+    const uploads = {};
+    for (const kind of ["initial", "mask"]) {
+        const label = document.createElement("label");
+        label.textContent = kind === "initial" ? "Initial image " : "Inpainting mask ";
+        const input = document.createElement("input");
+        input.id = `cosmo-${kind}-file`; input.type = "file"; input.accept = "image/png,image/jpeg";
+        const thumbnail = document.createElement("img");
+        thumbnail.id = `cosmo-${kind}-preview`; thumbnail.alt = label.textContent.trim();
+        thumbnail.hidden = true; thumbnail.style.maxWidth = "240px"; thumbnail.style.maxHeight = "180px";
+        const clear = document.createElement("button");
+        clear.id = `cosmo-${kind}-clear`; clear.type = "button"; clear.textContent = `Remove ${kind} image`;
+        label.append(input); imagePanel.append(label, thumbnail, clear);
+        const entry = uploads[kind] = {input, label, thumbnail, clear, data: null, revision: 0, loading: false};
+        clear.addEventListener("click", () => { if (!active) clearUpload(kind); });
+        input.addEventListener("change", () => loadUpload(kind, input.files?.[0]));
+    }
+    function numericControl(id, title, value, min, max, step) {
+        const label = document.createElement("label"); label.textContent = title + " "; label.id = `${id}-label`;
+        const input = document.createElement("input"); input.id = id; input.type = "number";
+        input.value = value; input.min = min; input.max = max; input.step = step;
+        label.append(input); imagePanel.append(label); return input;
+    }
+    const strength = numericControl("cosmo-image-strength", "Denoising strength", "0.75", "0", "1", "0.05");
+    const maskBlur = numericControl("cosmo-mask-blur", "Mask blur (output pixels)", "4", "0", "64", "1");
+    const invertLabel = document.createElement("label"); invertLabel.textContent = "Invert mask ";
+    const invertMask = document.createElement("input"); invertMask.id = "cosmo-mask-invert"; invertMask.type = "checkbox";
+    invertLabel.append(invertMask); imagePanel.append(invertLabel);
+    controls.append(imagePanel);
+    function clearUpload(kind) {
+        const entry = uploads[kind]; ++entry.revision; entry.loading = false; entry.data = null;
+        entry.input.value = ""; entry.thumbnail.removeAttribute("src"); entry.thumbnail.hidden = true;
+        if (kind === "initial") clearUpload("mask");
+        updateControls();
+    }
+    async function loadUpload(kind, file) {
+        if (active || !imageInputsSupported || (kind === "mask" && !maskInputsSupported)) return;
+        clearUpload(kind);
+        if (!file) return;
+        const entry = uploads[kind], revision = entry.revision;
+        entry.loading = true; updateControls();
+        try {
+            if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 16 * 1024 * 1024)
+                throw new Error("Choose a PNG or JPEG no larger than 16 MiB.");
+            const data = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error("Could not read the selected image."));
+                reader.readAsDataURL(file);
+            });
+            const decoded = new Image();
+            await new Promise((resolve, reject) => {
+                decoded.onload = resolve; decoded.onerror = () => reject(new Error("The selected file is not a decodable image."));
+                decoded.src = data;
+            });
+            if (!decoded.naturalWidth || !decoded.naturalHeight || decoded.naturalWidth * decoded.naturalHeight > 32 * 1024 * 1024)
+                throw new Error("Image dimensions exceed the 32 megapixel input limit.");
+            if (entry.revision !== revision) return;
+            entry.data = data; entry.thumbnail.src = data; entry.thumbnail.hidden = false;
+            message(`${kind === "initial" ? "Initial image" : "Mask"} ready (${decoded.naturalWidth} × ${decoded.naturalHeight}). Upload occurs only when you choose Generate.`);
+        } catch (error) {
+            if (entry.revision === revision) message(error.message, true);
+        } finally {
+            if (entry.revision === revision) { entry.loading = false; updateControls(); }
+        }
+    }
+
     function message(text, failed = false) {
         status.textContent = text;
         status.dataset.state = failed ? "error" : "";
     }
     function updateControls() {
-        const available = ready && active === null && !loadingModels && !savingDefaults;
+        const readingImage = Object.values(uploads).some(entry => entry.loading);
+        const available = ready && active === null && !loadingModels && !savingDefaults && !readingImage;
+        for (const [kind, entry] of Object.entries(uploads)) {
+            entry.input.disabled = !imageInputsSupported || !ready || active !== null || savingDefaults || (kind === "mask" && (!maskInputsSupported || !uploads.initial.data));
+            entry.clear.disabled = !imageInputsSupported || !ready || active !== null || (!entry.data && !entry.loading);
+        }
+        strength.disabled = !imageInputsSupported || !available || !uploads.initial.data;
+        maskBlur.disabled = invertMask.disabled = !maskInputsSupported || !available || !uploads.mask.data;
         for (const id of editable) byId(id).disabled = !available;
         checkpoint.disabled = !available || models.size === 0;
         backend.disabled = !available;
@@ -209,7 +292,7 @@
         finally { savingDefaults = false; updateControls(); }
     }
     async function generate() {
-        if (!ready || active) return;
+        if (!ready || active || Object.values(uploads).some(entry => entry.loading)) return;
         let job;
         try {
             const prompt = byId("prompt").value.trim();
@@ -217,6 +300,20 @@
             if (!models.has(checkpoint.value)) throw new Error("Select an indexed complete checkpoint.");
             if (!devices.has(backend.value)) throw new Error("Select an available compute device.");
             const recipe = imageRecipe();
+            const imageInputs = {};
+            if (uploads.initial.data) {
+                const denoise = Number(strength.value);
+                if (!Number.isFinite(denoise) || denoise < 0 || denoise > 1) throw new Error("Denoising strength must be between 0 and 1.");
+                imageInputs.init_images = [uploads.initial.data.split(",")[1]];
+                imageInputs.denoising_strength = denoise;
+                if (uploads.mask.data) {
+                    const blur = Number(maskBlur.value);
+                    if (!Number.isFinite(blur) || blur < 0 || blur > 64) throw new Error("Mask blur must be between 0 and 64.");
+                    imageInputs.mask = uploads.mask.data.split(",")[1];
+                    imageInputs.mask_blur = blur;
+                    imageInputs.inpainting_mask_invert = invertMask.checked ? 1 : 0;
+                }
+            }
             let seed = recipe.seed;
             if (seed === -1) seed = crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
             const id = `cosmo-${Date.now()}-${crypto.getRandomValues(new Uint32Array(1))[0]}`;
@@ -226,11 +323,11 @@
             progress.removeAttribute("value");
             message("Loading the checkpoint and preparing generation. Stop becomes available after the first sampling step completes.");
             const body = {
-                ...recipe, force_task_id: id, seed, batch_size: 1, backend: job.backend,
+                ...recipe, ...imageInputs, force_task_id: id, seed, batch_size: 1, backend: job.backend,
                 override_settings: {sd_model_checkpoint: job.model, forge_additional_modules: [], live_previews_enable: false},
             };
             job.timer = setTimeout(() => poll(job), 500);
-            const result = await request("/v1/sdapi/v1/txt2img", body);
+            const result = await request(imageInputs.init_images ? "/v1/sdapi/v1/img2img" : "/v1/sdapi/v1/txt2img", body);
             if (!Array.isArray(result.images)) throw new Error("Native generation returned no image list.");
             if (!result.images.length) {
                 if (!job.stopping) throw new Error("Generation completed without an image.");
@@ -278,10 +375,17 @@
     refresh.addEventListener("click", () => loadModels(true).catch(error => message(error.message, true)));
     byId("clear-all-previews").addEventListener("click", () => preview.replaceChildren());
     window.addEventListener("beforeunload", event => { if (active) { event.preventDefault(); event.returnValue = ""; } });
+    updateControls();
     (async () => {
         try {
             const state = await window.CppKiosk.ready;
             if (state.capabilities.txt2img !== true || state.capabilities.max_concurrent_generations !== 1) throw new Error("Unsupported native generation protocol");
+            imageInputsSupported = state.capabilities.img2img_ui === true;
+            maskInputsSupported = imageInputsSupported && state.capabilities.uploaded_mask_inpainting_ui === true;
+            uploads.mask.label.hidden = uploads.mask.clear.hidden = !maskInputsSupported;
+            byId("cosmo-mask-blur-label").hidden = invertLabel.hidden = !maskInputsSupported;
+            if (!maskInputsSupported) imageHelp.textContent = "Optional PNG or JPEG initial image. Output uses the selected width and height. Uploaded-mask inpainting is unavailable on this server.";
+            imagePanel.hidden = !imageInputsSupported;
             const [result, config] = await Promise.all([
                 request("/v1/sdapi/v1/backend-devices"), request("/v1/sdapi/v1/config"),
             ]);
@@ -338,7 +442,7 @@
             await loadModels();
             ready = true;
             updateControls();
-            message(selected ? "Ready for text-to-image generation using a complete checkpoint. Models load when you choose Generate." :
+            message(selected ? "Ready to generate using a complete checkpoint. Optional image inputs appear when supported by this server. Models load when you choose Generate." :
                 "The configured device is unavailable. Choose an available compute device or update Settings; no replacement was selected.", !selected);
         } catch (error) {
             ready = false;
