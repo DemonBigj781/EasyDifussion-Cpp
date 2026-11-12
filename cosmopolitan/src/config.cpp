@@ -75,6 +75,22 @@ std::string string_value(const Json &value, const std::string &where, size_t max
     return text;
 }
 
+void validate_companion_modules(const Json &modules) {
+    const std::string where = "options.forge_additional_modules";
+    require(modules.is_array() && modules.size() <= 6, where + " must be an array of at most 6 paths");
+    std::set<std::string> paths;
+    for (const auto &module : modules) {
+        const auto path = string_value(module, where + " entry");
+        // One spelling on every host, including /C/models/... on Windows APE.
+        // Never resolve a companion against the launcher's or shell's cwd.
+        require(path.size() > 1 && path.front() == '/' && path[1] != '/' &&
+                    path.find('\\') == std::string::npos,
+                where + " entries must be absolute local paths with forward slashes (Windows: /C/models/...)");
+        require(paths.insert(fs::path(path).lexically_normal().generic_string()).second,
+                where + " must not contain duplicate paths");
+    }
+}
+
 long long integer(const Json &value, const std::string &where, long long low, long long high) {
     require(value.is_number_integer(), where + " must be an integer");
     if (value.is_number_unsigned()) require(value.get<unsigned long long>() <= static_cast<unsigned long long>(high), where + " is out of range");
@@ -136,7 +152,7 @@ void validate(const Json &value) {
     integer(options["CLIP_stop_at_last_layers"], "options.CLIP_stop_at_last_layers", -1, 32);
     require(options["sdxl_clip_l_skip"].is_boolean(), "options.sdxl_clip_l_skip must be boolean");
     require(string_value(options["samples_format"], "options.samples_format") == "png", "Only PNG output is supported");
-    require(options["forge_additional_modules"].is_array() && options["forge_additional_modules"].empty(), "Companion modules are unsupported in portable settings");
+    validate_companion_modules(options["forge_additional_modules"]);
 }
 
 Json parse(const std::string &text, size_t limit = kMaxConfigBytes) {
@@ -385,6 +401,10 @@ std::string cosmo_config_options() {
     std::lock_guard<std::mutex> lock(config_mutex);
     require(initialized, "Configuration has not been initialized");
     return effective["options"].dump();
+}
+
+void cosmo_config_validate_companion_modules(const std::string &text) {
+    validate_companion_modules(parse(text));
 }
 
 void cosmo_config_set_options(const std::string &text) {

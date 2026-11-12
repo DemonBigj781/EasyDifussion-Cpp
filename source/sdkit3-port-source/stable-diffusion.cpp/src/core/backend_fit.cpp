@@ -382,7 +382,7 @@ namespace sd::backend_fit {
             return false;
         }
 
-        LOG_WARN("auto-fit: VAE decode failed (likely out of memory); retrying with %s tiling",
+        LOG_WARN("auto-fit: VAE decode recovery requested; retrying with %s tiling",
                  retry_mode);
         return true;
     }

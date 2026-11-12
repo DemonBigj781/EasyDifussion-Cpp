@@ -453,8 +453,8 @@ namespace sd::ggml_graph_cut {
         if (tensor == nullptr || tensor->name[0] == '\0') {
             return false;
         }
-        return starts_with(tensor->name, GGML_RUNNER_CUT_PREFIX) &&
-               ends_with(tensor->name, GGML_RUNNER_CUT_SUFFIX);
+        return std::strncmp(tensor->name, GGML_RUNNER_CUT_PREFIX, std::strlen(GGML_RUNNER_CUT_PREFIX)) == 0 &&
+               tensor->name[std::strlen(tensor->name) - 1] == GGML_RUNNER_CUT_SUFFIX[0];
     }
 
     std::string make_graph_cut_name(const std::string& group, const std::string& output) {
@@ -509,10 +509,137 @@ namespace sd::ggml_graph_cut {
         return ggml_nbytes(cache_src);
     }
 
-    bool plan_matches_graph(ggml_cgraph* gf, const Plan& plan) {
+    struct GraphLayoutTensors {
+        struct Entry {
+            const ggml_tensor* tensor = nullptr;
+            size_t index              = 0;
+        };
+
+        std::vector<ggml_tensor*> tensors;
+        std::vector<Entry> entries;
+
+        explicit GraphLayoutTensors(size_t graph_size) {
+            tensors.reserve(graph_size);
+            size_t capacity = 2;
+            while (capacity < 2 * graph_size) {
+                capacity *= 2;
+            }
+            entries.resize(capacity);
+        }
+
+        size_t find(const ggml_tensor* tensor) const {
+            size_t hash = reinterpret_cast<uintptr_t>(tensor) >> 4;
+            hash ^= hash >> 16;
+            const size_t mask = entries.size() - 1;
+            size_t slot       = hash & mask;
+            while (entries[slot].tensor != nullptr && entries[slot].tensor != tensor) {
+                slot = (slot + 1) & mask;
+            }
+            return slot;
+        }
+
+        void add(ggml_tensor* tensor) {
+            if (tensor == nullptr) {
+                return;
+            }
+            size_t slot = find(tensor);
+            if (entries[slot].tensor != nullptr) {
+                return;
+            }
+            if (2 * (tensors.size() + 1) > entries.size()) {
+                // Segment graphs can reference tensors outside their node and leaf arrays.
+                std::vector<Entry> next(2 * entries.size());
+                entries.swap(next);
+                for (size_t i = 0; i < tensors.size(); ++i) {
+                    entries[find(tensors[i])] = {tensors[i], i + 1};
+                }
+                slot = find(tensor);
+            }
+            entries[slot] = {tensor, tensors.size() + 1};
+            tensors.push_back(tensor);
+        }
+
+        size_t index(const ggml_tensor* tensor) const {
+            return tensor == nullptr ? 0 : entries[find(tensor)].index;
+        }
+    };
+
+
+    static std::vector<uint64_t> graph_layout(ggml_cgraph* graph,
+                                               const std::unordered_set<const ggml_tensor*>* params = nullptr,
+                                               std::vector<uint8_t>* parameter_roles = nullptr) {
+        const size_t graph_size = static_cast<size_t>(graph->n_leafs) + graph->n_nodes;
+        GraphLayoutTensors layout_tensors(graph_size);
+        const auto& tensors = layout_tensors.tensors;
+        for (int i = 0; i < graph->n_leafs; ++i) {
+            layout_tensors.add(graph->leafs[i]);
+        }
+        for (int i = 0; i < graph->n_nodes; ++i) {
+            layout_tensors.add(graph->nodes[i]);
+        }
+        for (size_t i = 0; i < tensors.size(); ++i) {
+            layout_tensors.add(tensors[i]->view_src);
+            for (auto source : tensors[i]->src) {
+                layout_tensors.add(source);
+            }
+        }
+        if (parameter_roles != nullptr) {
+            GGML_ASSERT(params != nullptr);
+            parameter_roles->clear();
+            parameter_roles->reserve(tensors.size());
+            for (const auto* tensor : tensors) {
+                parameter_roles->push_back(is_params_tensor(*params, tensor));
+            }
+        }
+        std::vector<uint64_t> signature;
+        const size_t tensor_fields = 6 + 2 * GGML_MAX_DIMS + GGML_MAX_SRC +
+                                     GGML_MAX_OP_PARAMS / sizeof(int32_t);
+        signature.reserve(2 + graph_size + tensors.size() * tensor_fields);
+        signature.push_back(graph->n_nodes);
+        signature.push_back(graph->n_leafs);
+        for (int i = 0; i < graph->n_leafs; ++i) {
+            signature.push_back(layout_tensors.index(graph->leafs[i]));
+        }
+        for (int i = 0; i < graph->n_nodes; ++i) {
+            signature.push_back(layout_tensors.index(graph->nodes[i]));
+        }
+        for (auto tensor : tensors) {
+            signature.push_back(tensor->op);
+            signature.push_back(tensor->type);
+            signature.push_back(tensor->flags);
+            signature.push_back(tensor->view_offs);
+            signature.push_back(std::strcmp(tensor->name, "ggml_runner_final_result_tensor") == 0);
+            for (int d = 0; d < GGML_MAX_DIMS; ++d) {
+                signature.push_back(tensor->ne[d]);
+                signature.push_back(tensor->nb[d]);
+            }
+            signature.push_back(layout_tensors.index(tensor->view_src));
+            for (auto source : tensor->src) {
+                signature.push_back(layout_tensors.index(source));
+            }
+            // SCALE coefficients change values, not layout or allocation size.
+            if (tensor->op != GGML_OP_SCALE) {
+                for (int value : tensor->op_params) {
+                    signature.push_back(static_cast<uint32_t>(value));
+                }
+            }
+        }
+        return signature;
+    }
+
+    static bool plan_matches_graph(ggml_cgraph* gf, const Plan& plan,
+                                   const std::vector<uint64_t>& layout) {
         GGML_ASSERT(gf != nullptr);
         if (ggml_graph_n_nodes(gf) != plan.n_nodes || gf->n_leafs != plan.n_leafs) {
             return false;
+        }
+        if (plan.layout != layout || plan.leaf_names.size() != static_cast<size_t>(gf->n_leafs)) {
+            return false;
+        }
+        for (int i = 0; i < gf->n_leafs; ++i) {
+            if (plan.leaf_names[i] != gf->leafs[i]->name) {
+                return false;
+            }
         }
         for (const auto& input_shape_ref : plan.input_shapes) {
             if (input_shape_ref.leaf_index < 0 || input_shape_ref.leaf_index >= gf->n_leafs) {
@@ -528,7 +655,23 @@ namespace sd::ggml_graph_cut {
                 }
             }
         }
-        return true;
+        size_t cut_index = 0;
+        for (int i = 0; i < ggml_graph_n_nodes(gf); ++i) {
+            const auto node = ggml_graph_node(gf, i);
+            if (is_graph_cut_tensor(node)) {
+                if (cut_index >= plan.cut_markers.size() ||
+                    plan.cut_markers[cut_index].first != i || plan.cut_markers[cut_index].second != node->name) {
+                    return false;
+                }
+                ++cut_index;
+            }
+        }
+        return cut_index == plan.cut_markers.size();
+    }
+
+    bool plan_matches_graph(ggml_cgraph* gf, const Plan& plan) {
+        GGML_ASSERT(gf != nullptr);
+        return plan_matches_graph(gf, plan, graph_layout(gf));
     }
 
     ggml_tensor* output_tensor(ggml_cgraph* gf, const Segment& segment, size_t output_index) {
@@ -753,11 +896,15 @@ namespace sd::ggml_graph_cut {
         Plan plan;
         plan.available    = true;
         const int n_nodes = ggml_graph_n_nodes(gf);
+        plan.n_nodes = n_nodes;
+        plan.n_leafs = gf->n_leafs;
+        plan.layout  = graph_layout(gf);
+        for (int i = 0; i < gf->n_leafs; ++i) {
+            plan.leaf_names.emplace_back(gf->leafs[i]->name);
+        }
         if (n_nodes <= 0) {
             return plan;
         }
-        plan.n_nodes = n_nodes;
-        plan.n_leafs = gf->n_leafs;
         for (int i = 0; i < gf->n_leafs; ++i) {
             ggml_tensor* leaf = gf->leafs[i];
             if (is_params_tensor(params_tensor_set, leaf)) {
@@ -782,6 +929,7 @@ namespace sd::ggml_graph_cut {
                 continue;
             }
 
+            plan.cut_markers.emplace_back(i, node->name);
             plan.has_cuts = true;
             std::string full_name(node->name);
             size_t prefix_len   = std::strlen(GGML_RUNNER_CUT_PREFIX);
@@ -862,12 +1010,8 @@ namespace sd::ggml_graph_cut {
             producer_index[ggml_graph_node(gf, i)] = i;
         }
 
-        Plan merged_plan;
-        merged_plan.available = true;
-        merged_plan.has_cuts  = base_plan.has_cuts;
-        merged_plan.valid     = base_plan.valid;
-        merged_plan.n_nodes   = base_plan.n_nodes;
-        merged_plan.n_leafs   = base_plan.n_leafs;
+        Plan merged_plan = base_plan;
+        merged_plan.segments.clear();
 
         std::unordered_set<int> available_cut_output_node_indices;
         available_cut_output_node_indices.reserve(static_cast<size_t>(n_nodes));
@@ -959,14 +1103,27 @@ namespace sd::ggml_graph_cut {
         GGML_ASSERT(gf != nullptr);
         GGML_ASSERT(cache != nullptr);
 
+        std::vector<uint8_t> parameter_roles;
+        const auto layout = graph_layout(gf, &params_tensor_set, &parameter_roles);
+        const auto buffer_type = ggml_backend_get_default_buffer_type(backend);
+        const auto alignment = ggml_backend_buft_get_alignment(buffer_type);
+        const auto max_size = ggml_backend_buft_get_max_size(buffer_type);
+        if (cache->backend != backend || cache->buffer_type != buffer_type ||
+            cache->buffer_alignment != alignment || cache->max_buffer_size != max_size ||
+            cache->parameter_roles != parameter_roles) {
+            cache->graph_cut_plan.available = false;
+            cache->budgeted_graph_cut_plan.available = false;
+            cache->backend = backend;
+            cache->buffer_type = buffer_type;
+            cache->buffer_alignment = alignment;
+            cache->max_buffer_size = max_size;
+            cache->parameter_roles = std::move(parameter_roles);
+        }
+
         int64_t t_prepare_begin = ggml_time_ms();
-        Plan base_plan;
         int64_t t_plan_begin = ggml_time_ms();
-        if (cache->graph_cut_plan.available && plan_matches_graph(gf, cache->graph_cut_plan)) {
-            base_plan = cache->graph_cut_plan;
-        } else {
-            base_plan                                = build_plan(backend, gf, params_tensor_set, log_desc);
-            cache->graph_cut_plan                    = base_plan;
+        if (!cache->graph_cut_plan.available || !plan_matches_graph(gf, cache->graph_cut_plan, layout)) {
+            cache->graph_cut_plan                    = build_plan(backend, gf, params_tensor_set, log_desc);
             cache->graph_cut_plan.available          = true;
             cache->budgeted_graph_cut_plan.available = false;
             if (log_desc != nullptr) {
@@ -974,25 +1131,23 @@ namespace sd::ggml_graph_cut {
             }
         }
 
-        Plan resolved_plan = base_plan;
+        const Plan& base_plan = cache->graph_cut_plan;
         if (max_graph_vram_bytes > 0 && base_plan.has_cuts) {
-            if (cache->budgeted_graph_cut_plan.available &&
-                cache->budgeted_graph_cut_plan_max_vram_bytes == max_graph_vram_bytes &&
-                plan_matches_graph(gf, cache->budgeted_graph_cut_plan)) {
-                resolved_plan = cache->budgeted_graph_cut_plan;
-            } else {
-                resolved_plan                                 = apply_max_vram_budget(gf,
-                                                                                      base_plan,
-                                                                                      max_graph_vram_bytes,
-                                                                                      backend,
-                                                                                      params_tensor_set,
-                                                                                      log_desc);
-                cache->budgeted_graph_cut_plan                = resolved_plan;
-                cache->budgeted_graph_cut_plan.available      = true;
+            if (!cache->budgeted_graph_cut_plan.available ||
+                cache->budgeted_graph_cut_plan_max_vram_bytes != max_graph_vram_bytes ||
+                !plan_matches_graph(gf, cache->budgeted_graph_cut_plan, layout)) {
+                cache->budgeted_graph_cut_plan = apply_max_vram_budget(gf,
+                                                                       base_plan,
+                                                                       max_graph_vram_bytes,
+                                                                       backend,
+                                                                       params_tensor_set,
+                                                                       log_desc);
+                cache->budgeted_graph_cut_plan.available = true;
                 cache->budgeted_graph_cut_plan_max_vram_bytes = max_graph_vram_bytes;
             }
+            return cache->budgeted_graph_cut_plan;
         }
-        return resolved_plan;
+        return base_plan;
     }
 
     void annotate_residency(Plan& plan, size_t max_graph_vram_bytes) {

@@ -41,6 +41,7 @@ struct ImageGenerationParams {
     // img2img specific
     std::string init_image_base64;
     std::string mask_base64;
+    std::string inpaint_color_guide_base64;
     float mask_blur = 0.0f;
     bool inpainting_mask_invert = false;
     float strength = 0.75f;
@@ -238,6 +239,7 @@ class ImageGenerator {
     std::string current_clip_vision_path_;
     std::string current_t5xxl_path_;
     std::string current_llm_path_;
+    std::string current_llm_vision_path_;
     std::string current_taesd_path_;
     std::string current_lora_model_dir_;
     std::string current_embeddings_dir_;

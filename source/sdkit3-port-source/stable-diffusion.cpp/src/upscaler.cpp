@@ -3,6 +3,7 @@
 #include "core/util.h"
 #include "model_loader.h"
 #include "stable-diffusion.h"
+#include "runtime/upscale_alpha.h"
 
 #include <cstdlib>
 #include <utility>
@@ -114,37 +115,39 @@ bool UpscalerGGML::load_from_file(const std::string& esrgan_path,
 }
 
 sd::Tensor<float> UpscalerGGML::upscale_tensor(const sd::Tensor<float>& input_tensor) {
-    sd::Tensor<float> upscaled;
-    const int scale = esrgan_upscaler->config.scale;
-    if (tile_size <= 0 || (input_tensor.shape()[0] <= tile_size && input_tensor.shape()[1] <= tile_size)) {
-        upscaled = esrgan_upscaler->compute(n_threads, input_tensor);
-    } else {
-        auto on_processing = [&](const sd::Tensor<float>& input_tile) -> sd::Tensor<float> {
-            auto output_tile = esrgan_upscaler->compute(n_threads, input_tile);
-            if (output_tile.empty()) {
-                LOG_ERROR("esrgan compute failed while processing a tile");
-                return {};
-            }
-            return output_tile;
-        };
+    return sd::upscale_rgb_preserving_alpha(input_tensor, [&](const sd::Tensor<float>& model_input) -> sd::Tensor<float> {
+        sd::Tensor<float> upscaled;
+        const int scale = esrgan_upscaler->config.scale;
+        if (tile_size <= 0 || (model_input.shape()[0] <= tile_size && model_input.shape()[1] <= tile_size)) {
+            upscaled = esrgan_upscaler->compute(n_threads, model_input);
+        } else {
+            auto on_processing = [&](const sd::Tensor<float>& input_tile) -> sd::Tensor<float> {
+                auto output_tile = esrgan_upscaler->compute(n_threads, input_tile);
+                if (output_tile.empty()) {
+                    LOG_ERROR("esrgan compute failed while processing a tile");
+                    return {};
+                }
+                return output_tile;
+            };
 
-        upscaled = process_tiles_2d(input_tensor,
-                                    static_cast<int>(input_tensor.shape()[0] * scale),
-                                    static_cast<int>(input_tensor.shape()[1] * scale),
-                                    scale,
-                                    tile_size,
-                                    tile_size,
-                                    0.25f,
-                                    false,
-                                    false,
-                                    on_processing);
-    }
-    esrgan_upscaler->free_compute_buffer();
-    if (upscaled.empty()) {
-        LOG_ERROR("esrgan compute failed");
-        return {};
-    }
-    return upscaled;
+            upscaled = process_tiles_2d(model_input,
+                                        static_cast<int>(model_input.shape()[0] * scale),
+                                        static_cast<int>(model_input.shape()[1] * scale),
+                                        scale,
+                                        tile_size,
+                                        tile_size,
+                                        0.25f,
+                                        false,
+                                        false,
+                                        on_processing);
+        }
+        esrgan_upscaler->free_compute_buffer();
+        if (upscaled.empty()) {
+            LOG_ERROR("esrgan compute failed");
+            return {};
+        }
+        return upscaled;
+    });
 }
 
 sd_image_t UpscalerGGML::upscale(sd_image_t input_image, uint32_t upscale_factor) {

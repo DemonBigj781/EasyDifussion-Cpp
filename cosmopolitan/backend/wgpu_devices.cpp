@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #include "cosmo-webgpu.h"
 #include "vulkan_loader.h"
-#include "register.h"
+#include <cosmo_lavapipe.h>
 #include <webgpu.h>
 #include <wgpu.h>
 #include <cosmo.h>

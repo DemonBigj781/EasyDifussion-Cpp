@@ -835,6 +835,9 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
             if (json_body.has("mask")) {
                 params.mask_base64 = std::string(json_body["mask"].s());
             }
+            if (json_body.has("inpaint_color_guide") && json_body["inpaint_color_guide"].t() != crow::json::type::Null) {
+                params.inpaint_color_guide_base64 = std::string(json_body["inpaint_color_guide"].s());
+            }
             params.inpainting_mask_invert = parse_mask_invert(json_body);
             params.mask_blur = json_body.has("mask_blur") ? static_cast<float>(json_body["mask_blur"].d()) : 0.0f;
             params.strength = json_body.has("denoising_strength") ? json_body["denoising_strength"].d() : 0.75f;

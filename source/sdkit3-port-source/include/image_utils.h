@@ -27,6 +27,12 @@ bool blurMaskImage(sd_image_t& image, float sigma);
 sd_image_t prepareMaskImage(const std::string& encoded_mask, int width, int height,
                             float sigma = 0.0f, bool invert = false);
 
+// Native independent RGBA color conditioning; outputs must be empty and are caller-owned.
+void prepareAdvancedInpaint(const std::string& source, const std::string& guide,
+                            const std::string& mask, int width, int height,
+                            float strength, float sigma, bool invert,
+                            sd_image_t& conditioned, sd_image_t& effective_mask);
+
 // Image manipulation
 bool resizeImage(sd_image_t& image, int target_width, int target_height, bool clamp_to_8 = false);
 

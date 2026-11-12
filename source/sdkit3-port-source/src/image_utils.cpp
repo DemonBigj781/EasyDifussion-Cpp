@@ -439,3 +439,150 @@ sd_image_t prepareMaskImage(const std::string& encoded_mask, int width, int heig
     }
     return mask_image;
 }
+
+namespace {
+// Advanced conditioning follows the established adapter's RGB Lanczos / mask
+// bilinear / premultiplied RGBA bilinear contract. It does not replace ordinary
+// img2img's existing resize implementation. Separable byte rounding is explicit.
+// Bound untrusted image headers before stb allocates decoded pixels. Ordinary
+// img2img keeps its existing contract; these stricter caps apply only here.
+sd_image_t decode_advanced_image(const std::string& encoded, int channels) {
+    constexpr size_t encoded_limit = 24u * 1024u * 1024u;
+    if (encoded.empty() || encoded.size() > encoded_limit)
+        throw std::invalid_argument("Advanced Inpaint encoded image exceeds 24 MiB or is empty");
+    std::string normalized;
+    if (!normalizeBase64Image(encoded, normalized))
+        throw std::invalid_argument("Advanced Inpaint image encoding is invalid");
+    auto bytes = base64_decode(normalized);
+    int w=0,h=0,c=0;
+    if (bytes.empty() || bytes.size() > std::numeric_limits<int>::max() ||
+        !stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &w, &h, &c) ||
+        w <= 0 || h <= 0 || w > 16384 || h > 16384 || static_cast<uint64_t>(w)*h > 16777216)
+        throw std::invalid_argument("Advanced Inpaint image header is invalid or exceeds 16 megapixels");
+    return base64ToImage(encoded, channels);
+}
+struct AdvancedImage {
+    sd_image_t image{0, 0, 0, nullptr};
+    ~AdvancedImage() { freeImage(image); }
+};
+double advanced_kernel(double x, bool lanczos) {
+    x = std::abs(x);
+    if (!lanczos) return x < 1 ? 1 - x : 0;
+    if (x == 0) return 1;
+    if (x >= 3) return 0;
+    const double pi = 3.14159265358979323846;
+    return std::sin(pi*x)*std::sin(pi*x/3)/(pi*pi*x*x/3);
+}
+void advanced_resize(sd_image_t& image, int width, int height, bool lanczos) {
+    if (image.width == static_cast<unsigned>(width) && image.height == static_cast<unsigned>(height)) return;
+    // A bounded temporary image and filter table; reject before allocation.
+    size_t bytes;
+    if (width <= 0 || height <= 0 || width > 16384 || height > 16384 ||
+        !checked_image_bytes(width, height, image.channel, bytes) ||
+        static_cast<uint64_t>(width)*height > 16777216 ||
+        static_cast<uint64_t>(width)*image.height > 16777216)
+        throw std::invalid_argument("Advanced Inpaint dimensions exceed bounded resize limits");
+    auto axis = [lanczos](const sd_image_t& input, sd_image_t& output, bool horizontal) {
+        const int n = horizontal ? input.width : input.height;
+        const int target = horizontal ? output.width : output.height;
+        const double scale = static_cast<double>(n)/target;
+        const double filter_scale = std::max(1., scale), support = (lanczos ? 3 : 1)*filter_scale;
+        for (int p=0; p<target; ++p) {
+            const double center = (p+.5)*scale;
+            const int lo = std::max(0, static_cast<int>(center-support+.5));
+            const int hi = std::min(n, static_cast<int>(center+support+.5));
+            std::vector<double> weights(hi-lo); double sum=0;
+            for (int i=lo;i<hi;++i) sum += weights[i-lo]=advanced_kernel((i-center+.5)/filter_scale,lanczos);
+            std::vector<int> fixed(hi-lo);
+            for (int i=lo;i<hi;++i) {
+                const double weight=weights[i-lo]/sum;
+                fixed[i-lo]=static_cast<int>(weight*(1<<22)+(weight<0 ? -.5 : .5));
+            }
+            const int lines=horizontal ? input.height : input.width;
+            for (int line=0;line<lines;++line) for (unsigned c=0;c<input.channel;++c) {
+                int64_t value=1<<21;
+                for (int i=lo;i<hi;++i) {
+                    size_t at=horizontal ? (static_cast<size_t>(line)*input.width+i)*input.channel+c
+                                         : (static_cast<size_t>(i)*input.width+line)*input.channel+c;
+                    value += static_cast<int64_t>(input.data[at])*fixed[i-lo];
+                }
+                size_t at=horizontal ? (static_cast<size_t>(line)*output.width+p)*output.channel+c
+                                     : (static_cast<size_t>(p)*output.width+line)*output.channel+c;
+                output.data[at]=static_cast<uint8_t>(std::max<int64_t>(0,std::min<int64_t>(255,value>>22)));
+            }
+        }
+    };
+    AdvancedImage horizontal, result;
+    horizontal.image=createSolidImage(width,image.height,image.channel,0);
+    result.image=createSolidImage(width,height,image.channel,0);
+    if (!horizontal.image.data || !result.image.data) throw std::bad_alloc();
+    axis(image,horizontal.image,true);axis(horizontal.image,result.image,false);
+    freeImage(image);image=result.image;result.image.data=nullptr;
+}
+}
+
+void prepareAdvancedInpaint(const std::string& encoded_source, const std::string& encoded_guide,
+                            const std::string& encoded_mask, int width, int height,
+                            float strength, float sigma, bool invert,
+                            sd_image_t& conditioned, sd_image_t& effective_mask) {
+    if (&conditioned == &effective_mask || conditioned.data || effective_mask.data) throw std::invalid_argument("Advanced Inpaint outputs must be empty");
+    if (!std::isfinite(strength) || strength <= 0 || strength >= 1)
+        throw std::invalid_argument("Advanced Inpaint requires denoising strength strictly between 0 and 1");
+    if (width <= 0 || height <= 0 || width > 16384 || height > 16384 ||
+        static_cast<uint64_t>(width)*height > 16777216)
+        throw std::invalid_argument("Advanced Inpaint dimensions exceed bounded limits");
+    AdvancedImage base, guide, mask;
+    base.image=decode_advanced_image(encoded_source,3);guide.image=decode_advanced_image(encoded_guide,0);
+    if (!base.image.data) throw std::invalid_argument("Advanced Inpaint requires a decodable original image");
+    if (!guide.image.data || (guide.image.channel != 2 && guide.image.channel != 4))
+        throw std::invalid_argument("Advanced Inpaint requires a guide with an alpha channel");
+    if (base.image.width!=guide.image.width || base.image.height!=guide.image.height)
+        throw std::invalid_argument("Advanced Inpaint guide and original dimensions must match");
+    const size_t pixels=static_cast<size_t>(guide.image.width)*guide.image.height;
+    bool painted=false;
+    for(size_t i=0;i<pixels;++i) painted |= guide.image.data[i*guide.image.channel+guide.image.channel-1]!=0;
+    if(!painted) throw std::invalid_argument("Advanced Inpaint guide contains no painted pixels");
+    if(guide.image.channel==2) {
+        AdvancedImage rgba;rgba.image=createSolidImage(guide.image.width,guide.image.height,4,0);
+        if(!rgba.image.data) throw std::bad_alloc();
+        for(size_t i=0;i<pixels;++i) {
+            for(int c=0;c<3;++c) rgba.image.data[i*4+c]=guide.image.data[i*2];
+            rgba.image.data[i*4+3]=guide.image.data[i*2+1];
+        }
+        freeImage(guide.image);guide.image=rgba.image;rgba.image.data=nullptr;
+    }
+    if(encoded_mask.empty()) mask.image=createSolidImage(width,height,1,0);
+    else {
+        AdvancedImage raw;raw.image=decode_advanced_image(encoded_mask,0);
+        if(!raw.image.data) throw std::invalid_argument("Failed to decode Advanced Inpaint mask");
+        mask.image=createSolidImage(raw.image.width,raw.image.height,1,0);
+        if(!mask.image.data) throw std::bad_alloc();
+        for(size_t i=0;i<static_cast<size_t>(raw.image.width)*raw.image.height;++i) {
+            const auto* p=raw.image.data+i*raw.image.channel;
+            mask.image.data[i]=raw.image.channel<3 ? p[0] : (19595*p[0]+38470*p[1]+7471*p[2]+32768)>>16;
+        }
+        advanced_resize(mask.image,width,height,false);
+    }
+    if(!mask.image.data) throw std::bad_alloc();
+    advanced_resize(base.image,width,height,true);
+    if(guide.image.width!=static_cast<unsigned>(width) || guide.image.height!=static_cast<unsigned>(height)) {
+        // Pillow's RGBA resize filters premultiplied colors, not invisible RGB.
+        for(size_t i=0;i<pixels;++i) for(int c=0;c<3;++c)
+            guide.image.data[i*4+c]=(guide.image.data[i*4+c]*guide.image.data[i*4+3]+127)/255;
+        advanced_resize(guide.image,width,height,false);
+        for(size_t i=0;i<static_cast<size_t>(width)*height;++i) for(int c=0;c<3;++c) {
+            const unsigned a=guide.image.data[i*4+3];
+            guide.image.data[i*4+c]=a ? std::min(255u,guide.image.data[i*4+c]*255u/a) : 0;
+        }
+    }
+    for(size_t i=0;i<static_cast<size_t>(width)*height;++i) {
+        const unsigned alpha=guide.image.data[i*4+3];
+        for(int c=0;c<3;++c) base.image.data[i*3+c]=
+            (base.image.data[i*3+c]*(255-alpha)+guide.image.data[i*4+c]*alpha+127)/255;
+        if(alpha) mask.image.data[i]=255;
+        if(invert) mask.image.data[i]=255-mask.image.data[i];
+    }
+    // Matches adapter ordering: union first, native inversion/blur second.
+    if(!blurMaskImage(mask.image,sigma)) throw std::invalid_argument("Failed to blur Advanced Inpaint mask");
+    conditioned=base.image;base.image.data=nullptr;effective_mask=mask.image;mask.image.data=nullptr;
+}

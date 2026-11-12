@@ -66,9 +66,9 @@
 +    for (const auto& key : overrides.keys()) {
 +        if (key == "sd_model_checkpoint" && overrides[key].t() == crow::json::type::String) {
 +            merged[key] = overrides[key].s();
-+        } else if (key == "forge_additional_modules" && overrides[key].t() == crow::json::type::List &&
-+                   overrides[key].size() == 0) {
-+            merged[key] = std::vector<std::string>{};
++        } else if (key == "forge_additional_modules") {
++            cosmo_config_validate_companion_modules(crow::json::wvalue(overrides[key]).dump());
++            merged[key] = crow::json::wvalue(overrides[key]);
 +        } else if (key == "live_previews_enable" && overrides[key].t() == crow::json::type::False) {
 +            merged[key] = false;
 +        } else {

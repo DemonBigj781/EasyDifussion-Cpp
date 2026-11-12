@@ -348,6 +348,19 @@ int run_client(cosmo_app *app, void *opaque) {
 }
 } // namespace
 
+extern "C" int cosmo_application_help(int argc, char **argv) {
+    if (argc < 3 || std::strcmp(argv[0], "infer") ||
+        (std::strcmp(argv[1], "image") && std::strcmp(argv[1], "text"))) return -1;
+    // Inference options take one value. A value such as --help is opaque.
+    for (int i = 2; i < argc; i += 2) {
+        if (!std::strcmp(argv[i], "--help") || !std::strcmp(argv[i], "-h")) {
+            command_help(stdout);
+            return 0;
+        }
+    }
+    return -1;
+}
+
 extern "C" int cosmo_application_main(int argc, char **argv) {
     try {
         require(argc >= 1, "An application command is required");

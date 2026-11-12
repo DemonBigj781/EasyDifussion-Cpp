@@ -38,6 +38,8 @@ int main(int argc, char **argv) {
         usage(argv[0]);
         return 0;
     }
+    const int application_help = cosmo_application_help(argc - 1, argv + 1);
+    if (application_help >= 0) return application_help;
 #ifdef COSMO_WEBGPU_BACKEND
     const char *webgpu_device = cosmo_config_device();
     if (!strcmp(cosmo_config_backend(), "cpu") && !strcmp(webgpu_device, "CPU")) webgpu_device = "auto";

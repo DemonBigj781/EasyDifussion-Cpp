@@ -946,6 +946,9 @@ crow::response ApplicationServices::generateImage(const crow::json::rvalue& json
             if (json_body.has("mask")) {
                 params.mask_base64 = std::string(json_body["mask"].s());
             }
+            if (json_body.has("inpaint_color_guide") && json_body["inpaint_color_guide"].t() != crow::json::type::Null) {
+                params.inpaint_color_guide_base64 = std::string(json_body["inpaint_color_guide"].s());
+            }
             params.inpainting_mask_invert = parse_mask_invert(json_body);
             params.mask_blur = json_body.has("mask_blur") ? static_cast<float>(json_body["mask_blur"].d()) : 0.0f;
             params.strength = json_body.has("denoising_strength") ? json_body["denoising_strength"].d() : 0.75f;
@@ -1465,9 +1468,8 @@ crow::response ApplicationServices::request(cosmo_app_operation operation, const
             case COSMO_APP_DEVICES: return handleBackendDevices();
             case COSMO_APP_MODELS: return handleCheckpoints();
             case COSMO_APP_MODELS_REFRESH: {
-                if (busy()) return request_error(409, "A native generation request is active");
-                std::unique_lock<std::mutex> gate(generation_mutex_, std::try_to_lock);
-                if (!gate.owns_lock()) return request_error(409, "A native generation request is active");
+                // The handler owns admission. Taking generation_mutex_ here
+                // would make its non-recursive try-lock reject our own request.
                 auto refreshed = handleRefreshCheckpoints();
                 return refreshed.code == 200 ? handleCheckpoints() : std::move(refreshed);
             }

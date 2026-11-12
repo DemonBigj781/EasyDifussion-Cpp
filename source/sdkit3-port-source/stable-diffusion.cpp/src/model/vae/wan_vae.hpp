@@ -7,6 +7,7 @@
 
 #include "model/common/block.hpp"
 #include "model/vae/vae.hpp"
+#include "model/vae/wan_decode_plan.h"
 #include "model_loader.h"
 
 namespace WAN {
@@ -1408,6 +1409,7 @@ namespace WAN {
             VAETemporalTilingConfig stateful_config = config;
             stateful_config.overlap                 = 0;
             auto plan                               = make_vae_temporal_tile_plan(input.shape()[2], stateful_config);
+            balance_short_wan_decode_plan(plan, version, ae.is_2D);
 
             LOG_DEBUG("Wan VAE stateful temporal tiling: tile_frames=%d, total latent frames=%lld, tiles=%d",
                       plan.tile_frames,

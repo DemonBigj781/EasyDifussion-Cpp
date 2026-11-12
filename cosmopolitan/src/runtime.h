@@ -19,6 +19,8 @@ int cosmo_ui_selftest(void);
 int cosmo_ui_render(const char *path);
 int cosmo_sdkit_main(int argc, char **argv);
 int cosmo_train_main(int argc, char **argv);
+/* -1 continues dispatch; help returns before backend or service startup. */
+int cosmo_application_help(int argc, char **argv);
 int cosmo_application_main(int argc, char **argv);
 
 #ifdef __cplusplus

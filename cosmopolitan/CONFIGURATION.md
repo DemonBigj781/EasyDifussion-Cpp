@@ -96,6 +96,44 @@ directory or the configuration-relative model directory. Provider/device
 startup changes continue to require restart; a running shell never resets
 the initialized backend registry to apply them silently.
 
+### Explicit local split-model companions
+
+The shared shell and HTTP inference path accept `options.forge_additional_modules`
+as an array of up to six local companion paths. The existing model inspector routes
+each file to one of `vae`, `clip_l`, `clip_g`, `t5xxl`, `llm`, or `llm_vision`.
+This exposes the existing typed loader; it does not establish compatibility with
+every model family. A complete checkpoint with an external VAE remains valid.
+
+Use absolute paths with forward slashes, including `/C/models/clip-l.gguf` on
+Windows APE. Relative paths, drive-letter spellings such as `C:/models/...`, UNC
+paths, empty strings, embedded NULs, paths over 4096 bytes, duplicate paths, and
+more than six entries are rejected. Paths are never rebased against shell `cd`,
+the launch directory, or the configuration directory. Configuration validation
+checks the path syntax; file existence and detected roles are checked when
+loading the model. Missing files, unrecognized types, and multiple files for one
+role fail explicitly rather than being skipped or overwritten.
+
+For a split SD1.5 checkpoint indexed as `diffusion.gguf`, a one-shot JSON request
+can contain:
+
+```json
+{
+  "prompt": "a red apple",
+  "override_settings": {
+    "sd_model_checkpoint": "diffusion.gguf",
+    "forge_additional_modules": ["/models/clip-l.gguf", "/models/vae.gguf"]
+  }
+}
+```
+
+Pass the request to `infer image --request-file request.json --output image.png`
+or `POST /v1/sdapi/v1/txt2img`. Overrides replace the companion list for that
+request only, including `[]` to clear it, and never change saved defaults.
+To save the list, use the native options or settings endpoint, or the shell's
+`options set forge_additional_modules '["/models/clip-l.gguf","/models/vae.gguf"]'`.
+The selected diffusion checkpoint must still be in the configured checkpoint
+index; explicit companion paths do not add checkpoint search directories.
+
 ## Select and verify a native GPU
 
 Windows native operation requires an installed compatible Vulkan graphics driver providing `vulkan-1.dll`. Linux requires `libvulkan.so.1` and a compatible driver; Cosmopolitan 4.0.2 also builds a native library helper on first use, so a working host C compiler must be on `PATH`. No display server is needed. The backend requires `ShaderF16`, including for its F32 matrix kernels; detected adapters missing required features are reported with an unavailable reason.
@@ -148,7 +186,7 @@ The configuration API is:
 
 Both mutation routes return 409 while a generation is active. Validation failures return 400. Filesystem failures return an error and leave the in-memory saved settings unchanged. Writes use a flushed temporary file followed by replacement; the server detects an external edit before saving and asks for a restart. This is a single-server configuration mechanism, not a multi-process transaction service.
 
-The old working-directory `options.json` is no longer the portable application's settings store and is not imported automatically. If migrating selected options, copy supported values into the generated configuration and run `config validate`. Live previews, companion-module lists and non-PNG output remain unsupported and are rejected. Kiosk configuration remains explicitly unavailable; persisted application settings do not introduce or silently bypass a kiosk policy.
+The old working-directory `options.json` is no longer the portable application's settings store and is not imported automatically. If migrating selected options, copy supported values into the generated configuration and run `config validate`. Live previews and non-PNG output remain unsupported and are rejected. Companion-module lists follow the explicit local path contract above. Kiosk configuration remains explicitly unavailable; persisted application settings do not introduce or silently bypass a kiosk policy.
 
 ## Focused checks without models
 
@@ -169,6 +207,12 @@ python cosmopolitan/tests/verify_config.py --probe config-probe.exe
 ```
 
 The verifier checks first-run creation, strict validation, relative path resolution, CLI precedence without saved-file mutation, persistent live options, startup changes requiring restart, unchanged files on rejected updates, and configuration-independent diagnostics. `BUILD.json` records source hashes and the test executable hash. The Settings test uses a small DOM/fetch mock to check configuration errors, actual selector/stable-ID requests, truthful software labels, restart notices, provider changes, and busy responses. It does not claim browser rendering, HTTP server execution, hardware discovery, or model inference. The native API and same-artifact integration gates cover those separate boundaries.
+
+`python3 cosmopolitan/tests/test_split_model_settings.py` runs the configuration
+verifier against a host build, compiles the real patched OptionsManager to check
+saved-list roundtrips and nonmutating request overlays, and exercises the actual
+companion-routing block with a mocked type inspector. These checks do not load
+weights, start a server, or demonstrate inference or model-family compatibility.
 
 A separate policy unit links the actual `wgpu_devices.cpp` against explicitly mocked Vulkan registration/provider selection and a mocked WGPU instance factory. It checks hardware-first automatic selection, embedded fallback, native automatic rejection of software/unknown adapter types, explicit native software selection, missing/ambiguous selectors, configured defaults versus the last request, immutable initialized policy, and the Linux main-thread guard. It does not claim actual Vulkan loading or GPU execution:
 

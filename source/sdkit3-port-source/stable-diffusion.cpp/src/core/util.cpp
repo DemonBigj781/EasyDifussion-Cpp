@@ -1,3 +1,4 @@
+#include "core/cpu_topology.h"
 #include "core/util.h"
 #include <algorithm>
 #include <cctype>
@@ -306,20 +307,9 @@ bool MmapWrapper::copy_data(void* buf, size_t n, size_t offset) const {
 // LICENSE: https://github.com/ggerganov/llama.cpp/blob/master/LICENSE
 int32_t sd_get_num_physical_cores() {
 #ifdef __linux__
-    // enumerate the set of thread siblings, num entries is num cores
-    std::unordered_set<std::string> siblings;
-    for (uint32_t cpu = 0; cpu < UINT32_MAX; ++cpu) {
-        std::ifstream thread_siblings("/sys/devices/system/cpu" + std::to_string(cpu) + "/topology/thread_siblings");
-        if (!thread_siblings.is_open()) {
-            break;  // no more cpus
-        }
-        std::string line;
-        if (std::getline(thread_siblings, line)) {
-            siblings.insert(line);
-        }
-    }
-    if (siblings.size() > 0) {
-        return static_cast<int32_t>(siblings.size());
+    const int32_t num_physical_cores = count_sysfs_physical_cores("/sys/devices/system/cpu");
+    if (num_physical_cores > 0) {
+        return num_physical_cores;
     }
 #elif defined(__APPLE__) && defined(__MACH__)
     int32_t num_physical_cores;
@@ -760,6 +750,11 @@ sd::Tensor<float> clip_preprocess(const sd::Tensor<float>& image, int target_wid
     int64_t resized_width  = static_cast<int64_t>(scale * static_cast<float>(image.shape()[0]));
     int64_t resized_height = static_cast<int64_t>(scale * static_cast<float>(image.shape()[1]));
 
+    // Float rounding can truncate a resized side below the crop target.
+    // Preserve truncation elsewhere while keeping the crop window in bounds.
+    resized_width = std::max<int64_t>(resized_width, target_width);
+    resized_height = std::max<int64_t>(resized_height, target_height);
+
     sd::Tensor<float> resized = sd::ops::interpolate(
         image,
         {resized_width, resized_height, image.shape()[2], image.shape()[3]});
@@ -826,7 +821,8 @@ std::vector<std::pair<std::string, float>> parse_prompt_attention(const std::str
     float round_bracket_multiplier  = 1.1f;
     float square_bracket_multiplier = 1 / 1.1f;
 
-    std::regex re_attention(R"(\\\(|\\\)|\\\[|\\\]|\\\\|\\|\(|\[|:([+-]?[.\d]+)\)|\)|\]|\bBREAK\b|[^\\()\[\]:B]+|:|\bB)");
+    // Bound regex recursion per plain-text run; adjacent equal-weight runs merge below.
+    std::regex re_attention(R"(\\\(|\\\)|\\\[|\\\]|\\\\|\\|\(|\[|\)|\]|\bBREAK\b|[^\\()\[\]:B]{1,1024}|:|\bB)");
     std::regex re_break(R"(\s*\bBREAK\b\s*)");
 
     auto multiply_range = [&](int start_position, float multiplier) {
@@ -835,22 +831,42 @@ std::vector<std::pair<std::string, float>> parse_prompt_attention(const std::str
         }
     };
 
+    // Keep numeric runs outside std::regex without changing this fork's
+    // std::stof error behavior used by request-admission validation.
+    auto weight_length = [](const std::string& suffix) -> size_t {
+        size_t end = 0;
+        if (end < suffix.size() && (suffix[end] == '+' || suffix[end] == '-')) {
+            ++end;
+        }
+        size_t numeric_start = end;
+        while (end < suffix.size() && (std::isdigit(static_cast<unsigned char>(suffix[end])) || suffix[end] == '.')) {
+            ++end;
+        }
+        return end > numeric_start && end < suffix.size() && suffix[end] == ')' ? end + 1 : 0;
+    };
+
     std::smatch m, m2;
     std::string remaining_text = text;
 
     while (std::regex_search(remaining_text, m, re_attention)) {
         std::string text   = m[0];
-        std::string weight = m[1];
+        std::string suffix = m.suffix();
+        if (text == ":") {
+            size_t length = weight_length(suffix);
+            if (length > 0) {
+                if (!round_brackets.empty()) {
+                    multiply_range(round_brackets.back(), std::stof(suffix.substr(0, length - 1)));
+                    round_brackets.pop_back();
+                }
+                remaining_text = suffix.substr(length);
+                continue;
+            }
+        }
 
         if (text == "(") {
             round_brackets.push_back((int)res.size());
         } else if (text == "[") {
             square_brackets.push_back((int)res.size());
-        } else if (!weight.empty()) {
-            if (!round_brackets.empty()) {
-                multiply_range(round_brackets.back(), std::stof(weight));
-                round_brackets.pop_back();
-            }
         } else if (text == ")" && !round_brackets.empty()) {
             multiply_range(round_brackets.back(), round_bracket_multiplier);
             round_brackets.pop_back();
@@ -865,7 +881,7 @@ std::vector<std::pair<std::string, float>> parse_prompt_attention(const std::str
             res.push_back({text, 1.0f});
         }
 
-        remaining_text = m.suffix();
+        remaining_text = suffix;
     }
 
     for (int pos : round_brackets) {

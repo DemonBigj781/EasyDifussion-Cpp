@@ -880,6 +880,18 @@ namespace Flux {
         }
     };
 
+    // Radiance keeps patch padding through attention/Nerf decoding. Circular
+    // pixel convolution must wrap at the requested extent, not that patch grid.
+    inline ggml_tensor* radiance_crop_spatial(ggml_context* ctx, ggml_tensor* x,
+                                              int64_t width, int64_t height) {
+        GGML_ASSERT(width > 0 && height > 0 && width <= x->ne[0] && height <= x->ne[1]);
+        if (width == x->ne[0] && height == x->ne[1]) {
+            return x;
+        }
+        return ggml_cont(ctx, ggml_view_4d(ctx, x, width, height, x->ne[2], x->ne[3],
+                                         x->nb[1], x->nb[2], x->nb[3], 0));
+    }
+
     struct NerfFinalLayerConv : public GGMLBlock {
         NerfFinalLayerConv(int64_t hidden_size,
                            int64_t out_channels) {
@@ -1217,7 +1229,7 @@ namespace Flux {
                 // It's supposed to be using GGML_SCALE_MODE_NEAREST, but this seems more stable
                 // Maybe the implementation of nearest-neighbor interpolation in ggml behaves differently than the one in PyTorch?
                 // img = F.interpolate(img, size=(H//2, W//2), mode="nearest")
-                img = ggml_interpolate(ctx->ggml_ctx, img, W / 2, H / 2, C, x->ne[3], GGML_SCALE_MODE_BILINEAR);
+                img = ggml_interpolate(ctx->ggml_ctx, img, img->ne[0] / 2, img->ne[1] / 2, C, x->ne[3], GGML_SCALE_MODE_BILINEAR);
             }
 
             auto img_in_patch = std::dynamic_pointer_cast<Conv2d>(blocks["img_in_patch"]);
@@ -1255,13 +1267,17 @@ namespace Flux {
             img_dct = ggml_reshape_3d(ctx->ggml_ctx, img_dct, img_dct->ne[0] * img_dct->ne[1], num_patches, img_dct->ne[2] / num_patches);  // [N, num_patches, nerf_hidden_size*patch_size*patch_size]
             img_dct = DiT::unpatchify(ctx->ggml_ctx, img_dct, (H + pad_h) / patch_size, (W + pad_w) / patch_size, patch_size, patch_size);  // [N, nerf_hidden_size, H, W]
 
+            const int64_t conv_width = ctx->circular_x_enabled ? W : img_dct->ne[0];
+            const int64_t conv_height = ctx->circular_y_enabled ? H : img_dct->ne[1];
+            img_dct = radiance_crop_spatial(ctx->ggml_ctx, img_dct, conv_width, conv_height);
             out = nerf_final_layer_conv->forward(ctx, img_dct);  // [N, C, H, W]
 
             if (config.chroma_radiance_params.use_x0) {
+                orig_img = radiance_crop_spatial(ctx->ggml_ctx, orig_img, conv_width, conv_height);
                 out = _apply_x0_residual(ctx, out, orig_img, timestep);
             }
 
-            return out;
+            return radiance_crop_spatial(ctx->ggml_ctx, out, W, H);
         }
 
         ggml_tensor* forward_flux_chroma(GGMLRunnerContext* ctx,
@@ -1437,6 +1453,10 @@ namespace Flux {
             return "flux";
         }
 
+        int get_patch_size() const override {
+            return config.patch_size;
+        }
+
         void get_param_tensors(std::map<std::string, ggml_tensor*>& tensors, const std::string& prefix) override {
             flux.get_param_tensors(tensors, prefix);
         }
@@ -1545,8 +1565,11 @@ namespace Flux {
             } else if (version == VERSION_OVIS_IMAGE) {
                 txt_arange_dims = {1, 2};
             }
-            pe_vec      = Rope::gen_flux_pe(static_cast<int>(x->ne[1]),
-                                            static_cast<int>(x->ne[0]),
+            const bool padded_radiance = version == VERSION_CHROMA_RADIANCE;
+            const int rope_h = padded_radiance ? ((x->ne[1] + config.patch_size - 1) / config.patch_size) * config.patch_size : x->ne[1];
+            const int rope_w = padded_radiance ? ((x->ne[0] + config.patch_size - 1) / config.patch_size) * config.patch_size : x->ne[0];
+            pe_vec      = Rope::gen_flux_pe(rope_h,
+                                            rope_w,
                                             config.patch_size,
                                             static_cast<int>(x->ne[3]),
                                             static_cast<int>(context->ne[1]),

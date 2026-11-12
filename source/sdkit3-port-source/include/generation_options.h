@@ -17,6 +17,25 @@ inline std::string validate_generation_options(const crow::json::rvalue& body, b
             return "distilled_cfg_scale must be a finite float";
         }
     }
+    if (masked_image) {
+        if (body.has("inpaint_color_guidance") && body["inpaint_color_guidance"].t() != crow::json::type::Null)
+            return "inpaint_color_guidance is not supported; use the independent inpaint_color_guide RGBA input";
+        if (body.has("inpaint_color_guide") && body["inpaint_color_guide"].t() != crow::json::type::Null) {
+            const auto& guide = body["inpaint_color_guide"];
+            if (guide.t() != crow::json::type::String || std::string(guide.s()).empty())
+                return "inpaint_color_guide must be a nonempty encoded RGBA image";
+            if (!body.has("init_images") || body["init_images"].t() != crow::json::type::List ||
+                body["init_images"].size() != 1 || body["init_images"][0].t() != crow::json::type::String ||
+                std::string(body["init_images"][0].s()).empty())
+                return "inpaint_color_guide requires one original init_images image";
+            if (body.has("denoising_strength")) {
+                const auto& strength = body["denoising_strength"];
+                if (strength.t() != crow::json::type::Number || !std::isfinite(strength.d()) ||
+                    strength.d() <= 0 || strength.d() >= 1)
+                    return "Advanced Inpaint requires denoising_strength strictly between 0 and 1";
+            }
+        }
+    }
     if (masked_image && body.has("mask_blur")) {
         const auto& value = body["mask_blur"];
         if (value.t() != crow::json::type::Number || !std::isfinite(value.d()) ||

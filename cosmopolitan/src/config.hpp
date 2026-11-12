@@ -6,6 +6,8 @@
 std::string cosmo_config_document();
 std::string cosmo_config_update(const std::string &patch);
 std::string cosmo_config_options();
+/* Same bounded absolute-path contract for saved defaults and request overlays. */
+void cosmo_config_validate_companion_modules(const std::string &modules);
 void cosmo_config_set_options(const std::string &patch);
 std::string cosmo_config_settings_update(const std::string &patch);
 std::string cosmo_config_image_request(const std::string &request);

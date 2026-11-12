@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "ggml-backend.h"
@@ -58,10 +59,18 @@ namespace sd::ggml_graph_cut {
         int n_nodes    = 0;
         int n_leafs    = 0;
         std::vector<InputShape> input_shapes;
+        std::vector<uint64_t> layout;
+        std::vector<std::string> leaf_names;
+        std::vector<std::pair<int, std::string>> cut_markers;
         std::vector<Segment> segments;
     };
 
     struct PlanCache {
+        ggml_backend_t backend = nullptr;
+        ggml_backend_buffer_type_t buffer_type = nullptr;
+        size_t buffer_alignment = 0;
+        size_t max_buffer_size = 0;
+        std::vector<uint8_t> parameter_roles;
         Plan graph_cut_plan;
         Plan budgeted_graph_cut_plan;
         size_t budgeted_graph_cut_plan_max_vram_bytes = 0;

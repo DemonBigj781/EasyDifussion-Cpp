@@ -149,11 +149,39 @@ def make_wrappers(out, sdk):
     return directory
 
 
+def application_source_entries(paths):
+    """Enumerate exact staged paths; never treat a gitlink as an ordinary file.
+
+    libwebm is deliberately excluded because the portable CMake recipe forces
+    SD_WEBM=OFF. Keep its commit in the source fingerprint, and reject unknown
+    gitlinks rather than silently dropping future runtime dependencies.
+    """
+    records = subprocess.check_output(
+        ["git", "ls-files", "--stage", "-z", "--", *paths], cwd=ROOT)
+    names, omitted = [], []
+    for record in records.split(b"\0"):
+        if not record:
+            continue
+        metadata, raw_name = record.split(b"\t", 1)
+        mode, revision, stage = metadata.decode().split()
+        name = raw_name.decode()
+        if stage != "0":
+            raise RuntimeError("Unmerged application source: " + name)
+        if mode == "160000":
+            if name != "source/sdkit3-port-source/stable-diffusion.cpp/thirdparty/libwebm":
+                raise RuntimeError("Unreviewed application gitlink: " + name)
+            omitted.append((name, revision))
+        elif mode in ("100644", "100755", "120000"):
+            names.append(name)
+        else:
+            raise RuntimeError("Unsupported application source mode: " + mode)
+    return names, omitted
+
+
 def prepare_source(out):
     paths = ["source/llama.cpp", "source/sdkit3-port-source", "source/UI.cpp"]
-    names = subprocess.check_output(["git", "ls-files", "-z", "--", *paths], cwd=ROOT).split(b"\0")
-    names = [x.decode() for x in names if x]
-    identity = []
+    names, omitted_gitlinks = application_source_entries(paths)
+    identity = [(name, "disabled-gitlink", revision) for name, revision in omitted_gitlinks]
     for name in names:
         path = ROOT / name
         if path.is_symlink():

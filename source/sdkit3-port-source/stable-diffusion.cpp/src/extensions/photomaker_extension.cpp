@@ -227,6 +227,10 @@ struct PhotoMakerExtension : public GenerationExtension {
                                                                                   trigger_token_count);
         SDCondition prepared_id_condition = std::get<0>(cond_tup);
         auto class_tokens_mask            = std::get<1>(cond_tup);
+        if (prepared_id_condition.c_crossattn.empty()) {
+            LOG_ERROR("PhotoMaker text conditioning failed");
+            return false;
+        }
         if (std::find(class_tokens_mask.begin(), class_tokens_mask.end(), true) == class_tokens_mask.end()) {
             LOG_WARN("PhotoMaker trigger word '%s' was not found in prompt", trigger_word.c_str());
             LOG_WARN("Turn off PhotoMaker for this request");

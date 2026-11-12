@@ -75,7 +75,7 @@ static std::vector<std::string> getGGUFTensorKeys(const std::string& model_path)
 }
 
 // Helper function to determine model type from tensor keys
-// Returns: "clip_l", "clip_g", "t5xxl", "llm", or "vae" (default)
+// Returns: "clip_l", "clip_g", "t5xxl", "llm", "llm_vision", or "vae" (default)
 std::string inferModelTypeFromTensorKeys(const std::vector<std::string>& tensor_keys) {
     if (tensor_keys.empty()) {
         return "vae";  // Default to VAE if we can't determine
@@ -91,6 +91,9 @@ std::string inferModelTypeFromTensorKeys(const std::vector<std::string>& tensor_
     bool has_llm_mlp = false;
     bool has_llm_output_norm = false;
     bool has_llm_qk_norm = false;
+    bool has_llm_moe_mlp = false;
+    bool has_llm_moe_router = false;
+    bool has_llm_vision = false;
 
     // Count transformer layers to distinguish CLIP-L (12 layers) from CLIP-G (32 layers)
     int max_layer_number = -1;
@@ -157,6 +160,30 @@ std::string inferModelTypeFromTensorKeys(const std::vector<std::string>& tensor_
             name_lower.find("self_attn.k_norm.weight") != std::string::npos) {
             has_llm_qk_norm = true;
         }
+        if ((name_lower.find("blk.") != std::string::npos &&
+             (name_lower.find("ffn_gate_exps") != std::string::npos ||
+              name_lower.find("ffn_up_exps") != std::string::npos ||
+              name_lower.find("ffn_down_exps") != std::string::npos ||
+              name_lower.find("ffn_gate_exp.") != std::string::npos ||
+              name_lower.find("ffn_up_exp.") != std::string::npos ||
+              name_lower.find("ffn_down_exp.") != std::string::npos)) ||
+            (name_lower.find("model.layers.") != std::string::npos &&
+             (name_lower.find("mlp.experts.gate_proj") != std::string::npos ||
+              name_lower.find("mlp.experts.up_proj") != std::string::npos ||
+              name_lower.find("mlp.experts.down_proj") != std::string::npos))) {
+            has_llm_moe_mlp = true;
+        }
+        if (name_lower.find("ffn_gate_inp.weight") != std::string::npos ||
+            name_lower.find("mlp.router") != std::string::npos ||
+            name_lower.find("mlp.gate.weight") != std::string::npos) {
+            has_llm_moe_router = true;
+        }
+
+        // LLM vision (e.g. Qwen3-VL mmproj) indicators. Support both raw GGUF naming and
+        // converted safetensors naming.
+        if (name_lower.rfind("v.", 0) == 0 || name_lower.rfind("mm.", 0) == 0) {
+            has_llm_vision = true;
+        }
 
         // Extract layer numbers from tensor names
         // Look for patterns like "layers.11", "layer.31", "blocks.5", etc.
@@ -188,11 +215,25 @@ std::string inferModelTypeFromTensorKeys(const std::vector<std::string>& tensor_
 
     // Qwen3 and similar LLMs expose a transformer block structure with token embeddings,
     // attention projections, MLP projections, and a final output norm.
-    if ((has_llm_token_embedding && has_llm_attention && has_llm_mlp) ||
-        (has_llm_attention && has_llm_mlp && has_llm_output_norm) ||
-        (has_llm_attention && has_llm_mlp && has_llm_qk_norm)) {
+    // NOTE: this check must run before the llm_vision check. Vision-block tensor names
+    // (e.g. "v.blk.0.attn_q.weight") contain the same substrings ("blk.", "attn_q.weight")
+    // as text-block names, so vision-only files can set has_llm_attention/has_llm_mlp.
+    // A full multimodal model (text + vision tensors) satisfies the strict llm conditions
+    // below and is loaded via llm_path; llm_vision is only for vision/merger-only files
+    // that fail those conditions.
+    bool mlp_present = has_llm_mlp || has_llm_moe_mlp;
+    if ((has_llm_token_embedding && has_llm_attention && mlp_present) ||
+        (has_llm_attention && mlp_present && has_llm_output_norm) ||
+        (has_llm_attention && mlp_present && has_llm_qk_norm) ||
+        (has_llm_attention && has_llm_moe_mlp && has_llm_moe_router)) {
         LOG_DEBUG("Detected LLM model");
         return "llm";
+    }
+
+    // Check for LLM vision (e.g. Qwen3-VL mmproj) model
+    if (has_llm_vision) {
+        LOG_DEBUG("Detected LLM vision model");
+        return "llm_vision";
     }
 
     // If it's a CLIP model (has text model indicators)
@@ -261,7 +302,7 @@ std::vector<std::string> extractTensorKeys(const std::string& model_path, const 
 
 // Helper function to inspect a model file and determine its type
 // Supports both GGUF and safetensors formats
-// Returns: "vae", "clip_l", "clip_g", "t5xxl", "llm", or "unknown"
+// Returns: "vae", "clip_l", "clip_g", "t5xxl", "llm", "llm_vision", or "unknown"
 std::string inspectModelType(const std::string& model_path) {
     // First, detect the file type
     std::string format = detectModelFormat(model_path);

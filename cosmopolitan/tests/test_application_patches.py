@@ -188,6 +188,31 @@ class ApplicationPatchTests(unittest.TestCase):
             self.assertLess(body.index("generation_admission_.tryAcquire()"), body.index("createTask(task_id)"))
             self.assertLess(body.index("admission.bind(task_id)"), body.index("reset_sd_generation_error()"))
 
+    def test_refresh_and_concurrent_mutation_admission_without_models(self):
+        compiler = self.host_compiler()
+        materialize_fixture_headers(self.directory)
+        staged = self.directory / "sdkit3-port-source"
+        vendor = SDKIT / "stable-diffusion.cpp"
+        includes = [staged / "include", staged / "third_party", COSMO / "src",
+                    COSMO / "backend/include", vendor / "include", vendor / "src",
+                    vendor / "ggml/include", vendor / "thirdparty"]
+        sources = [COSMO / "src/application_services.cpp", COSMO / "src/inference_dispatcher.cpp",
+                   COSMO / "src/config.cpp", COSMO / "tests/application_admission_fixture.cpp"]
+        for name in ("model_manager.cpp", "options_manager.cpp", "task_state.cpp", "prompt_validation.cpp"):
+            patched = staged / "src" / name
+            sources.append(patched if patched.exists() else SDKIT / "src" / name)
+        executable = self.directory / "application-admission"
+        command = compiler + ["-std=c++20", "-pthread", "-DGGML_MAX_NAME=160"]
+        command += ["-I" + str(path) for path in includes]
+        command += [str(source) for source in sources] + ["-o", str(executable)]
+        result = subprocess.run(command, text=True, capture_output=True, timeout=120)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        with tempfile.TemporaryDirectory(prefix="admission-work-", dir=self.directory) as work:
+            result = subprocess.run([str(executable), "shell", "--backend", "cpu", "--provider", "embedded"],
+                                    cwd=work, text=True, capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("regression passed without native backends", result.stdout)
+
     def test_completion_preserves_interruption_and_phase_progress(self):
         compiler = self.host_compiler()
         probe = self.directory / "task-state-probe.cpp"

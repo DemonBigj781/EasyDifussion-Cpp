@@ -92,6 +92,38 @@ def main():
         assert restarted['effective']['compute']['backend'] == 'webgpu' and not restarted['restart_required']
         live = document(run('sdkit', '--config', str(config), options={'sd_model_checkpoint': 'named.safetensors'}))
         assert live['effective']['options']['sd_model_checkpoint'] == live['saved']['options']['sd_model_checkpoint'] == 'named.safetensors'
+        companions = [portable(root / 'models/clip l.gguf'), portable(root / 'models/vae.gguf')]
+        live = document(run('shell', '--config', str(config), options={'forge_additional_modules': companions}))
+        assert live['saved']['options']['forge_additional_modules'] == companions
+        assert live['effective']['options']['forge_additional_modules'] == companions
+        assert not live['restart_required']
+        companion_bytes = config.read_bytes()
+        for action in ('show', 'validate'):
+            restored = document(run('config', action, '--config', str(config)))
+            assert restored['effective']['options']['forge_additional_modules'] == companions
+            assert config.read_bytes() == companion_bytes
+        # Path syntax is checked here; files and model roles are checked at inference.
+        invalid_modules = [None, False, {}, 'path', [1], [None], [[]], [''], ['relative.gguf'],
+                           ['https://example.test/vae.gguf'], ['C:/models/vae.gguf'],
+                           ['//server/share/vae.gguf'], ['/models\\vae.gguf'], ['/bad\0path'],
+                           ['/' + 'a' * 4096], ['/same', '/a/../same'],
+                           ['/module' + str(i) for i in range(7)]]
+        for modules in invalid_modules:
+            for target in ('options', 'settings'):
+                patch = {'forge_additional_modules': modules}
+                changes = {target: patch if target == 'options' else {'options': patch}}
+                run('shell', '--config', str(config), code=2, **changes)
+                assert config.read_bytes() == companion_bytes
+            malformed = json.loads(companion_bytes)
+            malformed['options']['forge_additional_modules'] = modules
+            malformed_path = root / 'invalid-companions.json'
+            malformed_text = json.dumps(malformed)
+            malformed_path.write_text(malformed_text)
+            run('config', 'validate', '--config', str(malformed_path), code=2)
+            assert malformed_path.read_text() == malformed_text
+        cleared = document(run('shell', '--config', str(config), settings={
+            'options': {'forge_additional_modules': []}}))
+        assert cleared['effective']['options']['forge_additional_modules'] == []
         before = config.read_bytes()
         for update in [{'unknown': 1}, {'compute': {'backend': 'cuda'}}, {'compute': {'provider': 'invented'}}, {'options': {'sd_model_checkpoint': 'ignored'}}]:
             run('sdkit', '--config', str(config), update=update, code=2)

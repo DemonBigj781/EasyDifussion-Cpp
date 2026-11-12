@@ -1,0 +1,129 @@
+name: Recovered source integration qualification
+on:
+  push:
+    branches: [ci/recovered-integration-20261112]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: recovered-integration-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential python3-venv
+          python3 -m venv /tmp/ci-python
+          /tmp/ci-python/bin/pip install Pillow playwright
+          echo /tmp/ci-python/bin >> "$GITHUB_PATH"
+      - name: Complete host and editor regressions
+        run: |
+          python -m unittest discover -s cosmopolitan/tests -p 'test_*.py' -v
+          node cosmopolitan/tests/verify_inference_ui.js
+          node cosmopolitan/tests/verify_config_ui.js
+          node cosmopolitan/tests/verify_portable_wand.js
+          node cosmopolitan/tests/verify_portable_mask_pixels.js
+      - name: Reuse universal pipeline CPU build entry point
+        run: python ci/scripts/build_backend.py --backend cpu --action complete --target-json '{"devices":[],"cuda":[],"cuda_version":"","oneapi":[],"rocm":[],"portable":[]}'
+      - name: Enable full native CPU regression targets
+        run: |
+          cmake -S source/sdkit3-port-source -B build/ci-linux-cpu -DSDKIT_BUILD_TESTS=ON
+          cmake --build build/ci-linux-cpu --parallel 2
+          ctest --test-dir build/ci-linux-cpu --output-on-failure --parallel 2
+      - name: Actual Chromium editor checks
+        run: |
+          python -m playwright install --with-deps chromium
+          CHROMIUM=$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')
+          RENDERER=$(find build/ci-linux-cpu -type f -name easy-diffusion-ui-render -print -quit)
+          test -n "$RENDERER"
+          python cosmopolitan/tests/verify_img2img_browser.py --renderer "$RENDERER" --chromium "$CHROMIUM"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recovered-host-test-evidence
+          path: build/ci-linux-cpu/Testing/Temporary/
+          retention-days: 7
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check pinned source-foundation build
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STATUS=$(gh api repos/DemonBigj781/cosmopolitan/actions/runs/43284328553 --jq .conclusion)
+          if [ "$STATUS" = success ]; then echo ready=true >> "$GITHUB_OUTPUT"; else echo ready=false >> "$GITHUB_OUTPUT"; echo 'Foundation build is not yet successful; portable job is explicitly pending.' >> "$GITHUB_STEP_SUMMARY"; fi
+  portable:
+    needs: [host, foundation]
+    if: needs.foundation.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          repository: DemonBigj781/cosmopolitan
+          run-id: 43284328553
+          github-token: ${{ github.token }}
+          name: source-foundation-5b25a745
+          path: foundation-artifact
+      - name: Verify and extract source foundation
+        run: |
+          cd foundation-artifact
+          sha256sum --check SHA256SUMS
+          mkdir exported
+          python3 - <<'PY'
+          import tarfile
+          with tarfile.open('foundation-export.tar.gz') as archive:
+              archive.extractall('exported', filter='data')
+          PY
+      - name: Build source-runtime portable application
+        run: |
+          HANDOFF=$(find "$PWD/foundation-artifact/exported" -name HANDOFF.json -print -quit)
+          test -n "$HANDOFF"
+          ROOT=$(dirname "$HANDOFF")
+          python3 cosmopolitan/build.py --jobs 2 --foundation-handoff "$HANDOFF" --foundation-root "$ROOT" --runtime-sdk "$ROOT/sdk" --software-webgpu-metadata "$ROOT/dependencies/LINK.json"
+          python3 cosmopolitan/tests/audit_symbols.py --out cosmopolitan/out
+      - name: Shared application and model-free runtime acceptance
+        run: |
+          python3 cosmopolitan/tests/verify_application.py --artifact-dir cosmopolitan/out --output-dir cosmopolitan/out/application-results
+          python3 cosmopolitan/tests/verify_runtime.py --artifact-dir cosmopolitan/out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recovered-cosmopolitan-application
+          path: |
+            cosmopolitan/out/easy-diffusion.exe
+            cosmopolitan/out/ape-x86_64.elf
+            cosmopolitan/out/BUILD.json
+            cosmopolitan/out/*.json
+            cosmopolitan/out/application-results/
+            cosmopolitan/out/results-*/
+          retention-days: 14
+  windows:
+    needs: portable
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: recovered-cosmopolitan-application
+          path: artifact
+      - name: Same executable on Windows
+        run: python cosmopolitan/tests/verify_runtime.py --artifact-dir artifact
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recovered-windows-runtime-evidence
+          path: artifact/results-*/
+          retention-days: 14

@@ -10,6 +10,7 @@
 
 #include "core/tensor_ggml.hpp"
 #include "core/util.h"
+#include "conditioning/encoder_chunks.h"
 #include "model/diffusion/model.hpp"
 #include "model/te/clip.hpp"
 #include "model/te/llm.hpp"
@@ -176,7 +177,10 @@ static inline CLIPTextEncoding encode_clip_token_chunks(CLIPTextModelRunner& run
                                                   false,
                                                   true,
                                                   true);
-        GGML_ASSERT(!chunk_hidden_states.empty());
+        if (chunk_hidden_states.empty()) {
+            LOG_ERROR("CLIP hidden encoding failed at chunk %zu/%zu", chunk_idx + 1, chunk_count);
+            return {};
+        }
         chunk_hidden_states = apply_token_weights(std::move(chunk_hidden_states), chunk_weights);
         if (result.hidden_states.empty()) {
             result.hidden_states = std::move(chunk_hidden_states);
@@ -195,7 +199,10 @@ static inline CLIPTextEncoding encode_clip_token_chunks(CLIPTextModelRunner& run
                                            false,
                                            true,
                                            true);
-            GGML_ASSERT(!result.pooled.empty());
+            if (result.pooled.empty()) {
+                LOG_ERROR("CLIP pooled encoding failed");
+                return {};
+            }
         }
     }
     return result;
@@ -242,12 +249,12 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
     std::shared_ptr<CLIPTextModelRunner> text_model2;
 
     std::map<std::string, std::string> embedding_map;
-    int32_t num_custom_embeddings   = 0;
-    int32_t num_custom_embeddings_2 = 0;
+    int32_t num_custom_embeddings = 0;
     // Training graphs use a fixed CLIP context; truncate long captions to that
     // context instead of expanding into incompatible extra token chunks.
     bool truncate_long_prompts = false;
     std::vector<uint8_t> token_embed_custom;
+    std::vector<uint8_t> token_embed_custom2;
     std::map<std::string, std::pair<int, int>> embedding_pos_map;
 
     FrozenCLIPEmbedderWithCustomWords(ggml_backend_t backend,
@@ -297,6 +304,15 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
         }
         if (text_model2) {
             text_model2->set_stream_layers_enabled(enabled);
+        }
+    }
+
+    void set_execution_cancel_callback(std::function<bool()> callback) override {
+        if (text_model) {
+            text_model->set_execution_cancel_callback(callback);
+        }
+        if (text_model2) {
+            text_model2->set_execution_cancel_callback(std::move(callback));
         }
     }
 
@@ -354,74 +370,93 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
             LOG_ERROR("embedding '%s' failed", embd_name.c_str());
             return false;
         }
+        auto push_ids = [&](int pos_start, int pos_end, bool cached) {
+            for (int i = pos_start; i < pos_end; i++) {
+                bpe_tokens.push_back(text_model->model.vocab_size + i);
+            }
+            if (!cached) {
+                LOG_DEBUG("embedding '%s' applied: %i token(s), custom embeddings: %i", embd_name.c_str(), pos_end - pos_start, num_custom_embeddings);
+            }
+        };
         auto iter = embedding_pos_map.find(embd_name);
         if (iter != embedding_pos_map.end()) {
             LOG_DEBUG("embedding already read in: %s", embd_name.c_str());
-            for (int i = iter->second.first; i < iter->second.second; i++) {
-                bpe_tokens.push_back(text_model->model.vocab_size + i);
-            }
+            push_ids(iter->second.first, iter->second.second, true);
             return true;
         }
         ggml_init_params params;
-        params.mem_size        = 100 * 1024 * 1024;  // max for custom embeddings 100 MB
-        params.mem_buffer      = nullptr;
-        params.no_alloc        = false;
-        ggml_context* embd_ctx = ggml_init(params);
-        ggml_tensor* embd      = nullptr;
-        ggml_tensor* embd2     = nullptr;
-        auto on_load           = [&](const TensorStorage& tensor_storage, ggml_tensor** dst_tensor) {
-            if (tensor_storage.ne[0] != text_model->model.hidden_size) {
-                if (text_model2) {
-                    if (tensor_storage.ne[0] == text_model2->model.hidden_size) {
-                        embd2       = ggml_new_tensor_2d(embd_ctx, tensor_storage.type, text_model2->model.hidden_size, tensor_storage.n_dims > 1 ? tensor_storage.ne[1] : 1);
-                        *dst_tensor = embd2;
-                    } else {
-                        LOG_DEBUG("embedding wrong hidden size, got %i, expected %i or %i", tensor_storage.ne[0], text_model->model.hidden_size, text_model2->model.hidden_size);
-                        return false;
-                    }
-                } else {
-                    LOG_DEBUG("embedding wrong hidden size, got %i, expected %i", tensor_storage.ne[0], text_model->model.hidden_size);
+        params.mem_size       = 100 * 1024 * 1024;  // max for custom embeddings 100 MB
+        params.mem_buffer     = nullptr;
+        params.no_alloc       = false;
+        auto ggml_ctx_deleter = [](ggml_context* ctx) { ggml_free(ctx); };
+        auto embd_ctx         = std::unique_ptr<ggml_context, decltype(ggml_ctx_deleter)>(ggml_init(params), ggml_ctx_deleter);
+        if (!embd_ctx.get()) {
+            LOG_ERROR("ggml_init failed when loading embeddings file");
+            return false;
+        }
+        ggml_tensor* embd    = nullptr;
+        ggml_tensor* embd2   = nullptr;
+        ggml_type embd_type  = text_model->model.get_token_embed_weight()->type;
+        ggml_type embd2_type = text_model2 ? text_model2->model.get_token_embed_weight()->type : embd_type;
+        int64_t hidden_size  = text_model->model.hidden_size;
+        int64_t hidden_size2 = text_model2 ? text_model2->model.hidden_size : 0;
+        auto on_load         = [&](const TensorStorage& tensor_storage, ggml_tensor** dst_tensor) {
+            if (tensor_storage.ne[0] == hidden_size) {
+                embd = ggml_new_tensor_2d(embd_ctx.get(), embd_type, hidden_size, tensor_storage.n_dims > 1 ? tensor_storage.ne[1] : 1);
+                if (embd == nullptr) {
                     return false;
                 }
-            } else {
-                embd        = ggml_new_tensor_2d(embd_ctx, tensor_storage.type, text_model->model.hidden_size, tensor_storage.n_dims > 1 ? tensor_storage.ne[1] : 1);
                 *dst_tensor = embd;
+            } else if (text_model2) {
+                if (tensor_storage.ne[0] == hidden_size2) {
+                    embd2 = ggml_new_tensor_2d(embd_ctx.get(), embd2_type, hidden_size2, tensor_storage.n_dims > 1 ? tensor_storage.ne[1] : 1);
+                    if (embd2 == nullptr) {
+                        return false;
+                    }
+                    *dst_tensor = embd2;
+                } else {
+                    LOG_DEBUG("embedding skipped, wrong hidden size, got %lld, expected %lld or %lld", static_cast<long long>(tensor_storage.ne[0]), static_cast<long long>(hidden_size), static_cast<long long>(hidden_size2));
+                }
+            } else {
+                LOG_DEBUG("embedding skipped, wrong hidden size, got %lld, expected %lld", static_cast<long long>(tensor_storage.ne[0]), static_cast<long long>(hidden_size));
             }
             return true;
         };
         model_loader.set_n_threads(1);
-        model_loader.load_tensors(on_load);
-        int pos_start = num_custom_embeddings;
-        if (embd) {
-            int64_t hidden_size = text_model->model.hidden_size;
-            token_embed_custom.resize(token_embed_custom.size() + ggml_nbytes(embd));
-            memcpy((void*)(token_embed_custom.data() + num_custom_embeddings * hidden_size * ggml_type_size(embd->type)),
-                   embd->data,
-                   ggml_nbytes(embd));
-            for (int i = 0; i < embd->ne[1]; i++) {
-                bpe_tokens.push_back(text_model->model.vocab_size + num_custom_embeddings);
-                // LOG_DEBUG("new custom token: %i", text_model.vocab_size + num_custom_embeddings);
-                num_custom_embeddings++;
-            }
-            LOG_DEBUG("embedding '%s' applied, custom embeddings: %i", embd_name.c_str(), num_custom_embeddings);
-        }
-        if (embd2) {
-            int64_t hidden_size = text_model2->model.hidden_size;
-            token_embed_custom.resize(token_embed_custom.size() + ggml_nbytes(embd2));
-            memcpy((void*)(token_embed_custom.data() + num_custom_embeddings_2 * hidden_size * ggml_type_size(embd2->type)),
-                   embd2->data,
-                   ggml_nbytes(embd2));
-            for (int i = 0; i < embd2->ne[1]; i++) {
-                bpe_tokens.push_back(text_model2->model.vocab_size + num_custom_embeddings_2);
-                // LOG_DEBUG("new custom token: %i", text_model.vocab_size + num_custom_embeddings);
-                num_custom_embeddings_2++;
-            }
-            LOG_DEBUG("embedding '%s' applied, custom embeddings: %i (text model 2)", embd_name.c_str(), num_custom_embeddings_2);
-        }
-        int pos_end = num_custom_embeddings;
-        if (pos_end == pos_start) {
+        if (!model_loader.load_tensors(on_load)) {
+            LOG_ERROR("embedding '%s' failed", embd_name.c_str());
             return false;
         }
+        if (!embd && !embd2) {
+            LOG_WARN("embedding '%s' has no usable tensor", embd_name.c_str());
+            return false;
+        }
+        int pos_start      = num_custom_embeddings;
+        int64_t embd_rows  = embd ? embd->ne[1] : 0;
+        int64_t embd2_rows = embd2 ? embd2->ne[1] : 0;
+        if (embd_rows < embd2_rows) {
+            LOG_WARN("embedding '%s' has fewer rows for text model 1, zero-padding", embd_name.c_str());
+        } else if (text_model2 && embd2_rows < embd_rows) {
+            LOG_WARN("embedding '%s' has fewer rows for text model 2, zero-padding", embd_name.c_str());
+        }
+        int64_t rows      = std::max(embd_rows, embd2_rows);
+        size_t embd_bytes = ggml_row_size(embd_type, hidden_size);
+        token_embed_custom.resize(token_embed_custom.size() + embd_bytes * rows);
+        if (embd) {
+            memcpy((void*)(token_embed_custom.data() + embd_bytes * num_custom_embeddings),
+                   embd->data, embd_bytes * embd_rows);
+        }
+        if (text_model2) {
+            size_t embd2_bytes = ggml_row_size(embd2_type, hidden_size2);
+            token_embed_custom2.resize(token_embed_custom2.size() + embd2_bytes * rows);
+            if (embd2) {
+                memcpy((void*)(token_embed_custom2.data() + embd2_bytes * num_custom_embeddings),
+                       embd2->data, embd2_bytes * embd2_rows);
+            }
+        }
+        num_custom_embeddings += (int)rows;
+        int pos_end = num_custom_embeddings;
+        push_ids(pos_start, pos_end, false);
         embedding_pos_map[embd_name] = std::pair{pos_start, pos_end};
         return true;
     }
@@ -542,7 +577,9 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
                                                   token_embed_custom.data(),
                                                   clip_skip,
                                                   false);
-        GGML_ASSERT(!encoded_l.hidden_states.empty());
+        if (encoded_l.hidden_states.empty()) {
+            return {};
+        }
         hidden_states = std::move(encoded_l.hidden_states);
 
         if (sd_version_is_sdxl(version)) {
@@ -568,13 +605,14 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
                                                       *weights2,
                                                       tokenizer2.EOS_TOKEN_ID,
                                                       n_threads,
-                                                      num_custom_embeddings_2,
-                                                      token_embed_custom.data(),
+                                                      num_custom_embeddings,
+                                                      token_embed_custom2.data(),
                                                       clip_skip,
                                                       true,
                                                       true);
-            GGML_ASSERT(!encoded_g.hidden_states.empty());
-            GGML_ASSERT(!encoded_g.pooled.empty());
+            if (encoded_g.hidden_states.empty() || encoded_g.pooled.empty()) {
+                return {};
+            }
             const int64_t common_tokens = std::min(hidden_states.shape()[1], encoded_g.hidden_states.shape()[1]);
             if (hidden_states.shape()[1] != encoded_g.hidden_states.shape()[1]) {
                 LOG_DEBUG("aligning SDXL CLIP-L/CLIP-G sequences to %" PRId64 " tokens (%" PRId64 " vs %" PRId64 ")",
@@ -811,6 +849,18 @@ struct SD3CLIPEmbedder : public Conditioner {
         }
     }
 
+    void set_execution_cancel_callback(std::function<bool()> callback) override {
+        if (clip_l) {
+            clip_l->set_execution_cancel_callback(callback);
+        }
+        if (clip_g) {
+            clip_g->set_execution_cancel_callback(callback);
+        }
+        if (t5) {
+            t5->set_execution_cancel_callback(std::move(callback));
+        }
+    }
+
     void set_runtime_backends(const std::vector<ggml_backend_t>& backends) override {
         if (clip_l) {
             clip_l->set_runtime_backends(backends);
@@ -985,6 +1035,17 @@ struct SD3CLIPEmbedder : public Conditioner {
 
         size_t chunk_count = std::max(std::max(clip_l_tokens.size(), clip_g_tokens.size()), t5_tokens.size()) / chunk_len;
 
+        // Active encoders must cover every chunk consumed by the conditioning loop.
+        Tokenizer* tokenizers[] = {clip_l ? &clip_l_tokenizer : nullptr,
+                                  clip_g ? &clip_g_tokenizer : nullptr,
+                                  t5 ? &t5_tokenizer : nullptr};
+        for (size_t encoder_idx = 0; encoder_idx < 3; ++encoder_idx) {
+            if (tokenizers[encoder_idx] != nullptr) {
+                pad_encoder_chunks(*tokenizers[encoder_idx], token_and_weights[encoder_idx].first,
+                                   token_and_weights[encoder_idx].second, chunk_count * chunk_len, chunk_len);
+            }
+        }
+
         for (int chunk_idx = 0; chunk_idx < chunk_count; chunk_idx++) {
             // clip_l
             sd::Tensor<float> chunk_hidden_states_l;
@@ -1008,7 +1069,10 @@ struct SD3CLIPEmbedder : public Conditioner {
                                                         false,
                                                         true,
                                                         true);
-                GGML_ASSERT(!chunk_hidden_states_l.empty());
+                if (chunk_hidden_states_l.empty()) {
+                    LOG_ERROR("SD3 CLIP-L hidden encoding failed at chunk %d/%zu", chunk_idx + 1, chunk_count);
+                    return {};
+                }
                 chunk_hidden_states_l = ::apply_token_weights(std::move(chunk_hidden_states_l), chunk_weights);
 
                 if (chunk_idx == 0) {
@@ -1024,12 +1088,15 @@ struct SD3CLIPEmbedder : public Conditioner {
                                                     false,
                                                     true,
                                                     true);
-                    GGML_ASSERT(!pooled_l.empty());
+                    if (pooled_l.empty()) {
+                        LOG_ERROR("SD3 CLIP-L pooled encoding failed at chunk %d/%zu", chunk_idx + 1, chunk_count);
+                        return {};
+                    }
                 }
             } else {
                 chunk_hidden_states_l = sd::Tensor<float>::zeros({768, static_cast<int64_t>(chunk_len), 1});
                 if (chunk_idx == 0) {
-                    pooled_l = sd::Tensor<float>::zeros({768, 1});
+                    pooled_l = sd::Tensor<float>::zeros({768});
                 }
             }
 
@@ -1055,7 +1122,10 @@ struct SD3CLIPEmbedder : public Conditioner {
                                                         false,
                                                         true,
                                                         true);
-                GGML_ASSERT(!chunk_hidden_states_g.empty());
+                if (chunk_hidden_states_g.empty()) {
+                    LOG_ERROR("SD3 CLIP-G hidden encoding failed at chunk %d/%zu", chunk_idx + 1, chunk_count);
+                    return {};
+                }
                 chunk_hidden_states_g = ::apply_token_weights(std::move(chunk_hidden_states_g), chunk_weights);
 
                 if (chunk_idx == 0) {
@@ -1071,12 +1141,15 @@ struct SD3CLIPEmbedder : public Conditioner {
                                                     false,
                                                     true,
                                                     true);
-                    GGML_ASSERT(!pooled_g.empty());
+                    if (pooled_g.empty()) {
+                        LOG_ERROR("SD3 CLIP-G pooled encoding failed at chunk %d/%zu", chunk_idx + 1, chunk_count);
+                        return {};
+                    }
                 }
             } else {
                 chunk_hidden_states_g = sd::Tensor<float>::zeros({1280, static_cast<int64_t>(chunk_len), 1});
                 if (chunk_idx == 0) {
-                    pooled_g = sd::Tensor<float>::zeros({1280, 1});
+                    pooled_g = sd::Tensor<float>::zeros({1280});
                 }
             }
 
@@ -1096,7 +1169,10 @@ struct SD3CLIPEmbedder : public Conditioner {
                                                      false,
                                                      true,
                                                      true);
-                GGML_ASSERT(!chunk_hidden_states_t5.empty());
+                if (chunk_hidden_states_t5.empty()) {
+                    LOG_ERROR("SD3 T5 hidden encoding failed at chunk %d/%zu", chunk_idx + 1, chunk_count);
+                    return {};
+                }
                 chunk_hidden_states_t5 = ::apply_token_weights(std::move(chunk_hidden_states_t5), chunk_weights);
             } else {
                 chunk_hidden_states_t5 = sd::Tensor<float>::zeros({4096, static_cast<int64_t>(chunk_len), 1});
@@ -1209,6 +1285,15 @@ struct FluxCLIPEmbedder : public Conditioner {
         }
         if (t5) {
             t5->set_stream_layers_enabled(enabled);
+        }
+    }
+
+    void set_execution_cancel_callback(std::function<bool()> callback) override {
+        if (clip_l) {
+            clip_l->set_execution_cancel_callback(callback);
+        }
+        if (t5) {
+            t5->set_execution_cancel_callback(std::move(callback));
         }
     }
 
@@ -1375,7 +1460,10 @@ struct FluxCLIPEmbedder : public Conditioner {
                                              false,
                                              true,
                                              true);
-                    GGML_ASSERT(!pooled.empty());
+                    if (pooled.empty()) {
+                        LOG_ERROR("Flux CLIP-L encoding failed");
+                        return {};
+                    }
                 } else {
                     pooled = sd::Tensor<float>::zeros({768});
                 }
@@ -1396,7 +1484,10 @@ struct FluxCLIPEmbedder : public Conditioner {
                                                   false,
                                                   true,
                                                   true);
-                GGML_ASSERT(!chunk_hidden_states.empty());
+                if (chunk_hidden_states.empty()) {
+                    LOG_ERROR("Flux T5 encoding failed at chunk %d/%zu", chunk_idx + 1, chunk_count);
+                    return {};
+                }
                 chunk_hidden_states = ::apply_token_weights(std::move(chunk_hidden_states), chunk_weights);
                 if (zero_out_masked) {
                     chunk_hidden_states.fill_(0.0f);
@@ -1642,7 +1733,10 @@ struct T5CLIPEmbedder : public Conditioner {
                                                    false,
                                                    true,
                                                    true);
-            GGML_ASSERT(!chunk_hidden_states.empty());
+            if (chunk_hidden_states.empty()) {
+                LOG_ERROR("T5 encoding failed at chunk %d/%zu", chunk_idx + 1, chunk_count);
+                return {};
+            }
             chunk_hidden_states = apply_token_weights(std::move(chunk_hidden_states), chunk_weights);
 
             if (zero_out_masked) {
@@ -1719,6 +1813,12 @@ struct MiniT2IConditioner : public Conditioner {
         }
     }
 
+    void set_execution_cancel_callback(std::function<bool()> callback) override {
+        if (t5) {
+            t5->set_execution_cancel_callback(std::move(callback));
+        }
+    }
+
     void set_runtime_backends(const std::vector<ggml_backend_t>& backends) override {
         if (t5) {
             t5->set_runtime_backends(backends);
@@ -1791,7 +1891,10 @@ struct MiniT2IConditioner : public Conditioner {
                                                       false,
                                                       true,
                                                       true);
-        GGML_ASSERT(!hidden_states.empty());
+        if (hidden_states.empty()) {
+            LOG_ERROR("MiniT2I T5 encoding failed");
+            return {};
+        }
         result.c_crossattn = std::move(hidden_states);
         result.c_vector    = sd::Tensor<float>::from_vector(mask);
         return result;
@@ -1829,6 +1932,12 @@ struct AnimaConditioner : public Conditioner {
 
     void set_stream_layers_enabled(bool enabled) override {
         llm->set_stream_layers_enabled(enabled);
+    }
+
+    void set_execution_cancel_callback(std::function<bool()> callback) override {
+        if (llm) {
+            llm->set_execution_cancel_callback(std::move(callback));
+        }
     }
 
     void set_runtime_backends(const std::vector<ggml_backend_t>& backends) override {
@@ -1921,7 +2030,10 @@ struct AnimaConditioner : public Conditioner {
                                           false,
                                           true,
                                           true);
-        GGML_ASSERT(!hidden_states.empty());
+        if (hidden_states.empty()) {
+            LOG_ERROR("Anima Qwen encoding failed");
+            return {};
+        }
         hidden_states         = apply_token_weights(std::move(hidden_states), qwen_weights);
         auto t5_ids_tensor    = sd::Tensor<int32_t>::from_vector(t5_tokens);
         auto t5_weight_tensor = sd::Tensor<float>::from_vector(t5_weights);
@@ -2057,6 +2169,15 @@ struct LLMEmbedder : public Conditioner {
         }
     }
 
+    void set_execution_cancel_callback(std::function<bool()> callback) override {
+        if (llm) {
+            llm->set_execution_cancel_callback(callback);
+        }
+        if (byt5) {
+            byt5->set_execution_cancel_callback(std::move(callback));
+        }
+    }
+
     void set_flash_attention_enabled(bool enabled) override {
         llm->set_flash_attention_enabled(enabled);
         if (byt5) {
@@ -2186,7 +2307,10 @@ struct LLMEmbedder : public Conditioner {
                                           true,
                                           deepstack_image_embeds,
                                           image_grids);
-        GGML_ASSERT(!hidden_states.empty());
+        if (hidden_states.empty()) {
+            LOG_ERROR("LLM prompt encoding failed");
+            return {};
+        }
         hidden_states = apply_token_weights(std::move(hidden_states), weights);
         GGML_ASSERT(hidden_states.shape()[1] > prompt_template_encode_start_idx);
 
@@ -2314,7 +2438,12 @@ struct LLMEmbedder : public Conditioner {
                 auto add_vision_outputs = [&](std::vector<sd::Tensor<float>> image_outputs,
                                               int grid_h,
                                               int grid_w) {
-                    GGML_ASSERT(image_outputs.size() == 4);
+                    if (image_outputs.size() != 4 ||
+                        std::any_of(image_outputs.begin(), image_outputs.end(),
+                                    [](const sd::Tensor<float>& output) { return output.empty(); })) {
+                        LOG_ERROR("MiniMax reference vision encoding failed");
+                        return false;
+                    }
                     auto image_embed = std::move(image_outputs[0]);
                     prompt += "<|vision_start|>";
                     int image_embed_idx = static_cast<int>(tokenizer->encode(prompt, nullptr).size());
@@ -2333,6 +2462,7 @@ struct LLMEmbedder : public Conditioner {
                         prompt += placeholder;
                     }
                     prompt += "<|vision_end|>";
+                    return true;
                 };
 
                 const auto* references = conditioner_params.minimax_h3_references;
@@ -2349,13 +2479,15 @@ struct LLMEmbedder : public Conditioner {
                             GGML_ASSERT(item.frames.size() == 1);
                             auto resized = resize_for_vision(item.frames[0]);
                             prompt += "<Picture " + std::to_string(++picture_index) + ">: ";
-                            add_vision_outputs(llm->encode_image_outputs(n_threads,
+                            if (!add_vision_outputs(llm->encode_image_outputs(n_threads,
                                                                          resized,
                                                                          false,
                                                                          true,
                                                                          true),
                                                static_cast<int>(resized.shape()[1]) / patch_size,
-                                               static_cast<int>(resized.shape()[0]) / patch_size);
+                                               static_cast<int>(resized.shape()[0]) / patch_size)) {
+                                return {};
+                            }
                             continue;
                         }
 
@@ -2379,26 +2511,30 @@ struct LLMEmbedder : public Conditioner {
                                                                                    second.shape()[3]});
                             }
                             auto pair = sd::ops::concat(first.unsqueeze(2), second.unsqueeze(2), 2);
-                            add_vision_outputs(llm->encode_video_block_outputs(n_threads,
+                            if (!add_vision_outputs(llm->encode_video_block_outputs(n_threads,
                                                                                pair,
                                                                                false,
                                                                                true,
                                                                                true),
                                                static_cast<int>(first.shape()[1]) / patch_size,
-                                               static_cast<int>(first.shape()[0]) / patch_size);
+                                               static_cast<int>(first.shape()[0]) / patch_size)) {
+                                return {};
+                            }
                         }
                     }
                 } else if (conditioner_params.ref_images != nullptr) {
                     for (size_t i = 0; i < conditioner_params.ref_images->size(); ++i) {
                         auto resized = resize_for_vision((*conditioner_params.ref_images)[i]);
                         prompt += "<Picture " + std::to_string(i + 1) + ">: ";
-                        add_vision_outputs(llm->encode_image_outputs(n_threads,
+                        if (!add_vision_outputs(llm->encode_image_outputs(n_threads,
                                                                      resized,
                                                                      false,
                                                                      true,
                                                                      true),
                                            static_cast<int>(resized.shape()[1]) / patch_size,
-                                           static_cast<int>(resized.shape()[0]) / patch_size);
+                                           static_cast<int>(resized.shape()[0]) / patch_size)) {
+                            return {};
+                        }
                     }
                 }
             }
@@ -2484,7 +2620,10 @@ struct LLMEmbedder : public Conditioner {
                     LOG_DEBUG("resize LingBotVideo ref image %d from %dx%d to %dx%d", i, height, width, h_bar, w_bar);
                     auto resized_image = clip_preprocess(image, w_bar, h_bar);
                     auto image_embed   = llm->encode_image(n_threads, resized_image, false, true, true);
-                    GGML_ASSERT(!image_embed.empty());
+                    if (image_embed.empty()) {
+                        LOG_ERROR("LLM reference image encoding failed");
+                        return {};
+                    }
 
                     std::string image_prefix = prompt + img_prompt + "<|vision_start|>";
                     int image_embed_idx      = static_cast<int>(tokenizer->encode(image_prefix, nullptr).size());
@@ -2543,7 +2682,10 @@ struct LLMEmbedder : public Conditioner {
                     auto resized_image = clip_preprocess(image, w_bar, h_bar);
 
                     auto image_embed = llm->encode_image(n_threads, resized_image, false, true, true);
-                    GGML_ASSERT(!image_embed.empty());
+                    if (image_embed.empty()) {
+                        LOG_ERROR("LLM reference image encoding failed");
+                        return {};
+                    }
                     image_embeds.emplace_back(image_embed_idx, image_embed);
                     image_embed_idx += 1 + static_cast<int>(image_embed.shape()[1]) + 6;
 
@@ -2626,7 +2768,10 @@ struct LLMEmbedder : public Conditioner {
 
                     auto resized_image = clip_preprocess(image, w_bar, h_bar);
                     auto image_embed   = llm->encode_image(n_threads, resized_image, false, true, true);
-                    GGML_ASSERT(!image_embed.empty());
+                    if (image_embed.empty()) {
+                        LOG_ERROR("LLM reference image encoding failed");
+                        return {};
+                    }
 
                     std::string image_prefix = prompt_prefix + img_prompt + "<|vision_start|>";
                     int image_embed_idx      = static_cast<int>(tokenizer->encode(image_prefix, nullptr).size());
@@ -2694,7 +2839,10 @@ struct LLMEmbedder : public Conditioner {
 
                     auto resized_image = clip_preprocess(image, w_bar, h_bar);
                     auto image_embed   = llm->encode_image(n_threads, resized_image, false, true, true);
-                    GGML_ASSERT(!image_embed.empty());
+                    if (image_embed.empty()) {
+                        LOG_ERROR("LLM reference image encoding failed");
+                        return {};
+                    }
 
                     std::string image_prefix = prompt + img_prompt + "Picture " + std::to_string(i + 1) + ": <|vision_start|>";
                     int image_embed_idx      = static_cast<int>(tokenizer->encode(image_prefix, nullptr).size());
@@ -2757,7 +2905,10 @@ struct LLMEmbedder : public Conditioner {
 
                     auto resized_image = clip_preprocess(image, w_bar, h_bar);
                     auto image_embed   = llm->encode_image(n_threads, resized_image, false, true, true);
-                    GGML_ASSERT(!image_embed.empty());
+                    if (image_embed.empty()) {
+                        LOG_ERROR("LLM reference image encoding failed");
+                        return {};
+                    }
                     image_embeds.emplace_back(image_embed_idx, image_embed);
                     image_embed_idx += 1 + static_cast<int>(image_embed.shape()[1]) + 6;
 
@@ -2921,7 +3072,9 @@ struct LLMEmbedder : public Conditioner {
                                                0,
                                                false,
                                                max_length);
-            GGML_ASSERT(!hidden_states.empty());
+            if (hidden_states.empty()) {
+                return {};
+            }
 
             if (hidden_states.shape()[1] > pixeldit_max_length) {
                 auto bos      = sd::ops::slice(hidden_states, 1, 0, 1);
@@ -2954,6 +3107,9 @@ struct LLMEmbedder : public Conditioner {
                                            max_length,
                                            deepstack_image_embeds,
                                            image_grids);
+        if (hidden_states.empty()) {
+            return {};
+        }
         std::vector<sd::Tensor<float>> extra_hidden_states_vec;
         if (sd_version_is_hunyuan_video(version) && byt5) {
             std::vector<std::string> quoted_texts;
@@ -2991,10 +3147,14 @@ struct LLMEmbedder : public Conditioner {
                                                         false,
                                                         true,
                                                         true);
-                GGML_ASSERT(!byt5_hidden_states.empty());
+                if (byt5_hidden_states.empty()) {
+                    LOG_ERROR("ByT5 quoted-text encoding failed");
+                    return {};
+                }
                 extra_hidden_states_vec.push_back(std::move(byt5_hidden_states));
             }
         }
+        extra_prompts_attn_range.resize(extra_prompts.size(), {0, 0});
         for (int i = 0; i < extra_prompts.size(); i++) {
             auto extra_hidden_states = encode_prompt(n_threads,
                                                      extra_prompts[i],
@@ -3006,6 +3166,10 @@ struct LLMEmbedder : public Conditioner {
                                                      prompt_template_encode_start_idx,
                                                      spell_quotes,
                                                      max_length);
+            if (extra_hidden_states.empty()) {
+                LOG_ERROR("LLM extra prompt encoding failed");
+                return {};
+            }
             extra_hidden_states_vec.push_back(std::move(extra_hidden_states));
         }
 

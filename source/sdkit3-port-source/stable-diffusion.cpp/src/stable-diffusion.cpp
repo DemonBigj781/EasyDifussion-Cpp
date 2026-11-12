@@ -15,6 +15,10 @@
 #include "core/rng_mt19937.hpp"
 #include "core/rng_philox.hpp"
 #include "core/util.h"
+#include "runtime/custom_sigma_steps.h"
+#include "runtime/hires_steps.h"
+#include "runtime/lora_apply_policy.h"
+#include "runtime/vae_decode_retry.h"
 #include "model_loader.h"
 #include "model_manager.h"
 #include "stable-diffusion.h"
@@ -1131,11 +1135,10 @@ public:
             // Avoid full-model LoRA merge buffers on constrained setups.
             const bool params_offloaded      = params_backend_for(SDBackendModule::DIFFUSION) != backend_for(SDBackendModule::DIFFUSION);
             const bool streaming_constrained = stream_layers || params_offloaded;
-            if (have_quantized_weight || streaming_constrained || row_split_active()) {
-                apply_lora_immediately = false;
-            } else {
-                apply_lora_immediately = true;
-            }
+            apply_lora_immediately = sd::lora_auto_merge_allowed(model_loader.get_tensor_storage_map(),
+                                                                  have_quantized_weight,
+                                                                  streaming_constrained,
+                                                                  row_split_active());
         } else if (sd_ctx_params->lora_apply_mode == LORA_APPLY_IMMEDIATELY) {
             if (have_int8_tensorwise) {
                 LOG_WARN(
@@ -3604,7 +3607,12 @@ public:
 
     int get_image_seq_len(int h, int w) {
         int vae_scale_factor = get_vae_scale_factor();
-        return (h / vae_scale_factor) * (w / vae_scale_factor);
+        int patch_size       = diffusion_model != nullptr ? diffusion_model->get_patch_size() : 1;
+        int latent_h         = h / vae_scale_factor;
+        int latent_w         = w / vae_scale_factor;
+        int tokens_h         = (latent_h + patch_size - 1) / patch_size;
+        int tokens_w         = (latent_w + patch_size - 1) / patch_size;
+        return tokens_h * tokens_w;
     }
 
     sd::Tensor<float> generate_init_latent(int width,
@@ -4011,44 +4019,15 @@ public:
         if (!select_vae_runtime_backend(SDBackendModule::VAE_DECODE)) {
             return {};
         }
-        auto decoded = first_stage_model->decode(n_threads,
-                                                 latents,
-                                                 vae_tiling_params,
-                                                 decode_video,
-                                                 circular_x,
-                                                 circular_y);
-        if (decoded.empty() && get_cancel_flag() == SD_CANCEL_ALL) {
-            LOG_INFO("VAE decode cancelled; skipping tiled fallback");
-            return {};
-        }
-        const bool prefer_temporal_tiling = decode_video && first_stage_model->can_temporal_tile_decode();
-        while (decoded.empty() &&
-               auto_fit_enabled &&
-               sd::backend_fit::prepare_vae_decode_retry_tiling(vae_tiling_params, prefer_temporal_tiling)) {
-            first_stage_model->free_compute_buffer();
-            decoded = first_stage_model->decode(n_threads, latents, vae_tiling_params, decode_video, circular_x, circular_y);
-        }
-        if (decoded.empty() && !vae_tiling_params.enabled && !decode_video) {
-            sd_tiling_params_t fallback = vae_tiling_params;
-            fallback.enabled            = true;
-            const int fallback_tile_x   = fallback.tile_size_x >= 4 ? fallback.tile_size_x : 32;
-            const int fallback_tile_y   = fallback.tile_size_y >= 4 ? fallback.tile_size_y : 32;
-            fallback.tile_size_x        = fallback_tile_x;
-            fallback.tile_size_y        = fallback_tile_y;
-            const int fallback_overlap  = static_cast<int>(std::round(
-                std::min(fallback_tile_x, fallback_tile_y) * fallback.target_overlap));
-            LOG_WARN("untiled VAE decode failed; retrying once with automatic %dx%d latent tiling and %d-pixel overlap",
-                     fallback_tile_x,
-                     fallback_tile_y,
-                     fallback_overlap);
-            decoded = first_stage_model->decode(n_threads,
-                                                latents,
-                                                fallback,
-                                                false,
-                                                circular_x,
-                                                circular_y);
-        }
-        return decoded;
+        return sd::decode_vae_with_retries(*first_stage_model,
+                                           n_threads,
+                                           latents,
+                                           vae_tiling_params,
+                                           auto_fit_enabled,
+                                           decode_video,
+                                           circular_x,
+                                           circular_y,
+                                           [this] { return get_cancel_flag() == SD_CANCEL_ALL; });
     }
 
     sd::Tensor<float> normalize_ltx_video_latents(const sd::Tensor<float>& x) {
@@ -5417,16 +5396,8 @@ struct SamplePlan {
         if (sample_params->custom_sigmas_count > 0) {
             sigmas      = std::vector<float>(sample_params->custom_sigmas,
                                         sample_params->custom_sigmas + sample_params->custom_sigmas_count);
-            total_steps = static_cast<int>(sigmas.size()) - 1;
-            LOG_WARN("total_steps != custom_sigmas_count - 1, set total_steps to %d", total_steps);
-            if (sample_steps >= total_steps) {
-                sample_steps = total_steps;
-                LOG_WARN("total_steps != custom_sigmas_count - 1, set sample_steps to %d", sample_steps);
-            }
-            if (high_noise_sample_steps > 0) {
-                high_noise_sample_steps = total_steps - sample_steps;
-                LOG_WARN("total_steps != custom_sigmas_count - 1, set high_noise_sample_steps to %d", high_noise_sample_steps);
-            }
+            resolve_custom_sigma_steps(sample_params->custom_sigmas_count, sample_steps,
+                                       high_noise_sample_steps, total_steps);
         } else {
             scheduler_t scheduler = resolve_scheduler(sd_ctx,
                                                       sample_params->scheduler,
@@ -6358,6 +6329,10 @@ static std::optional<ImageGenerationEmbeds> prepare_image_generation_embeds(sd_c
     condition_params.zero_out_masked = false;
     auto cond                        = sd_ctx->sd->cond_stage_model->get_learned_condition(sd_ctx->sd->n_threads,
                                                                                            condition_params);
+    if (cond.empty()) {
+        LOG_ERROR("cond image conditioning failed; generation cancelled without terminating the backend");
+        return std::nullopt;
+    }
     if (cond.c_concat.empty() && ref_image_params.pass_to_dit) {
         cond.c_concat = latents->concat_latent;  // TODO: optimize
     }
@@ -6387,6 +6362,10 @@ static std::optional<ImageGenerationEmbeds> prepare_image_generation_embeds(sd_c
             uncond                           = sd_ctx->sd->cond_stage_model->get_learned_condition(sd_ctx->sd->n_threads,
                                                                                                    condition_params);
         }
+        if (uncond.empty()) {
+            LOG_ERROR("uncond image conditioning failed; generation cancelled without terminating the backend");
+            return std::nullopt;
+        }
         if (uncond.c_concat.empty() && ref_image_params.pass_to_dit) {
             uncond.c_concat = latents->concat_latent;  // TODO: optimize
         }
@@ -6411,6 +6390,10 @@ static std::optional<ImageGenerationEmbeds> prepare_image_generation_embeds(sd_c
             }
             img_uncond = sd_ctx->sd->cond_stage_model->get_learned_condition(sd_ctx->sd->n_threads,
                                                                              condition_params);
+            if (img_uncond.empty()) {
+                LOG_ERROR("img_uncond image conditioning failed; generation cancelled without terminating the backend");
+                return std::nullopt;
+            }
             if (img_uncond.c_concat.empty() && ref_image_params.pass_to_dit) {
                 img_uncond.c_concat = latents->img_uncond_concat_latent;  // TODO: optimize
             }
@@ -6754,14 +6737,10 @@ static std::vector<float> make_hires_sigma_schedule(sd_ctx_t* sd_ctx,
                                                                  scheduler,
                                                                  sd_ctx->sd->version,
                                                                  sample_params.extra_sample_args);
-    size_t t_enc              = static_cast<size_t>(scheduler_steps * hires.denoising_strength);
-    if (t_enc >= static_cast<size_t>(scheduler_steps)) {
-        t_enc = static_cast<size_t>(scheduler_steps) - 1;
-    }
     if (scheduler_steps_out != nullptr) {
         *scheduler_steps_out = scheduler_steps;
     }
-    return std::vector<float>(sigmas.begin() + scheduler_steps - static_cast<int>(t_enc) - 1,
+    return std::vector<float>(sigmas.begin() + hires_sigma_start(scheduler_steps, effective_steps),
                               sigmas.end());
 }
 

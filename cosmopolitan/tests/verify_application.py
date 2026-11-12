@@ -433,6 +433,8 @@ def verify(args):
                 'Saved provider change altered running provider or missed restart requirement')
         require(changed==http.call(PREFIX+'config'),'HTTP missed shell provider update')
         listing=shell.one('models');require(listing==http.call(PREFIX+'checkpoints'),'Model indices differ')
+        require(shell.one('models refresh')==listing==http.call(PREFIX+'refresh-checkpoints',{}),
+                'Idle shell/HTTP model refresh failed or returned different indices')
         shell.command('cd "outputs with spaces"; pwd')
         require(shell.one('config show')==changed and shell.one('models')==listing,'Shell cd changed service/config roots')
         recipe={'inference':{'image':{'prompt':'literal --device value','width':256,'height':256,'steps':2}}}

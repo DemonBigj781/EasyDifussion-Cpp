@@ -133,7 +133,8 @@ namespace LLM {
 
         static LLMConfig detect_from_weights(const String2TensorStorage& tensor_storage_map,
                                              const std::string& prefix,
-                                             LLMArch arch) {
+                                             LLMArch arch,
+                                             bool& enable_vision) {
             LLMConfig config;
             config.arch = arch;
             if (arch == LLMArch::MISTRAL_SMALL_3_2 || arch == LLMArch::MINISTRAL_3_3B) {
@@ -226,6 +227,7 @@ namespace LLM {
 
             config.num_layers          = 0;
             int detected_vision_layers = 0;
+            bool out_hidden_size_detected = false;
             for (const auto& [name, tensor_storage] : tensor_storage_map) {
                 if (!starts_with(name, prefix)) {
                     continue;
@@ -236,22 +238,22 @@ namespace LLM {
                     if (contains(name, "attn.q_proj")) {
                         config.llama_cpp_style = true;
                     }
-                    if (contains(name, "visual.patch_embed.proj.1.weight")) {
+                    if (ends_with(name, "visual.patch_embed.proj.1.weight")) {
                         config.vision.split_patch_embed = true;
                     }
-                    if (contains(name, "visual.patch_embed.proj.0.weight")) {
+                    if (ends_with(name, "visual.patch_embed.proj.0.weight")) {
                         config.vision.patch_size  = static_cast<int>(tensor_storage.ne[0]);
                         config.vision.in_channels = tensor_storage.ne[2];
                         config.vision.hidden_size = tensor_storage.ne[3];
                     }
                     // HF-format checkpoints keep the patch embed unsplit under a single name.
-                    if (contains(name, "visual.patch_embed.proj.weight")) {
+                    if (ends_with(name, "visual.patch_embed.proj.weight")) {
                         config.vision.patch_size = static_cast<int>(tensor_storage.ne[0]);
                     }
                     if (contains(name, "visual.patch_embed.bias") || contains(name, "visual.patch_embed.proj.bias")) {
                         config.vision.hidden_size = tensor_storage.ne[0];
                     }
-                    if (contains(name, "visual.pos_embed.weight")) {
+                    if (ends_with(name, "visual.pos_embed.weight") && tensor_storage.n_dims == 2) {
                         config.vision.hidden_size             = tensor_storage.ne[0];
                         config.vision.num_position_embeddings = static_cast<int>(tensor_storage.ne[1]);
                     }
@@ -271,6 +273,7 @@ namespace LLM {
                     if (ends_with(name, "visual.merger.linear_fc2.weight") ||
                         ends_with(name, "visual.merger.mlp.2.weight")) {
                         config.vision.out_hidden_size = tensor_storage.ne[1];
+                        out_hidden_size_detected = true;
                     }
                     continue;
                 }
@@ -284,7 +287,7 @@ namespace LLM {
                         }
                     }
                 }
-                if (contains(name, "embed_tokens.weight")) {
+                if (ends_with(name, "embed_tokens.weight") && tensor_storage.n_dims == 2) {
                     config.hidden_size = tensor_storage.ne[0];
                     config.vocab_size  = tensor_storage.ne[1];
                 }
@@ -324,6 +327,19 @@ namespace LLM {
                       config.vocab_size,
                       config.hidden_size,
                       config.intermediate_size);
+            if (enable_vision && !config.have_vision_weight) {
+                LOG_WARN("no vision weights detected, vision disabled");
+                enable_vision = false;
+            }
+            // Defaults need not match; reject only a dimension detected in the projector.
+            if (enable_vision && out_hidden_size_detected &&
+                config.vision.out_hidden_size != config.hidden_size) {
+                LOG_ERROR("vision projector output size (%" PRId64 ") does not match LLM hidden size (%" PRId64 "), "
+                          "the vision weights (mmproj) likely belong to a different LLM variant, vision disabled",
+                          config.vision.out_hidden_size,
+                          config.hidden_size);
+                enable_vision = false;
+            }
             return config;
         }
     };
@@ -1353,7 +1369,8 @@ namespace LLM {
                 x        = ggml_ext_cont(ctx->ggml_ctx, kqv);
                 x        = ggml_reshape_3d(ctx->ggml_ctx, x, head_dim * num_heads, n_token, N);
             } else {
-                x = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k, v, num_heads, attention_mask, true, false);  // [N, n_token, hidden_size]
+                x = ggml_ext_attention_ext(ctx->ggml_ctx, ctx->backend, q, k, v, num_heads, attention_mask, true,
+                                           ctx->flash_attn_enabled, 1.0f, ctx->training_graph);  // [N, n_token, hidden_size]
             }
 
             x = out_proj->forward(ctx, x);  // [N, n_token, hidden_size]
@@ -1880,12 +1897,8 @@ namespace LLM {
                   bool enable_vision_                                 = false,
                   std::shared_ptr<RunnerWeightManager> weight_manager = nullptr)
             : GGMLRunner(backend, weight_manager),
-              config(LLMConfig::detect_from_weights(tensor_storage_map, prefix, arch)),
+              config(LLMConfig::detect_from_weights(tensor_storage_map, prefix, arch, enable_vision_)),
               enable_vision(enable_vision_) {
-            if (enable_vision && !config.have_vision_weight) {
-                LOG_WARN("no vision weights detected, vision disabled");
-                enable_vision = false;
-            }
             if (enable_vision) {
                 LOG_DEBUG("enable llm vision");
                 if (config.llama_cpp_style) {
@@ -2179,7 +2192,7 @@ namespace LLM {
             auto get_graph = [&]() -> ggml_cgraph* {
                 return build_encode_image_graph(image);
             };
-            return take_or_empty(GGMLRunner::compute<float>(get_graph, n_threads, auto_free, free_compute_buffer, free_compute_params));
+            return restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, auto_free, free_compute_buffer, free_compute_params), 2);
         }
 
         ggml_cgraph* build_encode_image_outputs_graph(const sd::Tensor<float>& image_tensor) {
@@ -2293,7 +2306,7 @@ namespace LLM {
             auto get_graph = [&]() -> ggml_cgraph* {
                 return build_encode_image_outputs_graph(image);
             };
-            auto combined = take_or_empty(GGMLRunner::compute<float>(get_graph, n_threads, auto_free, free_compute_buffer, free_compute_params));
+            auto combined = restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph, n_threads, auto_free, free_compute_buffer, free_compute_params), 2);
             if (combined.empty()) {
                 return {};
             }
@@ -2321,11 +2334,11 @@ namespace LLM {
             auto get_graph    = [&]() -> ggml_cgraph* {
                 return build_encode_video_block_outputs_graph(pixel_values, grid_h, grid_w);
             };
-            auto combined = take_or_empty(GGMLRunner::compute<float>(get_graph,
+            auto combined = restore_trailing_singleton_dims(GGMLRunner::compute<float>(get_graph,
                                                                      n_threads,
                                                                      auto_free,
                                                                      free_compute_buffer,
-                                                                     free_compute_params));
+                                                                     free_compute_params), 2);
             if (combined.empty()) {
                 return {};
             }

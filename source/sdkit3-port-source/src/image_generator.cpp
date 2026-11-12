@@ -634,9 +634,16 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     gen_params.sample_params.extra_sample_args = optimization_args.empty() ? nullptr : optimization_args.c_str();
 
     // img2img specific
-    if (is_img2img && !params.init_image_base64.empty()) {
-        gen_params.init_image = createInitImage(params);
-        gen_params.mask_image = createMaskImage(params);
+    if (is_img2img && (!params.init_image_base64.empty() || !params.inpaint_color_guide_base64.empty())) {
+        if (!params.inpaint_color_guide_base64.empty()) {
+            prepareAdvancedInpaint(params.init_image_base64, params.inpaint_color_guide_base64,
+                                   params.mask_base64, params.width, params.height, params.strength,
+                                   params.mask_blur, params.inpainting_mask_invert,
+                                   gen_params.init_image, gen_params.mask_image);
+        } else {
+            gen_params.init_image = createInitImage(params);
+            gen_params.mask_image = createMaskImage(params);
+        }
         gen_params.strength = params.strength;
     }
 
@@ -1065,36 +1072,49 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     std::string clip_vision_path_str;
     std::string t5xxl_path_str;
     std::string llm_path_str;
+    std::string llm_vision_path_str;
 
     if (options.has("forge_additional_modules")) {
         auto modules = options["forge_additional_modules"];
-        if (modules.t() == crow::json::type::List) {
-            for (size_t i = 0; i < modules.size(); i++) {
-                std::string module_full_path = std::string(modules[i].s());
-                if (module_full_path.empty()) {
-                    continue;
-                }
-
-                LOG_DEBUG("Processing forge_additional_module: %s", module_full_path.c_str());
-
-                // Inspect the model to determine its type
-                std::string model_type = inspectModelType(module_full_path);
-
-                if (model_type == "vae") {
-                    vae_path_str = module_full_path;
-                } else if (model_type == "clip_l") {
-                    clip_l_path_str = module_full_path;
-                } else if (model_type == "clip_g") {
-                    clip_g_path_str = module_full_path;
-                } else if (model_type == "t5xxl") {
-                    t5xxl_path_str = module_full_path;
-                } else if (model_type == "llm") {
-                    llm_path_str = module_full_path;
-                } else {
-                    LOG_WARNING("Unknown model type for: %s (detected as: %s)", module_full_path.c_str(),
-                                model_type.c_str());
-                }
+        if (modules.t() != crow::json::type::List) {
+            throw std::invalid_argument("forge_additional_modules must be an array");
+        }
+        for (size_t i = 0; i < modules.size(); i++) {
+            if (modules[i].t() != crow::json::type::String) {
+                throw std::invalid_argument("Companion module paths must be strings");
             }
+            std::string module_full_path = std::string(modules[i].s());
+            if (module_full_path.empty() || module_full_path.find('\0') != std::string::npos ||
+                !fs::is_regular_file(module_full_path)) {
+                throw std::invalid_argument("Companion module file not found or invalid: " + module_full_path);
+            }
+
+            LOG_DEBUG("Processing forge_additional_module: %s", module_full_path.c_str());
+
+            // Inspect the model to determine its type
+            std::string model_type = inspectModelType(module_full_path);
+
+            std::string* selected = nullptr;
+            if (model_type == "vae") {
+                selected = &vae_path_str;
+            } else if (model_type == "clip_l") {
+                selected = &clip_l_path_str;
+            } else if (model_type == "clip_g") {
+                selected = &clip_g_path_str;
+            } else if (model_type == "t5xxl") {
+                selected = &t5xxl_path_str;
+            } else if (model_type == "llm") {
+                selected = &llm_path_str;
+            } else if (model_type == "llm_vision") {
+                selected = &llm_vision_path_str;
+            } else {
+                throw std::invalid_argument("Unsupported companion module type for " + module_full_path +
+                                            ": " + model_type);
+            }
+            if (!selected->empty()) {
+                throw std::invalid_argument("Multiple companion modules for role: " + model_type);
+            }
+            *selected = module_full_path;
         }
     }
 
@@ -1146,6 +1166,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
         clip_vision_path_str,
         t5xxl_path_str,
         llm_path_str,
+        llm_vision_path_str,
         audio_vae_path,
         embeddings_connectors_path,
         motion_module_path,
@@ -1180,7 +1201,9 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                         clip_g_path_str != current_clip_g_path_ ||
                         clip_vision_path_str != current_clip_vision_path_ ||
                         t5xxl_path_str != current_t5xxl_path_ ||
-                        llm_path_str != current_llm_path_ || controlnet_path_str != current_controlnet_path_ ||
+                        llm_path_str != current_llm_path_ ||
+                        llm_vision_path_str != current_llm_vision_path_ ||
+                        controlnet_path_str != current_controlnet_path_ ||
                         automatic_control_net_sd1_path != current_control_net_sd1_path_ ||
                         automatic_control_net_sdxl_path != current_control_net_sdxl_path_ ||
                         control_net_lllite_model_path != current_control_net_lllite_path_ ||
@@ -1246,7 +1269,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
 
     // Check if we have additional modules (VAE, CLIP, etc.)
     bool has_additional_modules =
-        !clip_l_path_str.empty() || !clip_g_path_str.empty() || !t5xxl_path_str.empty() || !llm_path_str.empty();
+        !clip_l_path_str.empty() || !clip_g_path_str.empty() || !t5xxl_path_str.empty() || !llm_path_str.empty() ||
+        !llm_vision_path_str.empty();
 
     if (has_additional_modules) {
         if (isFullCheckpoint(model_path)) {
@@ -1280,6 +1304,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.ip_adapter_path = ip_adapter_model_path.empty() ? nullptr : ip_adapter_model_path.c_str();
     params.t5xxl_path = t5xxl_path_str.empty() ? nullptr : t5xxl_path_str.c_str();
     params.llm_path = llm_path_str.empty() ? nullptr : llm_path_str.c_str();
+    params.llm_vision_path = llm_vision_path_str.empty() ? nullptr : llm_vision_path_str.c_str();
     params.audio_vae_path = audio_vae_path.empty() ? nullptr : audio_vae_path.c_str();
     params.embeddings_connectors_path = embeddings_connectors_path.empty() ? nullptr : embeddings_connectors_path.c_str();
     params.motion_module_path = motion_module_path.empty() ? nullptr : motion_module_path.c_str();
@@ -1333,6 +1358,9 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     }
     if (!llm_path_str.empty()) {
         LOG_INFO("Loading LLM model: %s", llm_path_str.c_str());
+    }
+    if (!llm_vision_path_str.empty()) {
+        LOG_INFO("Loading LLM vision model: %s", llm_vision_path_str.c_str());
     }
     if (!controlnet_path_str.empty()) {
         LOG_INFO("Loading ControlNet model: %s", controlnet_path_str.c_str());
@@ -1478,6 +1506,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     current_clip_vision_path_ = clip_vision_path_str;
     current_t5xxl_path_ = t5xxl_path_str;
     current_llm_path_ = llm_path_str;
+    current_llm_vision_path_ = llm_vision_path_str;
     current_taesd_path_ = "";
     current_lora_model_dir_ = lora_dir_str;
     current_embeddings_dir_ = embeddings_dir_str;

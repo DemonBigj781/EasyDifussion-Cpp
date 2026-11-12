@@ -6,8 +6,11 @@
 #include "model/vae/vae_tiling.hpp"
 #include "model_manager.h"
 
+enum class VAEDecodeOutcome { SUCCESS, ALLOCATION_FAILED, CANCELLED, NONFINITE, FAILED };
+
 struct VAE : public GGMLRunner {
 protected:
+    VAEDecodeOutcome last_decode_outcome_ = VAEDecodeOutcome::FAILED;
     SDVersion version;
     std::string weight_prefix;
     bool scale_input                                      = true;
@@ -200,6 +203,16 @@ public:
 
     virtual int get_encoder_output_channels(int input_channels) = 0;
 
+    VAEDecodeOutcome last_decode_outcome() const {
+        return last_decode_outcome_;
+    }
+
+    bool can_retry_decode() const {
+        return !execution_cancelled() &&
+               (last_decode_outcome_ == VAEDecodeOutcome::ALLOCATION_FAILED ||
+                last_decode_outcome_ == VAEDecodeOutcome::NONFINITE);
+    }
+
     bool can_temporal_tile_decode() const {
         return supports_temporal_tiling(VAETemporalDirection::DECODE);
     }
@@ -300,6 +313,15 @@ public:
                                      bool circular_x   = false,
                                      bool circular_y   = false,
                                      bool silent       = false) {
+        last_decode_outcome_ = VAEDecodeOutcome::FAILED;
+        // A model may return an empty tensor without calling GGMLRunner::compute.
+        // Never classify that failure using a previous decode's runner status.
+        last_compute_status_ = GGML_STATUS_FAILED;
+        if (execution_cancelled()) {
+            last_decode_outcome_ = VAEDecodeOutcome::CANCELLED;
+            LOG_INFO("VAE decode cancelled");
+            return {};
+        }
         int64_t t0              = ggml_time_ms();
         sd::Tensor<float> input = x;
         sd::Tensor<float> output;
@@ -338,17 +360,23 @@ public:
 
         runner_done();
 
+        if (execution_cancelled() || last_compute_status() == GGML_STATUS_ABORTED) {
+            last_decode_outcome_ = VAEDecodeOutcome::CANCELLED;
+            LOG_INFO("VAE decode cancelled");
+            return {};
+        }
         if (output.empty()) {
-            if (execution_cancelled()) {
-                LOG_INFO("VAE decode cancelled");
-            } else {
-                LOG_ERROR("vae decode compute failed");
+            if (last_compute_status() == GGML_STATUS_ALLOC_FAILED) {
+                last_decode_outcome_ = VAEDecodeOutcome::ALLOCATION_FAILED;
             }
+            LOG_ERROR("vae decode compute failed");
             return {};
         }
         if (scale_input && !scale_tensor_to_0_1(&output)) {
+            last_decode_outcome_ = VAEDecodeOutcome::NONFINITE;
             return {};
         }
+        last_decode_outcome_ = VAEDecodeOutcome::SUCCESS;
         int64_t t1 = ggml_time_ms();
         LOG_DEBUG("computing vae decode graph completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
         return std::move(output);
