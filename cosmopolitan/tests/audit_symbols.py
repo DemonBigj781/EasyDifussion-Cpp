@@ -5,7 +5,31 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
+import re
 import subprocess
+
+
+def compile_commands_path(out):
+    """Select only the compile database belonging to the packaged build.
+
+    Legacy builds use build/. Source-runtime builds are isolated by their
+    foundation selection identity; never fall back to a stale legacy build.
+    """
+    manifest = out / "LINK.json"
+    if not manifest.exists():
+        return out / "build/compile_commands.json"
+    metadata = json.loads(manifest.read_text())
+    if not isinstance(metadata, dict):
+        raise RuntimeError("LINK.json must contain a metadata object")
+    if "foundation_handoff" in metadata:
+        handoff = metadata["foundation_handoff"]
+        identity = handoff.get("selection_identity_sha256") if isinstance(handoff, dict) else None
+        if not isinstance(identity, str) or re.fullmatch(r"[0-9a-f]{64}", identity) is None:
+            raise RuntimeError("LINK.json foundation_handoff requires a valid selection_identity_sha256")
+        return out / ("build-source-" + identity) / "compile_commands.json"
+    if isinstance(metadata.get("cosmocc"), dict) and metadata["cosmocc"].get("version") == "source-built":
+        raise RuntimeError("Source-built LINK.json is missing foundation_handoff")
+    return out / "build/compile_commands.json"
 
 
 def main():
@@ -13,7 +37,7 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     out = args.out.resolve()
-    commands = json.loads((out / "build/compile_commands.json").read_text())
+    commands = json.loads(compile_commands_path(out).read_text())
     shared = (out / "source/shared-ggml/src").resolve()
     ggml_sources = []
     for command in commands:
