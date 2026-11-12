@@ -57,6 +57,19 @@ with sync_playwright() as p:
     upload = {'name':'initial.png','mimeType':'image/png','buffer':png}
     def put(selector, file=upload):
         page.locator(selector).set_input_files(file)
+    def canvas_box(selector):
+        # Raw page.mouse coordinates do not auto-scroll like locator.click().
+        # Editor controls and later control interactions can move the canvas
+        # outside the viewport, so resolve fresh visible coordinates each time.
+        canvas = page.locator(selector)
+        canvas.scroll_into_view_if_needed()
+        box = canvas.bounding_box()
+        assert box and box['width'] > 0 and box['height'] > 0, selector
+        for fraction in (.25, .5):
+            point = {'x': box['x'] + box['width'] * fraction,
+                     'y': box['y'] + box['height'] * fraction}
+            assert canvas.evaluate('(c,p)=>document.elementFromPoint(p.x,p.y)===c', point), (selector, box)
+        return box
     def ready(selector):
         page.wait_for_function('(id)=>{const e=document.querySelector(id);return !e.hidden && e.naturalWidth===8;}', arg=selector)
     put('#cosmo-initial-file'); ready('#cosmo-initial-preview')
@@ -120,7 +133,7 @@ with sync_playwright() as p:
     assert page.locator('#makeImage').is_disabled()
     page.wait_for_function('!document.getElementById("cosmo-guide-save").disabled')
     before = page.locator('#cosmo-guide-canvas').evaluate('(c)=>c.toDataURL()')
-    box = page.locator('#cosmo-guide-canvas').bounding_box()
+    box = canvas_box('#cosmo-guide-canvas')
     page.mouse.move(box['x']+box['width']/4,box['y']+box['height']/4)
     page.mouse.down(); page.mouse.move(box['x']+box['width']/2,box['y']+box['height']/2); page.mouse.up()
     assert page.locator('#cosmo-guide-canvas').evaluate('(c)=>c.toDataURL()') != before
@@ -130,6 +143,7 @@ with sync_playwright() as p:
     page.locator('#cosmo-guide-tool').select_option('wand')
     page.locator('#cosmo-guide-sensitivity').fill('0')
     page.locator('#cosmo-guide-buffer').fill('0')
+    box = canvas_box('#cosmo-guide-canvas')
     page.mouse.click(box['x']+box['width']/2,box['y']+box['height']/2)
     assert page.locator('#cosmo-guide-canvas').evaluate('(c)=>c.toDataURL()') != before
     assert page.locator('#cosmo-initial-preview').get_attribute('src') == original
@@ -174,7 +188,7 @@ with sync_playwright() as p:
     assert set(saved_mask.getdata()) == {(0,0,0,255)} and saved_mask.size == (8,8)
     page.locator('#cosmo-mask-edit').click();page.wait_for_function('!document.getElementById("cosmo-mask-save").disabled')
     page.locator('#cosmo-mask-tool').select_option('wand');page.locator('#cosmo-mask-sensitivity').fill('0')
-    box = page.locator('#cosmo-mask-canvas').bounding_box();page.mouse.click(box['x']+box['width']/2,box['y']+box['height']/2)
+    box = canvas_box('#cosmo-mask-canvas');page.mouse.click(box['x']+box['width']/2,box['y']+box['height']/2)
     page.locator('#cosmo-mask-save').click();ready('#cosmo-mask-preview')
     saved_mask = Image.open(io.BytesIO(base64.b64decode(page.locator('#cosmo-mask-preview').get_attribute('src').split(',')[1]))).convert('RGBA')
     assert set(saved_mask.getdata()) == {(255,255,255,255)}
