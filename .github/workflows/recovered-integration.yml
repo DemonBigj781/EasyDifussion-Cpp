@@ -1,7 +1,7 @@
 name: Recovered source integration qualification
 on:
   push:
-    branches: [ci/recovered-integration-20261112]
+    branches: [ci/recovered-integration-20261112, ci/image-progress-20261113]
   workflow_dispatch:
 permissions:
   contents: read
