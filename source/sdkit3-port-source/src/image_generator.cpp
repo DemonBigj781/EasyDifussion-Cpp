@@ -57,8 +57,10 @@ static void progress_callback(int step, int steps, float time, void* data) {
     if (g_callback_data.task_state_manager && !g_callback_data.task_id.empty()) {
         float progress = steps > 0 ? static_cast<float>(step) / static_cast<float>(steps) : 0.0f;
         g_callback_data.task_state_manager->updateTaskProgress(g_callback_data.task_id, progress, "", step, steps);
+        // Sampling callbacks are shared by images and videos. Do not leave
+        // image tasks in the initial "preparing" phase once denoising starts.
+        g_callback_data.task_state_manager->updateTaskPhase(g_callback_data.task_id, "sampling", step, steps);
         if (g_callback_data.video_generation) {
-            g_callback_data.task_state_manager->updateTaskPhase(g_callback_data.task_id, "sampling", step, steps);
             LOG_INFO("Video sampling step %d/%d (%.1f%%, %.2fs)",
                      step,
                      steps,
