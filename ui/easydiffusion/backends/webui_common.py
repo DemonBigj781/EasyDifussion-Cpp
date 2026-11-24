@@ -19,6 +19,7 @@ from sdkit.utils import base64_str_to_img, img_to_base64_str, log
 from torchruntime.utils import get_device
 
 from easydiffusion.app import getConfig
+from easydiffusion.backend_args import MODEL_DIRECTORY_FLAGS
 from easydiffusion.model_manager import get_model_dirs, resolve_model_to_use
 
 from common import kill
@@ -33,19 +34,6 @@ DEFAULT_WEBUI_OPTIONS = {
     "show_progress_grid": True,
     "live_previews_enable": False,
     "forge_additional_modules": [],
-}
-
-MODELS_TO_OVERRIDE = {
-    "stable-diffusion": "--ckpt-dir",
-    "vae": "--vae-dir",
-    "hypernetwork": "--hypernetwork-dir",
-    "gfpgan": "--gfpgan-models-path",
-    "realesrgan": "--realesrgan-models-path",
-    "lora": "--lora-dir",
-    "codeformer": "--codeformer-models-path",
-    "embeddings": "--embeddings-dir",
-    "controlnet": "--controlnet-dir",
-    "text-encoder": "--text-encoder-dir",
 }
 
 backend_process = None
@@ -1114,9 +1102,9 @@ def convert_ED_controlnet_filter_name(filter):
     return cn(mapping.get(filter, filter))
 
 
-def get_model_path_args(return_string=True):
+def get_model_path_args(return_string=True, *, model_dir_flags=MODEL_DIRECTORY_FLAGS):
     args = []
-    for model_type, flag in MODELS_TO_OVERRIDE.items():
+    for model_type, flag in model_dir_flags.items():
         model_dir = get_model_dirs(model_type)[0]
         if return_string:
             args.append(f'{flag} "{model_dir}"')
@@ -1130,8 +1118,8 @@ def get_model_path_args(return_string=True):
     return args
 
 
-def get_common_cli_args(return_string=True):
-    model_path_args = get_model_path_args(return_string=return_string)
+def get_common_cli_args(return_string=True, *, model_dir_flags=MODEL_DIRECTORY_FLAGS):
+    model_path_args = get_model_path_args(return_string=return_string, model_dir_flags=model_dir_flags)
     extra_args = ["--port", str(WEBUI_PORT), "--parent-pid", str(os.getpid())]
 
     if return_string:

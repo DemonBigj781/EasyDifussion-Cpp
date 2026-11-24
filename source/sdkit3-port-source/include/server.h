@@ -28,7 +28,6 @@ struct ServerParams {
     bool flash_attention = false;
     bool diffusion_fa = false;
     bool sage_attention = false;
-    std::string max_vram;
     bool stream_layers = false;
     bool control_net_cpu = false;
     std::string control_net_sd1_path;
@@ -40,7 +39,6 @@ struct ServerParams {
     bool video_vae_on_cpu = false;
     bool video_offload_to_cpu = false;
     bool video_mmap_weights = false;
-    std::string video_max_vram;
     bool video_stream_layers = false;
     bool chroma_disable_dit_mask = false;
 };

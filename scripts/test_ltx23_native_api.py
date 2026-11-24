@@ -23,9 +23,9 @@ def main():
             port = sock.getsockname()[1]
         env = {**os.environ, "LD_LIBRARY_PATH": str(args.runtime.resolve()), "OMP_NUM_THREADS": "1"}
         log = (directory / "server.log").open("w+")
-        process = subprocess.Popen([str(args.binary.resolve()), "--port", str(port), "--backend", "cpu",
-                                    "--ckpt-dir", str(directory), "--vae-dir", str(directory),
-                                    "--text-encoder-dir", str(directory)], cwd=directory, env=env,
+        process = subprocess.Popen([str(args.binary.resolve()), "--port", str(port), "--driver", "cpu",
+                                    "--dir-stable-diffusion", str(directory), "--dir-vae", str(directory),
+                                    "--dir-text-encoder", str(directory)], cwd=directory, env=env,
                                    stdout=log, stderr=subprocess.STDOUT)
         origin = f"http://127.0.0.1:{port}/v1"
         try:

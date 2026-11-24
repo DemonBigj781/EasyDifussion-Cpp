@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/native_streaming_policy.hpp"
 #include "core/ggml_extend.hpp"
 #include "core/ggml_graph_cut.h"
 #include "core/layer_split_partition.h"
@@ -954,7 +955,7 @@ public:
         n_threads           = sd_ctx_params->n_threads;
         enable_mmap         = sd_ctx_params->enable_mmap;
         stream_layers       = sd_ctx_params->stream_layers;
-        eager_load          = sd_ctx_params->eager_load;
+        eager_load          = sd_ctx_params->eager_load && !stream_layers;
         backend_spec        = SAFE_STR(sd_ctx_params->backend);
         params_backend_spec = SAFE_STR(sd_ctx_params->params_backend);
         split_mode_spec     = SAFE_STR(sd_ctx_params->split_mode);
@@ -995,8 +996,11 @@ public:
         model_manager = std::make_shared<ModelManager>();
         model_manager->set_n_threads(n_threads);
         model_manager->set_enable_mmap(enable_mmap);
-        model_manager->set_keep_compute_params(sd_ctx_params->keep_compute_params);
-        if (sd_ctx_params->keep_compute_params) {
+        const bool keep_compute_params = sd_ctx_params->keep_compute_params && !stream_layers;
+        // Bounded streaming keeps host parameter storage but must allow
+        // accelerator staging buffers to be evicted after each segment.
+        model_manager->set_keep_compute_params(keep_compute_params);
+        if (keep_compute_params) {
             LOG_INFO("staged compute parameters will remain resident until the model context is destroyed");
         }
         ModelLoader& model_loader = model_manager->loader();
@@ -1075,9 +1079,20 @@ public:
                 return false;
             }
         }
-        if (stream_layers && !backend_manager.params_backend_is_cpu(SDBackendModule::DIFFUSION)) {
-            LOG_WARN("--stream-layers has no effect unless diffusion params backend is cpu; ignoring");
-            stream_layers = false;
+        if (stream_layers) {
+            const auto backends = backend_manager.runtime_backends(SDBackendModule::DIFFUSION);
+            const bool accelerator = !backends.empty() && !sd_backend_is_cpu(backends.front());
+            if (const auto* reason = sd_streaming::validate_activation(
+                    backend_manager.params_backend_is_cpu(SDBackendModule::DIFFUSION),
+                    backends.size(), accelerator)) {
+                LOG_ERROR("Requested denoiser streaming %s", reason);
+                return false;
+            }
+            if (sd_backend_is(backends.front(), "CUDA") &&
+                std::getenv("GGML_CUDA_ENABLE_UNIFIED_MEMORY") != nullptr) {
+                LOG_ERROR("Requested denoiser streaming needs device VRAM telemetry, not CUDA unified-memory host reporting");
+                return false;
+            }
         }
         if (eager_load && graph_cut_layer_split_active()) {
             LOG_WARN("--eager-load is not supported with graph-cut layer split; weights will be prepared lazily");
@@ -1588,6 +1603,7 @@ public:
 
             diffusion_model->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::DIFFUSION));
             diffusion_model->set_stream_layers_enabled(stream_layers);
+            diffusion_model->require_bounded_streaming(stream_layers);
             diffusion_model->set_execution_cancel_callback([this]() {
                 return get_cancel_flag() == SD_CANCEL_ALL;
             });
@@ -1676,6 +1692,7 @@ public:
             if (high_noise_diffusion_model) {
                 high_noise_diffusion_model->set_max_graph_vram_bytes(max_graph_vram_bytes_for_module(SDBackendModule::DIFFUSION));
                 high_noise_diffusion_model->set_stream_layers_enabled(stream_layers);
+                high_noise_diffusion_model->require_bounded_streaming(stream_layers);
                 high_noise_diffusion_model->set_execution_cancel_callback([this]() {
                     return get_cancel_flag() == SD_CANCEL_ALL;
                 });

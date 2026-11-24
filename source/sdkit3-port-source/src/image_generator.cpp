@@ -120,7 +120,6 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       flash_attention_(server_params.flash_attention),
       diffusion_fa_(server_params.diffusion_fa),
       sage_attention_(server_params.sage_attention),
-      max_vram_(server_params.max_vram),
       stream_layers_(server_params.stream_layers),
       control_net_cpu_(server_params.control_net_cpu),
       control_net_sd1_path_(server_params.control_net_sd1_path),
@@ -132,7 +131,6 @@ ImageGenerator::ImageGenerator(std::shared_ptr<TaskStateManager> task_state_mana
       video_vae_on_cpu_(server_params.video_vae_on_cpu),
       video_offload_to_cpu_(server_params.video_offload_to_cpu),
       video_mmap_weights_(server_params.video_mmap_weights),
-      video_max_vram_(server_params.video_max_vram),
       video_stream_layers_(server_params.video_stream_layers),
       chroma_disable_dit_mask_(server_params.chroma_disable_dit_mask) {
     LOG_INFO("ImageGenerator created");
@@ -1118,9 +1116,6 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        (native_video_request && video_offload_to_cpu_);
     const bool use_mmap_weights = mmap_weights_ ||
                                   (native_video_request && video_mmap_weights_);
-    const std::string& effective_max_vram = native_video_request && !video_max_vram_.empty()
-                                                ? video_max_vram_
-                                                : max_vram_;
     const bool use_stream_layers = stream_layers_ ||
                                    (native_video_request && video_stream_layers_);
     const std::string effective_compute_backend =
@@ -1153,7 +1148,6 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
         image_ip_adapter_on_cpu_ ? "ip-adapter-cpu" : "ip-adapter-default",
         offload_params_to_cpu ? "params-cpu" : "params-default",
         use_mmap_weights ? "mmap" : "no-mmap",
-        effective_max_vram,
         use_stream_layers ? "stream" : "no-stream",
     });
     const bool use_cpu_vae = (!native_video_request && image_vae_on_cpu_) ||
@@ -1183,7 +1177,6 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                         use_cpu_text_encoder != current_text_encoder_uses_cpu_ ||
                         offload_params_to_cpu != current_params_offloaded_to_cpu_ ||
                         use_mmap_weights != current_mmap_weights_ ||
-                        effective_max_vram != current_max_vram_ ||
                         use_stream_layers != current_stream_layers_;
 
     if (!needs_reload) {
@@ -1401,7 +1394,6 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.flash_attn = flash_attention_;
     params.diffusion_flash_attn = diffusion_fa_;
     params.diffusion_sage_attn = sage_attention_;
-    params.max_vram = effective_max_vram.empty() ? nullptr : effective_max_vram.c_str();
     params.stream_layers = use_stream_layers;
 
     if (use_cpu_vae) {
@@ -1417,8 +1409,10 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (use_mmap_weights) {
         LOG_INFO("Model weights will use reclaimable read-only mmap storage");
     }
-    if (keep_model_loaded_) {
+    if (keep_model_loaded_ && !use_stream_layers) {
         LOG_INFO("Model components will be preloaded and staged weights kept resident until model switch");
+    } else if (keep_model_loaded_) {
+        LOG_INFO("Denoiser streaming disables eager load and retained accelerator staging; host parameters can be reused");
     }
     if (diffusion_fa_ || flash_attention_) {
         LOG_INFO("Flash attention pipeline enabled for compatible model components");
@@ -1426,13 +1420,9 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     if (sage_attention_) {
         LOG_INFO("Native SageAttention SM80 preference enabled with automatic ggml fallback");
     }
-    if (!effective_max_vram.empty()) {
-        LOG_INFO("%s graph VRAM budget: %s GiB",
-                 native_video_request && !video_max_vram_.empty() ? "Native video" : "Model",
-                 effective_max_vram.c_str());
-    }
     if (use_stream_layers) {
-        LOG_INFO("%s layer streaming enabled", native_video_request ? "Native video" : "Model");
+        LOG_INFO("%s denoiser streaming requested; native backend checks device and graph suitability",
+                 native_video_request ? "Native video" : "Image");
     }
     if (control_net_cpu_) {
         LOG_INFO("ControlNet will be kept on CPU");
@@ -1483,7 +1473,6 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     current_text_encoder_uses_cpu_ = use_cpu_text_encoder;
     current_params_offloaded_to_cpu_ = offload_params_to_cpu;
     current_mmap_weights_ = use_mmap_weights;
-    current_max_vram_ = effective_max_vram;
     current_stream_layers_ = use_stream_layers;
 
     initialized_ = true;

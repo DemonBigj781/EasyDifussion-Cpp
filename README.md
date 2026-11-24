@@ -115,16 +115,33 @@ built. Enable the reload checkbox when changing an already-running backend.
 The native binary also supports explicit startup selection and diagnostics:
 
 ```bash
-sdkit --list-devices
-sdkit --backend cuda --device 0
-sdkit --backend sycl --devices 0,1
-sdkit --backend vulkan --device 0
+sdkit --devices list
+sdkit --devices list oneapi
+sdkit --driver cuda --device 0000:01:00.0
+sdkit --driver cuda --device '0000:01:00.0, 0000:0a:00.0'
+sdkit --driver oneapi
 ```
 
-`--devices` uses stable process-local selectors reported by `--list-devices`
-and enables the existing layer-split path across the selected CUDA, SYCL, or Vulkan
-devices. `auto` remains the default, and `--backend cpu` is always available as
-the controlled fallback.
+Use `--driver` to select a compute driver. `auto` remains the default;
+`--driver cpu` explicitly selects CPU. Public `oneapi` maps to the native SYCL
+backend. `openvino` is recognized and rejected because the app's native
+runtime path is not wired. `--devices list [driver]` is a standalone diagnostic:
+it lists detected selectors, memory and capabilities without starting the
+server. If the driver exposes usable PCIe addresses, copy them from the
+**PCIe address** column and use `--device <domain:bus:device.function>`.
+Comma-separated addresses retain the existing layer-split order. Quote the
+list if it contains spaces. Numeric ordinals are not accepted: they can change
+when devices are enumerated differently. PCIe addresses can still change if
+hardware is moved or the PCI topology changes.
+A missing, ambiguous, or
+virtual-only match is rejected. CUDA can report physical addresses; Vulkan
+requires its PCI-bus-info extension, and the current oneAPI/SYCL runtime does
+not provide them. Selecting oneAPI without a PCIe address remains supported.
+
+New native builds no longer accept `--backend`, the old numeric device syntax,
+or `--list-devices` / `--backend-info`. Saved startup arguments are passed as
+written; migrate them when upgrading the native binary. Older binaries still
+require their old syntax.
 
 Each native Image and Video feature panel also contains compute-device controls
 for its own work: denoising/KSampler, text and LLM conditioning, ControlNet,
@@ -167,10 +184,10 @@ build is configured with `-DSDKIT_BUILD_TESTS=ON`; run it with
 `ctest --test-dir <build-directory> -R 'model-loader-version-test|model-manager-lora-cache-test|clip-token-count-test|gguf-original-shape-test' --output-on-failure`.
 
 The H3C XG310 is four independent 8 GB Intel SG1/Xe-LP devices, not one unified
-32 GB device. With the Intel compute runtime installed, `sdkit --list-devices`
-exposes them as `SYCL0` through `SYCL3` (and as `Vulkan0` through `Vulkan3` for
-the Vulkan build). Select one with `--device`, or use `--devices 0,1,2,3` for
-the existing layer-split path.
+32 GB device. Use `sdkit --devices list oneapi` or `sdkit --devices list vulkan`
+for the available driver and its hardware details. Choose a specific card by
+physical PCIe address only when that driver reports it. In the current oneAPI
+build, use `--driver oneapi` without a PCIe selection.
 
 System Settings → Native backend arguments accepts advanced sdkit arguments
 such as `--vae-tiles 32 --vae-tiled-overlap 16`. Arguments are stored as an

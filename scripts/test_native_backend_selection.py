@@ -86,13 +86,31 @@ class NativeBackendSelectionTests(unittest.TestCase):
     def test_native_server_exposes_runtime_backend_selection(self):
         main = (self.root / "source/sdkit3-port-source/src/main.cpp").read_text(encoding="utf-8")
         generator = (self.root / "source/sdkit3-port-source/src/image_generator.cpp").read_text(encoding="utf-8")
-        self.assertIn('"  --backend <name>', main)
-        self.assertIn('"  --devices <i,j,...>', main)
-        self.assertIn('backend != "vulkan"', main)
+        self.assertIn('"  --driver <name>', main)
+        self.assertIn('"  --devices list [driver]', main)
+        self.assertIn('"  --device <PCIE[,PCIE...]>', main)
+        self.assertIn("sdkit::resolve_pcie_devices", main)
+        self.assertIn("sdkit::parse_driver_name", main)
+        self.assertNotIn('arg == "--backend"', main)
+        self.assertNotIn('arg == "--list-devices"', main)
+        self.assertNotIn('arg == "--backend-info"', main)
         self.assertIn("server_params.compute_backend = compute_backend_spec", main)
         self.assertIn("std::string backend = effective_compute_backend", generator)
         self.assertIn("merge_backend_assignments(compute_backend_, request_compute_backend)", generator)
         self.assertIn('return defaults + "," + request_overrides;', generator)
+
+    def test_native_settings_disallow_discovery_but_preserve_launch_argv(self):
+        import runpy
+        parse = runpy.run_path(str(self.root / "ui/easydiffusion/backend_args.py"))[
+            "parse_backend_commandline_args"
+        ]
+        for settings in ("--devices list", ["--devices", "list", "oneapi"]):
+            with self.assertRaisesRegex(ValueError, "standalone diagnostic"):
+                parse(settings)
+        current = ["--driver", "cuda", "--device", "0000:01:00.0,0000:0a:00.0"]
+        self.assertEqual(parse(current), current)
+        # Older installed binaries still receive their exact saved syntax.
+        self.assertEqual(parse("--backend sycl --device 0"), ["--backend", "sycl", "--device", "0"])
 
     def test_sycl_launcher_loads_the_oneapi_runtime_environment(self):
         launcher = (self.root / "ui/easydiffusion/backends/sdkit3.py").read_text(encoding="utf-8")

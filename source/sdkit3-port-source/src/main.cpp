@@ -8,6 +8,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -21,6 +22,7 @@
 #include <unistd.h>
 #endif
 
+#include "device_cli.h"
 #include "logging.h"
 #include "model_manager.h"
 #include "server.h"
@@ -86,9 +88,10 @@ struct CommandLineArgs {
     int port = 8188;
     std::string log_level = "info";
     std::string compute_backend = "auto";
-    std::string backend_devices;
-    bool backend_devices_set = false;
+    std::string pcie_devices;
+    bool pcie_devices_set = false;
     bool list_devices = false;
+    std::string list_devices_backend;
     int parent_pid = 0;
     std::string ckpt_dir;
     std::string vae_dir;
@@ -116,7 +119,6 @@ struct CommandLineArgs {
     bool flash_attention = false;
     bool diffusion_fa = false;
     bool sage_attention = false;
-    std::string max_vram;
     bool stream_layers = false;
     bool cuda_malloc = false;
     bool cuda_unified_memory = false;
@@ -130,7 +132,6 @@ struct CommandLineArgs {
     bool video_clip_on_cpu = false;
     bool video_vae_on_cpu = false;
     bool video_offload_to_cpu = false;
-    std::string video_max_vram;
     bool video_stream_layers = false;
     bool chroma_disable_dit_mask = false;
     std::string convert_model;
@@ -161,136 +162,74 @@ static const char* device_type_name(sd_backend_device_type_t type) {
     return "unknown";
 }
 
-static void print_backend_devices() {
+static std::vector<sd_backend_device_info_t> get_backend_devices() {
+    std::vector<sd_backend_device_info_t> result;
     const size_t count = sd_get_backend_device_count();
-    std::cout << "index\tbackend\tselector\ttype\tfree MiB\ttotal MiB\tvendor\tcapabilities\tdescription"
-              << std::endl;
     for (size_t i = 0; i < count; ++i) {
         sd_backend_device_info_t info{};
-        if (!sd_get_backend_device_info(i, &info)) {
-            continue;
+        if (sd_get_backend_device_info(i, &info)) {
+            result.push_back(info);
         }
+    }
+    return result;
+}
+
+static std::vector<sdkit::PhysicalDevice> physical_inventory(
+        const std::vector<sd_backend_device_info_t>& devices) {
+    std::vector<sdkit::PhysicalDevice> result;
+    for (const auto& info : devices) {
+        result.push_back({lowercase(info.backend), info.name, info.device_id});
+    }
+    return result;
+}
+
+static bool print_backend_devices(const std::string& backend) {
+    bool any = false;
+    const auto devices = get_backend_devices();
+    const auto inventory = physical_inventory(devices);
+    std::cout << "driver\tselector\tPCIe address\ttype\tfree MiB\ttotal MiB\tvendor\tcapabilities\tdescription"
+              << std::endl;
+    for (size_t i = 0; i < devices.size(); ++i) {
+        const auto& info = devices[i];
+        const auto& device = inventory[i];
+        if (!backend.empty() && device.driver != backend) continue;
+        any = true;
+        const auto address = sdkit::selectable_pcie_address(device, inventory);
+        const char* pcie = address.empty() ? (device.metadata_id.empty() ? "not reported" : "not selectable")
+                                          : address.c_str();
         std::ostringstream capabilities;
         capabilities << "async=" << (info.async ? "yes" : "no")
                      << ",host-buffer=" << (info.host_buffer ? "yes" : "no")
                      << ",host-pointer=" << (info.buffer_from_host_ptr ? "yes" : "no")
                      << ",events=" << (info.events ? "yes" : "no");
-        std::cout << info.index << '\t'
-                  << info.backend << '\t'
-                  << info.name << '\t'
+        std::cout << (device.driver == "sycl" ? "oneapi" : device.driver) << '\t'
+                  << info.name << '\t' << pcie << '\t'
                   << device_type_name(info.type) << '\t'
                   << (info.memory_free / (1024 * 1024)) << '\t'
                   << (info.memory_total / (1024 * 1024)) << '\t'
-                  << info.vendor << '\t'
-                  << capabilities.str() << '\t'
-                  << info.description;
-        if (info.device_id[0] != '\0') {
-            std::cout << " (" << info.device_id << ')';
-        }
-        std::cout << std::endl;
+                  << info.vendor << '\t' << capabilities.str() << '\t' << info.description << std::endl;
     }
-}
-
-static bool parse_device_ids(const std::string& text, std::vector<int>& ids, std::string& error) {
-    if (text.empty() || text.front() == ',' || text.back() == ',') {
-        error = "--devices must be a comma-separated list of non-negative integers";
-        return false;
-    }
-    std::istringstream stream(text);
-    std::string item;
-    while (std::getline(stream, item, ',')) {
-        if (item.empty()) {
-            error = "--devices must be a comma-separated list of non-negative integers";
-            return false;
-        }
-        size_t consumed = 0;
-        long long value = -1;
-        try {
-            value = std::stoll(item, &consumed);
-        } catch (const std::exception&) {
-            error = "invalid device index '" + item + "'";
-            return false;
-        }
-        if (consumed != item.size() || value < 0 || value > std::numeric_limits<int>::max()) {
-            error = "invalid device index '" + item + "'";
-            return false;
-        }
-        const int id = static_cast<int>(value);
-        if (std::find(ids.begin(), ids.end(), id) != ids.end()) {
-            error = "duplicate device index '" + item + "'";
-            return false;
-        }
-        ids.push_back(id);
-    }
-    if (ids.empty()) {
-        error = "--devices requires at least one device index";
-        return false;
-    }
-    return true;
+    return any || backend.empty();
 }
 
 static bool build_compute_backend_spec(const CommandLineArgs& args, std::string& spec, std::string& error) {
-    const std::string backend = lowercase(args.compute_backend);
-    if (backend != "auto" && backend != "cpu" && backend != "cuda" && backend != "sycl" &&
-        backend != "vulkan") {
-        error = "invalid --backend '" + args.compute_backend + "' (expected auto, cpu, cuda, sycl, or vulkan)";
-        return false;
-    }
-
-    std::vector<int> ids;
-    if (args.backend_devices_set && !parse_device_ids(args.backend_devices, ids, error)) {
-        return false;
-    }
-    if (!ids.empty() && backend != "cuda" && backend != "sycl" && backend != "vulkan") {
-        error = "--device/--devices requires --backend cuda, sycl, or vulkan";
-        return false;
-    }
-
+    const auto& backend = args.compute_backend;
     spec.clear();
-    if (backend == "auto") {
-        return true;
+    if (args.pcie_devices_set) {
+        error = sdkit::resolve_pcie_devices(backend, args.pcie_devices,
+                                           physical_inventory(get_backend_devices()), spec);
+        return error.empty();
     }
-    if (ids.empty()) {
-        spec = backend;
-    } else {
-        const std::string prefix = backend == "cuda" ? "CUDA" : (backend == "sycl" ? "SYCL" : "Vulkan");
-        for (int id : ids) {
-            if (!spec.empty()) {
-                spec.push_back('&');
-            }
-            spec += prefix + std::to_string(id);
-        }
-    }
+    if (backend == "auto") return true;
 
-    std::vector<std::string> requested_names;
-    if (!ids.empty()) {
-        std::istringstream requested(spec);
-        std::string name;
-        while (std::getline(requested, name, '&')) {
-            requested_names.push_back(lowercase(name));
-        }
-    }
-
-    bool backend_found = false;
-    for (size_t i = 0; i < sd_get_backend_device_count(); ++i) {
-        sd_backend_device_info_t info{};
-        if (!sd_get_backend_device_info(i, &info)) {
-            continue;
-        }
-        const std::string registered_backend = lowercase(info.backend);
-        const std::string selector = lowercase(info.name);
-        if (ids.empty()) {
-            backend_found = backend_found || registered_backend == backend || selector == backend;
-        } else {
-            requested_names.erase(
-                std::remove(requested_names.begin(), requested_names.end(), selector),
-                requested_names.end());
-        }
-    }
-    if ((!ids.empty() && !requested_names.empty()) || (ids.empty() && !backend_found)) {
-        error = "requested " + backend + " backend/device is not available in this build";
+    const auto devices = get_backend_devices();
+    if (std::none_of(devices.begin(), devices.end(), [&](const auto& info) {
+        return lowercase(info.backend) == backend || lowercase(info.name) == backend;
+    })) {
+        error = "Requested driver '" + backend + "' is not available in this build";
         return false;
     }
+    spec = backend;
     return true;
 }
 
@@ -301,25 +240,23 @@ void print_usage(const char* program_name) {
     std::cerr << "  --port <port>                      Server port (default: 8188)" << std::endl;
     std::cerr << "  --log-level <level>                Log level: verbose, debug, info, warning, error (default: info)"
               << std::endl;
-    std::cerr << "  --backend <name>                   Compute backend: auto, cpu, cuda, sycl, or vulkan (default: auto)"
-              << std::endl;
-    std::cerr << "  --device <index>                   CUDA/SYCL/Vulkan device index" << std::endl;
-    std::cerr << "  --devices <i,j,...>                CUDA/SYCL/Vulkan devices for layer splitting" << std::endl;
-    std::cerr << "  --list-devices, --backend-info     List backend devices, memory, and capabilities, then exit"
-              << std::endl;
+    std::cerr << "  --driver <name>                    auto (default), cpu, cuda, vulkan, oneapi, openvino*" << std::endl;
+    std::cerr << "                                      *OpenVINO is not wired into the native runtime yet" << std::endl;
+    std::cerr << "  --device <PCIE[,PCIE...]>           Physical PCIe address(es), e.g. 0000:01:00.0" << std::endl;
+    std::cerr << "  --devices list [driver]            List selectors, memory, and capabilities, then exit" << std::endl;
     std::cerr << "  --parent-pid <pid>                 Parent process PID" << std::endl;
-    std::cerr << "  --ckpt-dir <path>                  Checkpoint models directory" << std::endl;
-    std::cerr << "  --vae-dir <path>                   VAE models directory" << std::endl;
-    std::cerr << "  --hypernetwork-dir <path>          Hypernetwork models directory" << std::endl;
-    std::cerr << "  --gfpgan-models-path <path>        GFPGAN models directory" << std::endl;
-    std::cerr << "  --realesrgan-models-path <path>    RealESRGAN models directory" << std::endl;
-    std::cerr << "  --lora-dir <path>                  LoRA models directory" << std::endl;
-    std::cerr << "  --codeformer-models-path <path>    Codeformer models directory" << std::endl;
-    std::cerr << "  --embeddings-dir <path>            Embeddings directory" << std::endl;
-    std::cerr << "  --controlnet-dir <path>            ControlNet models directory" << std::endl;
+    std::cerr << "  --dir-stable-diffusion <dir>      Checkpoint models directory" << std::endl;
+    std::cerr << "  --dir-vae <dir>                   VAE models directory" << std::endl;
+    std::cerr << "  --dir-hypernetwork <dir>          Hypernetwork models directory" << std::endl;
+    std::cerr << "  --dir-gfpgan <dir>                GFPGAN models directory" << std::endl;
+    std::cerr << "  --dir-realesrgan <dir>            RealESRGAN models directory" << std::endl;
+    std::cerr << "  --dir-lora <dir>                  LoRA models directory" << std::endl;
+    std::cerr << "  --dir-codeformer <dir>            Codeformer models directory" << std::endl;
+    std::cerr << "  --dir-embeddings <dir>            Embeddings directory" << std::endl;
+    std::cerr << "  --dir-controlnet <dir>            ControlNet models directory" << std::endl;
     std::cerr << "  --control-net-sd1-path <path>      Uni-ControlNet weights for automatic SD1.x routing" << std::endl;
     std::cerr << "  --control-net-sdxl-path <path>     ControlNet Union weights for automatic SDXL routing" << std::endl;
-    std::cerr << "  --text-encoder-dir <path>          Text encoder models directory" << std::endl;
+    std::cerr << "  --dir-text-encoder <dir>          Text encoder models directory" << std::endl;
     std::cerr << "  --no-half                          Force all model weights to F32 (high memory use)" << std::endl;
     std::cerr << "  --no-half-vae                      Force VAE weights to F32" << std::endl;
     std::cerr << "  --vae-tiling                       Enable VAE tiling (default: false)" << std::endl;
@@ -341,14 +278,12 @@ void print_usage(const char* program_name) {
     std::cerr << "  --flash-attention                  Legacy alias for --attention flash" << std::endl;
     std::cerr << "  --xformers                         Legacy alias for --attention xformers" << std::endl;
     std::cerr << "  --sage-attention                   Legacy alias for --attention sage" << std::endl;
-    std::cerr << "  --max-vram <GiB|assignments>       Graph VRAM budget, e.g. 6 or cuda=6,cpu=0" << std::endl;
-    std::cerr << "  --stream-layers                   Stream model layers within the --max-vram budget" << std::endl;
+    std::cerr << "  --stream-layers                   Stream denoiser layers using reported VRAM (requires --offload-to-cpu)" << std::endl;
     std::cerr << "  --cuda-malloc                     Use the flushable legacy cudaMalloc pool instead of CUDA VMM" << std::endl;
     std::cerr << "  --cuda-unified-memory             Let CUDA spill allocations into system RAM (slow)" << std::endl;
     std::cerr << "  --video-offload-to-cpu             Offload native-video parameters to CPU (default: false)"
               << std::endl;
-    std::cerr << "  --video-max-vram <GiB>             Native-video graph VRAM budget" << std::endl;
-    std::cerr << "  --video-stream-layers              Stream native-video diffusion layers within its VRAM budget"
+    std::cerr << "  --video-stream-layers              Stream video denoiser layers using reported VRAM (requires CPU offload)"
               << std::endl;
     std::cerr << "  --chroma-disable-dit-mask          Disable DiT mask for Chroma models (default: false)"
               << std::endl;
@@ -359,12 +294,50 @@ void print_usage(const char* program_name) {
               << std::endl;
 }
 
+// Legacy model-directory names are diagnosed, never accepted aliases.
+static const char* retired_model_directory_flag(const std::string& arg) {
+    const auto option = arg.substr(0, arg.find('='));
+    if (option == "--ckpt-dir") return "--dir-stable-diffusion";
+    if (option == "--vae-dir") return "--dir-vae";
+    if (option == "--hypernetwork-dir") return "--dir-hypernetwork";
+    if (option == "--gfpgan-models-path") return "--dir-gfpgan";
+    if (option == "--realesrgan-models-path") return "--dir-realesrgan";
+    if (option == "--lora-dir") return "--dir-lora";
+    if (option == "--codeformer-models-path") return "--dir-codeformer";
+    if (option == "--embeddings-dir") return "--dir-embeddings";
+    if (option == "--controlnet-dir") return "--dir-controlnet";
+    if (option == "--text-encoder-dir") return "--dir-text-encoder";
+    return nullptr;
+}
+
+static const char* read_model_directory(const std::string& flag, int argc, char* argv[], int& index) {
+    if (index + 1 >= argc || argv[index + 1][0] == '\0' ||
+        std::string_view(argv[index + 1]).rfind("--", 0) == 0 ||
+        std::string_view(argv[index + 1]) == "-h") {
+        std::cerr << flag << " requires a directory argument" << std::endl;
+        exit(1);
+    }
+    return argv[++index];
+}
+
 CommandLineArgs parse_args(int argc, char* argv[]) {
     CommandLineArgs args;
+    bool discovery_selected = false;
+    bool driver_selected = false;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
+        const auto option = arg.substr(0, arg.find('='));
+        if (option == "--max-vram" || option == "--video-max-vram") {
+            std::cerr << option << " was removed; native denoiser streaming plans from reported device memory"
+                      << std::endl;
+            exit(1);
+        }
+        if (const auto replacement = sdkit::retired_device_option_replacement(arg); !replacement.empty()) {
+            std::cerr << arg << " was removed; use " << replacement << std::endl;
+            exit(1);
+        }
         if (arg == "--port" && i + 1 < argc) {
             try {
                 args.port = std::stoi(argv[++i]);
@@ -375,13 +348,40 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             }
         } else if (arg == "--log-level" && i + 1 < argc) {
             args.log_level = argv[++i];
-        } else if (arg == "--backend" && i + 1 < argc) {
-            args.compute_backend = argv[++i];
-        } else if ((arg == "--device" || arg == "--devices") && i + 1 < argc) {
-            args.backend_devices = argv[++i];
-            args.backend_devices_set = true;
-        } else if (arg == "--list-devices" || arg == "--backend-info") {
+        } else if (arg == "--driver") {
+            if (driver_selected || i + 1 >= argc || std::string_view(argv[i + 1]).starts_with("-")) {
+                std::cerr << "Specify --driver <name> once: auto, cpu, cuda, vulkan, oneapi, or openvino" << std::endl;
+                exit(1);
+            }
+            if (const auto error = sdkit::parse_driver_name(argv[++i], false, args.compute_backend);
+                !error.empty()) {
+                std::cerr << error << std::endl;
+                exit(1);
+            }
+            driver_selected = true;
+        } else if (arg == "--device") {
+            if (args.pcie_devices_set || i + 1 >= argc || std::string_view(argv[i + 1]).starts_with("-")) {
+                std::cerr << "Specify --device once with physical PCIe address(es), e.g. 0000:01:00.0" << std::endl;
+                exit(1);
+            }
+            args.pcie_devices = argv[++i];
+            args.pcie_devices_set = true;
+        } else if (arg == "--devices") {
+            if (discovery_selected || i + 1 >= argc || std::string_view(argv[i + 1]) != "list") {
+                std::cerr << "Use --devices list [driver] for discovery or --device <PCIe address> for selection"
+                          << std::endl;
+                exit(1);
+            }
+            ++i;
+            discovery_selected = true;
             args.list_devices = true;
+            if (i + 1 < argc && !std::string_view(argv[i + 1]).starts_with("-")) {
+                if (const auto error = sdkit::parse_driver_name(argv[++i], true, args.list_devices_backend);
+                    !error.empty()) {
+                    std::cerr << error << std::endl;
+                    exit(1);
+                }
+            }
         } else if (arg == "--parent-pid" && i + 1 < argc) {
             try {
                 args.parent_pid = std::stoi(argv[++i]);
@@ -390,30 +390,30 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
                 print_usage(argv[0]);
                 exit(1);
             }
-        } else if (arg == "--ckpt-dir" && i + 1 < argc) {
-            args.ckpt_dir = argv[++i];
-        } else if (arg == "--vae-dir" && i + 1 < argc) {
-            args.vae_dir = argv[++i];
-        } else if (arg == "--hypernetwork-dir" && i + 1 < argc) {
-            args.hypernetwork_dir = argv[++i];
-        } else if (arg == "--gfpgan-models-path" && i + 1 < argc) {
-            args.gfpgan_models_path = argv[++i];
-        } else if (arg == "--realesrgan-models-path" && i + 1 < argc) {
-            args.realesrgan_models_path = argv[++i];
-        } else if (arg == "--lora-dir" && i + 1 < argc) {
-            args.lora_dir = argv[++i];
-        } else if (arg == "--codeformer-models-path" && i + 1 < argc) {
-            args.codeformer_models_path = argv[++i];
-        } else if (arg == "--embeddings-dir" && i + 1 < argc) {
-            args.embeddings_dir = argv[++i];
-        } else if (arg == "--controlnet-dir" && i + 1 < argc) {
-            args.controlnet_dir = argv[++i];
+        } else if (arg == "--dir-stable-diffusion") {
+            args.ckpt_dir = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-vae") {
+            args.vae_dir = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-hypernetwork") {
+            args.hypernetwork_dir = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-gfpgan") {
+            args.gfpgan_models_path = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-realesrgan") {
+            args.realesrgan_models_path = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-lora") {
+            args.lora_dir = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-codeformer") {
+            args.codeformer_models_path = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-embeddings") {
+            args.embeddings_dir = read_model_directory(arg, argc, argv, i);
+        } else if (arg == "--dir-controlnet") {
+            args.controlnet_dir = read_model_directory(arg, argc, argv, i);
         } else if (arg == "--control-net-sd1-path" && i + 1 < argc) {
             args.control_net_sd1_path = argv[++i];
         } else if (arg == "--control-net-sdxl-path" && i + 1 < argc) {
             args.control_net_sdxl_path = argv[++i];
-        } else if (arg == "--text-encoder-dir" && i + 1 < argc) {
-            args.text_encoder_dir = argv[++i];
+        } else if (arg == "--dir-text-encoder") {
+            args.text_encoder_dir = read_model_directory(arg, argc, argv, i);
         } else if (arg == "--image-vae-on-cpu") {
             args.image_vae_on_cpu = true;
         } else if (arg == "--no-half") {
@@ -458,8 +458,6 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.xformers_compat = true;
         } else if (arg == "--sage-attention") {
             args.sage_attention = true;
-        } else if (arg == "--max-vram" && i + 1 < argc) {
-            args.max_vram = argv[++i];
         } else if (arg == "--stream-layers") {
             args.stream_layers = true;
         } else if (arg == "--cuda-malloc") {
@@ -480,8 +478,6 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
             args.video_vae_on_cpu = true;
         } else if (arg == "--video-offload-to-cpu") {
             args.video_offload_to_cpu = true;
-        } else if (arg == "--video-max-vram" && i + 1 < argc) {
-            args.video_max_vram = argv[++i];
         } else if (arg == "--video-stream-layers") {
             args.video_stream_layers = true;
         } else if (arg == "--chroma-disable-dit-mask") {
@@ -495,11 +491,20 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
         } else if (arg == "--help" || arg == "-h") {
             print_usage(argv[0]);
             exit(0);
+        } else if (const char* replacement = retired_model_directory_flag(arg)) {
+            std::cerr << "Retired directory argument: " << arg.substr(0, arg.find('='))
+                      << ". Use " << replacement << " <dir>." << std::endl;
+            exit(1);
         } else {
             std::cerr << "Unknown argument: " << arg << std::endl;
             print_usage(argv[0]);
             exit(1);
         }
+    }
+
+    if (discovery_selected && (driver_selected || args.pcie_devices_set)) {
+        std::cerr << "Use --devices list [driver] on its own, without --driver or --device" << std::endl;
+        exit(1);
     }
 
     if (args.vae_tiles < 4) {
@@ -580,6 +585,15 @@ CommandLineArgs parse_args(int argc, char* argv[]) {
         exit(1);
     }
 
+    if (args.stream_layers && !args.offload_to_cpu) {
+        std::cerr << "--stream-layers requires --offload-to-cpu" << std::endl;
+        exit(1);
+    }
+    if (args.video_stream_layers && !args.offload_to_cpu && !args.video_offload_to_cpu) {
+        std::cerr << "--video-stream-layers requires --video-offload-to-cpu or --offload-to-cpu" << std::endl;
+        exit(1);
+    }
+
     return args;
 }
 
@@ -610,7 +624,10 @@ int main(int argc, char* argv[]) {
     set_log_level(args.log_level);
 
     if (args.list_devices) {
-        print_backend_devices();
+        if (!print_backend_devices(args.list_devices_backend)) {
+            std::cerr << "No devices were reported for backend '" << args.list_devices_backend << "'." << std::endl;
+            return 1;
+        }
         return 0;
     }
 
@@ -618,7 +635,7 @@ int main(int argc, char* argv[]) {
     std::string backend_error;
     if (!build_compute_backend_spec(args, compute_backend_spec, backend_error)) {
         LOG_ERROR("%s", backend_error.c_str());
-        std::cerr << "Run with --list-devices to see the selectors available in this build." << std::endl;
+        std::cerr << "Run with --devices list to see the selectors available in this build." << std::endl;
         return 1;
     }
     const std::string selected_backend = lowercase(args.compute_backend);
@@ -740,7 +757,6 @@ int main(int argc, char* argv[]) {
         server_params.flash_attention = args.flash_attention;
         server_params.diffusion_fa = args.diffusion_fa;
         server_params.sage_attention = args.sage_attention;
-        server_params.max_vram = args.max_vram;
         server_params.stream_layers = args.stream_layers;
         server_params.control_net_cpu = args.control_net_cpu;
         server_params.control_net_sd1_path = args.control_net_sd1_path;
@@ -752,7 +768,6 @@ int main(int argc, char* argv[]) {
         server_params.video_vae_on_cpu = args.video_vae_on_cpu;
         server_params.video_offload_to_cpu = args.video_offload_to_cpu;
         server_params.video_mmap_weights = args.video_offload_to_cpu && !args.mmap_explicitly_disabled;
-        server_params.video_max_vram = args.video_max_vram;
         server_params.video_stream_layers = args.video_stream_layers;
         server_params.chroma_disable_dit_mask = args.chroma_disable_dit_mask;
 
