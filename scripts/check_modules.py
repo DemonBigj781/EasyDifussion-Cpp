@@ -17,13 +17,15 @@ import threading
 os_name = platform.system()
 if os_name != "Linux":
     raise SystemExit("This local Easy Diffusion fork currently supports Linux only.")
-if sys.version_info[:2] != (3, 13):
-    raise SystemExit(f"Easy Diffusion requires Python 3.13; found {platform.python_version()}.")
+XAVIER_PROFILE = os.environ.get("EASY_DIFFUSION_XAVIER") == "1"
+required_python = (3, 10) if XAVIER_PROFILE else (3, 13)
+if sys.version_info[:2] != required_python:
+    raise SystemExit(f"Easy Diffusion requires Python {required_python[0]}.{required_python[1]}; found {platform.python_version()}.")
 
 modules_to_check = {
     "setuptools": "69.5.1",
-    "numpy": "2.2.6",
-    "scipy": "1.16.3",
+    "numpy": "1.26.4" if XAVIER_PROFILE else "2.2.6",
+    "scipy": "1.15.3" if XAVIER_PROFILE else "1.16.3",
     "requests": "2.32.3",
     "rich": "12.6.0",
     "uvicorn": "0.19.0",
@@ -45,12 +47,13 @@ modules_to_check = {
     "transformers": "4.57.6",
     "sentencepiece": "0.2.2",
     "protobuf": "4.25.9",
-    "tipo-kgen": "0.0.10",
     # sdkit still supplies shared model-scanning and image utilities. Native
     # inference is provided exclusively by sdkit3, so its legacy diffusion
     # dependency tree is intentionally not installed.
     "sdkit": "2.1.1",
 }
+if not XAVIER_PROFILE:
+    modules_to_check["tipo-kgen"] = "0.0.10"
 modules_to_log = ["torchruntime", "torch", "torchvision", "numpy", "sdkit"]
 NO_DEPENDENCY_INSTALLS = {"sdkit"}
 
@@ -177,6 +180,8 @@ def update_modules():
     import torchruntime
 
     if version("torch") is None or version("torchvision") is None:
+        if XAVIER_PROFILE:
+            raise SystemExit("Existing Xavier PyTorch and TorchVision required; automatic installation disabled.")
         torchruntime.install(["torch", "torchvision"])
     else:
         print(f"Current torch version: {version('torch')}")
