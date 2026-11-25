@@ -163,18 +163,16 @@ Add backend selection without changing existing defaults.
 Possible CLI:
 
 ```text
---backend auto
---backend cpu
---backend cuda
---backend sycl
+--driver auto
+--driver cpu
+--driver cuda
+--driver oneapi
 ```
 
-Optional device selection:
-
-```text
---device 0
---devices 0,1,2,3
-```
+Physical device selection uses `--device 0000:01:00.0` (or a
+comma-separated list) only when the selected driver reports the addresses.
+Current oneAPI/SYCL inventory does not publish PCIe addresses, so use
+`--driver oneapi` without a PCIe pin rather than guessing by ordinal.
 
 The existing CUDA behavior should remain unchanged when SYCL is not requested.
 
@@ -517,13 +515,8 @@ In strict mode, unsupported fallback should fail and identify the missing operat
 Add a diagnostic command such as:
 
 ```text
-sdkit --list-devices
-```
-
-and/or:
-
-```text
-sdkit --backend-info
+sdkit --devices list
+sdkit --devices list oneapi
 ```
 
 Suggested output:
@@ -571,8 +564,8 @@ The initial UI should remain simple and use automatic placement by default.
 
 - build stable-diffusion.cpp with `ggml-sycl`
 - enumerate Intel GPUs
-- add `--backend sycl`
-- add `--list-devices`
+- add `--driver oneapi`
+- add `--devices list [driver]`
 - run a minimal GGML operation on SYCL
 
 ### Phase 2 - Single-GPU image generation

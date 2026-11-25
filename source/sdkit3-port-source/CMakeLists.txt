@@ -86,6 +86,12 @@ if(SDKIT_BUILD_TESTS)
     target_include_directories(generation-error-test PRIVATE include stable-diffusion.cpp/include)
     target_link_libraries(generation-error-test PRIVATE Threads::Threads)
     add_test(NAME generation-error-test COMMAND generation-error-test)
+    add_executable(device-cli-test tests/test_device_cli.cpp)
+    target_include_directories(device-cli-test PRIVATE include)
+    add_test(NAME device-cli COMMAND device-cli-test)
+    add_executable(native-streaming-policy-test tests/test_native_streaming_policy.cpp)
+    target_include_directories(native-streaming-policy-test PRIVATE stable-diffusion.cpp/src)
+    add_test(NAME native-streaming-policy COMMAND native-streaming-policy-test)
 endif()
 
 # Set RPATH for Linux/Unix to find shared libraries in the same directory as the executable

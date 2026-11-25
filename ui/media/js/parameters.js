@@ -46,14 +46,14 @@ const NATIVE_BACKEND_BOOLEAN_OPTIONS = [
     { flag: "--video-stream-layers", label: "Stream video diffusion layers", group: "video" },
 ]
 
+// Retired VRAM-budget flags are not controls. Existing saved flags remain in
+// Additional arguments instead of being silently rewritten for older bundles.
 const NATIVE_BACKEND_VALUE_OPTIONS = [
     { flag: "--vae-tiles", label: "VAE latent tile size", group: "image", type: "number", min: 4, step: 1, placeholder: 32 },
     { flag: "--vae-tiled-overlap", label: "VAE tile overlap", group: "image", type: "number", min: 0, step: 1, placeholder: 16 },
     { flag: "--vae-tile-size", label: "VAE pixel tile size", group: "image", type: "text", placeholder: "256x256" },
-    { flag: "--max-vram", label: "Image/model VRAM budget", group: "image", type: "text", placeholder: "6 or cuda=6,cpu=0" },
     { flag: "--control-net-sd1-path", label: "Uni-ControlNet weights (SD1.x)", group: "image", type: "text", placeholder: "Absolute checkpoint path" },
     { flag: "--control-net-sdxl-path", label: "ControlNet Union weights (SDXL)", group: "image", type: "text", placeholder: "Absolute checkpoint path" },
-    { flag: "--video-max-vram", label: "Video VRAM budget (GiB)", group: "video", type: "number", min: 0, step: 0.25, placeholder: 8 },
 ]
 
 const MODEL_DIRECTORY_OPTIONS = [

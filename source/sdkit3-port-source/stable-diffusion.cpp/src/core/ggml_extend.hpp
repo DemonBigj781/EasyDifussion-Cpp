@@ -26,6 +26,7 @@
 
 #include "core/ggml_extend_backend.h"
 #include "core/ggml_graph_cut.h"
+#include "core/native_streaming_policy.hpp"
 #include "core/layer_split_partition.h"
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
@@ -1802,6 +1803,7 @@ protected:
 
     size_t max_graph_vram_bytes           = 0;
     bool stream_layers_enabled            = false;
+    bool bounded_streaming_required       = false;
     std::function<bool()> execution_cancel_callback_;
     size_t observed_max_effective_budget_ = 0;
     bool graph_cut_layer_split_enabled    = false;
@@ -2475,14 +2477,13 @@ protected:
     bool should_use_graph_cut_segmented_compute(const GraphCutPlan& plan) {
         return plan.has_cuts &&
                plan.valid &&
-               max_graph_vram_bytes > 0 &&
                plan.segments.size() > 1 &&
                !sd_backend_is_cpu(runtime_backend) &&
                !is_multi_device();
     }
 
     bool can_attempt_graph_cut_segmented_compute() const {
-        return max_graph_vram_bytes > 0 &&
+        return (max_graph_vram_bytes > 0 || bounded_streaming_required) &&
                !sd_backend_is_cpu(runtime_backend) &&
                !is_multi_device();
     }
@@ -2495,21 +2496,27 @@ protected:
 
         size_t effective_budget = max_graph_vram_bytes;
         size_t free_clamp       = SIZE_MAX;
-        if (stream_layers_enabled && max_graph_vram_bytes > 0 && runtime_backend != nullptr) {
+        if (bounded_streaming_required && runtime_backend != nullptr) {
+            ggml_backend_dev_t dev = ggml_backend_get_device(runtime_backend);
+            size_t free_vram = 0, total_vram = 0;
+            if (dev != nullptr) {
+                ggml_backend_dev_memory(dev, &free_vram, &total_vram);
+            }
+            free_clamp = sd_streaming::reported_streaming_headroom(free_vram, total_vram, max_graph_vram_bytes);
+            effective_budget = free_clamp;
+        } else if (stream_layers_enabled && max_graph_vram_bytes > 0 && runtime_backend != nullptr) {
             ggml_backend_dev_t dev = ggml_backend_get_device(runtime_backend);
             if (dev != nullptr && ggml_backend_dev_type(dev) != GGML_BACKEND_DEVICE_TYPE_CPU) {
                 size_t free_vram = 0, total_vram = 0;
                 ggml_backend_dev_memory(dev, &free_vram, &total_vram);
-                constexpr size_t safety_margin = 512ull * 1024 * 1024;
-                free_clamp                     = (free_vram > safety_margin) ? (free_vram - safety_margin) : 0;
-                if (free_clamp < effective_budget) {
-                    LOG_DEBUG("%s clamping streaming budget: actual free VRAM %.2f MB < user cap %.2f MB",
-                              get_desc().c_str(),
-                              free_clamp / (1024.0 * 1024.0),
-                              effective_budget / (1024.0 * 1024.0));
-                    effective_budget = free_clamp;
-                }
+                free_clamp = sd_streaming::reported_streaming_headroom(free_vram, total_vram, max_graph_vram_bytes);
+                effective_budget = free_clamp;
             }
+        }
+
+        if (bounded_streaming_required && effective_budget == 0) {
+            LOG_ERROR("%s: no usable reported VRAM headroom for requested denoiser streaming", get_desc().c_str());
+            return false;
         }
 
         bool budget_increased = false;
@@ -2539,7 +2546,7 @@ protected:
                     total_params_bytes += ggml_nbytes(t);
                 }
             }
-            if (total_params_bytes * 4 > effective_budget * 3) {
+            if (total_params_bytes > effective_budget - effective_budget / 4) {
                 planner_budget = effective_budget / 4;
             }
         }
@@ -2550,7 +2557,10 @@ protected:
                                                      planner_budget,
                                                      params_tensor_set_,
                                                      get_desc().c_str());
-        if (stream_layers_enabled) {
+        if (bounded_streaming_required) {
+            // Do not accumulate GPU-resident weights across segments.
+            sd::ggml_graph_cut::annotate_residency(*plan_out, 0);
+        } else if (stream_layers_enabled) {
             sd::ggml_graph_cut::annotate_residency(*plan_out, effective_budget);
         }
         if (stream_layers_enabled) {
@@ -3061,7 +3071,8 @@ protected:
 
             ggml_context* segment_graph_ctx = nullptr;
             ggml_cgraph* segment_graph      = sd::ggml_graph_cut::build_segment_graph(gf, segment, &segment_graph_ctx);
-            const bool keep_segment_params  = segment.residency == sd::ggml_graph_cut::SegmentResidency::RESIDENT;
+            const bool keep_segment_params  = !bounded_streaming_required &&
+                                               segment.residency == sd::ggml_graph_cut::SegmentResidency::RESIDENT;
             auto segment_output             = execute_graph<T>(segment_graph,
                                                    n_threads,
                                                    true,
@@ -3271,11 +3282,42 @@ public:
         // Running those graphs in segments frees the owning buffers before the
         // caller can consume them, so keep them on the full-graph path until
         // segmented multi-output capture is supported.
+        if (bounded_streaming_required &&
+            (no_return || !stream_layers_enabled || !can_attempt_graph_cut_segmented_compute())) {
+            LOG_ERROR("%s: requested denoiser streaming cannot use segmented execution", get_desc().c_str());
+            free_compute_ctx();
+            return std::nullopt;
+        }
         if (!no_return && can_attempt_graph_cut_segmented_compute()) {
             GraphCutPlan plan;
-            if (!resolve_graph_cut_plan(gf, &plan)) {
+            size_t effective_budget = 0;
+            if (!resolve_graph_cut_plan(gf, &plan, &effective_budget)) {
                 free_compute_ctx();
                 return std::nullopt;
+            }
+            if (bounded_streaming_required) {
+                if (!plan.valid || !plan.has_cuts || plan.segments.empty()) {
+                    LOG_ERROR("%s: no valid graph-cut plan for requested denoiser streaming; "
+                              "refusing a whole-graph GPU allocation", get_desc().c_str());
+                    free_compute_ctx();
+                    return std::nullopt;
+                }
+                for (const auto& segment : plan.segments) {
+                    if (!sd_streaming::fits_budget(effective_budget, {
+                            segment.compute_buffer_size, segment.input_param_bytes,
+                            segment.input_previous_cut_bytes, segment.output_bytes})) {
+                        LOG_ERROR("%s: graph-cut segment '%s' does not fit the streaming budget (%.2f MiB)",
+                                  get_desc().c_str(), segment.group_name.c_str(), effective_budget / 1048576.0);
+                        free_compute_ctx();
+                        return std::nullopt;
+                    }
+                }
+                if (plan.segments.size() == 1) {
+                    LOG_DEBUG("%s: denoiser graph fits one segment within the streaming budget", get_desc().c_str());
+                }
+                // Use the bounded executor even for a one-segment plan; its
+                // release policy must not follow whole-run keep-model settings.
+                return compute_graph_cut_segments<T>(gf, plan, n_threads, true, no_return);
             }
             if (should_use_graph_cut_segmented_compute(plan)) {
                 return compute_graph_cut_segments<T>(gf,
@@ -3340,6 +3382,10 @@ public:
             return;
         }
         stream_layers_enabled = enabled;
+    }
+
+    void require_bounded_streaming(bool required) {
+        bounded_streaming_required = required;
     }
 
     void set_execution_cancel_callback(std::function<bool()> callback) {

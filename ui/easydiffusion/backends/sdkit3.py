@@ -10,7 +10,7 @@ import tempfile
 import traceback
 
 from easydiffusion.app import ROOT_DIR, getConfig
-from easydiffusion.backend_args import parse_backend_commandline_args
+from easydiffusion.backend_args import parse_backend_commandline_args, probe_model_directory_flags
 from easydiffusion.utils import log
 
 from common import run
@@ -161,7 +161,9 @@ def start_backend():
     def run_fn():
         exe_name = "sdkit.exe" if OS_NAME == "Windows" else "sdkit"
         executable = os.path.join(backend_dir, exe_name)
-        common_cli_args = get_common_cli_args(return_string=False)
+        environment = get_backend_environment(backend_dir)
+        model_dir_flags = probe_model_directory_flags(executable, cwd=backend_dir, env=environment)
+        common_cli_args = get_common_cli_args(return_string=False, model_dir_flags=model_dir_flags)
         cmd = [executable] + common_cli_args + user_args
 
         binary_stat = os.stat(executable)
@@ -170,7 +172,6 @@ def start_backend():
             f"mtime_ns={binary_stat.st_mtime_ns})"
         )
 
-        environment = get_backend_environment(backend_dir)
         return run(
             cmd,
             cwd=backend_dir,

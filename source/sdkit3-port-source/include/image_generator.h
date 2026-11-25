@@ -233,7 +233,6 @@ class ImageGenerator {
     bool current_text_encoder_uses_cpu_ = false;
     bool current_params_offloaded_to_cpu_ = false;
     bool current_mmap_weights_ = false;
-    std::string current_max_vram_;
     bool current_stream_layers_ = false;
 
     // SD context parameters from CLI
@@ -250,7 +249,6 @@ class ImageGenerator {
     bool flash_attention_;
     bool diffusion_fa_;
     bool sage_attention_;
-    std::string max_vram_;
     bool stream_layers_;
     bool control_net_cpu_;
     std::string control_net_sd1_path_;
@@ -262,7 +260,6 @@ class ImageGenerator {
     bool video_vae_on_cpu_;
     bool video_offload_to_cpu_;
     bool video_mmap_weights_;
-    std::string video_max_vram_;
     bool video_stream_layers_;
     bool chroma_disable_dit_mask_;
 };
