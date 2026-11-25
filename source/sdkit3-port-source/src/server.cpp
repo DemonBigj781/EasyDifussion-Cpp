@@ -328,7 +328,27 @@ crow::response Server::handleGetOptions() {
     }
 }
 
+static crow::response admission_error(int status, const std::string& message) {
+    crow::json::wvalue error;
+    error["message"] = message;
+    return crow::response(status, error);
+}
+
+static std::string request_task_id(const crow::json::rvalue& body, const char* fallback) {
+    if (body.t() != crow::json::type::Object)
+        throw std::invalid_argument("Generation request must be an object");
+    if (!body.has("force_task_id")) return fallback;
+    if (body["force_task_id"].t() != crow::json::type::String)
+        throw std::invalid_argument("force_task_id must be a string");
+    const std::string task = body["force_task_id"].s();
+    if (task.empty() || task.size() > 128 || task.find('\0') != std::string::npos)
+        throw std::invalid_argument("force_task_id must contain 1..128 bytes without NUL");
+    return task;
+}
+
 crow::response Server::handlePostOptions(const crow::request& req) {
+    auto admission = generation_admission_.tryAcquire();
+    if (!admission.acquired()) return admission_error(409, "A native operation is active");
     try {
         auto json_body = crow::json::load(req.body);
         if (!json_body) {
@@ -430,14 +450,22 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
         error["message"] = option_error;
         return crow::response(400, error);
     }
-    reset_sd_generation_error();
-    std::string task_id = json_body.has("force_task_id")
-                              ? std::string(json_body["force_task_id"].s())
-                              : "default_video_task";
+    auto admission = generation_admission_.tryAcquire();
+    if (!admission.acquired()) return admission_error(409, "A native operation is active");
+    std::string task_id;
+    try {
+        task_id = request_task_id(json_body, "default_video_task");
+    } catch (const std::invalid_argument& e) {
+        return admission_error(400, e.what());
+    }
     task_state_manager_->createTask(task_id);
+    admission.bind(task_id);
+    reset_sd_generation_error();
 
     try {
         VideoGenerationParams params;
+        params.tome_ratio = json_body.has("tome_ratio") ? static_cast<float>(json_body["tome_ratio"].d()) : 0.f;
+        params.negative_guidance_min_sigma = json_body.has("negative_guidance_min_sigma") ? static_cast<float>(json_body["negative_guidance_min_sigma"].d()) : 0.f;
         if (json_body.has("audio_vae_path")) {
             if (json_body["audio_vae_path"].t() != crow::json::type::String) {
                 throw std::invalid_argument("audio_vae_path must be a model path string");
@@ -609,19 +637,23 @@ crow::response Server::generateImage(const crow::json::rvalue& json_body, bool i
         error["message"] = option_error;
         return crow::response(400, error);
     }
-    reset_sd_generation_error();
-    // Extract task_id
-    std::string task_id = "default_task";
-    if (json_body.has("force_task_id")) {
-        task_id = json_body["force_task_id"].s();
+    auto admission = generation_admission_.tryAcquire();
+    if (!admission.acquired()) return admission_error(409, "A native operation is active");
+    std::string task_id;
+    try {
+        task_id = request_task_id(json_body, "default_task");
+    } catch (const std::invalid_argument& e) {
+        return admission_error(400, e.what());
     }
-
-    // Create task
     task_state_manager_->createTask(task_id);
+    admission.bind(task_id);
+    reset_sd_generation_error();
 
     try {
         // Parse generation parameters
         ImageGenerationParams params;
+        params.tome_ratio = json_body.has("tome_ratio") ? static_cast<float>(json_body["tome_ratio"].d()) : 0.f;
+        params.negative_guidance_min_sigma = json_body.has("negative_guidance_min_sigma") ? static_cast<float>(json_body["negative_guidance_min_sigma"].d()) : 0.f;
         if (json_body.has("backend")) {
             if (json_body["backend"].t() != crow::json::type::String) {
                 throw std::invalid_argument("backend must be a device-assignment string");
@@ -1012,21 +1044,41 @@ crow::response Server::handleProgress(const crow::request& req) {
 
 crow::response Server::handleInterrupt(const crow::request& req) {
     try {
-        // Interrupt the image generator
-        if (image_generator_) {
-            image_generator_->interrupt();
-            LOG_INFO("Image or video generation interrupt forwarded");
+        std::optional<std::string> requested;
+        if (!req.body.empty()) {
+            const auto body = crow::json::load(req.body);
+            if (!body || body.t() != crow::json::type::Object)
+                return admission_error(400, "Interrupt request must be an object");
+            if (body.has("id_task")) {
+                if (body["id_task"].t() != crow::json::type::String)
+                    return admission_error(400, "id_task must be a nonempty string");
+                requested = std::string(body["id_task"].s());
+                if (requested->empty() || requested->size() > 128 || requested->find('\0') != std::string::npos)
+                    return admission_error(400, "id_task must contain 1..128 bytes without NUL");
+            }
         }
-
-        return crow::response(200, "OK");
+        const auto result = generation_admission_.interrupt(requested, [this](const std::string& task) {
+            const auto state = task_state_manager_->getTaskProgressState(task, false, -1);
+            if (state.completed) return false;
+            // Latch the request even before the generator owns a context.
+            task_state_manager_->interruptTask(task);
+            image_generator_->interrupt();
+            return true;
+        });
+        if (result == GenerationAdmission::InterruptResult::forwarded ||
+            (!requested && result == GenerationAdmission::InterruptResult::no_active))
+            return crow::response(200, "OK");
+        if (result == GenerationAdmission::InterruptResult::unavailable)
+            return admission_error(409, "Generation is preparing or already finished; cancellation is unavailable");
+        return admission_error(409, "id_task does not identify the active generation");
     } catch (const std::exception& e) {
-        crow::json::wvalue error;
-        error["message"] = std::string("Failed to interrupt: ") + e.what();
-        return crow::response(500, error);
+        return admission_error(500, std::string("Failed to interrupt: ") + e.what());
     }
 }
 
 crow::response Server::handleExtraBatchImages(const crow::request& req) {
+    auto admission = generation_admission_.tryAcquire();
+    if (!admission.acquired()) return admission_error(409, "A native operation is active");
     try {
         auto json_body = crow::json::load(req.body);
         if (!json_body) {
@@ -1092,6 +1144,8 @@ crow::response Server::handleExtraBatchImages(const crow::request& req) {
 }
 
 crow::response Server::handleControlNetDetect(const crow::request& req) {
+    auto admission = generation_admission_.tryAcquire();
+    if (!admission.acquired()) return admission_error(409, "A native operation is active");
     try {
         auto json_body = crow::json::load(req.body);
         if (!json_body) {
@@ -1130,6 +1184,8 @@ crow::response Server::handleControlNetDetect(const crow::request& req) {
 }
 
 crow::response Server::handleRefreshCheckpoints() {
+    auto admission = generation_admission_.tryAcquire();
+    if (!admission.acquired()) return admission_error(409, "A native operation is active");
     try {
         LOG_INFO("Refreshing checkpoints...");
         if (model_manager_) {
@@ -1144,6 +1200,8 @@ crow::response Server::handleRefreshCheckpoints() {
 }
 
 crow::response Server::handleRefreshVaeAndTextEncoders() {
+    auto admission = generation_admission_.tryAcquire();
+    if (!admission.acquired()) return admission_error(409, "A native operation is active");
     try {
         LOG_INFO("Refreshing VAE and text encoders...");
         if (model_manager_) {

@@ -38,6 +38,12 @@ protected:
     String2TensorStorage tensor_storage_map;
     std::map<std::string, std::string> metadata_;
     int n_threads_;
+    bool (*load_cancel_callback_)(void*) = nullptr;
+    void* load_cancel_user_data_ = nullptr;
+    bool load_cancelled() const {
+        return load_cancel_callback_ && load_cancel_callback_(load_cancel_user_data_);
+    }
+
 
     size_t add_file_path(const std::string& file_path);
     void add_tensor_storage(const TensorStorage& tensor_storage);
@@ -51,6 +57,11 @@ protected:
 
 public:
     ModelLoader();
+    void set_load_cancel_callback(bool (*callback)(void*), void* data) {
+        load_cancel_callback_ = callback;
+        load_cancel_user_data_ = data;
+    }
+
 
     bool init_from_file(const std::string& file_path, const std::string& prefix = "");
     void convert_tensors_name();

@@ -51,3 +51,13 @@ add_test(NAME sampler-scheduler-test COMMAND sampler-scheduler-test)
 add_executable(backend-device-info-test backend_device_info_test.cpp)
 target_link_libraries(backend-device-info-test PRIVATE stable-diffusion)
 add_test(NAME backend-device-info-test COMMAND backend-device-info-test)
+
+add_executable(token-merge-test token_merge_test.cpp)
+target_link_libraries(token-merge-test PRIVATE stable-diffusion)
+target_compile_definitions(token-merge-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME token-merge-test COMMAND token-merge-test CPU)
+
+add_executable(sampling-optimizations-test sampling_optimizations_test.cpp)
+target_link_libraries(sampling-optimizations-test PRIVATE stable-diffusion)
+target_compile_definitions(sampling-optimizations-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME sampling-optimizations-test COMMAND sampling-optimizations-test)

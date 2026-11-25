@@ -4,6 +4,8 @@ from pydantic import BaseModel
 
 
 class GenerateImageRequest(BaseModel):
+    tome_ratio: float = 0.0
+    negative_guidance_min_sigma: float = 0.0
     backend_assignment: str = ""
     prompt: str = ""
     negative_prompt: str = ""
@@ -67,6 +69,8 @@ class FilterImageRequest(BaseModel):
 
 
 class VideoGenerationRequest(BaseModel):
+    tome_ratio: float = 0.0
+    negative_guidance_min_sigma: float = 0.0
     audio_vae_model: Optional[str] = None
     embeddings_connectors_model: Optional[str] = None
     backend_assignment: str = ""

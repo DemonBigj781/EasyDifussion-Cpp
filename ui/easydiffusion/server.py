@@ -40,6 +40,8 @@ from ui.plugins.server import training
 from ui.plugins.server.native_image_tools import (
     BackgroundRemovalRequest,
     NativeDetectionRequest,
+    SAMSegmentationRequest,
+    segment_sam as native_segment_sam,
     ObjectRemovalRequest,
     TextMaskRequest,
     detect as native_detect,
@@ -230,6 +232,17 @@ def init():
             raise HTTPException(status_code=504, detail="Native detection timed out") from exc
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Native detection failed: {exc}") from exc
+
+    @server_api.post("/sam/segment")
+    def segment_with_sam(req: SAMSegmentationRequest):
+        try:
+            return JSONResponse(native_segment_sam(req), headers=NOCACHE_HEADERS)
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(status_code=504, detail="SAM segmentation timed out") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"SAM segmentation failed: {exc}") from exc
 
     @server_api.post("/image-tools/text-mask")
     def create_native_text_mask(req: TextMaskRequest):

@@ -269,6 +269,8 @@ def generate_images(
     preserve_init_image_color_profile=False,
     strict_mask_border=False,
     inpainting_mask_invert=False,
+    tome_ratio=0.0,
+    negative_guidance_min_sigma=0.0,
     sampler_name: str = "euler_a",
     scheduler_name: str = "simple",
     hypernetwork_strength: float = 0,
@@ -301,6 +303,10 @@ def generate_images(
     if backend_assignment:
         cmd["backend"] = str(backend_assignment)
 
+    if tome_ratio or negative_guidance_min_sigma:
+        if not USE_SDKIT3_API:
+            raise ValueError("Native token merging and NGMS require sdkit3")
+        cmd.update(tome_ratio=tome_ratio, negative_guidance_min_sigma=negative_guidance_min_sigma)
     if init_image:
         cmd["init_images"] = [normalize_base64_image(init_image, "initial image")]
         cmd["denoising_strength"] = prompt_strength
@@ -584,6 +590,8 @@ def generate_video(
     sampler_name: str = "euler",
     scheduler_name: str = "simple",
     flow_shift=None,
+    tome_ratio=0.0,
+    negative_guidance_min_sigma=0.0,
     moe_boundary: float = 0.875,
     cache_mode: str = "disabled",
     cache_threshold=None,
@@ -620,6 +628,10 @@ def generate_video(
     }
     if backend_assignment:
         cmd["backend"] = str(backend_assignment)
+    if negative_guidance_min_sigma > 0 and cache_mode != "disabled":
+        raise ValueError("NGMS requires disabled video caching")
+    if tome_ratio or negative_guidance_min_sigma:
+        cmd.update(tome_ratio=tome_ratio, negative_guidance_min_sigma=negative_guidance_min_sigma)
     if flow_shift is not None:
         cmd["flow_shift"] = float(flow_shift)
     if cache_threshold is not None:

@@ -283,6 +283,8 @@ typedef struct {
     bool auto_fit;
     const char* rpc_servers;
     const char* model_args;
+    bool (*load_cancel_callback)(void*);
+    void* load_cancel_user_data;
 } sd_ctx_params_t;
 
 typedef struct {

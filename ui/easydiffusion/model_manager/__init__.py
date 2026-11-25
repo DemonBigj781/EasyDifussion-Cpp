@@ -33,9 +33,10 @@ KNOWN_MODEL_TYPES = [
     "wd14-tagger",
     "text-encoder",
 ]
-LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video"]
+LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video", "sam"]
 MODEL_EXTENSIONS = {
     "stable-diffusion": [".ckpt", ".safetensors", ".sft", ".gguf", ".sprite-gpt.json"],
+    "sam": [".bin", ".gguf", ".pth"],
     "video": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "vae": [".vae.pt", ".ckpt", ".safetensors", ".sft", ".gguf"],
     "taesdvae": [".pt", ".pth", ".ckpt", ".safetensors", ".sft", ".gguf"],
@@ -121,7 +122,7 @@ MODEL_DIRECTORY_CONFIG_KEYS = {
     "stable-diffusion": "checkpoints",
 }
 
-DIRECTORY_MODEL_TYPES = tuple(KNOWN_MODEL_TYPES) + ("video", "tipo")
+DIRECTORY_MODEL_TYPES = tuple(KNOWN_MODEL_TYPES) + ("video", "sam", "tipo")
 DIRECTORY_CONFIG_KEYS = tuple(
     dict.fromkeys(MODEL_DIRECTORY_CONFIG_KEYS.get(model_type, model_type) for model_type in DIRECTORY_MODEL_TYPES)
 )
@@ -677,6 +678,20 @@ def get_model_dirs(model_type: str, base_dir=None):
             seen.add(real_candidate)
             dirs.append(candidate)
         return dirs or [os.path.join(base_dir, DEDICATED_VIDEO_MODEL_FOLDER_NAMES[0])]
+
+    if model_type == "sam":
+        dirs = []
+        seen = set()
+        for folder_name in ("sams", "sam", "SAM"):
+            candidate = os.path.join(base_dir, folder_name)
+            if not os.path.isdir(candidate):
+                continue
+            real_candidate = os.path.realpath(candidate)
+            if real_candidate in seen:
+                continue
+            seen.add(real_candidate)
+            dirs.append(candidate)
+        return dirs or [os.path.join(base_dir, ("sams", "sam", "SAM")[0])]
 
     primary_dir = os.path.join(base_dir, model_type)
     dirs = [primary_dir]

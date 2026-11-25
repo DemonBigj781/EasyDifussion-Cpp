@@ -54,6 +54,7 @@ struct UNetDiffusionExtra {
     float lllite_end_percent                       = 0.f;
     const sd::Tensor<float>* ip_context            = nullptr;
     float ip_scale                                 = 1.f;
+    float tome_ratio                               = 0.f;
 };
 
 struct SkipLayerDiffusionExtra {

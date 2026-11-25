@@ -169,6 +169,7 @@ void ModelLoader::set_n_threads(int n_threads) {
 }
 
 bool ModelLoader::init_from_file(const std::string& file_path, const std::string& prefix) {
+    if (load_cancelled()) return false;
     if (is_directory(file_path)) {
         LOG_INFO("load %s using diffusers format", file_path.c_str());
         return init_from_diffusers_file(file_path, prefix);
@@ -306,6 +307,7 @@ bool ModelLoader::init_from_safetensors_index_file(const std::string& file_path,
     }
 
     for (const std::string& shard_path : shard_paths) {
+        if (load_cancelled()) return false;
         if (!init_from_file(shard_path, prefix)) {
             return false;
         }
@@ -984,6 +986,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
     SDVersion imatrix_version      = (version_ == VERSION_COUNT) ? get_sd_version() : version_;
 
     for (size_t file_index = 0; file_index < file_data.size(); ++file_index) {
+        if (load_cancelled()) return false;
         auto& fdata                  = file_data[file_index];
         const std::string& file_path = fdata.path;
 
@@ -1052,6 +1055,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
                 while (true) {
                     int64_t t0, t1;
                     size_t idx = tensor_idx.fetch_add(1);
+                    if (load_cancelled()) { failed = true; break; }
                     if (idx >= tensors_to_process.size() || failed) {
                         break;
                     }
@@ -1245,7 +1249,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
             w.join();
         }
 
-        if (failed) {
+        if (failed || load_cancelled()) {
             success = false;
             break;
         }

@@ -1568,6 +1568,8 @@ function getCurrentUserRequest() {
             num_outputs: numOutputsParallel,
             num_inference_steps: parseInt(numInferenceStepsField.value),
             guidance_scale: parseFloat(guidanceScaleField.value),
+            tome_ratio: Number(document.getElementById("tome_ratio")?.value || 0),
+            negative_guidance_min_sigma: Number(document.getElementById("negative_guidance_min_sigma")?.value || 0),
             width: width,
             height: height,
             // allow_nsfw: allowNSFWField.checked,

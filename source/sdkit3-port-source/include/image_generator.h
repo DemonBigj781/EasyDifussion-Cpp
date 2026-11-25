@@ -27,6 +27,8 @@ struct ImageGenerationParams {
     int height = 512;
     int steps = 20;
     std::optional<float> distilled_cfg_scale;
+    float tome_ratio = 0.f;
+    float negative_guidance_min_sigma = 0.f;
     float cfg_scale = 7.0f;
     int64_t seed = -1;
     int batch_count = 1;
@@ -105,6 +107,8 @@ struct VideoGenerationParams {
     int motion_bucket_id = 127;
     float augmentation_level = 0.0f;
     std::optional<float> distilled_cfg_scale;
+    float tome_ratio = 0.f;
+    float negative_guidance_min_sigma = 0.f;
     float cfg_scale = 5.0f;
     float strength = 0.75f;
     float flow_shift = INFINITY;
@@ -142,7 +146,8 @@ class ImageGenerator {
     std::vector<std::string> generateVideo(const VideoGenerationParams& params, const std::string& task_id = "");
 
     // Interrupt current generation
-    void interrupt();
+    // Returns true only when cancellation was accepted by the active context.
+    bool interrupt();
 
    private:
     // Create init image from base64 string
@@ -186,7 +191,8 @@ class ImageGenerator {
                            bool native_video_request = false,
                            const std::string& request_compute_backend = "",
                            const std::string& audio_vae_path = "",
-                           const std::string& embeddings_connectors_path = "");
+                           const std::string& embeddings_connectors_path = "",
+                           const std::string& load_task_id = "");
 
     sd_ctx_t* sd_ctx_;
     std::shared_ptr<TaskStateManager> task_state_manager_;

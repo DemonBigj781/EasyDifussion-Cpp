@@ -1735,6 +1735,8 @@ struct WeightAdapter {
 };
 
 struct GGMLRunnerContext {
+    float spatial_token_merge_ratio = 0.f;
+    int64_t spatial_token_merge_base_tokens = 0;
     ggml_backend_t backend                                           = nullptr;
     ggml_context* ggml_ctx                                           = nullptr;
     uint8_t flash_attn_enabled                                       = 0;

@@ -83,6 +83,23 @@ endif()
 # Find Threads package for multithreading support
 find_package(Threads REQUIRED)
 
+add_executable(sam
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples/sam/sam.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples/common.cpp)
+target_include_directories(sam PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/examples/sam
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/ggml/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp/thirdparty)
+target_link_libraries(sam PRIVATE ggml Threads::Threads)
+# The default sdkit build/deploy must include the helper used by /sam/segment.
+add_dependencies(sdkit sam)
+if(UNIX AND NOT APPLE)
+    set_target_properties(sam PROPERTIES BUILD_RPATH "$ORIGIN:$ORIGIN/../lib" INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
+endif()
+
+
 if(SDKIT_BUILD_TESTS)
     add_executable(generation-error-test tests/test_generation_error.cpp src/logging.cpp)
     target_include_directories(generation-error-test PRIVATE include stable-diffusion.cpp/include)
@@ -105,6 +122,14 @@ if(SDKIT_BUILD_TESTS)
     target_include_directories(prompt-validation-test PRIVATE include third_party)
     target_link_libraries(prompt-validation-test PRIVATE stable-diffusion)
     add_test(NAME prompt-validation COMMAND prompt-validation-test)
+    add_executable(generation-options-test tests/generation_options_test.cpp)
+    target_include_directories(generation-options-test PRIVATE include third_party)
+    target_link_libraries(generation-options-test PRIVATE stable-diffusion)
+    add_test(NAME generation-options COMMAND generation-options-test)
+    add_executable(generation-admission-test tests/generation_admission_test.cpp)
+    target_include_directories(generation-admission-test PRIVATE include)
+    target_link_libraries(generation-admission-test PRIVATE Threads::Threads)
+    add_test(NAME generation-admission COMMAND generation-admission-test)
 endif()
 
 # Set RPATH for Linux/Unix to find shared libraries in the same directory as the executable

@@ -21,6 +21,8 @@ const SETTINGS_IDS_LIST = [
     "height",
     "num_inference_steps",
     "guidance_scale",
+    "tome_ratio",
+    "negative_guidance_min_sigma",
     "distilled_guidance_scale",
     "prompt_strength",
     "tiling",

@@ -10,6 +10,14 @@
 #include "image_utils.h"
 
 inline std::string validate_generation_options(const crow::json::rvalue& body, bool masked_image) {
+    for (const char* field : {"tome_ratio", "negative_guidance_min_sigma"}) {
+        if (!body.has(field)) continue;
+        const auto& value = body[field];
+        if (value.t() != crow::json::type::Number || !std::isfinite(value.d()) ||
+            value.d() < 0 || value.d() > std::numeric_limits<float>::max() ||
+            (std::string(field) == "tome_ratio" && value.d() > .5))
+            return std::string("Invalid ") + field;
+    }
     if (body.has("distilled_cfg_scale")) {
         const auto& value = body["distilled_cfg_scale"];
         if (value.t() != crow::json::type::Number || !std::isfinite(value.d()) ||

@@ -1,3 +1,7 @@
+#include <iomanip>
+#include <limits>
+#include <sstream>
+#include <locale>
 #include "image_generator.h"
 
 #include <algorithm>
@@ -26,6 +30,15 @@
 #include "string_utils.h"
 
 namespace fs = std::filesystem;
+static std::string sampling_optimization_args(float ratio, float sigma) {
+    if (ratio == 0.f && sigma == 0.f) return {};
+    std::ostringstream args;
+    args.imbue(std::locale::classic());
+    args << std::setprecision(std::numeric_limits<float>::max_digits10)
+         << "tome_ratio=" << ratio << ",negative_guidance_min_sigma=" << sigma;
+    return args.str();
+}
+
 
 // Global callback data structure
 struct CallbackData {
@@ -182,11 +195,11 @@ bool ImageGenerator::isInitialized() const { return initialized_ && sd_ctx_ != n
 
 std::string ImageGenerator::getCurrentModelPath() const { return current_model_path_; }
 
-void ImageGenerator::interrupt() {
+bool ImageGenerator::interrupt() {
     std::lock_guard<std::mutex> lock(interrupt_mutex_);
     if (active_generation_ctx_ == nullptr && !video_generation_pending_) {
         LOG_INFO("No active generation to interrupt");
-        return;
+        return false;
     }
 
     cancel_requested_ = true;
@@ -196,6 +209,7 @@ void ImageGenerator::interrupt() {
     } else {
         LOG_INFO("Generation interrupt requested while native video was preparing");
     }
+    return true;
 }
 
 std::vector<std::string> ImageGenerator::generateTxt2Img(const ImageGenerationParams& params,
@@ -212,7 +226,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
                                                        const std::string& task_id) {
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
-        cancel_requested_         = false;
+        cancel_requested_ = !task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted;
         video_generation_pending_ = true;
     }
     struct VideoGenerationStateGuard {
@@ -233,13 +247,16 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
         }
     }};
 
+    if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
     // Video checkpoints use the same context loader and options model selector.
     // Empty adapter/control paths deliberately release image-only extensions.
     if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true, params.backend,
-                           params.audio_vae_path, params.embeddings_connectors_path)) {
+                           params.audio_vae_path, params.embeddings_connectors_path, task_id)) {
+        if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
         throw std::runtime_error("Failed to load video model from options");
     }
 
+    if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
     std::unique_lock<std::mutex> lock(mutex_);
     if (!sd_ctx_supports_video_generation(sd_ctx_)) {
         throw std::runtime_error("The selected checkpoint does not support native video generation");
@@ -276,6 +293,8 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     gen_params.sample_params.sample_steps      = params.steps;
     gen_params.sample_params.guidance.txt_cfg  = params.cfg_scale;
     apply_distilled_guidance(gen_params.sample_params, params.distilled_cfg_scale);
+    const auto optimization_args = sampling_optimization_args(params.tome_ratio, params.negative_guidance_min_sigma);
+    gen_params.sample_params.extra_sample_args = optimization_args.empty() ? nullptr : optimization_args.c_str();
     if (std::isfinite(params.flow_shift)) {
         gen_params.sample_params.flow_shift = params.flow_shift;
     }
@@ -330,7 +349,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     bool cancelled_during_preparation = false;
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
-        if (cancel_requested_) {
+        if (cancel_requested_ || (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted)) {
             LOG_INFO("Native video generation cancelled during preparation");
             cancelled_during_preparation = true;
         } else {
@@ -395,6 +414,8 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationParams& params, bool is_img2img,
                                                           const std::string& task_id, bool allow_ram_fallback) {
     const auto request_started_at = std::chrono::steady_clock::now();
+    if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
+
     // Ensure the correct model is loaded based on current options and controlnet (before taking lock)
     if (!ensureModelLoaded(params.controlnet_model,
                            params.control_net_lllite_model_path,
@@ -406,12 +427,15 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
                            params.latent_interposer_decode_model_path,
                            params.latent_interposer_vae_format,
                            false,
-                           params.backend)) {
+                           params.backend, "", "", task_id)) {
         LOG_ERROR("Failed to ensure model is loaded");
+        if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
         throw std::runtime_error("Failed to load model from options");
     }
 
     std::unique_lock<std::mutex> lock(mutex_);
+
+    if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
 
     sdkit::ImageGenerationStateGuard generation_state_guard{[this]() {
         {
@@ -520,6 +544,8 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     gen_params.sample_params.sample_steps = params.steps;
     gen_params.sample_params.guidance.txt_cfg = params.cfg_scale;
     apply_distilled_guidance(gen_params.sample_params, params.distilled_cfg_scale);
+    const auto optimization_args = sampling_optimization_args(params.tome_ratio, params.negative_guidance_min_sigma);
+    gen_params.sample_params.extra_sample_args = optimization_args.empty() ? nullptr : optimization_args.c_str();
 
     // img2img specific
     if (is_img2img && !params.init_image_base64.empty()) {
@@ -669,6 +695,9 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     // Generate images
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
+        if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
+        sd_cancel_generation(sd_ctx_, SD_CANCEL_RESET);
+        gen_params.preserve_cancel_state = true;
         active_generation_ctx_ = sd_ctx_;
         cancel_requested_ = false;
     }
@@ -692,6 +721,8 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     }
 
     input_resources.reset();
+
+    if (generation_cancelled || (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted)) return {};
 
     if (!generation_succeeded || !result || result_count <= 0) {
         output_resources.reset();
@@ -724,6 +755,7 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
     std::vector<std::string> result_images;
     result_images.reserve(static_cast<size_t>(result_count));
     for (int i = 0; i < result_count; i++) {
+        if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
         std::string img_base64 = imageToBase64(result[i]);
         if (img_base64.empty()) {
             throw std::runtime_error("Failed to encode generated image at index " + std::to_string(i));
@@ -928,7 +960,8 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        bool native_video_request,
                                        const std::string& request_compute_backend,
                                        const std::string& audio_vae_path,
-                                       const std::string& embeddings_connectors_path) {
+                                       const std::string& embeddings_connectors_path,
+                                       const std::string& load_task_id) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     for (const auto& path : {audio_vae_path, embeddings_connectors_path}) {
@@ -1391,6 +1424,16 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     }
 
     // Create SD context
+    struct LoadCancellation {
+        TaskStateManager* manager;
+        const std::string& task;
+    } load_cancellation{task_state_manager_.get(), load_task_id};
+    params.load_cancel_user_data = &load_cancellation;
+    params.load_cancel_callback = [](void* data) -> bool {
+        const auto& state = *static_cast<LoadCancellation*>(data);
+        return state.manager && !state.task.empty() &&
+               state.manager->getTaskState(state.task).interrupted;
+    };
     sd_ctx_ = new_sd_ctx(&params);
     if (!sd_ctx_) {
         LOG_ERROR("Failed to create SD context");

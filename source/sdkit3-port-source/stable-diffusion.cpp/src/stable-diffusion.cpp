@@ -69,6 +69,7 @@
 #include "runtime/guidance.h"
 #include "runtime/preview_interval.h"
 #include "runtime/sample-cache.h"
+#include "runtime/sampling-optimizations.hpp"
 #include "upscaler.h"
 
 #include "name_conversion.h"
@@ -1004,6 +1005,18 @@ public:
             LOG_INFO("staged compute parameters will remain resident until the model context is destroyed");
         }
         ModelLoader& model_loader = model_manager->loader();
+        auto load_cancelled = [&]() {
+            return sd_ctx_params->load_cancel_callback &&
+                   sd_ctx_params->load_cancel_callback(sd_ctx_params->load_cancel_user_data);
+        };
+        model_loader.set_load_cancel_callback(sd_ctx_params->load_cancel_callback,
+                                              sd_ctx_params->load_cancel_user_data);
+        struct ClearLoadCallback {
+            ModelLoader& loader;
+            ~ClearLoadCallback() { loader.set_load_cancel_callback(nullptr, nullptr); }
+        } clear_load_callback{model_loader};
+        if (load_cancelled()) return false;
+
 
         if (!init_model_loader(model_loader,
                                sd_ctx_params,
@@ -1018,6 +1031,7 @@ public:
             return false;
         }
 
+        if (load_cancelled()) return false;
         version = model_loader.get_sd_version();
         if (version == VERSION_COUNT) {
             LOG_ERROR("get sd version from file failed: '%s'", SAFE_STR(sd_ctx_params->model_path));
@@ -1172,6 +1186,7 @@ public:
         if (enable_mmap && apply_lora_immediately) {
             LOG_WARN("in mode 'immediately', LoRAs will cause extra memory usage with mmap");
         }
+        if (load_cancelled()) return false;
         model_loader.process_model_files(enable_mmap, needs_writable_mmap);
         load_alphas_cumprod(model_loader);
 
@@ -2158,12 +2173,14 @@ public:
             ignore_tensors.insert("model.visual.deepstack_merger_list.");
         }
 
+        if (load_cancelled()) return false;
         model_manager->set_common_ignore_tensors(ignore_tensors);
         if (!model_manager->validate_registered_tensors()) {
             LOG_ERROR("model metadata validation failed");
             return false;
         }
 
+        if (load_cancelled()) return false;
         if (eager_load) {
             if (!model_manager->load_all_params_eagerly()) {
                 LOG_ERROR("model params eager load failed");
@@ -3113,11 +3130,24 @@ public:
             LOG_DEBUG("using guidance schedule: %s", schedule_str.c_str());
         }
 
+        auto optimization_config = SamplingOptimizations::parse(extra_sample_args);
+        if (!optimization_config) return {};
+        const auto optimizations = *optimization_config;
+        if ((optimizations.tome_ratio > 0.f || optimizations.negative_guidance_min_sigma > 0.f) &&
+            !sd_version_supports_animatediff(version)) {
+            LOG_ERROR("Token merging and NGMS currently require an SD1.5 or SDXL UNet");
+            return {};
+        }
+        if (optimizations.tome_ratio > 0.f && !control_net_lllite_image.empty()) {
+            LOG_ERROR("Token merging is not supported with ControlNet-LLLite projection patches");
+            return {};
+        }
         sd_sample::SampleCacheRuntime cache_runtime = sd_sample::init_sample_cache_runtime(version,
                                                                                            cache_params,
                                                                                            denoiser.get(),
                                                                                            sigmas,
-                                                                                           work_diffusion_model->get_desc());
+                                                                                           work_diffusion_model->get_desc(),
+                                                                                           animatediff_loaded && animatediff_num_frames > 1);
 
         bool needs_uncond_denoised = method == EULER_CFG_PP_SAMPLE_METHOD || method == EULER_A_CFG_PP_SAMPLE_METHOD;
         // Spectrum cache is not supported for CFG++ samplers
@@ -3145,6 +3175,15 @@ public:
         const sd::guidance::BaseGuidance& primary_guidance = use_apg_guidance
                                                                  ? static_cast<const sd::guidance::BaseGuidance&>(adaptive_projected_guidance)
                                                                  : static_cast<const sd::guidance::BaseGuidance&>(classifier_free_guidance);
+        if (optimizations.negative_guidance_min_sigma > 0.f &&
+            (needs_uncond_denoised || !img_uncond.empty() || use_apg_guidance || has_skiplayer || !guidance_schedule.empty() ||
+             !optimizations.cache_compatible(cache_params ? cache_params->mode : SD_CACHE_DISABLED))) {
+            LOG_ERROR("NGMS requires standard CFG with sample caches disabled; CFG++, image guidance, APG, SLG, and scheduled CFG are unsupported");
+            return {};
+        }
+        int negative_evaluations_skipped = 0;
+        if (optimizations.tome_ratio > 0.f) LOG_INFO("Spatial token merging enabled: ratio=%.3f, spatial self-attention only", optimizations.tome_ratio);
+        if (optimizations.negative_guidance_min_sigma > 0.f) LOG_INFO("NGMS enabled: sigma < %.3f on alternating evaluations", optimizations.negative_guidance_min_sigma);
         sd::guidance::SkipLayerGuidance skip_layer_guidance(has_skiplayer ? skip_layers : std::vector<int>(),
                                                             has_skiplayer ? slg_scale : 0.0f,
                                                             guidance.slg.layer_start,
@@ -3291,6 +3330,7 @@ public:
                         nvf = static_cast<int>(noised_input.shape()[3]);
                     }
                     UNetDiffusionExtra unet_extra{nvf, &controls, control_strength};
+                    unet_extra.tome_ratio = optimizations.tome_ratio;
                     unet_extra.lllite_condition = control_net_lllite_image.empty() ? nullptr : &control_net_lllite_image;
                     unet_extra.lllite_strength = control_net_lllite_strength;
                     unet_extra.lllite_step = step;
@@ -3403,7 +3443,9 @@ public:
                 return {};
             }
 
-            if (!uncond.empty()) {
+            const bool skip_negative = !uncond.empty() && optimizations.skip_negative(sigma, step);
+            if (skip_negative) ++negative_evaluations_skipped;
+            if (!uncond.empty() && !skip_negative) {
                 if (!step_cache.is_step_skipped()) {
                     compute_sample_controls(control_image,
                                             noised_input,
@@ -3495,6 +3537,7 @@ public:
 
         auto x0_opt = sample_k_diffusion(method, denoise, x_t, sigmas, sampler_rng, eta, is_flow_denoiser, extra_sample_args, denoiser);
         const int64_t sampling_total_us = ggml_time_us() - sampling_started_us;
+        if (optimizations.negative_guidance_min_sigma > 0.f) LOG_INFO("NGMS skipped %d negative condition evaluations", negative_evaluations_skipped);
         const int64_t measured_us = positive_compute_us + negative_compute_us +
                                     image_uncond_compute_us + preview_compute_us;
         LOG_INFO("sampling profile: total %.3fs, positive %.3fs, negative %.3fs, image-uncond %.3fs, preview %.3fs, other %.3fs",
