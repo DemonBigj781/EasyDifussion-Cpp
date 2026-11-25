@@ -1026,10 +1026,19 @@ class ImageEditor {
     }
     saveImage() {
         if (!this.inpainter) {
-            // This is not an inpainter, so save the image as the new img2img input
-            this.layers.background.ctx.drawImage(this.layers.drawing.canvas, 0, 0, this.width, this.height)
-            var base64 = this.layers.background.canvas.toDataURL()
-            initImagePreview.src = base64 // this will trigger the rest of the app to use it
+            if (this.colorInpainter) {
+                this.savedColorLayer = this.layers.drawing.ctx.getImageData(0, 0, this.width, this.height)
+            } else {
+                this.savedDrawingLayer = this.layers.drawing.ctx.getImageData(0, 0, this.width, this.height)
+                if (!IMAGE_REGEX.test(initImagePreview.src)) {
+                    const saved = this.savedDrawingLayer
+                    initImagePreview.addEventListener("load", () => {
+                        this.savedDrawingLayer = saved
+                        this.layers.drawing.ctx.putImageData(saved, 0, 0)
+                    }, {once: true})
+                    initImagePreview.src = this.layers.background.canvas.toDataURL()
+                }
+            }
         } else {
             // This is an inpainter, so make sure the toggle is set accordingly
             var is_blank = !this.layers.drawing.ctx
@@ -1039,6 +1048,7 @@ class ImageEditor {
             maskSetting.dispatchEvent(new Event("change"))
         }
         this.hide()
+        refreshLayerPreview()
     }
     getImg() {
         // a drop-in replacement of the drawingboard version
@@ -1055,6 +1065,7 @@ class ImageEditor {
             ctx.filter = "none"
             ctx.drawImage(image, 0, 0, this.width, this.height)
             this.setBrush(this.layers.drawing)
+            refreshLayerPreview()
         }
         image.src = dataUrl
     }
@@ -1379,6 +1390,88 @@ class ImageEditor {
 
 const imageEditor = new ImageEditor(document.getElementById("image-editor"))
 const imageInpainter = new ImageEditor(document.getElementById("image-inpainter"), true)
+const colorPopup = document.getElementById("image-editor").cloneNode(false)
+colorPopup.id = "advanced-image-inpainter"
+colorPopup.innerHTML = '<div><i class="close-button fa-solid fa-xmark"></i><div class="flex-container"><div class="editor-controls-left"></div><div class="editor-controls-center"><div></div></div><div class="editor-controls-right"><div></div></div></div></div>'
+document.getElementById("image-editor").after(colorPopup)
+const advancedInpainter = new ImageEditor(colorPopup)
+advancedInpainter.colorInpainter = true
+advancedInpainter.setImage(null, 512, 512)
+document.getElementById("init_image_button_advanced_inpaint").addEventListener("click", () => {
+    if (IMAGE_REGEX.test(initImagePreview.src)) advancedInpainter.show()
+})
+
+function prepareLayeredInpainting(base, drawing, basic, advanced, invert) {
+    const canvas = document.createElement("canvas")
+    canvas.width = base.naturalWidth
+    canvas.height = base.naturalHeight
+    const ctx = canvas.getContext("2d")
+    ctx.drawImage(base, 0, 0)
+    const overlay = document.createElement("canvas")
+    overlay.width = canvas.width
+    overlay.height = canvas.height
+    const octx = overlay.getContext("2d")
+    if (drawing && drawing.width === canvas.width && drawing.height === canvas.height) {
+        octx.putImageData(drawing, 0, 0)
+        ctx.drawImage(overlay, 0, 0)
+    }
+    const modified = canvas.toDataURL()
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const mask = ctx.createImageData(canvas.width, canvas.height)
+    const validAdvanced = advanced && advanced.width === canvas.width && advanced.height === canvas.height
+    for (let i = 0; i < pixels.data.length; i += 4) {
+        let weight = basic ? Math.round(basic.data[i] * basic.data[i+3] / 255) : 0
+        if (basic && invert) weight = 255 - weight
+        const colorWeight = validAdvanced ? advanced.data[i+3] * (255 - weight) / 255 : 0
+        if (colorWeight > 0) {
+            for (let c = 0; c < 3; c++) pixels.data[i+c] = Math.round((pixels.data[i+c] * (255-colorWeight) + advanced.data[i+c] * colorWeight) / 255)
+        }
+        const combined = Math.min(255, Math.round(weight + colorWeight))
+        mask.data[i] = mask.data[i+1] = mask.data[i+2] = combined
+        mask.data[i+3] = 255
+    }
+    ctx.putImageData(pixels, 0, 0)
+    octx.putImageData(mask, 0, 0)
+    const combined = overlay.toDataURL()
+    const basicView = ctx.createImageData(canvas.width, canvas.height)
+    const advancedView = ctx.createImageData(canvas.width, canvas.height)
+    for (let i = 0; i < basicView.data.length; i += 4) {
+        let weight = basic ? Math.round(basic.data[i] * basic.data[i+3] / 255) : 0
+        if (basic && invert) weight = 255 - weight
+        basicView.data[i] = basicView.data[i+1] = basicView.data[i+2] = weight
+        basicView.data[i+3] = 255
+        const alpha = validAdvanced ? advanced.data[i+3] / 255 : 0
+        for (let c = 0; c < 3; c++) advancedView.data[i+c] = validAdvanced ? Math.round(advanced.data[i+c] * alpha) : 0
+        advancedView.data[i+3] = 255
+    }
+    octx.putImageData(basicView, 0, 0)
+    const basicPreview = overlay.toDataURL()
+    octx.putImageData(advancedView, 0, 0)
+    return {image: canvas.toDataURL(), mask: basic || validAdvanced ? combined : undefined,
+        modified, basicPreview, advancedPreview: overlay.toDataURL(), combinedPreview: combined}
+}
+
+
+function refreshLayerPreview() {
+    const selector = document.getElementById("init_image_view")
+    const setting = document.getElementById("init_image_view_setting")
+    const preview = document.getElementById("init_image_layer_preview")
+    const ready = IMAGE_REGEX.test(initImagePreview.src) && initImagePreview.complete && initImagePreview.naturalWidth > 0
+    setting.hidden = !ready
+    preview.hidden = true
+    initImagePreview.style.visibility = ""
+    if (!ready || selector.value === "original") return
+    const basic = maskSetting.checked ? imageInpainter.layers.drawing.ctx.getImageData(0, 0, imageInpainter.width, imageInpainter.height) : null
+    const layers = prepareLayeredInpainting(initImagePreview, imageEditor.savedDrawingLayer, basic,
+        advancedInpainter.savedColorLayer, document.getElementById("basic_mask_invert").checked)
+    preview.src = {modified: layers.modified, basic: layers.basicPreview, advanced: layers.advancedPreview, combined: layers.combinedPreview}[selector.value]
+    preview.hidden = false
+    initImagePreview.style.visibility = "hidden"
+}
+document.getElementById("init_image_view").addEventListener("change", refreshLayerPreview)
+document.getElementById("basic_mask_invert").addEventListener("change", refreshLayerPreview)
+maskSetting.addEventListener("change", refreshLayerPreview)
+initImagePreview.addEventListener("load", refreshLayerPreview)
 
 imageEditor.setImage(null, 512, 512)
 imageInpainter.setImage(null, 512, 512)

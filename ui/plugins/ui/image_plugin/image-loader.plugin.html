@@ -11,9 +11,19 @@
                     <div id="init_image_preview_container" class="image-input-section image-input-section--single">
                         <div id="init_image_wrapper" class="image-input-wrapper">
                             <img id="init_image_preview" class="input-image-preview" src="" crossorigin="anonymous">
+                            <img id="init_image_layer_preview" class="input-image-preview" alt="Layer preview" hidden style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none">
                             <span id="init_image_size_box" class="img_bottom_label"></span>
                             <button class="init_image_clear image_clear_btn"><i class="fa-solid fa-xmark"></i></button>
                         </div>
+                        <label id="init_image_view_setting" hidden>View
+                            <select id="init_image_view">
+                                <option value="original">Original</option>
+                                <option value="modified">Modified</option>
+                                <option value="basic">Basic coverage</option>
+                                <option value="advanced">Advanced coverage</option>
+                                <option value="combined">Combined coverage</option>
+                            </select>
+                        </label>
                         <div id="init_image_buttons" class="image-input-buttons">
                             <div class="button">
                                 <i class="fa-regular fa-folder-open"></i>
@@ -39,11 +49,13 @@
                                     <i class="fa-solid fa-paintbrush"></i>
                                     Inpaint
                                 </div>
+                                <button type="button" id="init_image_button_advanced_inpaint" class="button">Advanced inpaint</button>
                                 <input id="enable_mask" name="enable_mask" type="checkbox">
                             </div>
                         </div>
                     </div>
                     <div id="apply_color_correction_setting" class="pl-5"><input id="apply_color_correction" name="apply_color_correction" type="checkbox"> <label for="apply_color_correction">Preserve color profile <small>(helps during inpainting)</small></label></div>
+                    <div id="basic_mask_invert_setting" class="pl-5 gated-feature" data-feature-keys="backend_sdkit3" style="display:none"><input id="basic_mask_invert" type="checkbox"> <label for="basic_mask_invert">Invert mask</label></div>
                     <div id="strict_mask_border_setting" class="pl-5"><input id="strict_mask_border" name="strict_mask_border" type="checkbox"> <label for="strict_mask_border">Strict Mask Border <small>(won't modify outside the mask, but the mask border might be visible)</small></label></div>
                 </div>
 

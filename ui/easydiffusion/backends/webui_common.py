@@ -268,6 +268,7 @@ def generate_images(
     prompt_strength: float = 0.8,
     preserve_init_image_color_profile=False,
     strict_mask_border=False,
+    inpainting_mask_invert=False,
     sampler_name: str = "euler_a",
     scheduler_name: str = "simple",
     hypernetwork_strength: float = 0,
@@ -312,6 +313,8 @@ def generate_images(
         cmd["inpaint_full_res_padding"] = 32
         cmd["resize_mode"] = 1
         cmd["mask_blur"] = 4
+        if USE_SDKIT3_API and inpainting_mask_invert:
+            cmd["inpainting_mask_invert"] = True
     if ref_images:
         images = ref_images if isinstance(ref_images, list) else [ref_images]
         cmd["ref_images"] = [normalize_base64_image(image, "reference image") for image in images]

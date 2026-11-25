@@ -1,6 +1,12 @@
 #include "image_utils.h"
 
 #include <cctype>
+#include <algorithm>
+#include <new>
+#include <stdexcept>
+#include <limits>
+#include <cmath>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -15,6 +21,76 @@
 #include "logging.h"
 
 namespace {
+
+// The bundled stb interfaces and their row offsets use signed int arithmetic.
+// Validate before narrowing sd_image_t's unsigned fields or multiplying sizes.
+bool checked_image_bytes(uint32_t width, uint32_t height, uint32_t channels, size_t& bytes) {
+    const size_t limit = static_cast<size_t>(std::numeric_limits<int>::max());
+    if (!width || !height || channels < 1 || channels > 4 ||
+        width > limit || height > limit || width > limit / channels) return false;
+    const size_t stride = static_cast<size_t>(width) * channels;
+    if (height > limit / stride) return false;
+    bytes = stride * height;
+    return true;
+}
+
+// Mirror the bundled stb default-filter workspace layout in checked arithmetic.
+// Raw pixel bounds alone do not cover coefficient, decode or ring buffers.
+// Keep this beside the included implementation and review when stb is updated.
+bool checked_resize_workspace(int input_w, int input_h, int output_w, int output_h, int channels) {
+    const uint64_t limit = static_cast<uint64_t>(std::numeric_limits<int>::max());
+    struct Axis {
+        uint64_t pixels;
+        uint64_t coefficients;
+        uint64_t contributors;
+        bool up;
+    };
+    auto axis = [limit](int input, int output, Axis& result) {
+        const float scale = static_cast<float>(output) / input;
+        result.up = scale > 1;
+        const auto filter = result.up ? STBIR_DEFAULT_FILTER_UPSAMPLE : STBIR_DEFAULT_FILTER_DOWNSAMPLE;
+        const float support = stbir__filter_info_table[filter].support(result.up ? 1 / scale : scale);
+        // Preserve stb's float arithmetic before ceil, but check before casts.
+        const double pixels = std::ceil(result.up ? support * 2 : support * 2 / scale);
+        const double coefficients = std::ceil(support * 2);
+        if (!std::isfinite(pixels) || !std::isfinite(coefficients) ||
+            pixels < 1 || coefficients < 1 || pixels > limit || coefficients > limit) return false;
+        result.pixels = static_cast<uint64_t>(pixels);
+        result.coefficients = static_cast<uint64_t>(coefficients);
+        result.contributors = result.up ? static_cast<uint64_t>(output)
+            : static_cast<uint64_t>(input) + (result.pixels / 2) * 2;
+        return result.contributors <= limit;
+    };
+    Axis horizontal{}, vertical{};
+    if (!axis(input_w, output_w, horizontal) || !axis(input_h, output_h, vertical)) return false;
+    auto product = [limit](uint64_t& value, std::initializer_list<uint64_t> factors) {
+        value = 1;
+        for (auto factor : factors) {
+            if (factor && value > limit / factor) return false;
+            value *= factor;
+        }
+        return true;
+    };
+    uint64_t sizes[8]{};
+    if (!product(sizes[0], {horizontal.contributors, sizeof(stbir__contributors)}) ||
+        !product(sizes[1], {horizontal.contributors, horizontal.coefficients, sizeof(float)}) ||
+        !product(sizes[2], {vertical.contributors, sizeof(stbir__contributors)}) ||
+        !product(sizes[3], {vertical.contributors, vertical.coefficients, sizeof(float)}) ||
+        !product(sizes[4], {static_cast<uint64_t>(input_w) + (horizontal.pixels / 2) * 2,
+                            static_cast<uint64_t>(channels), sizeof(float)}) ||
+        !product(sizes[5], {static_cast<uint64_t>(output_w), static_cast<uint64_t>(channels), sizeof(float)}) ||
+        !product(sizes[6], {static_cast<uint64_t>(output_w), static_cast<uint64_t>(channels),
+                            vertical.pixels, sizeof(float)}) ||
+        !product(sizes[7], {static_cast<uint64_t>(output_w), static_cast<uint64_t>(channels), sizeof(float)})) return false;
+    // stb computes both fields before zeroing the unused horizontal/encode one.
+    sizes[vertical.up ? 5 : 7] = 0;
+    uint64_t total = 0;
+    for (auto size : sizes) {
+        if (total > limit - size) return false;
+        total += size;
+    }
+    return true;
+}
 
 bool starts_with_data_uri(const std::string& value) {
     static constexpr char prefix[] = "data:";
@@ -98,7 +174,13 @@ bool normalizeBase64Image(const std::string& input, std::string& output) {
 }  // namespace
 
 std::string imageToBase64(const sd_image_t& image) {
-    if (!image.data || image.width == 0 || image.height == 0) {
+    size_t bytes = 0;
+    if (!image.data || !checked_image_bytes(image.width, image.height, image.channel, bytes)) {
+        return "";
+    }
+    const size_t stride_bytes = static_cast<size_t>(image.width) * image.channel;
+    // PNG adds one filter byte to every row before passing an int length to zlib.
+    if (image.height > static_cast<size_t>(std::numeric_limits<int>::max()) / (stride_bytes + 1)) {
         return "";
     }
 
@@ -113,7 +195,7 @@ std::string imageToBase64(const sd_image_t& image) {
     };
 
     // Write PNG to buffer (stride is width * channels for tightly packed data)
-    int stride = image.width * image.channel;
+    int stride = static_cast<int>(stride_bytes);
     int result = stbi_write_png_to_func(write_callback, &png_buffer, image.width, image.height, image.channel,
                                         image.data, stride);
 
@@ -129,7 +211,7 @@ std::string imageToBase64(const sd_image_t& image) {
 sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
     sd_image_t image = {0, 0, 0, nullptr};
 
-    if (base64_data.empty()) {
+    if (desired_channels < 0 || desired_channels > 4 || base64_data.empty()) {
         return image;
     }
 
@@ -146,10 +228,15 @@ sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
         return image;
     }
 
+    if (decoded_data.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        LOG_ERROR("Encoded image exceeds the decoder's supported byte range");
+        return image;
+    }
+
     // Load image using stb_image
     int width, height, channels;
     unsigned char* img_data =
-        stbi_load_from_memory(decoded_data.data(), decoded_data.size(), &width, &height, &channels, desired_channels);
+        stbi_load_from_memory(decoded_data.data(), static_cast<int>(decoded_data.size()), &width, &height, &channels, desired_channels);
 
     if (!img_data) {
         LOG_ERROR("Failed to load image from memory: %s", stbi_failure_reason());
@@ -159,6 +246,13 @@ sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
     // Use the desired channels if specified, otherwise use the actual channels
     int final_channels = desired_channels > 0 ? desired_channels : channels;
 
+    size_t bytes = 0;
+    if (width <= 0 || height <= 0 || !checked_image_bytes(width, height, final_channels, bytes)) {
+        stbi_image_free(img_data);
+        LOG_ERROR("Decoded image dimensions exceed the supported byte range");
+        return image;
+    }
+
     image.width = width;
     image.height = height;
     image.channel = final_channels;
@@ -166,6 +260,21 @@ sd_image_t base64ToImage(const std::string& base64_data, int desired_channels) {
 
     LOG_DEBUG("Decoded image: %dx%d, %d channels", width, height, final_channels);
 
+    return image;
+}
+
+sd_image_t createSolidImage(int width, int height, int channels, uint8_t value) {
+    sd_image_t image = {0, 0, 0, nullptr};
+    size_t bytes = 0;
+    if (width <= 0 || height <= 0 || channels <= 0 ||
+        !checked_image_bytes(width, height, channels, bytes)) return image;
+    auto* data = static_cast<uint8_t*>(malloc(bytes));
+    if (!data) return image;
+    memset(data, value, bytes);
+    image.width = static_cast<uint32_t>(width);
+    image.height = static_cast<uint32_t>(height);
+    image.channel = static_cast<uint32_t>(channels);
+    image.data = data;
     return image;
 }
 
@@ -180,7 +289,8 @@ void freeImage(sd_image_t& image) {
 }
 
 bool resizeImage(sd_image_t& image, int target_width, int target_height, bool clamp_to_8) {
-    if (!image.data || image.width == 0 || image.height == 0) {
+    size_t source_bytes = 0;
+    if (!image.data || !checked_image_bytes(image.width, image.height, image.channel, source_bytes)) {
         LOG_ERROR("Cannot resize invalid image");
         return false;
     }
@@ -200,13 +310,24 @@ bool resizeImage(sd_image_t& image, int target_width, int target_height, bool cl
         if (final_height <= 0) final_height = 8;
     }
 
+    size_t new_size = 0;
+    if (!checked_image_bytes(final_width, final_height, image.channel, new_size)) {
+        LOG_ERROR("Target image dimensions exceed the supported byte range");
+        return false;
+    }
+
     if (image.width == final_width && image.height == final_height) {
         // Already at target size
         return true;
     }
 
+    if (!checked_resize_workspace(static_cast<int>(image.width), static_cast<int>(image.height),
+                                  final_width, final_height, static_cast<int>(image.channel))) {
+        LOG_ERROR("Resize workspace exceeds the supported integer range");
+        return false;
+    }
+
     // Allocate new buffer for resized image
-    int new_size = final_width * final_height * image.channel;
     unsigned char* resized_data = (unsigned char*)malloc(new_size);
     if (!resized_data) {
         LOG_ERROR("Failed to allocate memory for resized image");
@@ -231,4 +352,90 @@ bool resizeImage(sd_image_t& image, int target_width, int target_height, bool cl
 
     LOG_DEBUG("Resized image to %dx%d", final_width, final_height);
     return true;
+}
+
+bool blurMaskImage(sd_image_t& image, float sigma) {
+    size_t pixels = 0;
+    if (!image.data || image.channel != 1 ||
+        !checked_image_bytes(image.width, image.height, image.channel, pixels) ||
+        !std::isfinite(sigma) || sigma < 0 || sigma > kMaxMaskBlur) return false;
+    if (sigma == 0) return true;
+    try {
+        const int radius = std::max(1, static_cast<int>(std::ceil(2.5 * sigma)));
+        std::vector<double> kernel(2 * radius + 1);
+        double sum = 0;
+        for (int k = -radius; k <= radius; ++k) {
+            const double scaled = static_cast<double>(k) / sigma;
+            kernel[k + radius] = std::exp(-0.5 * scaled * scaled);
+            sum += kernel[k + radius];
+        }
+        for (auto& value : kernel) value /= sum;
+        std::vector<float> horizontal(pixels);
+        const int64_t width = image.width, height = image.height;
+        for (int64_t y = 0; y < height; ++y) {
+            for (int64_t x = 0; x < width; ++x) {
+                double value = 0;
+                for (int k = -radius; k <= radius; ++k) {
+                    const auto sx = std::clamp<int64_t>(x + k, 0, width - 1);
+                    value += image.data[y * width + sx] * kernel[k + radius];
+                }
+                horizontal[y * width + x] = static_cast<float>(value);
+            }
+        }
+        // All allocations and the horizontal read complete before mutating input.
+        for (int64_t y = 0; y < height; ++y) {
+            for (int64_t x = 0; x < width; ++x) {
+                double value = 0;
+                for (int k = -radius; k <= radius; ++k) {
+                    const auto sy = std::clamp<int64_t>(y + k, 0, height - 1);
+                    value += horizontal[sy * width + x] * kernel[k + radius];
+                }
+                image.data[y * width + x] = static_cast<uint8_t>(std::clamp(value, 0.0, 255.0) + 0.5);
+            }
+        }
+        return true;
+    } catch (const std::bad_alloc&) {
+        return false;
+    } catch (const std::length_error&) {
+        return false;
+    }
+}
+
+sd_image_t prepareMaskImage(const std::string& encoded_mask, int width, int height,
+                            float sigma, bool invert) {
+    sd_image_t mask_image = {0, 0, 0, nullptr};
+
+    if (encoded_mask.empty()) {
+        // Create a default mask for img2img (all white = no masking)
+        mask_image = createSolidImage(width, height, 1, 255);
+        if (!mask_image.data) {
+            throw std::runtime_error("Failed to allocate mask image: invalid dimensions or insufficient memory");
+        }
+
+        return mask_image;
+    }
+
+    // Decode provided mask
+    mask_image = base64ToImage(encoded_mask, 1);
+    if (!mask_image.data) {
+        throw std::runtime_error("Failed to decode mask image");
+    }
+
+    // Resize mask to match init image dimensions if needed
+    if (mask_image.width != width || mask_image.height != height) {
+        if (!resizeImage(mask_image, width, height, true)) {
+            freeImage(mask_image);
+            throw std::runtime_error("Failed to resize mask image");
+        }
+    }
+
+    if (invert) {
+        const size_t pixels = static_cast<size_t>(mask_image.width) * mask_image.height;
+        for (size_t i = 0; i < pixels; ++i) mask_image.data[i] = 255 - mask_image.data[i];
+    }
+    if (!blurMaskImage(mask_image, sigma)) {
+        freeImage(mask_image);
+        throw std::runtime_error("Failed to blur mask image");
+    }
+    return mask_image;
 }

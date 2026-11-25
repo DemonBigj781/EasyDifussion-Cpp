@@ -1596,9 +1596,13 @@ function getCurrentUserRequest() {
         // if (IMAGE_REGEX.test(maskImagePreview.src)) {
         //     newTask.reqBody.mask = maskImagePreview.src
         // }
-        if (maskSetting.checked) {
-            newTask.reqBody.mask = imageInpainter.getImg()
+        const basic = maskSetting.checked ? imageInpainter.layers.drawing.ctx.getImageData(0, 0, imageInpainter.width, imageInpainter.height) : null
+        const prepared = prepareLayeredInpainting(initImagePreview, imageEditor.savedDrawingLayer, basic, advancedInpainter.savedColorLayer, Boolean(document.getElementById("basic_mask_invert")?.checked))
+        newTask.reqBody.init_image = prepared.image
+        if (prepared.mask) {
+            newTask.reqBody.mask = prepared.mask
             newTask.reqBody.strict_mask_border = strictMaskBorderField.checked
+            newTask.reqBody.inpainting_mask_invert = false // already applied to basic layer
         }
         newTask.reqBody.preserve_init_image_color_profile = applyColorCorrectionField.checked
         if (!testDiffusers.checked) {
@@ -2709,6 +2713,7 @@ function img2imgLoad() {
     initImagePreviewContainer.classList.add("has-image")
     colorCorrectionSetting.style.display = ""
     strictMaskBorderSetting.style.display = maskSetting.checked ? "" : "none"
+    document.getElementById("basic_mask_invert_setting").style.display = maskSetting.checked ? "" : "none"
 
     const sourceWidth = initImagePreview.naturalWidth
     const sourceHeight = initImagePreview.naturalHeight
@@ -2724,6 +2729,9 @@ function img2imgLoad() {
         }
     }
     delete initImagePreview.dataset.autoSelectDimensions
+    imageEditor.savedDrawingLayer = null
+    advancedInpainter.savedColorLayer = null
+    advancedInpainter.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
     imageEditor.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
     imageInpainter.setImage(this.src, initImagePreview.naturalWidth, initImagePreview.naturalHeight)
 }
@@ -2733,6 +2741,10 @@ function img2imgUnload() {
     initImagePreview.src = ""
     delete initImagePreview.dataset.autoSelectDimensions
     maskSetting.checked = false
+    imageEditor.savedDrawingLayer = null
+    advancedInpainter.savedColorLayer = null
+    document.getElementById("init_image_view").value = "original"
+    refreshLayerPreview()
 
     promptStrengthContainer.style.display = "none"
     if (!testDiffusers.checked) {
@@ -2741,6 +2753,7 @@ function img2imgUnload() {
     initImagePreviewContainer.classList.remove("has-image")
     colorCorrectionSetting.style.display = "none"
     strictMaskBorderSetting.style.display = "none"
+    document.getElementById("basic_mask_invert_setting").style.display = "none"
     imageEditor.setImage(null, parseInt(widthField.value), parseInt(heightField.value))
 }
 initImagePreview.addEventListener("load", img2imgLoad)
@@ -2751,6 +2764,7 @@ maskSetting.addEventListener("click", function () {
 })
 maskSetting.addEventListener("change", function () {
     strictMaskBorderSetting.style.display = this.checked ? "" : "none"
+    document.getElementById("basic_mask_invert_setting").style.display = this.checked ? "" : "none"
 })
 
 promptsFromFileBtn.addEventListener("click", function () {

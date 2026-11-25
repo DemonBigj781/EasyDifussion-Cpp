@@ -51,6 +51,7 @@ class GenerateImageRequest(BaseModel):
     prompt_strength: float = 0.8
     preserve_init_image_color_profile: bool = False
     strict_mask_border: bool = False
+    inpainting_mask_invert: bool = False
 
     sampler_name: str = None  # "ddim", "plms", "heun", "euler", "euler_a", "dpm2", "dpm2_a", "lms"
     scheduler_name: str = None

@@ -58,6 +58,8 @@ endif()
 
 # Include stable-diffusion.cpp
 add_subdirectory(stable-diffusion.cpp)
+target_sources(stable-diffusion PRIVATE runtime_adapters/prompt_validation.cpp)
+target_include_directories(stable-diffusion PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(SDKIT_BUILD_TESTS)
     enable_testing()
@@ -92,6 +94,17 @@ if(SDKIT_BUILD_TESTS)
     add_executable(native-streaming-policy-test tests/test_native_streaming_policy.cpp)
     target_include_directories(native-streaming-policy-test PRIVATE stable-diffusion.cpp/src)
     add_test(NAME native-streaming-policy COMMAND native-streaming-policy-test)
+    add_executable(image-buffer-bounds-test tests/image_buffer_bounds_test.cpp src/image_utils.cpp src/logging.cpp)
+    target_include_directories(image-buffer-bounds-test PRIVATE include third_party)
+    target_link_libraries(image-buffer-bounds-test PRIVATE stable-diffusion Threads::Threads)
+    add_test(NAME image-buffer-bounds COMMAND image-buffer-bounds-test)
+    add_executable(image-generation-resources-test tests/image_generation_resources_test.cpp)
+    target_include_directories(image-generation-resources-test PRIVATE include stable-diffusion.cpp/include)
+    add_test(NAME image-generation-resources COMMAND image-generation-resources-test)
+    add_executable(prompt-validation-test tests/prompt_validation_test.cpp src/prompt_validation.cpp)
+    target_include_directories(prompt-validation-test PRIVATE include third_party)
+    target_link_libraries(prompt-validation-test PRIVATE stable-diffusion)
+    add_test(NAME prompt-validation COMMAND prompt-validation-test)
 endif()
 
 # Set RPATH for Linux/Unix to find shared libraries in the same directory as the executable
