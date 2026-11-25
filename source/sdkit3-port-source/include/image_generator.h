@@ -150,6 +150,7 @@ class ImageGenerator {
     bool interrupt();
 
    private:
+    void configureVaeTiling(sd_tiling_params_t& tiling_params, bool enabled) const;
     // Create init image from base64 string
     sd_image_t createInitImage(const ImageGenerationParams& params);
 

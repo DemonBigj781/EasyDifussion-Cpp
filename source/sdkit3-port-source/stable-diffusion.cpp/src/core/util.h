@@ -92,6 +92,8 @@ sd_progress_cb_t sd_get_progress_callback();
 void* sd_get_progress_callback_data();
 sd_progress_cb_t sd_get_sample_progress_callback();
 void* sd_get_sample_progress_callback_data();
+sd_video_frame_progress_cb_t sd_get_video_frame_progress_callback();
+void* sd_get_video_frame_progress_callback_data();
 
 sd_preview_cb_t sd_get_preview_callback();
 void* sd_get_preview_callback_data();

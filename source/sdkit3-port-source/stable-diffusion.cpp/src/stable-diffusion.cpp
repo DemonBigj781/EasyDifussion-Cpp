@@ -7896,6 +7896,11 @@ static sd_image_t* decode_video_outputs(sd_ctx_t* sd_ctx,
               (int)video_latent.shape()[2],
               (int)video_latent.shape()[3]);
     // auto z = sd::load_tensor_from_file_as_tensor<float>("ltx_vae_z.bin");
+    sd_video_frame_progress_cb_t frame_progress_cb = sd_get_video_frame_progress_callback();
+    void* frame_progress_data = sd_get_video_frame_progress_callback_data();
+    if (frame_progress_cb != nullptr) {
+        frame_progress_cb(0, 0, frame_progress_data);
+    }
     int64_t t4            = ggml_time_ms();
     sd::Tensor<float> vid = sd_ctx->sd->decode_first_stage(video_latent, true);
     int64_t t5            = ggml_time_ms();
@@ -8227,6 +8232,11 @@ SD_API bool generate_video(sd_ctx_t* sd_ctx,
                                                                    sd_vid_gen_params,
                                                                    request,
                                                                    latents);
+    if (embeds.cond.c_crossattn.empty() ||
+        (request.use_uncond && embeds.uncond.c_crossattn.empty())) {
+        LOG_ERROR("Video conditioning failed");
+        return false;
+    }
     if (latent_upscale_enabled) {
         LOG_INFO("generate_video %dx%dx%d -> LTX latent spatial upscale",
                  request.width,

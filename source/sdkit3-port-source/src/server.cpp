@@ -1031,6 +1031,9 @@ crow::response Server::handleProgress(const crow::request& req) {
         response["progress"] = state.progress;
         response["current_step"] = state.current_step;
         response["total_steps"] = state.total_steps;
+        response["phase"] = state.phase;
+        response["phase_current"] = state.phase_current;
+        response["phase_total"] = state.phase_total;
         response["live_preview"] = has_new_preview ? state.live_preview : "";
         response["id_live_preview"] = state.id_live_preview;
 
