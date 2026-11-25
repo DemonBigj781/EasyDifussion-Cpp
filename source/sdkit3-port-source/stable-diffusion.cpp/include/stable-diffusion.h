@@ -285,6 +285,7 @@ typedef struct {
     const char* model_args;
     bool (*load_cancel_callback)(void*);
     void* load_cancel_user_data;
+    void (*load_progress_callback)(int, int, void*);
 } sd_ctx_params_t;
 
 typedef struct {

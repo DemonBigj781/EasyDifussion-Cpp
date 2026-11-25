@@ -3,6 +3,7 @@
 #include <sstream>
 #include <locale>
 #include "image_generator.h"
+#include "video_gif.h"
 
 #include <algorithm>
 #include <cctype>
@@ -291,7 +292,7 @@ std::vector<std::string> ImageGenerator::generateImg2Img(const ImageGenerationPa
 }
 
 std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationParams& params,
-                                                       const std::string& task_id) {
+                                                       const std::string& task_id, std::string* gif, int* gif_frame_count) {
     {
         std::lock_guard<std::mutex> interrupt_lock(interrupt_mutex_);
         cancel_requested_ = !task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted;
@@ -477,6 +478,23 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
         throw std::runtime_error("Native video generation failed");
     }
 
+    if (gif) {
+        try {
+            task_state_manager_->updateTaskPhase(task_id, "finalizing", 0, frame_count);
+            auto bytes = encode_video_gif(frames, frame_count, params.fps, [this]() {
+                std::lock_guard<std::mutex> lock(interrupt_mutex_);
+                return cancel_requested_;
+            });
+            *gif = "data:image/gif;base64," + base64_encode(bytes.data(), bytes.size());
+            if (gif_frame_count) *gif_frame_count = frame_count;
+            task_state_manager_->updateTaskPhase(task_id, "finalizing", frame_count, frame_count);
+        } catch (...) {
+            free_sd_images(frames, frame_count);
+            throw;
+        }
+        free_sd_images(frames, frame_count);
+        return {};
+    }
     std::vector<std::string> encoded_frames;
     encoded_frames.reserve(static_cast<size_t>(frame_count));
     task_state_manager_->updateTaskPhase(task_id, "finalizing", 0, frame_count);
@@ -1101,8 +1119,9 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                 } else if (model_type == "llm") {
                     llm_path_str = module_full_path;
                 } else {
-                    LOG_WARNING("Unknown model type for: %s (detected as: %s)", module_full_path.c_str(),
-                                model_type.c_str());
+                    throw std::runtime_error("Cannot load companion model '" + module_full_path +
+                        "': unsupported or unrecognized model format/type (" + model_type +
+                        "). Select a compatible VAE or text encoder in Options.");
                 }
             }
         }
@@ -1476,7 +1495,13 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
         return state.manager && !state.task.empty() &&
                state.manager->getTaskState(state.task).interrupted;
     };
+    if (!load_task_id.empty()) task_state_manager_->updateTaskPhase(load_task_id, "loading", 0, 0);
+    params.load_progress_callback = [](int current, int total, void* data) {
+        const auto& state = *static_cast<LoadCancellation*>(data);
+        if (state.manager && !state.task.empty()) state.manager->updateTaskPhase(state.task, "loading", current, total);
+    };
     sd_ctx_ = new_sd_ctx(&params);
+    if (sd_ctx_ && !load_task_id.empty()) task_state_manager_->updateTaskPhase(load_task_id, "preparing", 0, 0);
     if (!sd_ctx_) {
         LOG_ERROR("Failed to create SD context");
         return false;

@@ -61,3 +61,13 @@ add_executable(sampling-optimizations-test sampling_optimizations_test.cpp)
 target_link_libraries(sampling-optimizations-test PRIVATE stable-diffusion)
 target_compile_definitions(sampling-optimizations-test PRIVATE GGML_MAX_NAME=160)
 add_test(NAME sampling-optimizations-test COMMAND sampling-optimizations-test)
+
+add_executable(animatediff-topology-test animatediff_topology_test.cpp)
+target_link_libraries(animatediff-topology-test PRIVATE stable-diffusion)
+target_compile_definitions(animatediff-topology-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME animatediff-topology-test COMMAND animatediff-topology-test)
+
+add_executable(animatediff-cache-test animatediff_cache_test.cpp)
+target_link_libraries(animatediff-cache-test PRIVATE stable-diffusion)
+target_compile_definitions(animatediff-cache-test PRIVATE GGML_MAX_NAME=160)
+add_test(NAME animatediff-cache-test COMMAND animatediff-cache-test)

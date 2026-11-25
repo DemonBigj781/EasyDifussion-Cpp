@@ -117,7 +117,7 @@ class ModelDropdown {
             let modelKeys = Array.isArray(this.modelKey) ? this.modelKey : [this.modelKey]
             for (let i = 0; i < modelKeys.length; i++) {
                 let key = modelKeys[i]
-                let k = Array.isArray(modelsOptions[key]) ? modelsOptions[key] : [modelsOptions[key]]
+                let k = Array.isArray(modelsOptions[key]) ? modelsOptions[key] : (modelsOptions[key] == null ? [] : [modelsOptions[key]])
                 this.inputModels.push(...k)
             }
             this.populateModels()
@@ -133,7 +133,7 @@ class ModelDropdown {
                 let modelKeys = Array.isArray(this.modelKey) ? this.modelKey : [this.modelKey]
                 for (let i = 0; i < modelKeys.length; i++) {
                     let key = modelKeys[i]
-                    let k = Array.isArray(modelsOptions[key]) ? modelsOptions[key] : [modelsOptions[key]]
+                    let k = Array.isArray(modelsOptions[key]) ? modelsOptions[key] : (modelsOptions[key] == null ? [] : [modelsOptions[key]])
                     this.inputModels.push(...k)
                 }
                 this.populateModels()
@@ -710,6 +710,7 @@ function convertToLegacyModelOptions(models) {
     const legacyModelOptions = {
         "stable-diffusion": [],
         "video": [],
+        "motion-module": [],
         "vae": [],
         "hypernetwork": [],
         "gfpgan": [],

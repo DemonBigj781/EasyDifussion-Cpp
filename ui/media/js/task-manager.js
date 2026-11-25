@@ -195,6 +195,7 @@ function getTaskUpdater(task, reqBody, outputContainer) {
                 case SD.TaskStatus.processing:
                 case SD.TaskStatus.completed:
                     task["taskStatusLabel"].innerText = "Processing"
+                    if (!outputMsg.textContent.trim()) outputMsg.textContent = "Preparing generation request…"
                     task["taskStatusLabel"].classList.add("activeTaskLabel")
                     task["taskStatusLabel"].classList.remove("waitingTaskLabel")
                     break
@@ -265,7 +266,20 @@ function getTaskUpdater(task, reqBody, outputContainer) {
             const currentStep = Math.max(0, Number(stepUpdate.step) || 0)
             const currentTotal = Math.max(1, Number(stepUpdate.total_steps) || fallbackTotal)
             outputMsg.innerHTML = `Batch ${task.batchesDone} of ${batchCount}. Generating image(s): ${percent}% (step ${currentStep} of ${currentTotal}). Time remaining (approx): ${timeRemaining}`
-            if (stepUpdate.phase === "preparing") outputMsg.textContent = "Preparing video generation…"
+            const loading = stepUpdate.phase === "loading"
+            task.taskStatusLabel.innerText = loading ? "Loading" : "Processing"
+            task.taskStatusLabel.style.color = loading ? "#d9a514" : ""
+            progressBarInner.style.backgroundColor = loading ? "#d9a514" : ""
+            if (loading) {
+                const total = Number(stepUpdate.phase_total) || 0
+                const current = Number(stepUpdate.phase_current) || 0
+                const pct = total > 0 ? Math.min(100, Math.round(100 * current / total)) : null
+                outputMsg.textContent = pct === null ? "Loading model metadata and preparing weights…" : `Loading model tensors: ${pct}% (${current} of ${total})`
+                outputMsg.style.display = "block"
+                progressBarInner.style.width = pct === null ? "0%" : `${pct}%`
+                return
+            }
+            if (stepUpdate.phase === "preparing") outputMsg.textContent = "Preparing generation: encoding prompt and allocating compute buffers…"
             if (stepUpdate.phase === "decoding" || stepUpdate.phase === "finalizing") {
                 const phaseCurrent = Math.max(0, Number(stepUpdate.phase_current) || 0)
                 const phaseTotal = Math.max(0, Number(stepUpdate.phase_total) || 0)

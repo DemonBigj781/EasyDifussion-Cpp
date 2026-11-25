@@ -80,10 +80,6 @@
 const char* sd_vae_format_name(enum sd_vae_format_t format);
 static SDVersion sd_vae_format_to_version(enum sd_vae_format_t format, SDVersion fallback);
 
-static bool sd_version_supports_animatediff(SDVersion version) {
-    return version == VERSION_SD1 || version == VERSION_SD1_INPAINT || version == VERSION_SD1_PIX2PIX;
-}
-
 const char* model_version_to_str[] = {
     "SD 1.x",
     "SD 1.x Inpaint",
@@ -1011,9 +1007,10 @@ public:
         };
         model_loader.set_load_cancel_callback(sd_ctx_params->load_cancel_callback,
                                               sd_ctx_params->load_cancel_user_data);
+        model_loader.set_load_progress_callback(sd_ctx_params->load_progress_callback);
         struct ClearLoadCallback {
             ModelLoader& loader;
-            ~ClearLoadCallback() { loader.set_load_cancel_callback(nullptr, nullptr); }
+            ~ClearLoadCallback() { loader.set_load_progress_callback(nullptr); loader.set_load_cancel_callback(nullptr, nullptr); }
         } clear_load_callback{model_loader};
         if (load_cancelled()) return false;
 

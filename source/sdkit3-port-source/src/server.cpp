@@ -714,14 +714,20 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
             throw std::invalid_argument("Cache threshold cannot be negative");
         }
 
-        std::vector<std::string> frames = image_generator_->generateVideo(params, task_id);
+        std::string gif;
+        int gif_frame_count = 0;
+        const bool want_gif = !params.motion_module_path.empty() && json_body.has("output_format")
+            && json_body["output_format"].t() == crow::json::type::String
+            && std::string(json_body["output_format"].s()) == "gif";
+        std::vector<std::string> frames = image_generator_->generateVideo(params, task_id,
+            want_gif ? &gif : nullptr, &gif_frame_count);
         crow::json::wvalue info;
         info["prompt"]       = params.prompt;
         info["seed"]         = params.seed;
         info["width"]        = params.width;
         info["height"]       = params.height;
         info["fps"]          = params.fps;
-        info["video_frames"] = static_cast<int>(frames.size());
+        info["video_frames"] = want_gif ? gif_frame_count : static_cast<int>(frames.size());
         info["cache_mode"]   = params.cache_mode == SD_CACHE_EASYCACHE
                                     ? "easycache"
                                     : (params.cache_mode == SD_CACHE_TEACACHE ? "teacache" : "disabled");
@@ -730,7 +736,12 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
         // response already owns them and video sequences are large.
         task_state_manager_->completeTask(task_id, {}, info.dump());
         crow::json::wvalue response;
-        response["frames"] = frames;
+        if (want_gif && !gif.empty()) {
+            response["gif"] = std::move(gif);
+            response["frame_count"] = gif_frame_count;
+        } else {
+            response["frames"] = frames;
+        }
         response["fps"]    = params.fps;
         response["info"]   = std::move(info);
         return crow::response(200, response);

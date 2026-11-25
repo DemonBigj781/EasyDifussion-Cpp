@@ -49,8 +49,9 @@ namespace sd_sample {
     static void init_easycache_runtime(SampleCacheRuntime& runtime,
                                        SDVersion version,
                                        const sd_cache_params_t& cache_params,
-                                       Denoiser* denoiser) {
-        if (!sd_version_is_dit(version)) {
+                                       Denoiser* denoiser,
+                                       bool allow_animatediff_cache) {
+        if (!sd_version_is_dit(version) && !(allow_animatediff_cache && sd_version_supports_animatediff(version))) {
             LOG_WARN("EasyCache requested but not supported for this model type");
             return;
         }
@@ -78,9 +79,10 @@ namespace sd_sample {
                                       SDVersion version,
                                       const std::string& model_desc,
                                       const sd_cache_params_t& cache_params,
-                                      const std::vector<float>& sigmas) {
-        if (!sd_version_is_dit(version)) {
-            LOG_WARN("TeaCache requested but not supported for this model type (only DiT models)");
+                                      const std::vector<float>& sigmas,
+                                      bool allow_animatediff_cache) {
+        if (!sd_version_is_dit(version) && !(allow_animatediff_cache && sd_version_supports_animatediff(version))) {
+            LOG_WARN("TeaCache requires a DiT model or active SD1.5/SDXL AnimateDiff generation");
             return;
         }
 
@@ -112,6 +114,8 @@ namespace sd_sample {
                                        256.27178429, -13.02252404};
             }
         } else {
+            // AnimateDiff uses the existing condition-boundary policy on the
+            // complete temporal UNet batch. No DiT-specific fit is applicable.
             config.reuse_threshold = get_cache_reuse_threshold(cache_params);
         }
 
@@ -237,7 +241,8 @@ namespace sd_sample {
                                                  const sd_cache_params_t* cache_params,
                                                  Denoiser* denoiser,
                                                  const std::vector<float>& sigmas,
-                                                 const std::string& model_desc) {
+                                                 const std::string& model_desc,
+                                                 bool allow_animatediff_cache) {
         SampleCacheRuntime runtime;
         if (cache_params == nullptr || cache_params->mode == SD_CACHE_DISABLED) {
             return runtime;
@@ -252,10 +257,10 @@ namespace sd_sample {
 
         switch (cache_params->mode) {
             case SD_CACHE_EASYCACHE:
-                init_easycache_runtime(runtime, version, *cache_params, denoiser);
+                init_easycache_runtime(runtime, version, *cache_params, denoiser, allow_animatediff_cache);
                 break;
             case SD_CACHE_TEACACHE:
-                init_teacache_runtime(runtime, version, model_desc, *cache_params, sigmas);
+                init_teacache_runtime(runtime, version, model_desc, *cache_params, sigmas, allow_animatediff_cache);
                 break;
             case SD_CACHE_UCACHE:
                 init_ucache_runtime(runtime, version, *cache_params, denoiser, sigmas);

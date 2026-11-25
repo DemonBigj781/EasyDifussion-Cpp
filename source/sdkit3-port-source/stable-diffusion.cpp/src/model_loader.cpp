@@ -1024,6 +1024,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
         last_n_threads = n_threads;
 
         std::atomic<size_t> tensor_idx(0);
+        std::atomic<size_t> finished_tensors(0);
         std::atomic<bool> failed(false);
         std::vector<std::thread> workers;
         std::mutex backend_tensor_set_mutex;
@@ -1074,6 +1075,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
                     if (dst_tensor == nullptr) {
                         t1 = ggml_time_ms();
                         read_time_ms.fetch_add(t1 - t0);
+                        ++finished_tensors;
                         continue;
                     }
 
@@ -1222,6 +1224,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
                     }
 
                     bytes_processed.fetch_add((uint64_t)nbytes_to_read);
+                    ++finished_tensors;
                 }
                 if (zip != nullptr) {
                     zip_close(zip);
@@ -1234,7 +1237,8 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
             if (current_idx >= tensors_to_process.size() || failed) {
                 break;
             }
-            size_t curr_num       = total_tensors_processed + current_idx;
+            size_t curr_num       = total_tensors_processed + finished_tensors.load();
+            if (load_progress_callback_) load_progress_callback_(curr_num, total_tensors_to_process, load_cancel_user_data_);
             float elapsed_seconds = (ggml_time_ms() - t_start) / 1000.0f;
             if (log_progress && total_tensors_to_process > 0) {
                 pretty_bytes_progress(static_cast<int>(curr_num),
@@ -1254,6 +1258,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb,
             break;
         }
         total_tensors_processed += tensors_to_process.size();
+        if (load_progress_callback_) load_progress_callback_(total_tensors_processed, total_tensors_to_process, load_cancel_user_data_);
         if (log_progress && total_tensors_to_process > 0) {
             pretty_bytes_progress(static_cast<int>(total_tensors_processed),
                                   static_cast<int>(total_tensors_to_process),

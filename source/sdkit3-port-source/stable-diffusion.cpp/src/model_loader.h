@@ -40,6 +40,7 @@ protected:
     int n_threads_;
     bool (*load_cancel_callback_)(void*) = nullptr;
     void* load_cancel_user_data_ = nullptr;
+    void (*load_progress_callback_)(int, int, void*) = nullptr;
     bool load_cancelled() const {
         return load_cancel_callback_ && load_cancel_callback_(load_cancel_user_data_);
     }
@@ -57,6 +58,7 @@ protected:
 
 public:
     ModelLoader();
+    void set_load_progress_callback(void (*cb)(int, int, void*)) { load_progress_callback_ = cb; }
     void set_load_cancel_callback(bool (*callback)(void*), void* data) {
         load_cancel_callback_ = callback;
         load_cancel_user_data_ = data;

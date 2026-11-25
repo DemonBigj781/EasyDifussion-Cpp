@@ -290,7 +290,7 @@
     byId("native-video-frames").value = state.frames ?? "25"
     byId("native-video-fps").value = state.fps ?? "8"
     cache.value = state.cache ?? "disabled"
-    threshold.value = state.threshold ?? ""
+    threshold.value = state.threshold == null || state.threshold === "" ? "0.20" : state.threshold
     byId("native-video-cache-start").value = state.start ?? "15"
     byId("native-video-cache-end").value = state.end ?? "95"
     videoToggle.checked = state.videoEnabled === true
@@ -379,7 +379,7 @@
         event.reqBody.cache_end_percent ??= clamp(byId("native-video-cache-end").value, 0, 100, 95)
         const thresholdValue = Number(threshold.value)
         if (!("cache_threshold" in event.reqBody)) event.reqBody.cache_threshold = threshold.value !== "" && Number.isFinite(thresholdValue)
-            ? Math.max(0, thresholdValue) : null
+            ? Math.max(0, thresholdValue) : 0.20
         if (!("end_image" in event.reqBody)) {
             event.reqBody.end_image = /^data:image\//.test(endPreview.getAttribute("src") || "") ? endPreview.src : null
         }

@@ -1,6 +1,6 @@
 from typing import Any, List, Dict, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GenerateImageRequest(BaseModel):
@@ -92,6 +92,7 @@ class VideoGenerationRequest(BaseModel):
     width: int = 512
     height: int = 512
     num_inference_steps: int = 20
+    video_steps: Optional[int] = Field(None, ge=1, le=200)
     guidance_scale: float = 5.0
     init_image: Any = None
     end_image: Any = None
@@ -103,7 +104,7 @@ class VideoGenerationRequest(BaseModel):
     flow_shift: float = None
     moe_boundary: float = 0.875
     cache_mode: str = "disabled"
-    cache_threshold: float = None
+    cache_threshold: Optional[float] = None
     cache_start_percent: float = 15.0
     cache_end_percent: float = 95.0
 

@@ -157,7 +157,7 @@ class ImageGenerator {
 
     // Native stable-diffusion.cpp SVD/Wan/LTX video path. Frames are returned
     // as PNG base64 strings so the HTTP/UI layer can stream or encode them.
-    std::vector<std::string> generateVideo(const VideoGenerationParams& params, const std::string& task_id = "");
+    std::vector<std::string> generateVideo(const VideoGenerationParams& params, const std::string& task_id = "", std::string* gif = nullptr, int* gif_frame_count = nullptr);
 
     // Interrupt current generation
     // Returns true only when cancellation was accepted by the active context.

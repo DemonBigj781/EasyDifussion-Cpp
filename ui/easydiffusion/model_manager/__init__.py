@@ -39,7 +39,7 @@ MODEL_EXTENSIONS = {
     "motion-module": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "sam": [".bin", ".gguf", ".pth"],
     "video": [".ckpt", ".safetensors", ".sft", ".gguf"],
-    "vae": [".vae.pt", ".ckpt", ".safetensors", ".sft", ".gguf"],
+    "vae": [".safetensors", ".sft", ".gguf", ".vae.pt", ".ckpt"],
     "taesdvae": [".pt", ".pth", ".ckpt", ".safetensors", ".sft", ".gguf"],
     "hypernetwork": [".pt", ".safetensors", ".sft"],
     "gfpgan": [".pth"],
@@ -459,6 +459,11 @@ def resolve_model_paths(models_data: ModelsData):
 
             for model_id in model_ids:
                 # log.info(f"Checking for {model_id=}")
+                installed = resolve_model_to_use_single(model_id, model_type, fail_if_not_found=False)
+                if installed and os.path.isfile(installed):
+                    log.info(f"Using installed {model_type} model: {installed}")
+                    new_model_paths.append(installed)
+                    continue
                 model_info = get_model_info_from_db(model_type=model_type, model_id=model_id)
                 if model_info:
                     filename = model_info.get("url", "").split("/")[-1]

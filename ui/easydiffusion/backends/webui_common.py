@@ -183,7 +183,7 @@ def load_model(context, model_type, **kwargs):
             # as models/mochi rather than below models/checkpoints. Preserve
             # the resolved absolute path instead of emitting a rejected
             # parent-relative name such as ../mochi/transformer/model.gguf.
-            model_path = os.path.realpath(model_path)
+            model_path = os.path.abspath(model_path)
         else:
             base_dir = get_model_dirs(model_type, models_dir)[0]
             model_path = os.path.relpath(model_path, base_dir)
@@ -220,7 +220,7 @@ def flush_model_changes(context):
             raise Exception(res.text)
     except Exception as e:
         raise RuntimeError(
-            f"The engine failed to set the required options. Please check the logs in the command line window for more details."
+            f"The engine failed to set model options {opts}: {e}"
         )
 
 
@@ -636,7 +636,7 @@ def generate_video(
     sampler_name: str = "euler",
     scheduler_name: str = "simple",
     flow_shift=None,
-    motion_module_model=None,
+    motion_module_model: str = None,
     tome_ratio=0.0,
     negative_guidance_min_sigma=0.0,
     moe_boundary: float = 0.875,
@@ -662,6 +662,14 @@ def generate_video(
     if not USE_SDKIT3_API:
         raise RuntimeError("Native video generation requires the sdkit3 backend")
 
+    import math
+    if cache_mode not in ("disabled", "easycache", "teacache"):
+        raise ValueError("Select one video cache: disabled, easycache, or teacache")
+    if not 0 <= cache_start_percent < cache_end_percent <= 100:
+        raise ValueError("Cache range must satisfy 0 <= start < end <= 100 percent")
+    if cache_threshold is not None and (not math.isfinite(cache_threshold) or cache_threshold < 0):
+        raise ValueError("Cache threshold must be finite and non-negative")
+
     task_id = str(uuid.uuid4())
     cmd = {
         "force_task_id": task_id,
@@ -680,8 +688,8 @@ def generate_video(
         "moe_boundary": float(moe_boundary),
         "cache": {
             "mode": str(cache_mode),
-            "start_percent": float(cache_start_percent),
-            "end_percent": float(cache_end_percent),
+            "start_percent": float(cache_start_percent) / 100.0,
+            "end_percent": float(cache_end_percent) / 100.0,
         },
     }
     if backend_assignment:
@@ -701,6 +709,7 @@ def generate_video(
 
     if motion_module_model:
         cmd["motion_module_path"] = motion_module_model
+        cmd["output_format"] = "gif"
     if audio_vae_model:
         cmd["audio_vae_path"] = audio_vae_model
     if embeddings_connectors_model:
@@ -732,7 +741,7 @@ def generate_video(
 
     operation = "img2video" if init_image else "txt2video"
     progress_thread = None
-    progress_stop = Event()
+    progress_stop = Event() if callback is not None else None
     if callback is not None:
         progress_thread = Thread(
             target=image_progress_thread,

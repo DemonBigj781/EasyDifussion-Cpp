@@ -2284,15 +2284,51 @@ static void ggml_cuda_mul_mat_cublas_impl(ggml_backend_cuda_context & ctx, const
 
         CUDA_CHECK(cudaGetLastError());
 
-        CUBLAS_CHECK(
-        cublasGemmBatchedEx(ctx.cublas_handle(), CUBLAS_OP_T, CUBLAS_OP_N,
+        cublasStatus_t status = cublasGemmBatchedEx(ctx.cublas_handle(), CUBLAS_OP_T, CUBLAS_OP_N,
                 ne01, ne11, ne10,
                 alpha, (const void **) (ptrs_src.get() + 0*ne23), cu_data_type_a, s01,
                        (const void **) (ptrs_src.get() + 1*ne23), cu_data_type_b, s11,
                 beta,  (      void **) (ptrs_dst.get() + 0*ne23), cu_data_type,   ne0,
                 ne23,
                 cu_compute_type,
-                CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+                CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+        if (status == CUBLAS_STATUS_NOT_SUPPORTED) {
+            fprintf(stderr, "cuBLAS batched GEMM unsupported: cc=%d m=%lld n=%lld k=%lld batch=%lld A=%d B=%d C=%d compute=%d lda=%lld ldb=%lld ldc=%lld dims2=%lld dims3=%lld broadcast=%lld,%lld stridesA=%lld,%lld stridesB=%lld,%lld\n",
+                    cc, (long long)ne01, (long long)ne11, (long long)ne10, (long long)ne23,
+                    (int)cu_data_type_a, (int)cu_data_type_b, (int)cu_data_type, (int)cu_compute_type,
+                    (long long)s01, (long long)s11, (long long)ne0, (long long)ne12, (long long)ne13,
+                    (long long)r2, (long long)r3, (long long)s02, (long long)s03, (long long)s12, (long long)s13);
+            status = cublasGemmBatchedEx(ctx.cublas_handle(), CUBLAS_OP_T, CUBLAS_OP_N,
+                    ne01, ne11, ne10,
+                    alpha, (const void **) ptrs_src.get(), cu_data_type_a, s01,
+                           (const void **) (ptrs_src.get() + ne23), cu_data_type_b, s11,
+                    beta, ptrs_dst.get(), cu_data_type, ne0, ne23, cu_compute_type, CUBLAS_GEMM_DEFAULT);
+            fprintf(stderr, "cuBLAS default algorithm retry status=%d\n", (int)status);
+        }
+        if (status == CUBLAS_STATUS_NOT_SUPPORTED) {
+            fprintf(stderr, "cuBLAS: retrying individual GEMMs for unsupported batch\n");
+            for (int64_t i3 = 0; i3 < ne13; ++i3) {
+                for (int64_t i2 = 0; i2 < ne12; ++i2) {
+                    const auto * a = src0_ptr + (i2/r2)*s02 + (i3/r3)*s03;
+                    const auto * b = src1_ptr + i2*s12 + i3*s13;
+                    auto * c = dst_ptr + i2*nbd2 + i3*nbd3;
+                    status = cublasGemmEx(ctx.cublas_handle(), CUBLAS_OP_T, CUBLAS_OP_N,
+                            ne01, ne11, ne10, alpha, a, cu_data_type_a, s01,
+                            b, cu_data_type_b, s11, beta, c, cu_data_type, ne0,
+                            cu_compute_type, CUBLAS_GEMM_DEFAULT);
+                    if (status != CUBLAS_STATUS_SUCCESS) break;
+                }
+                if (status != CUBLAS_STATUS_SUCCESS) break;
+            }
+        }
+        if (status == CUBLAS_STATUS_NOT_SUPPORTED) {
+            if constexpr (compute_type != GGML_TYPE_F32) {
+                fprintf(stderr, "cuBLAS: retrying affected operation in FP32\n");
+                ggml_cuda_mul_mat_cublas_impl<GGML_TYPE_F32>(ctx, src0, src1, dst);
+                return;
+            }
+        }
+        CUBLAS_CHECK(status);
     }
 
     // Convert output back to F32 if needed
