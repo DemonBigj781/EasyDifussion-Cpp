@@ -24,23 +24,6 @@ class TestBundledUIPluginIntegration(unittest.TestCase):
                 filename = unquote(url.removeprefix("/plugins/core/"))
                 self.assertTrue((self.plugin_root / filename).is_file(), filename)
 
-    def test_cpp_lora_request_reads_the_stored_select_control(self):
-        plugin = (
-            self.repo_root
-            / "source"
-            / "UI.cpp"
-            / "Pages"
-            / "src"
-            / "Plugin"
-            / "plugin_scripts"
-            / "generate_plugins.js"
-        ).read_text(encoding="utf-8")
-        self.assertIn(
-            "loraEntries.filter(({row, select}) => row.isConnected && select.field.value)",
-            plugin,
-        )
-        self.assertNotIn("row.select.value", plugin)
-
     def test_plugin_manager_deduplicates_loads_and_syncs_controls(self):
         self.assertIn("const loadedScriptPromises = new Map()", self.loader)
         self.assertIn("const loadedOptionalUIPluginIds = new Set()", self.loader)

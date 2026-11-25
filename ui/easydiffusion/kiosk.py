@@ -90,9 +90,7 @@ def blocked_route(path, method):
                 "/gallery/file/", "/gallery/thumb/", "/gallery-plugin/file/", "/gallery-plugin/thumb/",
                 "/perchance/file/", "/perchance-plugin/file/", "/perchance/generated/file/")
     exact = {"/legacy", "/video", "/model/merge", "/perchance/image", "/perchance-plugin/image",
-             "/perchance/images/save", "/get/model/metadata", "/get/lora/metadata",
-             "/cpp-ui/training", "/cpp-ui/models/download", "/cpp-ui/gallery/datasets",
-             "/cpp-ui/tagging", "/cpp-ui/perchance/image"}
+             "/perchance/images/save", "/get/model/metadata", "/get/lora/metadata"}
     return (path in exact or any(path == prefix[:-1] or path.startswith(prefix) for prefix in prefixes)
             or (method != "GET" and path in {"/gallery/settings", "/gallery-plugin/settings"}))
 

@@ -1,4 +1,4 @@
-// One catalog and preference store for the legacy and C++ plugin managers.
+// One catalog and preference store for the Legacy plugin manager.
 (() => {
     "use strict"
     if (window.LocalPluginPreferences) return
@@ -8,9 +8,9 @@
     const defaultsVersion = 3
     const catalog = Object.freeze([
         { id: "image-modifiers", name: "Image Modifiers (show/hide)", defaultEnabled: true, addedInDefaultsVersion: 3, port: "native" },
-        { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native", nativePath: "/cpp-ui/perchance/image" },
-        { id: "perchance-text", name: "Perchance text", path: "/plugins/core/perchance_plugin/perchance-text.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native", nativePath: "/cpp-ui/perchance/text" },
-        { id: "perchance-gallery", name: "Perchance gallery", path: "/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native", nativePath: "/cpp-ui/perchance/gallery" },
+        { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
+        { id: "perchance-text", name: "Perchance text", path: "/plugins/core/perchance_plugin/perchance-text.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
+        { id: "perchance-gallery", name: "Perchance gallery", path: "/plugins/core/perchance_plugin/perchance-gallery.tab.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
         { id: "accessibility-improvements", name: "Accessibility improvements", path: "/plugins/core/ui_plugin/accessibility-improvements.plugin.js", port: "native" },
         { id: "animate", name: "Animate", path: "/plugins/core/animate_plugin/animate.plugin.js", port: "native" },
         { id: "daily-folders", name: "Daily output folders", path: "/plugins/core/ui_plugin/daily-folders.plugin.js", port: "native" },

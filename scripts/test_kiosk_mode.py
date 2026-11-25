@@ -102,10 +102,10 @@ class KioskTests(unittest.TestCase):
         for url in ("/gallery/file/test.png", "/gallery-plugin/thumb/test.png", "/files/list_lora",
                     "/meta/scan_loras", "/files/list_checkpoints", "/perchance/image",
                     "/perchance-plugin/image", "/perchance/generated/file/test.png",
-                    "/training/models", "/cpp-ui/models/download", "/legacy"):
+                    "/training/models", "/legacy"):
             self.assertTrue(self.kiosk.blocked_route(url, "GET"), url)
         self.assertTrue(self.kiosk.blocked_route("/gallery/settings", "POST"))
-        for url in ("/kiosk", "/cpp-ui/settings", "/get/model", "/gallery/images", "/gallery/settings", "/perchance/gallery/list"):
+        for url in ("/kiosk", "/get/model", "/gallery/images", "/gallery/settings", "/perchance/gallery/list"):
             self.assertFalse(self.kiosk.blocked_route(url, "GET"), url)
 
     def test_pg_cache_approval_is_expiring_and_reset_on_mode_change(self):

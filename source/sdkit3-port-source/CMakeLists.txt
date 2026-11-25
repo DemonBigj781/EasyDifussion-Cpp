@@ -46,12 +46,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Build the C++ page renderer alongside SDKit for the FastAPI /cpp-ui routes.
-add_subdirectory(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../UI.cpp/Shared_Core"
-    "${CMAKE_CURRENT_BINARY_DIR}/ui-cpp"
-)
-
 # Set flags for shared library builds
 set(BUILD_SHARED_LIBS ON CACHE BOOL "Build ggml as a shared library")
 set(SD_BUILD_SHARED_LIBS ON CACHE BOOL "Build stable-diffusion as a shared library")
@@ -79,20 +73,6 @@ target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 target_include_directories(sdkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stable-diffusion.cpp)
-add_dependencies(sdkit easy-diffusion-ui-render)
-
-add_custom_command(TARGET sdkit POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/../UI.cpp/Pages/assets"
-        "$<TARGET_FILE_DIR:sdkit>/cpp-ui-assets"
-    COMMENT "Bundling C++ UI assets with SDKit")
-
-add_custom_command(TARGET sdkit POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/../UI.cpp/Pages/src/Plugin/plugin_scripts"
-        "$<TARGET_FILE_DIR:sdkit>/cpp-ui-scripts"
-    COMMENT "Bundling C++ UI scripts with SDKit")
-
 # Suppress Unicode character warnings from Crow library headers on Windows
 if(MSVC)
     target_compile_options(sdkit PRIVATE /wd4566)
