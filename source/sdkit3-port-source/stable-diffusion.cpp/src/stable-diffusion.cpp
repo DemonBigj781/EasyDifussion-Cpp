@@ -8151,6 +8151,11 @@ static bool generate_animatediff_video(sd_ctx_t* sd_ctx,
     img_gen_params.seed              = sd_vid_gen_params->seed;
     img_gen_params.batch_count       = 1;
     img_gen_params.control_strength  = 1.0f;
+    img_gen_params.latent_interposer_enabled = sd_vid_gen_params->latent_interposer_enabled;
+    img_gen_params.latent_interposer_source = sd_vid_gen_params->latent_interposer_source;
+    img_gen_params.latent_interposer_source_image = sd_vid_gen_params->latent_interposer_source_image;
+    img_gen_params.latent_interposer_phase_x = sd_vid_gen_params->latent_interposer_phase_x;
+    img_gen_params.latent_interposer_phase_y = sd_vid_gen_params->latent_interposer_phase_y;
     img_gen_params.vae_tiling_params = sd_vid_gen_params->vae_tiling_params;
     img_gen_params.cache             = sd_vid_gen_params->cache;
     img_gen_params.hires             = sd_vid_gen_params->hires;

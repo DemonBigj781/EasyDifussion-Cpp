@@ -69,10 +69,22 @@ class FilterImageRequest(BaseModel):
 
 
 class VideoGenerationRequest(BaseModel):
+    motion_module_model: Optional[str] = None
     tome_ratio: float = 0.0
     negative_guidance_min_sigma: float = 0.0
     audio_vae_model: Optional[str] = None
     embeddings_connectors_model: Optional[str] = None
+    latent_interposer_model: Optional[str] = None
+    latent_interposer_enabled: bool = False
+    latent_interposer_source: str = "fx"
+    latent_interposer_furception_vae: str = "furception_vae_1-0"
+    latent_interposer_source_seed: int = 1
+    latent_interposer_phase_x: int = 0
+    latent_interposer_phase_y: int = 0
+    latent_interposer_encode_enabled: bool = False
+    latent_interposer_decode_enabled: bool = False
+    latent_interposer_encode_model: Optional[str] = None
+    latent_interposer_decode_model: Optional[str] = None
     backend_assignment: str = ""
     prompt: str = ""
     negative_prompt: str = ""

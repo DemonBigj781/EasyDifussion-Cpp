@@ -33,9 +33,10 @@ KNOWN_MODEL_TYPES = [
     "wd14-tagger",
     "text-encoder",
 ]
-LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video", "sam"]
+LISTABLE_MODEL_TYPES = KNOWN_MODEL_TYPES + ["video", "motion-module", "sam"]
 MODEL_EXTENSIONS = {
     "stable-diffusion": [".ckpt", ".safetensors", ".sft", ".gguf", ".sprite-gpt.json"],
+    "motion-module": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "sam": [".bin", ".gguf", ".pth"],
     "video": [".ckpt", ".safetensors", ".sft", ".gguf"],
     "vae": [".vae.pt", ".ckpt", ".safetensors", ".sft", ".gguf"],
@@ -122,7 +123,7 @@ MODEL_DIRECTORY_CONFIG_KEYS = {
     "stable-diffusion": "checkpoints",
 }
 
-DIRECTORY_MODEL_TYPES = tuple(KNOWN_MODEL_TYPES) + ("video", "sam", "tipo")
+DIRECTORY_MODEL_TYPES = tuple(KNOWN_MODEL_TYPES) + ("video", "motion-module", "sam", "tipo")
 DIRECTORY_CONFIG_KEYS = tuple(
     dict.fromkeys(MODEL_DIRECTORY_CONFIG_KEYS.get(model_type, model_type) for model_type in DIRECTORY_MODEL_TYPES)
 )
@@ -650,6 +651,14 @@ def _existing_video_companion_dirs(model_type, base_dir):
     ]
 
 
+MOTION_MODULE_MODEL_FOLDER_NAMES = (
+    "animatediff_models",
+    "AnimateDiff",
+    "animatediff",
+    "motion_modules",
+    "motion-modules",
+)
+
 def get_model_dirs(model_type: str, base_dir=None):
     "Returns the possible model directory paths for the given model type. Mainly used for WebUI compatibility"
 
@@ -678,6 +687,20 @@ def get_model_dirs(model_type: str, base_dir=None):
             seen.add(real_candidate)
             dirs.append(candidate)
         return dirs or [os.path.join(base_dir, DEDICATED_VIDEO_MODEL_FOLDER_NAMES[0])]
+
+    if model_type == "motion-module":
+        dirs = []
+        seen = set()
+        for folder_name in MOTION_MODULE_MODEL_FOLDER_NAMES:
+            candidate = os.path.join(base_dir, folder_name)
+            if not os.path.isdir(candidate):
+                continue
+            real_candidate = os.path.realpath(candidate)
+            if real_candidate in seen:
+                continue
+            seen.add(real_candidate)
+            dirs.append(candidate)
+        return dirs or [os.path.join(base_dir, MOTION_MODULE_MODEL_FOLDER_NAMES[0])]
 
     if model_type == "sam":
         dirs = []

@@ -318,8 +318,8 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
     // Video checkpoints use the same context loader and options model selector.
     // Empty adapter/control paths deliberately release image-only extensions.
-    if (!ensureModelLoaded("", "", "", "", "", "", "", "", SD_VAE_FORMAT_AUTO, true, params.backend,
-                           params.audio_vae_path, params.embeddings_connectors_path, task_id)) {
+    if (!ensureModelLoaded("", "", "", "", params.latent_interposer_model_path, params.furception_vae_path, params.latent_interposer_encode_model_path, params.latent_interposer_decode_model_path, params.latent_interposer_vae_format, true, params.backend,
+                           params.audio_vae_path, params.embeddings_connectors_path, task_id, params.motion_module_path)) {
         if (!task_id.empty() && task_state_manager_->getTaskState(task_id).interrupted) return {};
         throw std::runtime_error("Failed to load video model from options");
     }
@@ -384,6 +384,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
 
     sd_image_t init_image = {0, 0, 0, nullptr};
     sd_image_t end_image  = {0, 0, 0, nullptr};
+    sd_image_t latent_interposer_source_image = {0, 0, 0, nullptr};
     auto decode_video_condition = [&](const std::string& encoded, const char* name) -> sd_image_t {
         if (encoded.empty()) {
             return {0, 0, 0, nullptr};
@@ -401,13 +402,28 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     try {
         init_image = decode_video_condition(params.init_image_base64, "initial");
         end_image  = decode_video_condition(params.end_image_base64, "ending");
+        if (params.latent_interposer_enabled && !params.latent_interposer_source_image_base64.empty()) {
+            ImageGenerationParams source;
+            source.width = params.width;
+            source.height = params.height;
+            source.latent_interposer_source_image_base64 = params.latent_interposer_source_image_base64;
+            latent_interposer_source_image = createLatentInterposerSourceImage(source);
+        }
+
     } catch (...) {
         if (init_image.data) freeImage(init_image);
         if (end_image.data) freeImage(end_image);
+        if (latent_interposer_source_image.data) freeImage(latent_interposer_source_image);
         throw;
     }
     gen_params.init_image = init_image;
     gen_params.end_image  = end_image;
+    gen_params.latent_interposer_enabled = params.latent_interposer_enabled;
+    gen_params.latent_interposer_source = params.latent_interposer_source;
+    gen_params.latent_interposer_source_image = latent_interposer_source_image;
+    gen_params.latent_interposer_phase_x = params.latent_interposer_phase_x;
+    gen_params.latent_interposer_phase_y = params.latent_interposer_phase_y;
+
 
     LOG_INFO("Generating video: prompt='%s', size=%dx%d, frames=%d, fps=%d, steps=%d, cache=%d",
              params.prompt.c_str(), params.width, params.height, params.frames, params.fps,
@@ -435,6 +451,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     if (cancelled_during_preparation) {
         if (init_image.data) freeImage(init_image);
         if (end_image.data) freeImage(end_image);
+        if (latent_interposer_source_image.data) freeImage(latent_interposer_source_image);
         return {};
     }
     const bool ok = generate_video(sd_ctx_, &gen_params, &frames, &frame_count, &audio);
@@ -445,6 +462,7 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     }
     if (init_image.data) freeImage(init_image);
     if (end_image.data) freeImage(end_image);
+        if (latent_interposer_source_image.data) freeImage(latent_interposer_source_image);
     free_sd_audio(audio);
 
     if (generation_cancelled) {
@@ -982,10 +1000,11 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
                                        const std::string& request_compute_backend,
                                        const std::string& audio_vae_path,
                                        const std::string& embeddings_connectors_path,
-                                       const std::string& load_task_id) {
+                                       const std::string& load_task_id,
+                                       const std::string& motion_module_path) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    for (const auto& path : {audio_vae_path, embeddings_connectors_path}) {
+    for (const auto& path : {audio_vae_path, embeddings_connectors_path, motion_module_path}) {
         if (!path.empty() && !fs::is_regular_file(path)) {
             throw std::invalid_argument("Video companion file not found: " + path);
         }
@@ -1136,6 +1155,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
         llm_path_str,
         audio_vae_path,
         embeddings_connectors_path,
+        motion_module_path,
         controlnet_path_str,
         automatic_control_net_sd1_path,
         automatic_control_net_sdxl_path,
@@ -1267,6 +1287,7 @@ bool ImageGenerator::ensureModelLoaded(const std::string& controlnet_model,
     params.llm_path = llm_path_str.empty() ? nullptr : llm_path_str.c_str();
     params.audio_vae_path = audio_vae_path.empty() ? nullptr : audio_vae_path.c_str();
     params.embeddings_connectors_path = embeddings_connectors_path.empty() ? nullptr : embeddings_connectors_path.c_str();
+    params.motion_module_path = motion_module_path.empty() ? nullptr : motion_module_path.c_str();
     params.taesd_path = nullptr;
     params.control_net_path = controlnet_path_str.empty() ? nullptr : controlnet_path_str.c_str();
     params.control_net_sd1_path = automatic_control_net_sd1_path.empty() ? nullptr : automatic_control_net_sd1_path.c_str();

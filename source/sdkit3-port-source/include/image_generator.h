@@ -90,6 +90,7 @@ struct ImageGenerationParams {
 };
 
 struct VideoGenerationParams {
+    std::string motion_module_path;
     std::string audio_vae_path;
     std::string embeddings_connectors_path;
     std::string backend;
@@ -99,6 +100,19 @@ struct VideoGenerationParams {
     std::vector<float> lora_alphas;
     std::string init_image_base64;
     std::string end_image_base64;
+    // AnimateDiff reuses the image-generation latent pipeline, so staged
+    // latent sources and optional VAE bridges must survive the video route.
+    std::string latent_interposer_model_path;
+    std::string furception_vae_path;
+    std::string latent_interposer_source_image_base64;
+    bool latent_interposer_enabled = false;
+    sd_latent_source_t latent_interposer_source = SD_LATENT_SOURCE_NONE;
+    int latent_interposer_phase_x = 0;
+    int latent_interposer_phase_y = 0;
+    std::string latent_interposer_encode_model_path;
+    std::string latent_interposer_decode_model_path;
+    sd_vae_format_t latent_interposer_vae_format = SD_VAE_FORMAT_AUTO;
+
     int width = 512;
     int height = 512;
     int steps = 20;
@@ -193,7 +207,8 @@ class ImageGenerator {
                            const std::string& request_compute_backend = "",
                            const std::string& audio_vae_path = "",
                            const std::string& embeddings_connectors_path = "",
-                           const std::string& load_task_id = "");
+                           const std::string& load_task_id = "",
+                           const std::string& motion_module_path = "");
 
     sd_ctx_t* sd_ctx_;
     std::shared_ptr<TaskStateManager> task_state_manager_;

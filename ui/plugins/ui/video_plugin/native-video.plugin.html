@@ -1,7 +1,18 @@
-        <h4 class="collapsible">Video Options <small>Mochi / Wan / LTX-Video / LTX-2.3; SVD experimental</small></h4>
+        <h4 class="collapsible">Video Options <small>AnimateDiff / SDXL beta · Mochi / Wan / LTX-Video / LTX-2.0 / LTX-2.3</small></h4>
         <div class="collapsible-content settings-panel-entries">
+            <label class="native-video-toggle">
+                <input id="native-video-enabled" type="checkbox">
+                Enable video generation
+            </label>
+            <div class="native-video-grid">
+                <label for="native-video-motion-module">AnimateDiff motion module</label>
+                <div class="model-input">
+                    <input id="native-video-motion-module" type="text" spellcheck="false" autocomplete="off"
+                           class="model-filter" data-path="" placeholder="None — select an SD 1.5 or SDXL checkpoint">
+                </div>
+            </div>
             <div id="native-video-ltx23-resources" class="native-video-grid displayNone">
-                <label for="native-video-audio-vae">LTX-2.3 Audio VAE</label>
+                <label for="native-video-audio-vae">LTX-2 Audio VAE</label>
                 <div class="model-input">
                     <input id="native-video-audio-vae" type="text" spellcheck="false" autocomplete="off"
                            class="model-filter" data-path="">
@@ -13,6 +24,9 @@
                 </div>
             </div>
             <div class="native-video-grid">
+                <label for="native-video-steps">Video steps</label>
+                <input id="native-video-steps" type="number" value="20" min="1" max="200" step="1">
+
                 <label for="native-video-frames">Frames</label>
                 <input id="native-video-frames" type="number" value="25" min="1" max="513" step="1">
 
@@ -46,6 +60,6 @@
             <img id="native-video-end-preview" class="native-video-end-preview displayNone"
                  alt="Native video end-frame preview">
             <small id="native-video-status">
-                Select a video checkpoint in Options → Model. Its installed companion resources are selected automatically in Options; you can override them there. Mochi currently supports text-to-video.
+                Select a native video checkpoint or an AnimateDiff motion module. AnimateDiff uses SD 1.5/SDXL checkpoints and supports at most 32 frames.
             </small>
         </div>

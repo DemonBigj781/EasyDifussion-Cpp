@@ -180,6 +180,114 @@ static sd_cache_mode_t parse_cache_mode(std::string name) {
     throw std::invalid_argument("Unknown video cache mode: " + name);
 }
 
+template <typename Params>
+static void parse_latent_interposer_options(const crow::json::rvalue& json_body, Params& params) {
+    if (!json_body.has("latent_interposer") ||
+        json_body["latent_interposer"].t() != crow::json::type::Object) {
+        return;
+    }
+
+    const auto interposer = json_body["latent_interposer"];
+    params.latent_interposer_enabled = !interposer.has("enabled") || interposer["enabled"].b();
+    std::string source = "fx";
+    if (interposer.has("source") && interposer["source"].t() == crow::json::type::String) {
+        source = std::string(interposer["source"].s());
+    }
+    if (source == "v1") {
+        params.latent_interposer_source = SD_LATENT_SOURCE_V1;
+    } else if (source == "xl") {
+        params.latent_interposer_source = SD_LATENT_SOURCE_XL;
+    } else if (source == "v3") {
+        params.latent_interposer_source = SD_LATENT_SOURCE_V3;
+    } else if (source == "fx") {
+        params.latent_interposer_source = SD_LATENT_SOURCE_FX;
+    } else {
+        throw std::invalid_argument("Latent Interposer source must be one of v1, xl, v3, or fx");
+    }
+    if (interposer.has("model_path") && interposer["model_path"].t() == crow::json::type::String) {
+        params.latent_interposer_model_path = std::string(interposer["model_path"].s());
+    }
+    if (interposer.has("furception_vae_path") &&
+        interposer["furception_vae_path"].t() == crow::json::type::String) {
+        params.furception_vae_path = std::string(interposer["furception_vae_path"].s());
+    }
+    if (interposer.has("source_image") && interposer["source_image"].t() == crow::json::type::String) {
+        params.latent_interposer_source_image_base64 = std::string(interposer["source_image"].s());
+    }
+    if (interposer.has("phase_x")) {
+        params.latent_interposer_phase_x = static_cast<int>(interposer["phase_x"].i());
+    }
+    if (interposer.has("phase_y")) {
+        params.latent_interposer_phase_y = static_cast<int>(interposer["phase_y"].i());
+    }
+    params.latent_interposer_phase_x = std::clamp(params.latent_interposer_phase_x, -100000, 100000);
+    params.latent_interposer_phase_y = std::clamp(params.latent_interposer_phase_y, -100000, 100000);
+    if (params.latent_interposer_enabled && params.latent_interposer_source == SD_LATENT_SOURCE_V1 &&
+        (params.furception_vae_path.empty() || params.latent_interposer_source_image_base64.empty())) {
+        throw std::invalid_argument("Furception v1 source requires furception_vae_path and source_image");
+    }
+    if (!params.latent_interposer_enabled) {
+        params.latent_interposer_model_path.clear();
+        params.furception_vae_path.clear();
+        params.latent_interposer_source_image_base64.clear();
+    }
+    LOG_INFO("Latent Interposer params: enabled=%s, source='%s', model='%s', phase=%d,%d",
+             params.latent_interposer_enabled ? "true" : "false",
+             source.c_str(),
+             params.latent_interposer_model_path.c_str(),
+             params.latent_interposer_phase_x,
+             params.latent_interposer_phase_y);
+}
+
+template <typename Params>
+static void parse_vae_interposer_options(const crow::json::rvalue& json_body, Params& params) {
+    if (!json_body.has("vae_interposer") ||
+        json_body["vae_interposer"].t() != crow::json::type::Object) {
+        return;
+    }
+
+    const auto bridge = json_body["vae_interposer"];
+    const bool enabled = !bridge.has("enabled") || bridge["enabled"].b();
+    std::string vae_family;
+    std::string model_family;
+    if (bridge.has("vae_family") && bridge["vae_family"].t() == crow::json::type::String) {
+        vae_family = std::string(bridge["vae_family"].s());
+    }
+    if (bridge.has("model_family") && bridge["model_family"].t() == crow::json::type::String) {
+        model_family = std::string(bridge["model_family"].s());
+    }
+    if (vae_family == "v1") {
+        params.latent_interposer_vae_format = SD_VAE_FORMAT_V1;
+    } else if (vae_family == "xl") {
+        params.latent_interposer_vae_format = SD_VAE_FORMAT_XL;
+    } else if (vae_family == "v3") {
+        params.latent_interposer_vae_format = SD_VAE_FORMAT_SD3;
+    } else if (vae_family == "fx") {
+        params.latent_interposer_vae_format = SD_VAE_FORMAT_FLUX;
+    } else {
+        throw std::invalid_argument("VAE Interposer family must be one of v1, xl, v3, or fx");
+    }
+    if (bridge.has("encode_model_path") && bridge["encode_model_path"].t() == crow::json::type::String) {
+        params.latent_interposer_encode_model_path = std::string(bridge["encode_model_path"].s());
+    }
+    if (bridge.has("decode_model_path") && bridge["decode_model_path"].t() == crow::json::type::String) {
+        params.latent_interposer_decode_model_path = std::string(bridge["decode_model_path"].s());
+    }
+    if (!enabled) {
+        params.latent_interposer_encode_model_path.clear();
+        params.latent_interposer_decode_model_path.clear();
+        params.latent_interposer_vae_format = SD_VAE_FORMAT_AUTO;
+    } else if (params.latent_interposer_encode_model_path.empty() &&
+               params.latent_interposer_decode_model_path.empty()) {
+        throw std::invalid_argument("VAE Interposer requires an encode_model_path or decode_model_path");
+    }
+    LOG_INFO("VAE Interposer params: VAE='%s', model='%s', encode='%s', decode='%s'",
+             vae_family.c_str(),
+             model_family.c_str(),
+             params.latent_interposer_encode_model_path.c_str(),
+             params.latent_interposer_decode_model_path.c_str());
+}
+
 // Round dimension to nearest multiple of 64
 static int round_to_nearest_multiple_of_64(int dimension) {
     return std::round(static_cast<double>(dimension) / 64.0) * 64;
@@ -464,6 +572,18 @@ crow::response Server::generateVideo(const crow::json::rvalue& json_body, bool i
 
     try {
         VideoGenerationParams params;
+        parse_latent_interposer_options(json_body, params);
+        parse_vae_interposer_options(json_body, params);
+        if (json_body.has("motion_module_path")) {
+            if (json_body["motion_module_path"].t() != crow::json::type::String)
+                throw std::invalid_argument("motion_module_path must be a string");
+            params.motion_module_path = std::string(json_body["motion_module_path"].s());
+        }
+
+        if (params.motion_module_path.empty() &&
+            (params.latent_interposer_enabled || !params.latent_interposer_encode_model_path.empty() ||
+             !params.latent_interposer_decode_model_path.empty()))
+            throw std::invalid_argument("Video latent interposer currently requires AnimateDiff");
         params.tome_ratio = json_body.has("tome_ratio") ? static_cast<float>(json_body["tome_ratio"].d()) : 0.f;
         params.negative_guidance_min_sigma = json_body.has("negative_guidance_min_sigma") ? static_cast<float>(json_body["negative_guidance_min_sigma"].d()) : 0.f;
         if (json_body.has("audio_vae_path")) {

@@ -515,6 +515,11 @@ typedef struct {
     float moe_boundary;
     float strength;
     int64_t seed;
+    bool latent_interposer_enabled;
+    enum sd_latent_source_t latent_interposer_source;
+    sd_image_t latent_interposer_source_image;
+    int latent_interposer_phase_x;
+    int latent_interposer_phase_y;
     int video_frames;
     int fps;
     int motion_bucket_id;

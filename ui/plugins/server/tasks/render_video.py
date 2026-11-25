@@ -54,6 +54,10 @@ class VideoTask(Task):
         model_manager.resolve_model_paths(self.models_data)
 
         checkpoint_path = self.models_data.model_paths.get("stable-diffusion")
+        if self.request.motion_module_model:
+            self.request.motion_module_model = model_manager.resolve_model_to_use(
+                self.request.motion_module_model, model_type="motion-module")
+
         model_class = identify_model_type(checkpoint_path) if checkpoint_path else None
         if model_class and model_class.startswith("ltx_video"):
             # Original LTX-Video uses the Euler linear/quadratic flow schedule.
@@ -93,17 +97,30 @@ class VideoTask(Task):
         task_manager.current_state = task_manager.ServerStates.Rendering
         last_callback = [None]
 
-        def progress(_images, step, *_args):
+        def progress(
+            _images,
+            step,
+            total_steps=None,
+            completed=False,
+            phase="sampling",
+            phase_current=0,
+            phase_total=0,
+        ):
             if cancellation_requested(forward_to_backend=True):
                 return
             now = time.monotonic()
             step_time = -1 if last_callback[0] is None else now - last_callback[0]
             last_callback[0] = now
+            total = max(1, int(total_steps or self.request.num_inference_steps))
+            effective_phase = "finalizing" if completed else phase or ("decoding" if step >= total else "sampling")
             self.buffer_queue.put(
                 json.dumps(
                     {
                         "step": int(step),
-                        "total_steps": int(self.request.num_inference_steps),
+                        "total_steps": total,
+                        "phase": effective_phase,
+                        "phase_current": max(0, int(phase_current or 0)),
+                        "phase_total": max(0, int(phase_total or 0)),
                         "step_time": step_time,
                     }
                 )
