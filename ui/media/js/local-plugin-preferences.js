@@ -5,7 +5,7 @@
 
     const storageKey = "easy-diffusion-enabled-local-plugins-v1"
     const defaultsVersionKey = "easy-diffusion-local-plugin-defaults-version"
-    const defaultsVersion = 3
+    const defaultsVersion = 9
     const catalog = Object.freeze([
         { id: "image-modifiers", name: "Image Modifiers (show/hide)", defaultEnabled: true, addedInDefaultsVersion: 3, port: "native" },
         { id: "perchance-image", name: "Perchance image", path: "/plugins/core/perchance_plugin/perchance-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 2, port: "native" },
@@ -33,6 +33,17 @@
         { id: "storyteller", name: "Storyteller tab", path: "/plugins/core/prompt_plugin/storyteller.plugin.js", port: "native" },
         { id: "template-manager", name: "Template manager", path: "/plugins/core/prompt_plugin/template-manager.plugin.js", port: "native" },
         { id: "toggle-spellcheck", name: "Browser spellcheck toggle", path: "/plugins/core/prompt_plugin/toggle-spellcheck.plugin.js", port: "native" },
+        { id: "local-storage-manager", name: "LocalStorage Manager", path: "/plugins/core/localstorage_plugin/stig-localstorage.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 4, port: "native" },
+        { id: "inpainting-enhancements", name: "Inpainting enhancements", path: "/plugins/core/inpaint_plugin/inpainting.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 6, port: "native" },
+        { id: "ai-image-critic", name: "AI Image Critic", path: "/plugins/core/image_plugin/ai-image-critic.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 7, port: "native" },
+        { id: "make-very-similar", name: "Make Very Similar", path: "/plugins/core/image_plugin/make-very-similar.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 7, port: "native" },
+        { id: "modifier-drag-drop", name: "Modifier drag and drop", path: "/plugins/core/modifiers_plugin/Modifiers-dnd.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "modifier-mouse-wheel", name: "Modifier mouse wheel", path: "/plugins/core/modifiers_plugin/Modifiers-wheel.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "modifier-toggle", name: "Modifier active/inactive toggle", path: "/plugins/core/modifiers_plugin/modifiers-toggle.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "pure-noise-image", name: "Pure Noise Image", path: "/plugins/core/image_plugin/pre-noised-image.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 5, port: "native" },
+        { id: "stig-relocate-modifiers", name: "Stig relocate image modifiers", path: "/plugins/core/modifiers_plugin/stig-relocateModifiers.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "custom-modifiers", name: "Custom modifiers", path: "/plugins/core/modifiers_plugin/custom-modifiers.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 8, port: "native" },
+        { id: "tipo-prompt-generator", name: "TIPO Prompt Generator", path: "/plugins/core/tipo_plugin/tipo.plugin.js", defaultEnabled: true, addedInDefaultsVersion: 9, port: "native" },
     ])
     const knownIds = new Set(catalog.map(plugin => plugin.id))
     let controlInstance = 0
