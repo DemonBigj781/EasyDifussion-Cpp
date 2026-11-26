@@ -11,7 +11,6 @@ import platform
 import shutil
 import subprocess
 from pathlib import Path
-from pprint import pprint
 import threading
 
 os_name = platform.system()
@@ -251,7 +250,9 @@ def get_config():
 def launch_uvicorn():
     config = get_config()
 
-    pprint(config)
+    dev_mode = os.environ.get("EASY_DIFFUSION_DEV_MODE") == "1"
+    if dev_mode:
+        print("Developer mode enabled: detailed logs, direct loopback only.")
 
     print("\n\nEasy Diffusion installation complete, starting the server!\n\n")
 
@@ -298,6 +299,9 @@ def launch_uvicorn():
             else:
                 bind_ip = "0.0.0.0"
             print("Set bind_ip to ", bind_ip)
+
+    if dev_mode:
+        bind_ip = "127.0.0.1"
 
     print("\nLaunching uvicorn\n")
 

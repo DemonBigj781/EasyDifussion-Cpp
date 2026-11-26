@@ -11,7 +11,7 @@ from ruamel.yaml import YAML
 import urllib
 import warnings
 
-from easydiffusion import task_manager, backend_manager
+from easydiffusion import task_manager, backend_manager, access_mode
 from easydiffusion.utils import log
 from easydiffusion.privacy_debug import install_privacy_debug_logger
 from rich.logging import RichHandler
@@ -25,9 +25,9 @@ for handler in logging.root.handlers[:]:
 
 LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(threadName)s %(message)s"
 console_handler = RichHandler(markup=True, rich_tracebacks=False, show_time=False, show_level=False)
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.DEBUG if access_mode.dev_mode() else logging.INFO)
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.DEBUG if access_mode.dev_mode() else logging.INFO,
     format=LOG_FORMAT,
     datefmt="%X",
     handlers=[console_handler],
@@ -35,10 +35,12 @@ logging.basicConfig(
 
 SD_UI_DIR = os.path.abspath(os.getenv("SD_UI_PATH") or os.path.join(os.getcwd(), "ui"))
 ROOT_DIR = os.path.abspath(os.getenv("SD_UI_ROOT") or os.path.dirname(SD_UI_DIR))
-DEBUG_LOG_PATH = install_privacy_debug_logger(
-    os.getenv("SD_UI_DEBUG_LOG") or os.path.join(ROOT_DIR, "logs", "easy-diffusion-debug.log"),
-    LOG_FORMAT,
-)
+DEBUG_LOG_PATH = None
+if access_mode.dev_mode():
+    DEBUG_LOG_PATH = install_privacy_debug_logger(
+        os.getenv("SD_UI_DEBUG_LOG") or os.path.join(ROOT_DIR, "logs", "easy-diffusion-debug.log"),
+        LOG_FORMAT,
+    )
 # Retained for server status compatibility. The application no longer runs
 # inside a separate stable-diffusion working directory.
 SD_DIR = ROOT_DIR

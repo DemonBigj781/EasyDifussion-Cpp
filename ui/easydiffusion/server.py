@@ -133,6 +133,10 @@ def init():
 
     server_api.include_router(run_history.router)
 
+    from easydiffusion import access_mode
+
+    access_mode.install(server_api)
+
     @server_api.get("/kiosk")
     def kiosk_status():
         return JSONResponse(kiosk.status(), headers=NOCACHE_HEADERS)
@@ -467,6 +471,8 @@ def init():
 
     @server_api.post("/tunnel/cloudflare/start")
     def start_cloudflare_tunnel(req: dict):
+        if access_mode.dev_mode():
+            raise HTTPException(403, "Developer mode does not allow public tunnels.")
         return start_cloudflare_tunnel_internal(req)
 
     @server_api.post("/tunnel/cloudflare/stop")
