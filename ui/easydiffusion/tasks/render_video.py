@@ -27,6 +27,7 @@ class VideoTask(Task):
         self.task_data = task_data
         self.models_data = models_data
         self.output_format = output_format
+        self.retain_history = False
 
     def run(self):
         from easydiffusion import task_manager
@@ -35,6 +36,7 @@ class VideoTask(Task):
         if not hasattr(backend, "generate_video"):
             raise RuntimeError("The selected backend does not provide native video generation")
 
+        started = time.monotonic()
         context = runtime.context
         if self.request.video_steps is not None:
             self.request.num_inference_steps = self.request.video_steps
@@ -231,5 +233,20 @@ class VideoTask(Task):
             "video": video_info,
             "output": output,
         }
+        if self.retain_history:
+            from easydiffusion import kiosk, run_history
+
+            try:
+                if not kiosk.enabled():
+                    run_id = run_history.capture_video(
+                        output, {**request_data, **video_info, "elapsed_seconds": time.monotonic() - started}
+                    )
+                    if run_id is not None:
+                        self.response["run_id"] = run_id
+            except (OSError, ValueError, TypeError, KeyError):
+                # The normal render succeeds even if the opt-in archive failed.
+                log.warning("Could not save a private video history record")
+            if "run_id" not in self.response:
+                self.response["history_saved"] = False
         self.buffer_queue.put(json.dumps(self.response))
         log.info(f"Native video task completed with {frame_count} frames")

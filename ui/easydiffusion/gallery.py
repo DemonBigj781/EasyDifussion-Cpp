@@ -11,6 +11,7 @@ import threading
 import time
 
 from easydiffusion import app
+from easydiffusion import run_history
 from fastapi import HTTPException
 
 try:
@@ -117,6 +118,8 @@ def save_settings(payload: dict) -> dict:
         if not directory.is_absolute():
             directory = Path(app.ROOT_DIR) / directory
         directory = directory.resolve()
+    if run_history.is_private_path(directory):
+        raise HTTPException(status_code=403, detail="Private history cannot be used as a gallery.")
     if not directory.is_dir():
         raise HTTPException(status_code=400, detail=f"Directory does not exist: {directory}")
     _write_config(directory)
@@ -129,6 +132,8 @@ def _resolve_gallery_path(relative_path: str, require_ready: bool) -> Path:
     if unresolved.is_symlink():
         raise HTTPException(status_code=404, detail="Gallery image not found.")
     candidate = unresolved.resolve()
+    if run_history.is_private_path(candidate):
+        raise HTTPException(status_code=404, detail="Gallery image not found.")
     try:
         candidate.relative_to(root)
     except ValueError as error:
@@ -151,6 +156,8 @@ def resolve_gallery_file(relative_path: str) -> Path:
 def relative_gallery_path(path) -> Optional[str]:
     root = configured_directory()
     candidate = Path(path).expanduser().resolve()
+    if run_history.is_private_path(candidate):
+        return None
     try:
         relative = candidate.relative_to(root)
     except ValueError:
@@ -204,7 +211,7 @@ def list_images(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> dict:
     page = max(int(page), 1)
     page_size = min(max(int(page_size), 1), MAX_PAGE_SIZE)
     root = configured_directory()
-    if not root.is_dir():
+    if not root.is_dir() or run_history.is_private_path(root):
         return {
             "directory": str(root), "exists": False, "images": [], "total": 0,
             "page": 1, "page_size": page_size, "total_pages": 1,
@@ -213,7 +220,9 @@ def list_images(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> dict:
 
     files = []
     for directory, child_directories, filenames in os.walk(root, followlinks=False):
-        child_directories[:] = [name for name in child_directories if not (Path(directory) / name).is_symlink()]
+        child_directories[:] = [name for name in child_directories
+                              if not (Path(directory) / name).is_symlink()
+                              and not run_history.is_private_path(Path(directory) / name)]
         for filename in filenames:
             path = Path(directory) / filename
             if path.suffix.lower() not in IMAGE_EXTENSIONS or path.is_symlink():

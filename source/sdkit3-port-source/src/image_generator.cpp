@@ -426,8 +426,8 @@ std::vector<std::string> ImageGenerator::generateVideo(const VideoGenerationPara
     gen_params.latent_interposer_phase_y = params.latent_interposer_phase_y;
 
 
-    LOG_INFO("Generating video: prompt='%s', size=%dx%d, frames=%d, fps=%d, steps=%d, cache=%d",
-             params.prompt.c_str(), params.width, params.height, params.frames, params.fps,
+    LOG_INFO("Generating video: size=%dx%d, frames=%d, fps=%d, steps=%d, cache=%d",
+             params.width, params.height, params.frames, params.fps,
              params.steps, static_cast<int>(params.cache_mode));
 
     sd_image_t* frames = nullptr;
@@ -603,8 +603,8 @@ std::vector<std::string> ImageGenerator::generateInternal(const ImageGenerationP
         sd_set_preview_callback(nullptr, PREVIEW_PROJ, 3, true, false, nullptr);
     }
 
-    LOG_INFO("Generating %s: prompt='%s', size=%dx%d, steps=%d, seed=%lld", is_img2img ? "img2img" : "txt2img",
-             params.prompt.c_str(), params.width, params.height, params.steps, params.seed);
+    LOG_INFO("Generating %s: size=%dx%d, steps=%d, seed=%lld", is_img2img ? "img2img" : "txt2img",
+             params.width, params.height, params.steps, params.seed);
 
     std::vector<sd_lora_t> lora_vec;
     size_t lora_count = params.lora_paths.size();

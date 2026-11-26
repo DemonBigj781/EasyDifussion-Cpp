@@ -132,7 +132,6 @@ std::vector<std::u32string> BPETokenizer::bpe(const std::u32string& token) const
 
 std::vector<int> BPETokenizer::encode(const std::string& text, on_new_token_cb_t on_new_token_cb) {
     std::vector<int32_t> bpe_tokens;
-    std::vector<std::string> token_strs;
 
     std::string normalized_text = normalize_before_split ? normalize(text) : text;
     auto splited_texts          = split_with_special_tokens(normalized_text, special_tokens);
@@ -142,12 +141,10 @@ std::vector<int> BPETokenizer::encode(const std::string& text, on_new_token_cb_t
             if (on_new_token_cb != nullptr) {
                 bool skip = on_new_token_cb(splited_text, bpe_tokens);
                 if (skip) {
-                    token_strs.push_back(splited_text);
                     continue;
                 }
             }
             bpe_tokens.push_back(encoder[utf8_to_utf32(splited_text)]);
-            token_strs.push_back(splited_text);
             continue;
         }
         auto tokens = token_split(splited_text);
@@ -155,7 +152,6 @@ std::vector<int> BPETokenizer::encode(const std::string& text, on_new_token_cb_t
             if (on_new_token_cb != nullptr) {
                 bool skip = on_new_token_cb(token, bpe_tokens);
                 if (skip) {
-                    token_strs.push_back(splited_text);
                     continue;
                 }
             }
@@ -186,7 +182,6 @@ std::vector<int> BPETokenizer::encode(const std::string& text, on_new_token_cb_t
                             iter     = encoder.find(utf8_to_utf32(hex_buf));
                             token_id = iter != encoder.end() ? iter->second : UNK_TOKEN_ID;
                             bpe_tokens.push_back(token_id);
-                            token_strs.push_back(hex_buf);
                         }
                         continue;
                     } else {
@@ -194,18 +189,11 @@ std::vector<int> BPETokenizer::encode(const std::string& text, on_new_token_cb_t
                     }
                 }
                 bpe_tokens.push_back(token_id);
-                token_strs.push_back(utf32_to_utf8(bpe_str));
             }
         }
     }
 
-    std::stringstream ss;
-    ss << "[";
-    for (auto token : token_strs) {
-        ss << "\"" << token << "\", ";
-    }
-    ss << "]";
-    LOG_DEBUG("split prompt \"%s\" to %zu tokens %s", text.c_str(), bpe_tokens.size(), ss.str().c_str());
+    LOG_DEBUG("Encoded prompt into %zu tokens", bpe_tokens.size());
     return bpe_tokens;
 }
 

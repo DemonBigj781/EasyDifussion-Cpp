@@ -11,7 +11,9 @@ import threading
 import time
 
 from easydiffusion import app, kiosk, destockd
-from fastapi import HTTPException
+from easydiffusion import run_history
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 
 try:
     from PIL import Image, ImageOps
@@ -121,6 +123,8 @@ def save_settings(payload: dict) -> dict:
         if not directory.is_absolute():
             directory = Path(app.ROOT_DIR) / directory
         directory = directory.resolve()
+    if run_history.is_private_path(directory):
+        raise HTTPException(status_code=403, detail="Private history cannot be used as a gallery.")
     if not directory.is_dir():
         raise HTTPException(status_code=400, detail=f"Directory does not exist: {directory}")
     _write_config(directory)
@@ -135,6 +139,8 @@ def _resolve_gallery_path(relative_path: str, require_ready: bool) -> Path:
     if unresolved.is_symlink():
         raise HTTPException(status_code=404, detail="Gallery image not found.")
     candidate = unresolved.resolve()
+    if run_history.is_private_path(candidate):
+        raise HTTPException(status_code=404, detail="Gallery image not found.")
     try:
         candidate.relative_to(root)
     except ValueError as error:
@@ -157,6 +163,8 @@ def resolve_gallery_file(relative_path: str) -> Path:
 def relative_gallery_path(path) -> Optional[str]:
     root = configured_directory()
     candidate = Path(path).expanduser().resolve()
+    if run_history.is_private_path(candidate):
+        return None
     try:
         relative = candidate.relative_to(root)
     except ValueError:
@@ -212,7 +220,7 @@ def list_images(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> dict:
     page = max(int(page), 1)
     page_size = min(max(int(page_size), 1), MAX_PAGE_SIZE)
     root = configured_directory()
-    if not root.is_dir():
+    if not root.is_dir() or run_history.is_private_path(root):
         return {
             "directory": str(root), "exists": False, "images": [], "total": 0,
             "page": 1, "page_size": page_size, "total_pages": 1,
@@ -221,7 +229,9 @@ def list_images(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> dict:
 
     files = []
     for directory, child_directories, filenames in os.walk(root, followlinks=False):
-        child_directories[:] = [name for name in child_directories if not (Path(directory) / name).is_symlink()]
+        child_directories[:] = [name for name in child_directories
+                              if not (Path(directory) / name).is_symlink()
+                              and not run_history.is_private_path(Path(directory) / name)]
         for filename in filenames:
             path = Path(directory) / filename
             if path.suffix.lower() not in IMAGE_EXTENSIONS or path.is_symlink():
@@ -293,3 +303,51 @@ def delete_file(relative_path: str) -> dict:
 
 def file_media_type(path: Path) -> str:
     return mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+
+
+router = APIRouter()
+NOCACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+
+
+@router.get("/gallery/settings")
+@router.get("/gallery-plugin/settings", include_in_schema=False)
+def gallery_settings_get():
+    return JSONResponse(get_settings(), headers=NOCACHE_HEADERS)
+
+@router.post("/gallery/settings")
+@router.post("/gallery-plugin/settings", include_in_schema=False)
+def gallery_settings_save(payload: dict):
+    return JSONResponse(save_settings(payload), headers=NOCACHE_HEADERS)
+
+@router.get("/gallery/images")
+@router.get("/gallery-plugin/images", include_in_schema=False)
+def gallery_images(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE):
+    return JSONResponse(list_images(page, page_size), headers=NOCACHE_HEADERS)
+
+@router.get("/gallery/file/{relative_path:path}")
+@router.get("/gallery-plugin/file/{relative_path:path}", include_in_schema=False)
+def gallery_file(relative_path: str):
+    path = resolve_gallery_file(relative_path)
+    return FileResponse(
+        path,
+        media_type=file_media_type(path),
+        headers={"Cache-Control": "private, max-age=60"},
+    )
+
+@router.delete("/gallery/file/{relative_path:path}")
+@router.delete("/gallery-plugin/file/{relative_path:path}", include_in_schema=False)
+def gallery_delete_file(relative_path: str):
+    return JSONResponse(delete_file(relative_path), headers=NOCACHE_HEADERS)
+
+@router.get("/gallery/thumb/{relative_path:path}")
+@router.get("/gallery-plugin/thumb/{relative_path:path}", include_in_schema=False)
+def gallery_thumbnail(relative_path: str):
+    source = resolve_gallery_file(relative_path)
+    thumbnail = create_thumbnail(source)
+    media_type = "image/jpeg" if thumbnail != source else file_media_type(source)
+    return FileResponse(
+        thumbnail,
+        media_type=media_type,
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
+

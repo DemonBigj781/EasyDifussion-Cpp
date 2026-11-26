@@ -289,7 +289,6 @@ std::string T5UniGramTokenizer::normalize(const std::string& input) const {
 
 std::vector<int> T5UniGramTokenizer::encode(const std::string& input, on_new_token_cb_t on_new_token_cb) {
     std::vector<int32_t> tokens;
-    std::vector<std::string> token_strs;
     std::string normalized = normalize(input);
     auto splited_texts     = split_with_special_tokens(normalized, special_tokens);
     if (splited_texts.empty()) {
@@ -301,20 +300,16 @@ std::vector<int> T5UniGramTokenizer::encode(const std::string& input, on_new_tok
             if (on_new_token_cb != nullptr) {
                 bool skip = on_new_token_cb(splited_text, tokens);
                 if (skip) {
-                    token_strs.push_back(splited_text);
                     continue;
                 }
             }
 
             if (splited_text == UNK_TOKEN) {
                 tokens.push_back(UNK_TOKEN_ID);
-                token_strs.push_back(UNK_TOKEN);
             } else if (splited_text == EOS_TOKEN) {
                 tokens.push_back(EOS_TOKEN_ID);
-                token_strs.push_back(EOS_TOKEN);
             } else if (splited_text == PAD_TOKEN) {
                 tokens.push_back(PAD_TOKEN_ID);
-                token_strs.push_back(PAD_TOKEN);
             }
             continue;
         }
@@ -323,17 +318,10 @@ std::vector<int> T5UniGramTokenizer::encode(const std::string& input, on_new_tok
         EncodeResult result      = EncodeOptimized(pretokenized);
         for (const auto& item : result) {
             tokens.push_back(item.second);
-            token_strs.push_back(item.first);
         }
     }
 
-    std::stringstream ss;
-    ss << "[";
-    for (const auto& token_str : token_strs) {
-        ss << "\"" << token_str << "\", ";
-    }
-    ss << "]";
-    LOG_DEBUG("split prompt \"%s\" to tokens %s", input.c_str(), ss.str().c_str());
+    LOG_DEBUG("Encoded prompt into %zu tokens", tokens.size());
 
     return tokens;
 }

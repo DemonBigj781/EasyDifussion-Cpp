@@ -76,6 +76,12 @@ class NoCacheStaticFiles(StaticFiles):
         else:
             super().__init__(directory=directory)
 
+    def lookup_path(self, path):
+        from easydiffusion import run_history
+
+        actual, info = super().lookup_path(path)
+        return ("", None) if info is not None and run_history.is_private_path(actual) else (actual, info)
+
     def is_not_modified(self, response_headers, request_headers) -> bool:
         if "content-type" in response_headers and any(
             asset_type in response_headers["content-type"]
@@ -110,17 +116,22 @@ def init():
     async def kiosk_policy(request, call_next):
         try:
             active_at_start = kiosk.enabled()
-            if active_at_start and kiosk.blocked_route(request.url.path, request.method):
+            if active_at_start and (request.url.path.startswith("/v1/runs")
+                                    or kiosk.blocked_route(request.url.path, request.method)):
                 return JSONResponse({"detail": "This operation is unavailable in kiosk mode."}, status_code=403, headers=NOCACHE_HEADERS)
         except HTTPException as error:
             return JSONResponse({"detail": error.detail}, status_code=error.status_code, headers=NOCACHE_HEADERS)
         response = await call_next(request)
         if (not active_at_start and kiosk.enabled()
-                and request.url.path.startswith(("/gallery", "/perchance", "/get/"))):
+                and request.url.path.startswith(("/gallery", "/perchance", "/get/", "/v1/runs"))):
             return JSONResponse({"detail": "Kiosk mode changed; reload this request."}, status_code=409, headers=NOCACHE_HEADERS)
-        if request.url.path.startswith(("/gallery", "/perchance")):
+        if request.url.path.startswith(("/gallery", "/perchance", "/v1/runs")):
             response.headers.update(NOCACHE_HEADERS)
         return response
+
+    from easydiffusion import run_history
+
+    server_api.include_router(run_history.router)
 
     @server_api.get("/kiosk")
     def kiosk_status():
@@ -195,9 +206,11 @@ def init():
     def render(req: dict):
         return render_internal(req)
 
+    from fastapi import Request
+
     @server_api.post("/video")
-    def video(req: dict):
-        return video_internal(req)
+    def video(req: dict, request: Request):
+        return video_internal(req, request.headers.get("Authorization"))
 
     @server_api.post("/filter")
     def render(req: dict):
@@ -296,47 +309,12 @@ def init():
 
         return generate(req)
 
-    @server_api.get("/gallery/settings")
-    @server_api.get("/gallery-plugin/settings", include_in_schema=False)
-    def gallery_settings_get():
-        return JSONResponse(gallery.get_settings(), headers=NOCACHE_HEADERS)
+    server_api.include_router(gallery.router)
 
-    @server_api.post("/gallery/settings")
-    @server_api.post("/gallery-plugin/settings", include_in_schema=False)
-    def gallery_settings_save(payload: dict):
-        return JSONResponse(gallery.save_settings(payload), headers=NOCACHE_HEADERS)
-
-    @server_api.get("/gallery/images")
-    @server_api.get("/gallery-plugin/images", include_in_schema=False)
-    def gallery_images(page: int = 1, page_size: int = gallery.DEFAULT_PAGE_SIZE):
-        return JSONResponse(gallery.list_images(page, page_size), headers=NOCACHE_HEADERS)
-
-    @server_api.get("/gallery/file/{relative_path:path}")
-    @server_api.get("/gallery-plugin/file/{relative_path:path}", include_in_schema=False)
-    def gallery_file(relative_path: str):
-        path = gallery.resolve_gallery_file(relative_path)
-        return FileResponse(
-            path,
-            media_type=gallery.file_media_type(path),
-            headers={"Cache-Control": "private, max-age=60"},
-        )
-
-    @server_api.delete("/gallery/file/{relative_path:path}")
-    @server_api.delete("/gallery-plugin/file/{relative_path:path}", include_in_schema=False)
-    def gallery_delete_file(relative_path: str):
-        return JSONResponse(gallery.delete_file(relative_path), headers=NOCACHE_HEADERS)
-
-    @server_api.get("/gallery/thumb/{relative_path:path}")
-    @server_api.get("/gallery-plugin/thumb/{relative_path:path}", include_in_schema=False)
-    def gallery_thumbnail(relative_path: str):
-        source = gallery.resolve_gallery_file(relative_path)
-        thumbnail = gallery.create_thumbnail(source)
-        media_type = "image/jpeg" if thumbnail != source else gallery.file_media_type(source)
-        return FileResponse(
-            thumbnail,
-            media_type=media_type,
-            headers={"Cache-Control": "private, max-age=86400"},
-        )
+    def non_history_path(path):
+        if run_history.is_private_path(path):
+            raise HTTPException(404, "File not found", headers=NOCACHE_HEADERS)
+        return path
 
     @server_api.get("/perchance/status")
     @server_api.get("/perchance-plugin/status", include_in_schema=False)
@@ -384,21 +362,21 @@ def init():
     )
     def perchance_file(relative_path: str):
         return FileResponse(
-            perchance.resolve_output_file(relative_path),
+            non_history_path(perchance.resolve_output_file(relative_path)),
             headers={"Cache-Control": "private, max-age=60"},
         )
 
     @server_api.get("/perchance/generated/file/{relative_path:path}")
     def perchance_generated_file(relative_path: str):
         return FileResponse(
-            perchance.resolve_generated_file(relative_path),
+            non_history_path(perchance.resolve_generated_file(relative_path)),
             headers={"Cache-Control": "private, max-age=60"},
         )
 
     @server_api.get("/perchance/gallery/cache/{relative_path:path}")
     def perchance_gallery_cache_file(relative_path: str):
         return FileResponse(
-            perchance.resolve_gallery_cache_file(relative_path),
+            non_history_path(perchance.resolve_gallery_cache_file(relative_path)),
             headers={"Cache-Control": "private, max-age=3600"},
         )
 
@@ -807,7 +785,7 @@ def render_internal(req: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def video_internal(req: dict):
+def video_internal(req: dict, authorization=None):
     try:
         req = convert_legacy_render_req_to_new(req)
         video_req = VideoGenerationRequest.parse_obj(req)
@@ -818,7 +796,15 @@ def video_internal(req: dict):
         if not models_data.model_paths.get("stable-diffusion"):
             raise ValueError("Select a native SVD, Wan, or LTX video checkpoint")
 
+        retain_history = req.get("retain_history") is True and not task_data.temporary_output
+        if retain_history:
+            from easydiffusion import run_history
+
+            if kiosk.enabled():
+                raise HTTPException(403, "Run history is unavailable in kiosk mode.")
+            run_history.authorize(authorization)
         task = VideoTask(video_req, task_data, models_data, output_format)
+        task.retain_history = retain_history
         return enqueue_task(task)
     except HTTPException:
         raise
